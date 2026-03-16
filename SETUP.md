@@ -1,7 +1,7 @@
 # 🦞 OpenClaw — Hướng Dẫn Setup Kỹ Thuật
 
 > **File này dành cho AI Agent (Antigravity) đọc và tự động thực thi.**
-> Người dùng chỉ cần cung cấp: Gemini API Key, Telegram Bot Token, và đường dẫn thư mục project.
+> User đã tự tạo file `.env` chứa API key và Bot token trước. AI **KHÔNG** hỏi và **KHÔNG** nhận credentials qua chat.
 
 ---
 
@@ -134,15 +134,18 @@ services:
 
 > **Lưu ý:** Thay `<THƯ_MỤC_PROJECT>` bằng đường dẫn tuyệt đối thật. VD: `D:/MyAIBot/.openclaw:/root/.openclaw`
 
-### Bước 4: Tạo file .env
+### Bước 4: Kiểm tra file .env (user đã tạo sẵn)
 
-Tạo `<THƯ_MỤC_PROJECT>/docker/openclaw/.env`:
+File `.env` đã được user tự tạo tại `<THƯ_MỤC_PROJECT>/docker/openclaw/.env`.
 
-```env
-GOOGLE_API_KEY=<GEMINI_API_KEY>
-```
+**AI Agent PHẢI kiểm tra:**
+1. File `.env` **tồn tại** tại `<THƯ_MỤC_PROJECT>/docker/openclaw/.env`
+2. File có chứa `GOOGLE_API_KEY=` và `TELEGRAM_BOT_TOKEN=`
+3. **KHÔNG** đọc hoặc hiển thị giá trị bên trong ra chat
 
-> **KHÔNG** hiển thị nội dung file `.env` ra chat sau khi tạo.
+Nếu file chưa tồn tại → **DỪNG LẠI** và yêu cầu user tự tạo file `.env` theo hướng dẫn trong README.md.
+
+> **KHÔNG BAO GIỜ** tạo file `.env` thay user. **KHÔNG** hỏi API key hay token qua chat.
 
 ### Bước 5: Tạo .gitignore
 
@@ -166,13 +169,20 @@ docker/openclaw/.env
 
 ### Bước 6: Tạo cấu hình OpenClaw
 
-**Sinh gateway auth token trước:**
+**AI Agent thực hiện:**
+
+1. Đọc `GOOGLE_API_KEY` và `TELEGRAM_BOT_TOKEN` từ file `.env` (đã tạo ở Bước 4)
+2. Sinh gateway auth token random
+3. Ghi vào các file config bên dưới
+4. **KHÔNG** hiển thị bất kỳ key/token nào ra chat
+
+**Sinh gateway auth token:**
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```
 
-Tạo `<THƯ_MỤC_PROJECT>/.openclaw/openclaw.json`:
+**Tạo `<THƯ_MỤC_PROJECT>/.openclaw/openclaw.json`** — thay `<TELEGRAM_BOT_TOKEN>` bằng giá trị từ `.env`, `<GATEWAY_TOKEN>` bằng token vừa sinh:
 
 ```json
 {
@@ -201,7 +211,7 @@ Tạo `<THƯ_MỤC_PROJECT>/.openclaw/openclaw.json`:
     "telegram": {
       "enabled": true,
       "dmPolicy": "open",
-      "botToken": "<TELEGRAM_BOT_TOKEN>",
+      "botToken": "<TELEGRAM_BOT_TOKEN_TỪ_.ENV>",
       "allowFrom": ["*"],
       "groupPolicy": "allowlist",
       "streaming": "partial"
@@ -212,29 +222,25 @@ Tạo `<THƯ_MỤC_PROJECT>/.openclaw/openclaw.json`:
     "mode": "local",
     "auth": {
       "mode": "token",
-      "token": "<TOKEN_ĐÃ_SINH_Ở_TRÊN>"
+      "token": "<GATEWAY_TOKEN_ĐÃ_SINH>"
     }
   }
 }
 ```
 
-Tạo `<THƯ_MỤC_PROJECT>/.openclaw/auth-profiles.json`:
+**Tạo `<THƯ_MỤC_PROJECT>/.openclaw/auth-profiles.json`** — thay `<GEMINI_API_KEY>` bằng giá trị từ `.env`:
 
 ```json
 {
   "gemini": {
-    "apiKey": "<GEMINI_API_KEY>"
+    "apiKey": "<GOOGLE_API_KEY_TỪ_.ENV>"
   }
 }
 ```
 
-Tạo `<THƯ_MỤC_PROJECT>/.openclaw/credentials/gemini`:
+**Tạo `<THƯ_MỤC_PROJECT>/.openclaw/credentials/gemini`** — ghi giá trị `GOOGLE_API_KEY` từ `.env` (1 dòng, không xuống hàng).
 
-```
-<GEMINI_API_KEY>
-```
-
-Tạo `<THƯ_MỤC_PROJECT>/.openclaw/cron/jobs.json`:
+**Tạo `<THƯ_MỤC_PROJECT>/.openclaw/cron/jobs.json`:**
 
 ```json
 {

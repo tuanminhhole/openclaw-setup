@@ -26,27 +26,39 @@ Bot sẽ chạy trên máy tính của bạn thông qua Docker. Bạn chat với
 - Mở Antigravity IDE
 - Tạo 1 thư mục mới bất kỳ (VD: `D:\MyAIBot`) và mở nó trong Antigravity
 
-### Bước 3: Nhờ AI setup
+### Bước 3: Tự tạo file chứa API Key (⚠️ BẮT BUỘC LÀM TRƯỚC)
+
+> **KHÔNG BAO GIỜ** gửi API key hay Bot Token vào chat. Luôn tự tay điền vào file.
+
+1. Trong thư mục project, tạo thư mục `docker/openclaw/`
+2. Tạo file `docker/openclaw/.env` với nội dung sau:
+
+```env
+GOOGLE_API_KEY=<paste_api_key_của_bạn_vào_đây>
+TELEGRAM_BOT_TOKEN=<paste_token_bot_của_bạn_vào_đây>
+```
+
+3. **Thay thế** 2 giá trị `<...>` bằng key/token thật bạn đã chuẩn bị ở trên
+4. **Lưu file** lại
+
+### Bước 4: Nhờ AI setup phần còn lại
 - Mở chat trong Antigravity (Ctrl + L hoặc bấm icon chat)
 - Copy-paste đoạn sau vào chat:
 
 ```
-Đọc file SETUP.md trong repo này và setup OpenClaw cho tôi theo hướng dẫn.
-
-Thông tin của tôi:
-- Gemini API Key: <PASTE_API_KEY_VÀO_ĐÂY>
-- Telegram Bot Token: <PASTE_TOKEN_VÀO_ĐÂY>
-- Thư mục project: <ĐƯỜNG_DẪN_THƯ_MỤC_VD: D:\MyAIBot>
+Đọc file SETUP.md trong repo này và setup OpenClaw cho tôi.
+Tôi đã tự tạo file .env với API key và Bot token rồi.
+Thư mục project của tôi: <ĐƯỜNG_DẪN_THƯ_MỤC — VD: D:\MyAIBot>
 ```
 
-> ⚠️ **Thay thế** 3 giá trị `<...>` bằng thông tin thật của bạn.
+- AI sẽ **KHÔNG** hỏi API key — nó chỉ tạo Dockerfile, docker-compose, config OpenClaw, rồi build Docker
 
-### Bước 4: Đợi AI cài đặt
-- AI sẽ tự động tạo tất cả files cần thiết
+### Bước 5: Đợi AI cài đặt
+- AI tự động tạo các files cấu hình
 - Tự build Docker container
 - Tự khởi động bot
 
-### Bước 5: Test bot 🎉
+### Bước 6: Test bot 🎉
 - Mở Telegram → Tìm bot bạn vừa tạo
 - Gửi tin nhắn bất kỳ
 - Bot phản hồi = **Thành công!**
