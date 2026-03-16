@@ -1,66 +1,68 @@
-# 🦞 OpenClaw — Hướng Dẫn Setup Kỹ Thuật
+# 🦞 OpenClaw — Technical Setup Guide
 
-> **File này dành cho AI Agent (Antigravity) đọc và tự động thực thi.**
-> User đã tự tạo file `.env` chứa API key và Bot token trước. AI **KHÔNG** hỏi và **KHÔNG** nhận credentials qua chat.
+> **This file is for AI Agents (Antigravity) to read and execute automatically.**
+> The user has already created a `.env` file with their API key and Bot token. The AI must **NEVER** ask for or receive credentials through chat.
+
+[English](#-security-rules--mandatory) · [Tiếng Việt](SETUP.vi.md)
 
 ---
 
-## 🔐 Nguyên Tắc Bảo Mật — BẮT BUỘC
+## 🔐 Security Rules — MANDATORY
 
-> **AI Agent PHẢI tuân thủ toàn bộ nguyên tắc này. Vi phạm bất kỳ điều nào = DỪNG LẠI ngay.**
+> **The AI Agent MUST follow ALL rules below. Any violation = STOP immediately.**
 
-### Bảo vệ File & Thư mục hệ thống
+### System files & directories
 
-- ❌ **KHÔNG** đọc, sao chép, hoặc truy cập bất kỳ file nào ngoài thư mục project
-- ❌ **KHÔNG** quét hoặc list các thư mục hệ thống: `Documents`, `Desktop`, `Downloads`, `AppData`, `%USERPROFILE%`
-- ❌ **KHÔNG** truy cập registry, system32, Program Files
-- ❌ **KHÔNG** cài đặt phần mềm hệ thống, driver, hoặc service ngoài Docker container
-- ❌ **KHÔNG** thay đổi biến môi trường hệ thống (system environment variables)
-- ✅ **CHỈ** làm việc trong thư mục project mà người dùng chỉ định
+- ❌ **DO NOT** read, copy, or access any file outside the project folder
+- ❌ **DO NOT** scan or list system directories: `Documents`, `Desktop`, `Downloads`, `AppData`, `%USERPROFILE%`
+- ❌ **DO NOT** access the registry, system32, or Program Files
+- ❌ **DO NOT** install system software, drivers, or services outside Docker
+- ❌ **DO NOT** modify system environment variables
+- ✅ **ONLY** work within the user-specified project folder
 
-### Bảo vệ API Keys & Credentials
+### API keys & credentials
 
-- ❌ **KHÔNG BAO GIỜ** hiển thị API key, token, hoặc password ra màn hình chat
-- ❌ **KHÔNG** ghi API key trực tiếp vào source code hoặc script
-- ❌ **KHÔNG** commit file chứa credentials vào Git
-- ✅ **LUÔN** lưu credentials vào file `.env` riêng biệt
-- ✅ **LUÔN** thêm `.env` vào `.gitignore`
-- ✅ **LUÔN** dùng biến môi trường (`${VAR}`) thay vì hardcode
+- ❌ **NEVER** display API keys, tokens, or passwords in chat
+- ❌ **DO NOT** write API keys directly into source code or scripts
+- ❌ **DO NOT** commit credential files to Git
+- ✅ **ALWAYS** store credentials in a separate `.env` file
+- ✅ **ALWAYS** add `.env` to `.gitignore`
+- ✅ **ALWAYS** use environment variables (`${VAR}`) instead of hardcoding
 
-### Bảo vệ Ví điện tử & Tiền mã hóa
+### Crypto wallets & digital assets
 
-- ❌ **TUYỆT ĐỐI KHÔNG** truy cập, đọc, hoặc quét các thư mục ví tiền mã hóa:
+- ❌ **ABSOLUTELY DO NOT** access, read, or scan crypto wallet directories:
   - Metamask, Trust Wallet, Phantom, Exodus, Electrum
-  - Các file `wallet.dat`, `keystore/`, `seed phrase`, private key
-  - Browser extensions chứa crypto wallet
-- ❌ **KHÔNG** quét clipboard (có thể chứa seed phrase)
-- ❌ **KHÔNG** truy cập browser profile, cookies, saved passwords
-- ❌ **KHÔNG** cài đặt npm package lạ hoặc không rõ nguồn gốc ngoài `openclaw`
+  - Files: `wallet.dat`, `keystore/`, seed phrases, private keys
+  - Browser extensions containing crypto wallets
+- ❌ **DO NOT** scan the clipboard (may contain seed phrases)
+- ❌ **DO NOT** access browser profiles, cookies, or saved passwords
+- ❌ **DO NOT** install unknown npm packages (only `openclaw`)
 
-### Nguyên tắc Docker
+### Docker isolation
 
-- ✅ Container chỉ mount **đúng** thư mục cần thiết (config + workspace)
-- ❌ **KHÔNG** mount toàn bộ ổ đĩa (`C:/` hoặc `D:/`) vào container
-- ❌ **KHÔNG** chạy container với `--privileged`
-- ✅ Giới hạn ports expose (chỉ `18789`)
+- ✅ Only mount the **required** directories (config + workspace)
+- ❌ **DO NOT** mount entire drives (`C:/` or `D:/`)
+- ❌ **DO NOT** run containers with `--privileged`
+- ✅ Limit exposed ports (only `18789`)
 
 ---
 
-## Cấu trúc thư mục sau khi setup
+## 📂 Directory Structure After Setup
 
 ```
-<THƯ_MỤC_PROJECT>/
-├── .openclaw/                    ← Config chính (KHÔNG commit vào Git)
-│   ├── openclaw.json             ← Config gateway, agent, Telegram
-│   ├── auth-profiles.json        ← API key
+<PROJECT_DIR>/
+├── .openclaw/                    ← Main config (DO NOT commit)
+│   ├── openclaw.json             ← Gateway, agent, Telegram config
+│   ├── auth-profiles.json        ← API key profile
 │   ├── credentials/
 │   │   └── gemini                ← Gemini API key
 │   ├── agents/
-│   │   └── <tên-agent>.yaml     ← Định nghĩa agent
-│   ├── skills/                   ← Slash commands (tùy chọn)
+│   │   └── <agent-name>.yaml    ← Agent definition
+│   ├── skills/                   ← Slash commands (optional)
 │   ├── identity/
 │   │   └── device.json           ← Device keypair
-│   ├── memory/                   ← Agent memory
+│   ├── memory/                   ← Agent memory (SQLite)
 │   ├── telegram/                 ← Telegram polling state
 │   ├── cron/jobs.json
 │   └── logs/
@@ -69,34 +71,34 @@
 ├── docker/openclaw/
 │   ├── Dockerfile
 │   ├── docker-compose.yml
-│   └── .env                      ← API key (KHÔNG commit)
+│   └── .env                      ← API keys (DO NOT commit)
 │
 └── .gitignore
 ```
 
 ---
 
-## Hướng Dẫn Setup — Từng Bước
+## ⚙️ Setup Steps
 
-### Bước 1: Tạo thư mục
+### Step 1: Create directories
 
 ```bash
-mkdir -p <THƯ_MỤC_PROJECT>/docker/openclaw
-mkdir -p <THƯ_MỤC_PROJECT>/.openclaw/credentials
-mkdir -p <THƯ_MỤC_PROJECT>/.openclaw/agents
-mkdir -p <THƯ_MỤC_PROJECT>/.openclaw/skills
-mkdir -p <THƯ_MỤC_PROJECT>/.openclaw/identity
-mkdir -p <THƯ_MỤC_PROJECT>/.openclaw/memory
-mkdir -p <THƯ_MỤC_PROJECT>/.openclaw/telegram
-mkdir -p <THƯ_MỤC_PROJECT>/.openclaw/cron
-mkdir -p <THƯ_MỤC_PROJECT>/.openclaw/logs
-mkdir -p <THƯ_MỤC_PROJECT>/.openclaw/completions
-mkdir -p <THƯ_MỤC_PROJECT>/.openclaw/canvas
+mkdir -p <PROJECT_DIR>/docker/openclaw
+mkdir -p <PROJECT_DIR>/.openclaw/credentials
+mkdir -p <PROJECT_DIR>/.openclaw/agents
+mkdir -p <PROJECT_DIR>/.openclaw/skills
+mkdir -p <PROJECT_DIR>/.openclaw/identity
+mkdir -p <PROJECT_DIR>/.openclaw/memory
+mkdir -p <PROJECT_DIR>/.openclaw/telegram
+mkdir -p <PROJECT_DIR>/.openclaw/cron
+mkdir -p <PROJECT_DIR>/.openclaw/logs
+mkdir -p <PROJECT_DIR>/.openclaw/completions
+mkdir -p <PROJECT_DIR>/.openclaw/canvas
 ```
 
-### Bước 2: Tạo Dockerfile
+### Step 2: Create Dockerfile
 
-Tạo `<THƯ_MỤC_PROJECT>/docker/openclaw/Dockerfile`:
+Create `<PROJECT_DIR>/docker/openclaw/Dockerfile`:
 
 ```dockerfile
 FROM node:22-slim
@@ -112,9 +114,9 @@ EXPOSE 18789
 CMD ["openclaw", "gateway", "run"]
 ```
 
-### Bước 3: Tạo docker-compose.yml
+### Step 3: Create docker-compose.yml
 
-Tạo `<THƯ_MỤC_PROJECT>/docker/openclaw/docker-compose.yml`:
+Create `<PROJECT_DIR>/docker/openclaw/docker-compose.yml`:
 
 ```yaml
 services:
@@ -127,29 +129,29 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - <THƯ_MỤC_PROJECT>/.openclaw:/root/.openclaw
+      - <PROJECT_DIR>/.openclaw:/root/.openclaw
     ports:
       - "18789:18789"
 ```
 
-> **Lưu ý:** Thay `<THƯ_MỤC_PROJECT>` bằng đường dẫn tuyệt đối thật. VD: `D:/MyAIBot/.openclaw:/root/.openclaw`
+> Replace `<PROJECT_DIR>` with the actual absolute path. Example: `D:/MyAIBot/.openclaw:/root/.openclaw`
 
-### Bước 4: Kiểm tra file .env (user đã tạo sẵn)
+### Step 4: Verify .env file (created by user)
 
-File `.env` đã được user tự tạo tại `<THƯ_MỤC_PROJECT>/docker/openclaw/.env`.
+The `.env` file has already been created by the user at `<PROJECT_DIR>/docker/openclaw/.env`.
 
-**AI Agent PHẢI kiểm tra:**
-1. File `.env` **tồn tại** tại `<THƯ_MỤC_PROJECT>/docker/openclaw/.env`
-2. File có chứa `GOOGLE_API_KEY=` và `TELEGRAM_BOT_TOKEN=`
-3. **KHÔNG** đọc hoặc hiển thị giá trị bên trong ra chat
+**The AI Agent MUST verify:**
+1. File `.env` **exists** at `<PROJECT_DIR>/docker/openclaw/.env`
+2. File contains `GOOGLE_API_KEY=` and `TELEGRAM_BOT_TOKEN=`
+3. **DO NOT** read or display the values in chat
 
-Nếu file chưa tồn tại → **DỪNG LẠI** và yêu cầu user tự tạo file `.env` theo hướng dẫn trong README.md.
+If the file doesn't exist → **STOP** and ask the user to create it per the instructions in README.md.
 
-> **KHÔNG BAO GIỜ** tạo file `.env` thay user. **KHÔNG** hỏi API key hay token qua chat.
+> **NEVER** create the `.env` for the user. **NEVER** ask for credentials in chat.
 
-### Bước 5: Tạo .gitignore
+### Step 5: Create .gitignore
 
-Tạo `<THƯ_MỤC_PROJECT>/.gitignore`:
+Create `<PROJECT_DIR>/.gitignore`:
 
 ```gitignore
 # Credentials
@@ -167,22 +169,22 @@ docker/openclaw/.env
 .openclaw/canvas/
 ```
 
-### Bước 6: Tạo cấu hình OpenClaw
+### Step 6: Create OpenClaw configuration
 
-**AI Agent thực hiện:**
+**AI Agent performs:**
 
-1. Đọc `GOOGLE_API_KEY` và `TELEGRAM_BOT_TOKEN` từ file `.env` (đã tạo ở Bước 4)
-2. Sinh gateway auth token random
-3. Ghi vào các file config bên dưới
-4. **KHÔNG** hiển thị bất kỳ key/token nào ra chat
+1. Read `GOOGLE_API_KEY` and `TELEGRAM_BOT_TOKEN` from `.env` (created in Step 4)
+2. Generate a random gateway auth token
+3. Write values into the config files below
+4. **DO NOT** display any key/token in chat
 
-**Sinh gateway auth token:**
+**Generate gateway auth token:**
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```
 
-**Tạo `<THƯ_MỤC_PROJECT>/.openclaw/openclaw.json`** — thay `<TELEGRAM_BOT_TOKEN>` bằng giá trị từ `.env`, `<GATEWAY_TOKEN>` bằng token vừa sinh:
+**Create `<PROJECT_DIR>/.openclaw/openclaw.json`** — replace `<BOT_TOKEN>` with the value from `.env`, `<GATEWAY_TOKEN>` with the generated token:
 
 ```json
 {
@@ -211,7 +213,7 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
     "telegram": {
       "enabled": true,
       "dmPolicy": "open",
-      "botToken": "<TELEGRAM_BOT_TOKEN_TỪ_.ENV>",
+      "botToken": "<BOT_TOKEN_FROM_.ENV>",
       "allowFrom": ["*"],
       "groupPolicy": "allowlist",
       "streaming": "partial"
@@ -222,25 +224,25 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
     "mode": "local",
     "auth": {
       "mode": "token",
-      "token": "<GATEWAY_TOKEN_ĐÃ_SINH>"
+      "token": "<GENERATED_GATEWAY_TOKEN>"
     }
   }
 }
 ```
 
-**Tạo `<THƯ_MỤC_PROJECT>/.openclaw/auth-profiles.json`** — thay `<GEMINI_API_KEY>` bằng giá trị từ `.env`:
+**Create `<PROJECT_DIR>/.openclaw/auth-profiles.json`** — use `GOOGLE_API_KEY` from `.env`:
 
 ```json
 {
   "gemini": {
-    "apiKey": "<GOOGLE_API_KEY_TỪ_.ENV>"
+    "apiKey": "<GOOGLE_API_KEY_FROM_.ENV>"
   }
 }
 ```
 
-**Tạo `<THƯ_MỤC_PROJECT>/.openclaw/credentials/gemini`** — ghi giá trị `GOOGLE_API_KEY` từ `.env` (1 dòng, không xuống hàng).
+**Create `<PROJECT_DIR>/.openclaw/credentials/gemini`** — write the `GOOGLE_API_KEY` value (single line, no newline).
 
-**Tạo `<THƯ_MỤC_PROJECT>/.openclaw/cron/jobs.json`:**
+**Create `<PROJECT_DIR>/.openclaw/cron/jobs.json`:**
 
 ```json
 {
@@ -249,30 +251,30 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 }
 ```
 
-### Bước 7: Tạo Agent
+### Step 7: Create an Agent
 
-Tạo 1 file YAML tại `.openclaw/agents/<tên>.yaml`. Ví dụ `.openclaw/agents/chat.yaml`:
+Create a YAML file at `.openclaw/agents/<name>.yaml`. Example — `.openclaw/agents/chat.yaml`:
 
 ```yaml
 name: chat
-description: "Trợ lý AI cá nhân trên Telegram"
+description: "Personal AI assistant on Telegram"
 
 model:
   primary: google/gemini-2.5-flash
 
 system_prompt: |
-  Bạn là trợ lý AI cá nhân.
+  You are a personal AI assistant.
   
-  ## Tính cách
-  - Thân thiện, hữu ích
-  - Trả lời bằng tiếng Việt
+  ## Personality
+  - Friendly and helpful
+  - Reply in the user's language
   
-  ## Quy tắc
-  - Trả lời ngắn gọn, dễ hiểu
-  - Hỏi lại nếu chưa rõ yêu cầu
+  ## Rules
+  - Keep answers concise
+  - Ask for clarification when needed
 ```
 
-Sau đó cập nhật `openclaw.json` → thêm agent vào `agents.list`:
+Then update `openclaw.json` → add the agent to `agents.list`:
 
 ```json
 {
@@ -290,10 +292,10 @@ Sau đó cập nhật `openclaw.json` → thêm agent vào `agents.list`:
 }
 ```
 
-### Bước 8: Build & Khởi động
+### Step 8: Build & Start
 
 ```bash
-cd <THƯ_MỤC_PROJECT>/docker/openclaw
+cd <PROJECT_DIR>/docker/openclaw
 
 docker compose build
 
@@ -302,13 +304,13 @@ docker compose up -d
 docker logs -f openclaw-bot
 ```
 
-### Bước 9: Kiểm tra
+### Step 9: Verify
 
-1. Mở Telegram → Tìm bot đã tạo
-2. Gửi tin nhắn bất kỳ
-3. Bot phản hồi = **Thành công!** 🎉
+1. Open Telegram → Find your bot
+2. Send any message
+3. Bot replies = **Success!** 🎉
 
-Nếu bot không phản hồi:
+If the bot doesn't respond:
 
 ```bash
 docker logs openclaw-bot --tail 50
@@ -317,57 +319,50 @@ docker compose restart
 
 ---
 
-## Quản lý bot
+## 🛠 Bot Management
 
 ```bash
-# Xem trạng thái
-docker ps
-
-# Xem logs
-docker logs -f openclaw-bot
-
-# Restart
-docker compose restart
-
-# Tắt
-docker compose down
-
-# Cập nhật OpenClaw
-docker compose build --no-cache
-docker compose up -d
+docker ps                            # Status
+docker logs -f openclaw-bot          # Live logs
+docker compose restart               # Restart
+docker compose down                  # Stop
+docker compose build --no-cache      # Update OpenClaw
+docker compose up -d                 # Start after update
 ```
 
 ---
 
-## Tùy biến thêm
+## 🔧 Advanced Configuration
 
-### Giới hạn ai được chat với bot
+<details>
+<summary><b>Restrict who can chat with the bot</b></summary>
 
-Mặc định mọi người đều chat được với bot (`allowFrom: ["*"]`).
+By default `allowFrom: ["*"]` lets **everyone** DM the bot. To restrict:
 
-Để chỉ cho phép bạn:
-1. Chat [@userinfobot](https://t.me/userinfobot) trên Telegram → Copy user ID
-2. Sửa `openclaw.json`:
+1. Chat [@userinfobot](https://t.me/userinfobot) on Telegram → Copy your user ID
+2. Edit `openclaw.json`:
 
 ```json
 {
   "channels": {
     "telegram": {
-      "allowFrom": ["<TELEGRAM_USER_ID>"]
+      "allowFrom": ["<YOUR_TELEGRAM_USER_ID>"]
     }
   }
 }
 ```
+</details>
 
-### Thêm Ollama (AI chạy local, offline)
+<details>
+<summary><b>Add Ollama (local AI, offline)</b></summary>
 
-Nếu có Ollama trên máy, thêm vào `.env`:
+If you have Ollama running locally, add to `.env`:
 
 ```env
 OLLAMA_HOST=http://host.docker.internal:11434
 ```
 
-Và thêm fallback trong `openclaw.json`:
+And add a fallback in `openclaw.json`:
 
 ```json
 {
@@ -380,13 +375,14 @@ Và thêm fallback trong `openclaw.json`:
   }
 }
 ```
+</details>
 
 ---
 
-## Checklist bảo mật sau setup
+## ✅ Post-Setup Security Checklist
 
-- [ ] `.env` không hiển thị trong `git status`
-- [ ] `.openclaw/credentials/` không trong Git
-- [ ] `openclaw.json` không trong Git
-- [ ] Docker không mount toàn bộ ổ đĩa
-- [ ] Gateway auth token là random (không dùng mặc định)
+- [ ] `.env` is **not** visible in `git status`
+- [ ] `.openclaw/credentials/` is **not** tracked by Git
+- [ ] `openclaw.json` is **not** tracked by Git
+- [ ] Docker does **not** mount entire drives
+- [ ] Gateway auth token is randomly generated

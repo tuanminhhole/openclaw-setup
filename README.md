@@ -1,99 +1,123 @@
-# 🦞 OpenClaw Setup — Tạo AI Bot Telegram Miễn Phí
+<div align="center">
 
-Hướng dẫn setup **AI bot Telegram cá nhân** bằng OpenClaw + Google Gemini — hoàn toàn miễn phí.
+# 🦞 OpenClaw Setup
 
-Bot sẽ chạy trên máy tính của bạn thông qua Docker. Bạn chat với bot qua Telegram như chat với ChatGPT.
+**Create your own free AI Telegram Bot in 3 minutes.**
 
----
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Gateway-FF6B35?style=for-the-badge&logo=npm)](https://openclaw.ai)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Gemini](https://img.shields.io/badge/Google_Gemini-Free-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
+[![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/BotFather)
 
-## ✅ Cần chuẩn bị (4 thứ, tất cả miễn phí)
+[English](#-quick-start) · [Tiếng Việt](README.vi.md)
 
-| # | Cần gì | Cách lấy |
-|---|--------|----------|
-| 1 | **Docker Desktop** | Tải tại 👉 [docker.com/download](https://www.docker.com/products/docker-desktop/) → Cài đặt → Mở lên |
-| 2 | **Antigravity** (IDE có AI) | Tải tại 👉 [antigravity.dev](https://antigravity.dev/) → Cài đặt → Đăng nhập bằng tài khoản Google |
-| 3 | **Google AI API Key** | Vào 👉 [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → Bấm **Create API Key** → Copy lại |
-| 4 | **Telegram Bot Token** | Mở app Telegram → Tìm **@BotFather** → Gửi `/newbot` → Đặt tên bot → Copy token |
+</div>
 
 ---
 
-## 🚀 Cách setup (3 phút)
+## 📋 Prerequisites
 
-### Bước 1: Mở Docker Desktop
-- Đảm bảo icon Docker **màu xanh** ở taskbar (góc dưới phải màn hình)
+You need **4 things** (all free):
 
-### Bước 2: Mở Antigravity
-- Mở Antigravity IDE
-- Tạo 1 thư mục mới bất kỳ (VD: `D:\MyAIBot`) và mở nó trong Antigravity
+| # | What | How to get |
+|---|------|------------|
+| 1 | **Docker Desktop** | Download → [docker.com](https://www.docker.com/products/docker-desktop/) |
+| 2 | **Antigravity IDE** | Download → [antigravity.dev](https://antigravity.dev/) |
+| 3 | **Google AI API Key** | Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → **Create API Key** → Copy |
+| 4 | **Telegram Bot Token** | Open Telegram → Search **@BotFather** → Send `/newbot` → Name your bot → Copy token |
 
-### Bước 3: Tự tạo file chứa API Key (⚠️ BẮT BUỘC LÀM TRƯỚC)
+---
 
-> **KHÔNG BAO GIỜ** gửi API key hay Bot Token vào chat. Luôn tự tay điền vào file.
+## 🚀 Quick Start
 
-1. Trong thư mục project, tạo thư mục `docker/openclaw/`
-2. Tạo file `docker/openclaw/.env` với nội dung sau:
+### Step 1 — Start Docker
+
+Make sure Docker Desktop is **running** (green icon in taskbar).
+
+### Step 2 — Open Antigravity
+
+Open Antigravity IDE → Create a new folder (e.g. `D:\MyAIBot`) → Open it as workspace.
+
+### Step 3 — Create your `.env` file
+
+> ⚠️ **NEVER** paste your API key or Bot Token into the chat. Always write them directly into a file.
+
+1. Inside your project folder, create `docker/openclaw/`
+2. Create `docker/openclaw/.env` with:
 
 ```env
-GOOGLE_API_KEY=<paste_api_key_của_bạn_vào_đây>
-TELEGRAM_BOT_TOKEN=<paste_token_bot_của_bạn_vào_đây>
+GOOGLE_API_KEY=<your_api_key_here>
+TELEGRAM_BOT_TOKEN=<your_bot_token_here>
 ```
 
-3. **Thay thế** 2 giá trị `<...>` bằng key/token thật bạn đã chuẩn bị ở trên
-4. **Lưu file** lại
+3. Replace `<...>` with your actual key and token
+4. Save the file
 
-### Bước 4: Nhờ AI setup phần còn lại
-- Mở chat trong Antigravity (Ctrl + L hoặc bấm icon chat)
-- Copy-paste đoạn sau vào chat:
+### Step 4 — Let AI do the rest
+
+Open the Antigravity chat (`Ctrl + L`) and paste:
 
 ```
-Đọc file SETUP.md trong repo này và setup OpenClaw cho tôi.
-Tôi đã tự tạo file .env với API key và Bot token rồi.
-Thư mục project của tôi: <ĐƯỜNG_DẪN_THƯ_MỤC — VD: D:\MyAIBot>
+Read SETUP.md in this repo and set up OpenClaw for me.
+I already created the .env file with my API key and Bot token.
+My project folder: <YOUR_PATH — e.g. D:\MyAIBot>
 ```
 
-- AI sẽ **KHÔNG** hỏi API key — nó chỉ tạo Dockerfile, docker-compose, config OpenClaw, rồi build Docker
+The AI will **never** ask for your API key — it only creates config files, builds Docker, and starts the bot.
 
-### Bước 5: Đợi AI cài đặt
-- AI tự động tạo các files cấu hình
-- Tự build Docker container
-- Tự khởi động bot
+### Step 5 — Test your bot 🎉
 
-### Bước 6: Test bot 🎉
-- Mở Telegram → Tìm bot bạn vừa tạo
-- Gửi tin nhắn bất kỳ
-- Bot phản hồi = **Thành công!**
+1. Open Telegram → Find your bot
+2. Send any message
+3. Bot replies = **Success!**
 
 ---
 
-## 📁 File trong repo này
+## 📁 Repo Structure
 
-| File | Dùng cho ai |
-|------|------------|
-| `README.md` | Bạn đang đọc — hướng dẫn nhanh |
-| `SETUP.md` | Cho AI đọc — hướng dẫn kỹ thuật chi tiết |
-
----
-
-## ❓ Câu hỏi thường gặp
-
-**Q: Có mất tiền không?**
-A: Không. Docker, Antigravity, Google Gemini API (free tier), Telegram bot — tất cả đều miễn phí.
-
-**Q: Bot chạy ở đâu?**
-A: Trên máy tính của bạn (trong Docker container). Máy tắt thì bot tắt.
-
-**Q: Muốn bot tắt/mở lại thì sao?**
-A: Mở Terminal, gõ `docker compose down` (tắt) hoặc `docker compose up -d` (mở).
-
-**Q: Có thể tùy chỉnh bot không?**
-A: Có! Xem phần "Tạo Agent" trong `SETUP.md` để đặt tên, tính cách, ngôn ngữ cho bot.
-
-**Q: An toàn không?**
-A: An toàn. API key chỉ lưu trên máy bạn, không gửi đi đâu. File `SETUP.md` có quy tắc bảo mật chi tiết.
+```
+README.md        ← You're here (English)
+README.vi.md     ← Hướng dẫn tiếng Việt
+SETUP.md         ← Technical guide for AI (English)
+SETUP.vi.md      ← Hướng dẫn kỹ thuật cho AI (Tiếng Việt)
+```
 
 ---
 
-## 🔗 Liên kết
+## ❓ FAQ
+
+<details>
+<summary><b>Is it really free?</b></summary>
+Yes. Docker, Antigravity, Google Gemini API (free tier), and Telegram bots are all free.
+</details>
+
+<details>
+<summary><b>Where does the bot run?</b></summary>
+On your computer inside a Docker container. When your PC is off, the bot is off.
+</details>
+
+<details>
+<summary><b>How do I stop/restart?</b></summary>
+
+```bash
+docker compose down      # Stop
+docker compose up -d     # Start
+```
+</details>
+
+<details>
+<summary><b>Can I customize the bot?</b></summary>
+Yes! See the "Create Agent" section in SETUP.md to set a custom name, personality, and language.
+</details>
+
+<details>
+<summary><b>Is it safe?</b></summary>
+Your API keys stay on your machine only. SETUP.md includes strict security rules that the AI must follow.
+</details>
+
+---
+
+## 🔗 Links
 
 - [OpenClaw Docs](https://openclaw.ai/docs)
 - [Google AI Studio](https://aistudio.google.com/)
@@ -102,4 +126,8 @@ A: An toàn. API key chỉ lưu trên máy bạn, không gửi đi đâu. File `
 
 ---
 
-_Made with 🦞 by Kent_
+<div align="center">
+
+Made with 🦞 by [Kent](https://github.com/tuanminhhole)
+
+</div>
