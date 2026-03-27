@@ -692,14 +692,11 @@ docker logs -f openclaw-bot`);
     nativeOut.querySelectorAll('.output-section').forEach(s => s.style.display = '');
     nativeOut.querySelectorAll('.cred-section').forEach(s => s.style.display = '');
 
-    // Script: chỉ install + set API key + launch onboard
-    setOutput('out-native-script', `# ===== OpenClaw Zalo Personal — Auto Setup =====
-# 👉 THAY API KEY CỦA BẠN VÀO ĐÂY:
-$env:GOOGLE_API_KEY = "<YOUR_GOOGLE_API_KEY>"
-[System.Environment]::SetEnvironmentVariable("GOOGLE_API_KEY", $env:GOOGLE_API_KEY, "User")
-
-# Cài OpenClaw + mở Setup Wizard
+    // Script: chỉ install + launch onboard (onboard tự hỏi API key)
+    setOutput('out-native-script', `# Cài OpenClaw
 npm install -g openclaw@latest
+
+# Mở Setup Wizard
 openclaw onboard`);
 
     // Cheat sheet
@@ -710,10 +707,9 @@ openclaw onboard`);
 ├──────────────────────┼──────────────────────────────┤
 │  Security warning    │  ✅ Yes                       │
 │  Setup mode          │  ✅ QuickStart                │
-│  Model/auth provider │  ✅ Google                    │
-│  Auth method         │  ✅ Google Gemini API key     │
-│  Use existing key?   │  ✅ Yes                       │
-│  Default model       │  ✅ gemini-2.5-flash          │
+│  Model provider      │  Chọn tuỳ ý (VD: Google)     │
+│  API key             │  Nhập key của provider đã chọn│
+│  Default model       │  Chọn model phù hợp           │
 │  Select channel      │  ✅ Zalo (Personal Account)   │
 │  Login via QR?       │  ✅ Yes                       │
 │  ─── QR LOGIN ───    │  📱 Mở file QR → Quét Zalo   │
