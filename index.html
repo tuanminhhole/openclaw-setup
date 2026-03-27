@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Setup your own free AI Bot on Telegram or Zalo in minutes with OpenClaw.">
+  <title>🦞 OpenClaw Setup — AI Bot Wizard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- ========== Header ========== -->
+  <header class="header">
+    <div class="header__logo" aria-hidden="true">🦞</div>
+    <h1 class="header__title">OpenClaw Setup</h1>
+    <p class="header__subtitle">Tạo AI Bot miễn phí trên Telegram hoặc Zalo trong vài phút</p>
+  </header>
+
+  <!-- ========== Progress Bar ========== -->
+  <nav class="progress-bar" aria-label="Setup progress">
+    <div class="progress-step progress-step--active" data-pstep="1">
+      <span class="progress-step__circle">1</span>
+      <span class="progress-step__label">Chọn kênh</span>
+    </div>
+    <div class="progress-line" data-after="1"></div>
+    <div class="progress-step" data-pstep="2">
+      <span class="progress-step__circle">2</span>
+      <span class="progress-step__label">Cấu hình Bot</span>
+    </div>
+    <div class="progress-line" data-after="2"></div>
+    <div class="progress-step" data-pstep="3">
+      <span class="progress-step__circle">3</span>
+      <span class="progress-step__label">API Keys</span>
+    </div>
+    <div class="progress-line" data-after="3"></div>
+    <div class="progress-step" data-pstep="4">
+      <span class="progress-step__circle">4</span>
+      <span class="progress-step__label">Hoàn tất</span>
+    </div>
+  </nav>
+
+  <!-- ========== Steps Container ========== -->
+  <main class="steps-container">
+
+    <!-- ===== Step 1: Choose Channel ===== -->
+    <section class="step step--active" data-step="1">
+      <h2 class="step__title">Chọn kênh chat cho Bot</h2>
+      <p class="step__description">Bot AI của bạn sẽ hoạt động trên nền tảng nào? Chọn 1 kênh bên dưới.</p>
+
+      <div class="channel-grid">
+        <div class="channel-card" data-channel="telegram" id="card-telegram">
+          <div class="channel-card__icon"><img src="https://thesvg.org/icons/telegram/default.svg" alt="Telegram" width="32" height="32"></div>
+          <h3 class="channel-card__name">Telegram</h3>
+          <p class="channel-card__desc">Bot API chính thức. Hỗ trợ DM & nhóm. Phổ biến nhất.</p>
+          <span class="channel-card__badge badge--official">✅ Official</span>
+        </div>
+
+        <div class="channel-card" data-channel="zalo-bot" id="card-zalo-bot">
+          <div class="channel-card__icon"><img src="https://thesvg.org/icons/zalo/default.svg" alt="Zalo" width="32" height="32"></div>
+          <h3 class="channel-card__name">Zalo Bot API</h3>
+          <p class="channel-card__desc">Bot API chính thức Zalo. Chat 1:1. Phù hợp hỗ trợ khách hàng.</p>
+          <span class="channel-card__badge badge--official">✅ Official</span>
+        </div>
+
+        <div class="channel-card" data-channel="zalo-personal" id="card-zalo-personal">
+          <div class="channel-card__icon"><img src="https://thesvg.org/icons/zalo/default.svg" alt="Zalo" width="32" height="32" style="opacity: 0.7;"></div>
+          <h3 class="channel-card__name">Zalo Personal</h3>
+          <p class="channel-card__desc">Dùng tài khoản Zalo cá nhân. Login bằng QR code.</p>
+          <span class="channel-card__badge badge--warning">⚠️ Unofficial</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Step 2: Bot Config ===== -->
+    <section class="step" data-step="2">
+      <h2 class="step__title">Cấu hình Bot — <span id="selected-channel-label"></span></h2>
+      <p class="step__description">Đặt tên, vai trò, AI model và plugins cho Bot của bạn.</p>
+
+      <!-- Bot name & description -->
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-group__label" for="cfg-name">Tên Bot</label>
+          <input type="text" class="form-input" id="cfg-name" placeholder="VD: Williams, Jarvis, Luna...">
+          <p class="form-group__hint">Tên bot sẽ hiển thị trong system prompt</p>
+        </div>
+        <div class="form-group">
+          <label class="form-group__label" for="cfg-desc">Vai trò / Mô tả</label>
+          <input type="text" class="form-input" id="cfg-desc" placeholder="VD: Personal AI assistant">
+        </div>
+      </div>
+
+      <!-- AI Provider Selection -->
+      <div class="form-group">
+        <label class="form-group__label">Nhà cung cấp AI</label>
+        <div class="provider-grid" id="provider-grid">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Model Selection + Language Toggle -->
+      <div class="form-group">
+        <div class="model-header">
+          <label class="form-group__label" for="cfg-model">AI Model</label>
+          <input type="hidden" id="cfg-language" value="vi">
+          <div class="lang-toggle" id="lang-toggle">
+            <button type="button" class="lang-toggle__btn lang-toggle__btn--active" data-lang="vi" onclick="window.__selectLang('vi')">
+              <span class="lang-toggle__flag" data-lang="vi"></span>
+              <span>VI</span>
+            </button>
+            <button type="button" class="lang-toggle__btn" data-lang="en" onclick="window.__selectLang('en')">
+              <span class="lang-toggle__flag" data-lang="en"></span>
+              <span>EN</span>
+            </button>
+          </div>
+        </div>
+        <select class="form-select" id="cfg-model">
+          <!-- Populated by JS based on provider -->
+        </select>
+      </div>
+
+      <!-- System Prompt -->
+      <div class="form-group">
+        <label class="form-group__label" for="cfg-prompt">System Prompt — Vai trò & Tính cách</label>
+        <textarea class="form-textarea" id="cfg-prompt" placeholder="Mô tả tính cách, cách xưng hô, quy tắc cho bot..."></textarea>
+        <div class="prompt-notice">
+          <span class="prompt-notice__icon">🛡️</span>
+          <span class="prompt-notice__text">
+            <strong>Lưu ý:</strong> System Prompt chỉ định vai trò & tính cách bot.
+            Các quy tắc bảo mật hệ thống (không xóa file, không truy cập thư mục nhạy cảm, không lộ API key...)
+            được OpenClaw <strong>tự động áp dụng</strong> — bạn không cần viết vào đây.
+          </span>
+        </div>
+      </div>
+
+      <!-- Plugins -->
+      <div class="form-group">
+        <label class="form-group__label">Plugins — Tùy chọn mở rộng</label>
+        <p class="form-group__hint" style="margin-bottom: 12px;">Chọn các plugin bạn muốn cài thêm. Có thể thêm/bỏ sau.</p>
+        <div class="plugin-grid" id="plugin-grid">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Step 3: Credentials ===== -->
+    <section class="step" data-step="3">
+      <h2 class="step__title">Chuẩn bị API Keys</h2>
+      <p class="step__description">Tạo file <code>.env</code> với các key cần thiết. <strong>Không paste key vào chat!</strong></p>
+
+      <div class="cred-section">
+        <h3 class="cred-section__title">📋 Các bước lấy credentials</h3>
+        <div id="cred-steps"></div>
+      </div>
+
+      <div class="env-preview">
+        <div class="env-preview__header">
+          <span class="env-preview__filename">📄 docker/openclaw/.env</span>
+          <button class="btn-copy" onclick="copyToClipboard(this, 'env-content')">📋 Copy</button>
+        </div>
+        <pre id="env-content"></pre>
+      </div>
+
+      <div class="warning-box" id="zalo-warning" style="display: none;">
+        <span class="warning-box__icon">⚠️</span>
+        <span class="warning-box__text">
+          <strong>Zalo Personal</strong> sử dụng unofficial API (zca-js). Tài khoản Zalo của bạn có thể bị hạn chế hoặc khóa. Chỉ nên dùng với tài khoản phụ.
+        </span>
+      </div>
+    </section>
+
+    <!-- ===== Step 4: Generated Output ===== -->
+    <section class="step" data-step="4">
+      <h2 class="step__title">🎉 Config đã sẵn sàng!</h2>
+      <p class="step__description">Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup.</p>
+
+      <!-- File Tree -->
+      <div class="output-section">
+        <h3 class="output-section__title">📁 Cấu trúc thư mục</h3>
+        <div class="file-tree"><span class="dir">&lt;PROJECT_DIR&gt;/</span>
+├── <span class="dir">.openclaw/</span>                    <span class="comment">← Config chính</span>
+│   ├── <span class="file">openclaw.json</span>
+│   ├── <span class="file">auth-profiles.json</span>
+│   ├── <span class="dir">credentials/</span>
+│   ├── <span class="dir">agents/</span>
+│   │   └── <span class="file" id="agent-filename-tree">&lt;bot&gt;.yaml</span>
+│   └── <span class="dir">...</span>
+├── <span class="dir">docker/openclaw/</span>
+│   ├── <span class="file">Dockerfile</span>
+│   ├── <span class="file">docker-compose.yml</span>
+│   └── <span class="file">.env</span>                      <span class="comment">← <span id="env-info-tree">API keys</span></span>
+└── <span class="file">.gitignore</span></div>
+      </div>
+
+      <!-- openclaw.json -->
+      <div class="output-section collapsible collapsible--open">
+        <button class="collapsible__toggle" onclick="this.parentElement.classList.toggle('collapsible--open')">
+          <span>📄 .openclaw/openclaw.json</span>
+          <span class="collapsible__arrow">▼</span>
+        </button>
+        <div class="collapsible__content">
+          <div class="collapsible__inner">
+            <div class="code-block">
+              <div class="code-block__header">
+                <span class="code-block__filename">openclaw.json</span>
+                <button class="btn-copy" onclick="copyToClipboard(this, 'out-openclaw-json')">📋 Copy</button>
+              </div>
+              <pre class="code-block__content" id="out-openclaw-json"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent YAML -->
+      <div class="output-section collapsible collapsible--open">
+        <button class="collapsible__toggle" onclick="this.parentElement.classList.toggle('collapsible--open')">
+          <span>🤖 <span id="agent-filename">.openclaw/agents/chat.yaml</span></span>
+          <span class="collapsible__arrow">▼</span>
+        </button>
+        <div class="collapsible__content">
+          <div class="collapsible__inner">
+            <div class="code-block">
+              <div class="code-block__header">
+                <span class="code-block__filename">agent.yaml</span>
+                <button class="btn-copy" onclick="copyToClipboard(this, 'out-agent-yaml')">📋 Copy</button>
+              </div>
+              <pre class="code-block__content" id="out-agent-yaml"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dockerfile -->
+      <div class="output-section collapsible">
+        <button class="collapsible__toggle" onclick="this.parentElement.classList.toggle('collapsible--open')">
+          <span>🐳 docker/openclaw/Dockerfile</span>
+          <span class="collapsible__arrow">▼</span>
+        </button>
+        <div class="collapsible__content">
+          <div class="collapsible__inner">
+            <div class="code-block">
+              <div class="code-block__header">
+                <span class="code-block__filename">Dockerfile</span>
+                <button class="btn-copy" onclick="copyToClipboard(this, 'out-dockerfile')">📋 Copy</button>
+              </div>
+              <pre class="code-block__content" id="out-dockerfile"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- docker-compose.yml -->
+      <div class="output-section collapsible">
+        <button class="collapsible__toggle" onclick="this.parentElement.classList.toggle('collapsible--open')">
+          <span>🐳 docker/openclaw/docker-compose.yml</span>
+          <span class="collapsible__arrow">▼</span>
+        </button>
+        <div class="collapsible__content">
+          <div class="collapsible__inner">
+            <div class="code-block">
+              <div class="code-block__header">
+                <span class="code-block__filename">docker-compose.yml</span>
+                <button class="btn-copy" onclick="copyToClipboard(this, 'out-compose')">📋 Copy</button>
+              </div>
+              <pre class="code-block__content" id="out-compose"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Docker Commands -->
+      <div class="output-section">
+        <h3 class="output-section__title">🚀 Build & Chạy</h3>
+        <div class="code-block">
+          <div class="code-block__header">
+            <span class="code-block__filename">Terminal</span>
+            <button class="btn-copy" onclick="copyToClipboard(this, 'out-commands')">📋 Copy</button>
+          </div>
+          <pre class="code-block__content" id="out-commands"></pre>
+        </div>
+      </div>
+
+      <!-- AI Agent shortcut -->
+      <div class="cred-section" style="margin-top: 24px; border-color: rgba(255, 107, 53, 0.2);">
+        <h3 class="cred-section__title">🤖 Hoặc dùng AI Agent (nhanh hơn)</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px;">
+          Mở Antigravity IDE → paste lệnh bên dưới → AI sẽ tự tạo tất cả files và chạy Docker cho bạn:
+        </p>
+        <div class="code-block">
+          <div class="code-block__header">
+            <span class="code-block__filename">Paste vào Antigravity Chat</span>
+            <button class="btn-copy" onclick="copyToClipboard(this, 'out-ai-prompt')">📋 Copy</button>
+          </div>
+          <pre class="code-block__content" id="out-ai-prompt">Read SETUP.md in this repo and set up OpenClaw for me.
+I already created the .env file with my API key and Bot token.
+My project folder: &lt;YOUR_PATH — e.g. D:\MyAIBot&gt;</pre>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========== Navigation ========== -->
+  <div class="nav-buttons">
+    <button class="btn btn--ghost" id="btn-prev" style="visibility: hidden;">
+      ← Quay lại
+    </button>
+    <button class="btn btn--primary" id="btn-next" disabled>
+      <span id="btn-next-label">Tiếp theo</span> →
+    </button>
+  </div>
+
+</div>
+
+<script src="setup.js"></script>
+</body>
+</html>
