@@ -37,7 +37,7 @@
   - Browser extensions containing crypto wallets
 - ❌ **DO NOT** scan the clipboard (may contain seed phrases)
 - ❌ **DO NOT** access browser profiles, cookies, or saved passwords
-- ❌ **DO NOT** install unknown npm packages (only `openclaw`)
+- ❌ **DO NOT** install unknown npm packages (only `openclaw` and its official plugins)
 
 ### Docker isolation
 
@@ -53,7 +53,7 @@
 ```
 <PROJECT_DIR>/
 ├── .openclaw/                    ← Main config (DO NOT commit)
-│   ├── openclaw.json             ← Gateway, agent, Telegram config
+│   ├── openclaw.json             ← Gateway, agent, channel config
 │   ├── auth-profiles.json        ← API key profile
 │   ├── credentials/
 │   │   └── gemini                ← Gemini API key
@@ -63,7 +63,6 @@
 │   ├── identity/
 │   │   └── device.json           ← Device keypair
 │   ├── memory/                   ← Agent memory (SQLite)
-│   ├── telegram/                 ← Telegram polling state
 │   ├── cron/jobs.json
 │   └── logs/
 │       └── config-audit.jsonl
@@ -74,6 +73,26 @@
 │   └── .env                      ← API keys (DO NOT commit)
 │
 └── .gitignore
+```
+
+---
+
+## 🔌 Supported Channels
+
+This setup supports **3 channels**. The AI Agent must detect which channel the user chose based on the `.env` file contents.
+
+| Channel | .env keys required | Plugin needed |
+|---------|-------------------|---------------|
+| **Telegram** | `GOOGLE_API_KEY` + `TELEGRAM_BOT_TOKEN` | None (built-in) |
+| **Zalo Bot API** | `GOOGLE_API_KEY` + `ZALO_BOT_TOKEN` | `@openclaw/zalo` |
+| **Zalo Personal** | `GOOGLE_API_KEY` only | `@openclaw/zalouser` |
+
+### Channel detection logic:
+
+```
+IF .env contains TELEGRAM_BOT_TOKEN → Channel = Telegram
+ELSE IF .env contains ZALO_BOT_TOKEN → Channel = Zalo Bot API
+ELSE → Channel = Zalo Personal (or ask user)
 ```
 
 ---
@@ -89,7 +108,6 @@ mkdir -p <PROJECT_DIR>/.openclaw/agents
 mkdir -p <PROJECT_DIR>/.openclaw/skills
 mkdir -p <PROJECT_DIR>/.openclaw/identity
 mkdir -p <PROJECT_DIR>/.openclaw/memory
-mkdir -p <PROJECT_DIR>/.openclaw/telegram
 mkdir -p <PROJECT_DIR>/.openclaw/cron
 mkdir -p <PROJECT_DIR>/.openclaw/logs
 mkdir -p <PROJECT_DIR>/.openclaw/completions
@@ -100,12 +118,50 @@ mkdir -p <PROJECT_DIR>/.openclaw/canvas
 
 Create `<PROJECT_DIR>/docker/openclaw/Dockerfile`:
 
+#### Telegram (no plugins needed):
+
 ```dockerfile
 FROM node:22-slim
 
 RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g openclaw@latest
+
+WORKDIR /root/.openclaw
+
+EXPOSE 18789
+
+CMD ["openclaw", "gateway", "run"]
+```
+
+#### Zalo Bot API:
+
+```dockerfile
+FROM node:22-slim
+
+RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g openclaw@latest
+
+RUN openclaw plugins install @openclaw/zalo
+
+WORKDIR /root/.openclaw
+
+EXPOSE 18789
+
+CMD ["openclaw", "gateway", "run"]
+```
+
+#### Zalo Personal:
+
+```dockerfile
+FROM node:22-slim
+
+RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g openclaw@latest
+
+RUN openclaw plugins install @openclaw/zalouser
 
 WORKDIR /root/.openclaw
 
@@ -142,8 +198,9 @@ The `.env` file has already been created by the user at `<PROJECT_DIR>/docker/op
 
 **The AI Agent MUST verify:**
 1. File `.env` **exists** at `<PROJECT_DIR>/docker/openclaw/.env`
-2. File contains `GOOGLE_API_KEY=` and `TELEGRAM_BOT_TOKEN=`
-3. **DO NOT** read or display the values in chat
+2. File contains `GOOGLE_API_KEY=`
+3. File contains one of: `TELEGRAM_BOT_TOKEN=` or `ZALO_BOT_TOKEN=` (or neither for Zalo Personal)
+4. **DO NOT** read or display the values in chat
 
 If the file doesn't exist → **STOP** and ask the user to create it per the instructions in README.md.
 
@@ -173,10 +230,11 @@ docker/openclaw/.env
 
 **AI Agent performs:**
 
-1. Read `GOOGLE_API_KEY` and `TELEGRAM_BOT_TOKEN` from `.env` (created in Step 4)
-2. Generate a random gateway auth token
-3. Write values into the config files below
-4. **DO NOT** display any key/token in chat
+1. Read `GOOGLE_API_KEY` (and channel token if present) from `.env` (created in Step 4)
+2. Detect the channel type based on Step 4 verification
+3. Generate a random gateway auth token
+4. Write values into the config files below
+5. **DO NOT** display any key/token in chat
 
 **Generate gateway auth token:**
 
@@ -184,12 +242,14 @@ docker/openclaw/.env
 node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```
 
-**Create `<PROJECT_DIR>/.openclaw/openclaw.json`** — replace `<BOT_TOKEN>` with the value from `.env`, `<GATEWAY_TOKEN>` with the generated token:
+#### Telegram config:
+
+**Create `<PROJECT_DIR>/.openclaw/openclaw.json`:**
 
 ```json
 {
   "meta": {
-    "lastTouchedVersion": "2026.3.16"
+    "lastTouchedVersion": "2026.3.27"
   },
   "agents": {
     "defaults": {
@@ -230,6 +290,39 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 }
 ```
 
+#### Zalo Bot API config:
+
+Replace the `channels` section with:
+
+```json
+{
+  "channels": {
+    "zalo": {
+      "enabled": true,
+      "botToken": "<ZALO_BOT_TOKEN_FROM_.ENV>"
+    }
+  }
+}
+```
+
+#### Zalo Personal config:
+
+Replace the `channels` section with:
+
+```json
+{
+  "channels": {
+    "zalouser": {
+      "enabled": true
+    }
+  }
+}
+```
+
+> **Note:** Zalo Personal requires QR code login after the container starts. Check logs with `docker logs openclaw-bot` to see the QR code.
+
+---
+
 **Create `<PROJECT_DIR>/.openclaw/auth-profiles.json`** — use `GOOGLE_API_KEY` from `.env`:
 
 ```json
@@ -257,7 +350,7 @@ Create a YAML file at `.openclaw/agents/<name>.yaml`. Example — `.openclaw/age
 
 ```yaml
 name: chat
-description: "Personal AI assistant on Telegram"
+description: "Personal AI assistant"
 
 model:
   primary: google/gemini-2.5-flash
@@ -306,9 +399,21 @@ docker logs -f openclaw-bot
 
 ### Step 9: Verify
 
+**Telegram:**
 1. Open Telegram → Find your bot
 2. Send any message
 3. Bot replies = **Success!** 🎉
+
+**Zalo Bot API:**
+1. Open Zalo → Find your bot
+2. Send any message
+3. Bot replies = **Success!** 🎉
+
+**Zalo Personal:**
+1. Check `docker logs openclaw-bot` for QR code
+2. Scan QR code with Zalo app
+3. Send a message from another Zalo account
+4. Bot replies = **Success!** 🎉
 
 If the bot doesn't respond:
 
@@ -335,7 +440,7 @@ docker compose up -d                 # Start after update
 ## 🔧 Advanced Configuration
 
 <details>
-<summary><b>Restrict who can chat with the bot</b></summary>
+<summary><b>Restrict who can chat with the bot (Telegram)</b></summary>
 
 By default `allowFrom: ["*"]` lets **everyone** DM the bot. To restrict:
 
@@ -377,6 +482,17 @@ And add a fallback in `openclaw.json`:
 ```
 </details>
 
+<details>
+<summary><b>Switch channels</b></summary>
+
+To switch from Telegram to Zalo (or vice versa):
+
+1. Update `Dockerfile` to install the appropriate plugin
+2. Update `openclaw.json` → change the `channels` section
+3. Update `.env` with the new token
+4. Rebuild: `docker compose build --no-cache && docker compose up -d`
+</details>
+
 ---
 
 ## ✅ Post-Setup Security Checklist
@@ -386,3 +502,4 @@ And add a fallback in `openclaw.json`:
 - [ ] `openclaw.json` is **not** tracked by Git
 - [ ] Docker does **not** mount entire drives
 - [ ] Gateway auth token is randomly generated
+- [ ] Zalo Personal: using a **secondary** account (if applicable)

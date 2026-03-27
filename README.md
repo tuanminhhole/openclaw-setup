@@ -2,12 +2,13 @@
 
 # 🦞 OpenClaw Setup
 
-**Create your own free AI Telegram Bot in 3 minutes.**
+**Create your own free AI Bot on Telegram or Zalo in minutes.**
 
+[![Version](https://img.shields.io/badge/Version-2.0.0-FF6B35?style=for-the-badge)](CHANGELOG.md)
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-Gateway-FF6B35?style=for-the-badge&logo=npm)](https://openclaw.ai)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Gemini](https://img.shields.io/badge/Google_Gemini-Free-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
 [![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/BotFather)
+[![Zalo](https://img.shields.io/badge/Zalo-Bot-0068FF?style=for-the-badge)](#supported-channels)
 
 [English](#-quick-start) · [Tiếng Việt](README.vi.md)
 
@@ -15,67 +16,102 @@
 
 ---
 
+## ✨ Features
+
+- 🤖 **Multi-channel** — Telegram, Zalo Bot API, or Zalo Personal
+- 🧠 **Multi-provider AI** — Google Gemini, Claude, GPT-4o/Codex, OpenRouter, Ollama (local)
+- 🧩 **Plugin system** — Browser Automation, Memory, RAG, Web Search, Image Gen, Scheduler
+- 🧙 **Setup Wizard** — Beautiful dark-themed web UI with SVG brand logos
+- 🆓 **100% Free** — Google Gemini API free tier + Docker
+- 🔒 **Secure** — API keys stay on your machine, never exposed
+- ⚡ **3 minutes** — From zero to working AI bot
+
+---
+
 ## 📋 Prerequisites
 
-You need **4 things** (all free):
+You need **3 things** (all free):
 
 | # | What | How to get |
 |---|------|------------|
 | 1 | **Docker Desktop** | Download → [docker.com](https://www.docker.com/products/docker-desktop/) |
-| 2 | **Antigravity IDE** | Download → [antigravity.dev](https://antigravity.dev/) |
-| 3 | **Google AI API Key** | Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey) → **Create API Key** → Copy |
-| 4 | **Telegram Bot Token** | Open Telegram → Search **@BotFather** → Send `/newbot` → Name your bot → Copy token |
+| 2 | **AI API Key** | See [Supported Providers](#-supported-providers) — Gemini is free! |
+| 3 | **Bot Token** | See [Supported Channels](#-supported-channels) below |
+
+---
+
+## 🧠 Supported Providers
+
+| Provider | Models | Price | Get API Key |
+|----------|--------|-------|-------------|
+| **Google Gemini** | Gemini 2.5 Flash/Pro, 3.0 Flash | 🆓 Free | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| **Anthropic Claude** | Claude Sonnet 4, Opus 4, Haiku 3.5 | 💰 Paid | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
+| **OpenAI / Codex** | GPT-4o, o3, Codex Mini | 💰 Paid | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| **OpenRouter** | Many free & paid models | 🆓/💰 | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| **Ollama** | Qwen 3, DeepSeek, Llama, Gemma... | 🏠 Local | Install [ollama.com](https://ollama.com) |
+
+---
+
+## 🔌 Supported Channels
+
+| Channel | Type | How to get token |
+|---------|------|-----------------|
+| **Telegram** | ✅ Official Bot API | Open Telegram → Search **@BotFather** → `/newbot` → Copy token |
+| **Zalo Bot API** | ✅ Official Bot API | Go to [developers.zalo.me](https://developers.zalo.me) → Create bot → Copy token |
+| **Zalo Personal** | ⚠️ Unofficial | Login via QR code after setup (no token needed) |
+
+> ⚠️ **Zalo Personal** uses an unofficial API. Your account may be restricted. Use a secondary account.
 
 ---
 
 ## 🚀 Quick Start
 
-### Step 1 — Start Docker
+### Option A — Setup Wizard (Recommended)
 
-Make sure Docker Desktop is **running** (green icon in taskbar).
+1. **Clone this repo:**
+   ```bash
+   git clone https://github.com/tuanminhhole/openclaw-setup.git
+   cd openclaw-setup
+   ```
 
-### Step 2 — Open Antigravity
+2. **Open `index.html`** in your browser — the Setup Wizard will guide you through:
+   - Choose your channel (Telegram / Zalo)
+   - Configure bot name, personality, AI model
+   - Get credential instructions
+   - Generate all config files
 
-Open Antigravity IDE → Create a new folder (e.g. `D:\MyAIBot`) → Open it as workspace.
+3. **Create your `.env` file** (as instructed by the wizard)
 
-### Step 3 — Create your `.env` file
+4. **Build & Run:**
+   ```bash
+   cd docker/openclaw
+   docker compose build
+   docker compose up -d
+   ```
 
-> ⚠️ **NEVER** paste your API key or Bot Token into the chat. Always write them directly into a file.
+5. **Test your bot** — send a message on Telegram or Zalo! 🎉
 
-1. Inside your project folder, create `docker/openclaw/`
-2. Create `docker/openclaw/.env` with:
+### Option B — AI Agent (Antigravity)
 
-```env
-GOOGLE_API_KEY=<your_api_key_here>
-TELEGRAM_BOT_TOKEN=<your_bot_token_here>
-```
-
-3. Replace `<...>` with your actual key and token
-4. Save the file
-
-### Step 4 — Let AI do the rest
-
-Open the Antigravity chat (`Ctrl + L`) and paste:
-
-```
-Read SETUP.md in this repo and set up OpenClaw for me.
-I already created the .env file with my API key and Bot token.
-My project folder: <YOUR_PATH — e.g. D:\MyAIBot>
-```
-
-The AI will **never** ask for your API key — it only creates config files, builds Docker, and starts the bot.
-
-### Step 5 — Test your bot 🎉
-
-1. Open Telegram → Find your bot
-2. Send any message
-3. Bot replies = **Success!**
+1. Open [Antigravity IDE](https://antigravity.dev/)
+2. Open this repo as workspace
+3. Create `docker/openclaw/.env` with your keys
+4. Paste into chat:
+   ```
+   Read SETUP.md in this repo and set up OpenClaw for me.
+   I already created the .env file with my API key and Bot token.
+   My project folder: <YOUR_PATH>
+   ```
 
 ---
 
 ## 📁 Repo Structure
 
 ```
+index.html       ← Setup Wizard UI
+style.css        ← Wizard styles
+setup.js         ← Wizard logic
+CHANGELOG.md     ← Version history
 README.md        ← You're here (English)
 README.vi.md     ← Hướng dẫn tiếng Việt
 SETUP.md         ← Technical guide for AI (English)
@@ -88,7 +124,7 @@ SETUP.vi.md      ← Hướng dẫn kỹ thuật cho AI (Tiếng Việt)
 
 <details>
 <summary><b>Is it really free?</b></summary>
-Yes. Docker, Antigravity, Google Gemini API (free tier), and Telegram bots are all free.
+Yes. Docker, Google Gemini API (free tier), and Telegram/Zalo bots are all free.
 </details>
 
 <details>
@@ -107,12 +143,17 @@ docker compose up -d     # Start
 
 <details>
 <summary><b>Can I customize the bot?</b></summary>
-Yes! See the "Create Agent" section in SETUP.md to set a custom name, personality, and language.
+Yes! Use the Setup Wizard to configure name, personality, and language. Or edit the YAML files directly.
 </details>
 
 <details>
 <summary><b>Is it safe?</b></summary>
 Your API keys stay on your machine only. SETUP.md includes strict security rules that the AI must follow.
+</details>
+
+<details>
+<summary><b>Can I switch channels later?</b></summary>
+Yes! Re-run the Setup Wizard or manually edit <code>.openclaw/openclaw.json</code> to change the channel config.
 </details>
 
 ---
@@ -122,6 +163,7 @@ Your API keys stay on your machine only. SETUP.md includes strict security rules
 - [OpenClaw Docs](https://openclaw.ai/docs)
 - [Google AI Studio](https://aistudio.google.com/)
 - [Telegram BotFather](https://t.me/BotFather)
+- [Zalo Bot Platform](https://developers.zalo.me)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
 ---
