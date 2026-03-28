@@ -270,14 +270,15 @@
       envKeys: [],
       envExtra: '',
       credSteps: [
-        { text: '⚠️ Sau khi bot chạy, bạn sẽ cần <strong>quét QR code</strong> trong Docker logs để login tài khoản Zalo cá nhân' },
+        { text: '⚠️ Zalo Personal dùng <strong>unofficial API (zca-js)</strong> — chỉ nên dùng tài khoản phụ' },
+        { text: 'Sau khi Docker chạy, bạn cần chạy <code>docker exec -it openclaw-bot openclaw onboard</code> để <strong>quét QR code</strong> login Zalo. Chỉ cần làm <strong>1 lần</strong>.' },
       ],
       channelConfig: {
         zalouser: {
           enabled: true,
         },
       },
-      pluginInstall: '',
+      pluginInstall: '@openclaw/zalouser',
     },
   };
 
@@ -368,11 +369,6 @@
       if (state.currentStep === 1 && !state.channel) return;
       if (state.currentStep === 2) saveFormData();
 
-      // Zalo Personal: skip steps 2-3, jump from 1 → 4
-      if (state.currentStep === 1 && state.channel === 'zalo-personal') {
-        goToStep(4);
-        return;
-      }
 
       if (state.currentStep < state.totalSteps) {
         goToStep(state.currentStep + 1);
@@ -380,11 +376,6 @@
     });
 
     btnPrev.addEventListener('click', () => {
-      // Zalo Personal: from step 4, go back to step 1
-      if (state.currentStep === 4 && state.channel === 'zalo-personal') {
-        goToStep(1);
-        return;
-      }
       if (state.currentStep > 1) {
         goToStep(state.currentStep - 1);
       }
@@ -407,21 +398,12 @@
     document.querySelectorAll('.progress-step').forEach((el) => {
       const stepNum = parseInt(el.dataset.pstep);
       el.classList.toggle('progress-step--active', stepNum === state.currentStep);
-      // Zalo Personal: mark steps 2-3 as completed when at step 4
-      if (state.channel === 'zalo-personal' && state.currentStep === 4) {
-        el.classList.toggle('progress-step--completed', stepNum < 4);
-      } else {
-        el.classList.toggle('progress-step--completed', stepNum < state.currentStep);
-      }
+      el.classList.toggle('progress-step--completed', stepNum < state.currentStep);
     });
 
     document.querySelectorAll('.progress-line').forEach((el) => {
       const after = parseInt(el.dataset.after);
-      if (state.channel === 'zalo-personal' && state.currentStep === 4) {
-        el.classList.toggle('progress-line--active', true);
-      } else {
-        el.classList.toggle('progress-line--active', after < state.currentStep);
-      }
+      el.classList.toggle('progress-line--active', after < state.currentStep);
     });
 
     updateNavButtons();
@@ -439,11 +421,7 @@
     } else {
       btnNext.style.display = '';
       btnNext.disabled = state.currentStep === 1 && !state.channel;
-      if (state.currentStep === 1 && state.channel === 'zalo-personal') {
-        btnNextLabel.textContent = 'Cài đặt Zalo';
-      } else {
-        btnNextLabel.textContent = state.currentStep === 3 ? 'Generate Configs' : 'Tiếp theo';
-      }
+      btnNextLabel.textContent = state.currentStep === 3 ? 'Generate Configs' : 'Tiếp theo';
     }
   }
 
@@ -682,11 +660,7 @@
     const ch = CHANNELS[state.channel];
     if (!ch) return;
 
-    // Zalo Personal: skip all Docker/config logic, just show install script + guide
-    if (state.channel === 'zalo-personal') {
-      generateZaloOutput();
-      return;
-    }
+
 
     const provider = PROVIDERS[state.config.provider];
     if (!provider) return;
@@ -759,13 +733,19 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       setOutput('out-task-ps1', taskPs1);
     }
 
-    // Show Docker output (ensure visible, may have been hidden by Zalo Personal)
+    // Show Docker output
     const dockerOut = document.getElementById('docker-output');
-    const nativeOut = document.getElementById('native-output');
     const aiShortcut = document.getElementById('ai-agent-shortcut');
     if (dockerOut) dockerOut.style.display = '';
-    if (nativeOut) nativeOut.style.display = 'none';
     if (aiShortcut) aiShortcut.style.display = '';
+
+    // Show/hide Zalo Personal onboard notice
+    const zaloNotice = document.getElementById('zalo-onboard-notice');
+    const isZaloPersonal = state.channel === 'zalo-personal';
+    if (zaloNotice) {
+      zaloNotice.style.display = isZaloPersonal ? '' : 'none';
+      if (isZaloPersonal) generateZaloOnboardGuide();
+    }
 
     // Reset step 4 heading
     const title = document.getElementById('step4-title');
@@ -850,10 +830,7 @@ ${state.config.systemPrompt.split('\n').map((l) => '  ' + l).join('\n')}`;
       if (skill) allSkills.push(skill.slug);
     });
 
-    const pluginLines = allPlugins.length > 0
-      ? `\n# Install plugins (npm)\nRUN openclaw plugins install ${allPlugins.join(' ')}\n`
-      : '';
-
+    // Skills install at build time (cached by Docker layer)
     const skillLines = allSkills.length > 0
       ? `\n# Install skills (ClawHub)\nRUN openclaw skills install ${allSkills.join(' ')}\n`
       : '';
@@ -863,21 +840,28 @@ ${state.config.systemPrompt.split('\n').map((l) => '  ' + l).join('\n')}`;
     const browserInstallLines = hasBrowser
       ? `\n# Browser Automation: Playwright engine\nRUN npm install -g agent-browser && npx agent-browser install --with-deps || true\n`
       : '';
-    const browserCmd = hasBrowser
-      ? 'CMD socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & openclaw gateway run'
-      : 'CMD ["openclaw", "gateway", "run"]';
+
+    // Plugins install at runtime (avoids ClawHub rate limit during build)
+    const pluginInstallCmd = allPlugins.length > 0
+      ? `openclaw plugins install ${allPlugins.join(' ')} 2>/dev/null || true && `
+      : '';
+    const gatewayCmd = 'openclaw gateway run';
+    const browserPrefix = hasBrowser
+      ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & '
+      : '';
+    const finalCmd = `CMD sh -c "${pluginInstallCmd}${browserPrefix}${gatewayCmd}"`;
 
     const dockerfile = `FROM node:22-slim
 
 RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g openclaw@latest
-${pluginLines}${skillLines}${browserInstallLines}
+${skillLines}${browserInstallLines}
 WORKDIR /root/.openclaw
 
 EXPOSE 18789
 
-${browserCmd}`;
+${finalCmd}`;
 
     setOutput('out-dockerfile', dockerfile);
 
@@ -964,52 +948,33 @@ docker logs -f openclaw-bot`);
       if (is9Router) keys.push('# AI key: config qua 9Router dashboard');
       envInfo.textContent = keys.join('\n');
     }
+
+    // Store generated files for download
+    state._generatedFiles = {
+      '.openclaw/openclaw.json': JSON.stringify(clawConfig, null, 2),
+      [`.openclaw/agents/${agentId}.yaml`]: agentYaml,
+      'docker/openclaw/Dockerfile': dockerfile,
+      'docker/openclaw/docker-compose.yml': compose,
+      'docker/openclaw/.env': document.getElementById('env-content')?.textContent || '',
+      '.gitignore': 'docker/openclaw/.env\nnode_modules/',
+    };
   }
 
-  // ========== Zalo Personal Output (standalone) ==========
-  function generateZaloOutput() {
-    // Hide Docker, show Native, hide AI shortcut
-    const dockerOut = document.getElementById('docker-output');
-    const nativeOut = document.getElementById('native-output');
-    const aiShortcut = document.getElementById('ai-agent-shortcut');
-    if (dockerOut) dockerOut.style.display = 'none';
-    if (nativeOut) nativeOut.style.display = '';
-    if (aiShortcut) aiShortcut.style.display = 'none';
+  // ========== Zalo Personal Onboard Guide (post-Docker-setup) ==========
+  function generateZaloOnboardGuide() {
+    setOutput('out-zalo-onboard-cmd', `docker exec -it openclaw-bot openclaw onboard`);
 
-    // Update step 4 heading for Zalo
-    const title = document.getElementById('step4-title');
-    const desc = document.getElementById('step4-desc');
-    if (title) title.textContent = '🚀 Cài đặt Zalo Personal';
-    if (desc) desc.textContent = 'Chỉ 3 bước: Cài Node.js → Chạy script → Làm theo hướng dẫn.';
-
-    // Hide ALL output sections in step 4, then re-show only native ones
-    const step4 = nativeOut?.closest('.step');
-    if (step4) {
-      step4.querySelectorAll('.output-section').forEach(s => s.style.display = 'none');
-      step4.querySelectorAll('.cred-section').forEach(s => { if (s.id !== 'ai-agent-shortcut') s.style.display = 'none'; });
-    }
-    // Re-show native sections
-    nativeOut.querySelectorAll('.output-section').forEach(s => s.style.display = '');
-    nativeOut.querySelectorAll('.cred-section').forEach(s => s.style.display = '');
-
-    // Script: chỉ install + launch onboard (onboard tự hỏi API key)
-    setOutput('out-native-script', `# Cài OpenClaw
-npm install -g openclaw@latest
-
-# Mở Setup Wizard
-openclaw onboard`);
-
-    // Cheat sheet
-    setOutput('out-native-guide', `┌─────────────────────────────────────────────────────┐
+    setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
 │  OpenClaw sẽ hỏi lần lượt — chọn như sau:          │
 ├──────────────────────┬──────────────────────────────┤
 │  Câu hỏi             │  Chọn                        │
 ├──────────────────────┼──────────────────────────────┤
 │  Security warning    │  ✅ Yes                       │
 │  Setup mode          │  ✅ QuickStart                │
-│  Model provider      │  Chọn tuỳ ý (VD: Google)     │
-│  API key             │  Nhập key của provider đã chọn│
-│  Default model       │  Chọn model phù hợp           │
+│  Config handling     │  ✅ Use existing values       │
+│  Model/auth provider │  Chọn tuỳ ý (VD: Google)     │
+│  API key             │  Nhập key (hoặc Enter nếu    │
+│                      │  đã có trong .env)            │
 │  Select channel      │  ✅ Zalo (Personal Account)   │
 │  Login via QR?       │  ✅ Yes                       │
 │  ─── QR LOGIN ───    │  📱 Mở file QR → Quét Zalo   │
@@ -1021,7 +986,9 @@ openclaw onboard`);
 │  Hatch your bot?     │  ✅ Do this later             │
 ├──────────────────────┴──────────────────────────────┤
 │  💡 Bước QR Login:                                  │
-│  File QR sẽ lưu tại thư mục Temp trên máy.         │
+│  Khi bước QR hiện ra, OpenClaw sẽ lưu file ảnh QR  │
+│  vào thư mục /tmp trong container.                  │
+│  Dùng lệnh: docker cp openclaw-bot:/tmp/qr.png .   │
 │  Mở file ảnh → quét bằng Zalo điện thoại →          │
 │  xác nhận kết nối → quay lại chọn Yes.              │
 └─────────────────────────────────────────────────────┘`);
@@ -1046,5 +1013,46 @@ openclaw onboard`);
         btnEl.classList.remove('btn-copy--copied');
       }, 2000);
     });
+  };
+
+  // ========== Download All Configs as ZIP ==========
+  window.downloadAllConfigs = async function (btnEl) {
+    if (!state._generatedFiles) return;
+
+    // Load JSZip from CDN if not loaded
+    if (typeof JSZip === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    const zip = new JSZip();
+    Object.entries(state._generatedFiles).forEach(([path, content]) => {
+      zip.file(path, content);
+    });
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'openclaw-setup.zip';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+
+    // Delay cleanup so browser can finish initiating the download
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 1000);
+
+    // Button feedback
+    const originalText = btnEl.innerHTML;
+    btnEl.innerHTML = '✅ Downloaded!';
+    setTimeout(() => { btnEl.innerHTML = originalText; }, 2500);
   };
 })();

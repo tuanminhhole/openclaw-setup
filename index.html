@@ -184,10 +184,16 @@
       <h2 id="step4-title" class="step__title">🎉 Config đã sẵn sàng!</h2>
       <p id="step4-desc" class="step__description">Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup.</p>
 
-      <!-- File Tree -->
-      <div class="output-section">
-        <h3 class="output-section__title">📁 Cấu trúc thư mục</h3>
-        <div class="file-tree"><span class="dir">&lt;PROJECT_DIR&gt;/</span>
+      <!-- Download CTA + File Tree -->
+      <div class="output-section" style="text-align: center; padding: 28px 24px; border: 1px solid rgba(255, 107, 53, 0.15); border-radius: 12px; background: linear-gradient(135deg, rgba(255,107,53,0.03), rgba(139,92,246,0.03));">
+        <button class="btn btn--primary" onclick="downloadAllConfigs(this)" style="font-size: 15px; padding: 14px 36px; margin-bottom: 12px;">
+          📥 Download tất cả configs (.zip)
+        </button>
+        <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 20px;">
+          Giải nén vào thư mục project → sửa <code>.env</code> → <code>docker compose build && docker compose up -d</code>
+        </p>
+
+        <div class="file-tree" style="text-align: left; margin: 0 auto; max-width: 520px;"><span class="dir">&lt;PROJECT_DIR&gt;/</span>
 ├── <span class="dir">.openclaw/</span>                    <span class="comment">← Config chính</span>
 │   ├── <span class="file">openclaw.json</span>
 │   ├── <span class="file">auth-profiles.json</span>
@@ -293,52 +299,39 @@
         </div>
       </div>
 
-      <!-- ===== Native Windows Install (Zalo Personal) ===== -->
-      <div id="native-output" style="display: none;">
-        <div class="cred-section" style="border-color: rgba(255, 193, 7, 0.3); margin-bottom: 16px;">
-          <h3 class="cred-section__title">⚠️ Zalo Personal — Cài trực tiếp trên Windows</h3>
-          <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">
-            Zalo Personal dùng thư viện <strong>zca-js</strong> — hiện <strong>chỉ chạy trên Windows</strong> (không hỗ trợ Docker).
-          </p>
+      <!-- ===== Zalo Personal: Post-setup Docker Onboard Guide ===== -->
+      <div id="zalo-onboard-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(255, 193, 7, 0.3);">
+        <h3 class="cred-section__title">📱 Zalo Personal — Login QR Code (chỉ 1 lần)</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+          Sau khi <code>docker compose up -d</code>, chạy lệnh bên dưới để mở wizard login Zalo trong container:
+        </p>
+
+        <!-- Lệnh docker exec -->
+        <div class="code-block" style="margin-bottom: 16px;">
+          <div class="code-block__header">
+            <span class="code-block__filename">Terminal — Chạy 1 lần</span>
+            <button class="btn-copy" onclick="copyToClipboard(this, 'out-zalo-onboard-cmd')">📋 Copy</button>
+          </div>
+          <pre class="code-block__content" id="out-zalo-onboard-cmd"></pre>
         </div>
 
-        <!-- Bước 1: Cài Node.js -->
-        <div class="output-section">
-          <h3 class="output-section__title">📦 Bước 1: Cài Node.js</h3>
-          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">
-            Nếu chưa có → tải tại <a href="https://nodejs.org/" target="_blank" style="color: var(--accent);">nodejs.org</a> → cài xong qua Bước 2.
-          </p>
+        <!-- Cheat sheet -->
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+          Wizard sẽ hỏi lần lượt. <strong>Chọn đúng như bảng bên dưới:</strong>
+        </p>
+        <div class="code-block" style="font-size: 13px; margin-bottom: 12px;">
+          <div class="code-block__header">
+            <span class="code-block__filename">Cheat Sheet — Chọn gì ở mỗi bước</span>
+          </div>
+          <pre class="code-block__content" id="out-zalo-onboard-guide"></pre>
         </div>
 
-        <!-- Bước 2: Script cài đặt -->
-        <div class="output-section">
-          <h3 class="output-section__title">🚀 Bước 2: Mở PowerShell → Paste → Enter</h3>
-          <div class="code-block">
-            <div class="code-block__header">
-              <span class="code-block__filename">PowerShell — Paste nguyên khối</span>
-              <button class="btn-copy" onclick="copyToClipboard(this, 'out-native-script')">📋 Copy</button>
-            </div>
-            <pre class="code-block__content" id="out-native-script"></pre>
-          </div>
-        </div>
-
-        <!-- Bước 3: Hướng dẫn onboard -->
-        <div class="output-section">
-          <h3 class="output-section__title">📋 Bước 3: Làm theo hướng dẫn trên màn hình</h3>
-          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
-            Sau khi script chạy xong, OpenClaw sẽ hỏi lần lượt. <strong>Chọn đúng như bảng bên dưới:</strong>
-          </p>
-          <div class="code-block" style="font-size: 13px;">
-            <div class="code-block__header">
-              <span class="code-block__filename">Cheat Sheet — Chọn gì ở mỗi bước</span>
-            </div>
-            <pre class="code-block__content" id="out-native-guide"></pre>
-          </div>
-          <div style="margin-top: 12px; padding: 12px 16px; background: rgba(0, 200, 83, 0.08); border: 1px solid rgba(0, 200, 83, 0.2); border-radius: 8px;">
-            <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">
-              📱 Ở bước <strong>QR Login</strong>, mở file ảnh QR → quét bằng <strong>Zalo trên điện thoại</strong> → xác nhận → <strong>Done!</strong>
-            </p>
-          </div>
+        <div style="padding: 10px 14px; background: rgba(255, 193, 7, 0.06); border: 1px solid rgba(255, 193, 7, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
+          <ul style="margin: 0; padding: 0 0 0 16px; line-height: 1.7;">
+            <li>Session Zalo được <strong>lưu trong volume</strong> — restart container không cần login lại</li>
+            <li>Chỉ cần chạy <code>openclaw onboard</code> lại nếu session hết hạn (thường vài tuần)</li>
+            <li>⚠️ Zalo Personal dùng <strong>unofficial API</strong> — chỉ nên dùng tài khoản phụ</li>
+          </ul>
         </div>
       </div>
 
