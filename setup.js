@@ -271,11 +271,13 @@
       envExtra: '',
       credSteps: [
         { text: '⚠️ Zalo Personal dùng <strong>unofficial API (zca-js)</strong> — chỉ nên dùng tài khoản phụ' },
-        { text: 'Sau khi Docker chạy, bạn cần chạy <code>docker exec -it openclaw-bot openclaw onboard</code> để <strong>quét QR code</strong> login Zalo. Chỉ cần làm <strong>1 lần</strong>.' },
+        { text: 'Sau khi Docker chạy, chạy <code>docker exec -it openclaw-bot openclaw channels login --channel zalouser</code> để <strong>quét QR code</strong> login Zalo. Chỉ cần làm <strong>1 lần</strong>.' },
       ],
       channelConfig: {
         zalouser: {
           enabled: true,
+          dmPolicy: 'open',
+          allowFrom: ['*'],
         },
       },
       pluginInstall: '@openclaw/zalouser',
@@ -808,6 +810,14 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
 
     setOutput('out-openclaw-json', JSON.stringify(clawConfig, null, 2));
 
+    // Generate auth-profiles.json + credentials (for 9Router: dummy key to bypass validation)
+    const providerSlug = state.config.model.split('/')[0] || 'openai';
+    const authKey = is9Router ? 'sk-9router-proxy' : `<your-${providerSlug}-api-key>`;
+    const authProfiles = { [providerSlug]: { apiKey: authKey } };
+    state._authProfiles = JSON.stringify(authProfiles, null, 2);
+    state._credentialProvider = providerSlug;
+    state._credentialKey = authKey;
+
     // 2. Agent YAML
     const agentYaml = `name: ${agentId}
 description: "${state.config.description}"
@@ -953,47 +963,59 @@ docker logs -f openclaw-bot`);
     }
 
     // Store generated files for download
+    // Note: Windows Explorer chặn dotfiles (.env) và file không có extension (Dockerfile)
+    // → Dùng tên .txt để extract được, kèm README hướng dẫn đổi tên
+    const readmeSetup = `=== HƯỚNG DẪN SAU KHI GIẢI NÉN ===
+
+1. Đổi tên file trong thư mục docker/openclaw/:
+   - env.txt  →  .env
+   - Dockerfile.txt  →  Dockerfile
+
+2. Sửa file .env → điền API key (nếu chưa dùng 9Router)
+
+3. Chạy Docker:
+   cd docker/openclaw
+   docker compose build
+   docker compose up -d
+
+4. (Zalo Personal) Login QR:
+   docker exec -it openclaw-bot openclaw channels login --channel zalouser
+`;
     state._generatedFiles = {
+      'README-SETUP.txt': readmeSetup,
       '.openclaw/openclaw.json': JSON.stringify(clawConfig, null, 2),
+      '.openclaw/auth-profiles.json': state._authProfiles,
+      [`.openclaw/credentials/${state._credentialProvider}`]: state._credentialKey,
       [`.openclaw/agents/${agentId}.yaml`]: agentYaml,
-      'docker/openclaw/Dockerfile': dockerfile,
+      'docker/openclaw/Dockerfile.txt': dockerfile,
       'docker/openclaw/docker-compose.yml': compose,
-      'docker/openclaw/.env': document.getElementById('env-content')?.textContent || '',
+      'docker/openclaw/env.txt': document.getElementById('env-content')?.textContent || '',
       '.gitignore': 'docker/openclaw/.env\nnode_modules/',
     };
   }
 
   // ========== Zalo Personal Onboard Guide (post-Docker-setup) ==========
   function generateZaloOnboardGuide() {
-    setOutput('out-zalo-onboard-cmd', `docker exec -it openclaw-bot openclaw onboard`);
+    setOutput('out-zalo-onboard-cmd', `docker exec -it openclaw-bot openclaw channels login --channel zalouser`);
 
     setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
-│  OpenClaw sẽ hỏi lần lượt — chọn như sau:          │
-├──────────────────────┬──────────────────────────────┤
-│  Câu hỏi             │  Chọn                        │
-├──────────────────────┼──────────────────────────────┤
-│  Security warning    │  ✅ Yes                       │
-│  Setup mode          │  ✅ QuickStart                │
-│  Config handling     │  ✅ Use existing values       │
-│  Model/auth provider │  Chọn tuỳ ý (VD: Google)     │
-│  API key             │  Nhập key (hoặc Enter nếu    │
-│                      │  đã có trong .env)            │
-│  Select channel      │  ✅ Zalo (Personal Account)   │
-│  Login via QR?       │  ✅ Yes                       │
-│  ─── QR LOGIN ───    │  📱 Mở file QR → Quét Zalo   │
-│  Did you scan QR?    │  ✅ Yes                       │
-│  DM policy           │  ✅ Pairing (recommended)     │
-│  Configure groups?   │  ✅ No                        │
-│  Configure skills?   │  ✅ No                        │
-│  Enable hooks?       │  ✅ Enter (chọn mặc định)     │
-│  Hatch your bot?     │  ✅ Do this later             │
-├──────────────────────┴──────────────────────────────┤
+│  📱 Chỉ cần 1 lệnh — quét QR login Zalo:           │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  docker exec -it openclaw-bot \                     │
+│    openclaw channels login --channel zalouser       │
+│                                                     │
+├─────────────────────────────────────────────────────┤
 │  💡 Bước QR Login:                                  │
-│  Khi bước QR hiện ra, OpenClaw sẽ lưu file ảnh QR  │
-│  vào thư mục /tmp trong container.                  │
-│  Dùng lệnh: docker cp openclaw-bot:/tmp/qr.png .   │
-│  Mở file ảnh → quét bằng Zalo điện thoại →          │
-│  xác nhận kết nối → quay lại chọn Yes.              │
+│  1. Chạy lệnh trên → đợi QR xuất hiện              │
+│  2. Mở terminal MỚI, copy ảnh QR ra Windows:       │
+│     docker cp openclaw-bot:/tmp/openclaw/           │
+│       openclaw-zalouser-qr-default.png ./qr.png     │
+│  3. Mở qr.png → quét bằng Zalo điện thoại          │
+│  4. Xác nhận trên Zalo → quay lại terminal chọn Yes│
+│                                                     │
+│  ✅ Config AI đã được setup sẵn bởi wizard!         │
+│  ❌ KHÔNG cần chạy openclaw onboard                 │
 └─────────────────────────────────────────────────────┘`);
   }
 
