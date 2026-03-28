@@ -577,6 +577,10 @@ body::after {
   filter: brightness(0) saturate(100%) invert(72%) sepia(50%) saturate(500%) hue-rotate(140deg) brightness(105%) contrast(95%);
 }
 
+.provider-card[data-provider="9router"] .provider-card__icon {
+  background: rgba(0, 200, 200, 0.15);
+}
+
 .form-textarea {
   min-height: 180px;
   max-height: none;
@@ -596,7 +600,7 @@ body::after {
 /* ============ Provider Cards ============ */
 .provider-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
 
@@ -664,10 +668,15 @@ body::after {
   color: var(--warning);
 }
 
+.badge--proxy {
+  background: rgba(0, 200, 200, 0.12);
+  color: #22d3ee;
+}
+
 /* ============ Plugin Grid ============ */
 .plugin-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
 
@@ -725,6 +734,13 @@ body::after {
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.4;
+}
+
+.plugin-card__note {
+  font-size: 10px;
+  color: rgba(255, 193, 7, 0.7);
+  line-height: 1.3;
+  margin-top: 3px;
 }
 
 .plugin-card__check {
@@ -887,6 +903,11 @@ body::after {
 
 .env-preview .env-val {
   color: var(--success);
+}
+
+.env-preview .env-comment {
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 /* Warning box */
@@ -1100,7 +1121,7 @@ body::after {
   }
 
   .provider-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .plugin-grid {

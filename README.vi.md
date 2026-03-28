@@ -4,13 +4,13 @@
 
 **Tạo AI Bot miễn phí trên Telegram hoặc Zalo chỉ trong vài phút.**
 
-[![Version](https://img.shields.io/badge/Phi%C3%AAn%20b%E1%BA%A3n-2.0.0-FF6B35?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Phi%C3%AAn%20b%E1%BA%A3n-3.0.0-FF6B35?style=for-the-badge)](CHANGELOG.md)
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-Gateway-FF6B35?style=for-the-badge&logo=npm)](https://openclaw.ai)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/BotFather)
 [![Zalo](https://img.shields.io/badge/Zalo-Bot-0068FF?style=for-the-badge)](#kênh-hỗ-trợ)
 
-[English](README.md) · [Tiếng Việt](#-bắt-đầu-nhanh)
+<img src="https://flagcdn.com/24x18/vn.png" alt="Tiếng Việt" width="24" height="18"> **Tiếng Việt** · <img src="https://flagcdn.com/24x18/gb.png" alt="English" width="24" height="18"> [English](README.md)
 
 </div>
 
@@ -19,8 +19,10 @@
 ## ✨ Tính năng
 
 - 🤖 **Đa kênh** — Telegram, Zalo Bot API, hoặc Zalo Cá nhân
-- 🧠 **Đa model AI** — Google Gemini, Claude, GPT-4o, Ollama (local), OpenRouter
-- 🧩 **Plugin mở rộng** — Browser Automation, Memory, RAG, Web Search...
+- 🧠 **Đa model AI** — Google Gemini, Claude, GPT-4o, Ollama, OpenRouter, 9Router
+- 🧩 **Skills** — Web Search, Browser Automation, Memory, RAG, Code Interpreter, Image Gen...
+- 🔌 **Plugins** — Voice Call, Matrix, MS Teams, Nostr
+- 🔀 **9Router Proxy** — Không cần API key! Đăng nhập OAuth qua dashboard
 - 🧙 **Setup Wizard** — Giao diện web đẹp, cấu hình mọi thứ trong 4 bước
 - 🆓 **100% Miễn phí** — Google Gemini API free tier + Docker
 - 🔒 **An toàn** — API key lưu trên máy bạn, không bao giờ bị lộ
@@ -48,6 +50,9 @@ Bạn cần **3 thứ** (miễn phí hết):
 | **OpenAI / Codex** | GPT-4o, o3, Codex Mini | 💰 Trả phí (cần Plus/Pro) | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
 | **OpenRouter** | Rất nhiều model miễn phí & trả phí | 🆓/💰 | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | **Ollama** | Qwen 3, DeepSeek, Llama, Gemma... | 🏠 Local (miễn phí) | Cài [ollama.com](https://ollama.com) |
+| **9Router** | Tự động route tới provider tốt nhất | 🔀 Proxy | Không cần API key — [github.com/decolua/9router](https://github.com/decolua/9router) |
+
+> 🔀 **9Router** chạy cùng OpenClaw trong Docker. Sau khi `docker compose up`, mở `localhost:20128/dashboard` để đăng nhập OAuth. Không cần API key!
 
 ---
 
@@ -156,6 +161,17 @@ Có! Chạy lại Setup Wizard hoặc sửa <code>.openclaw/openclaw.json</code>
 API key chỉ lưu trên máy bạn. SETUP.md có các quy tắc bảo mật nghiêm ngặt mà AI Agent phải tuân thủ (không xóa file, không truy cập thư mục nhạy cảm, không lộ key...).
 </details>
 
+<details>
+<summary><b>9Router là gì?</b></summary>
+9Router là AI proxy mã nguồn mở chạy cùng Docker với bot. Thay vì dùng API key, bạn đăng nhập OAuth trên dashboard 9Router (<code>localhost:20128</code>). Nó tự động route request tới AI provider tốt nhất.
+</details>
+
+<details>
+<summary><b>Skills và Plugins khác nhau thế nào?</b></summary>
+<strong>Skills</strong> thêm kỹ năng cho bot (Web Search, Browser, Memory...) — cài qua <code>openclaw skills install</code> từ ClawHub.<br>
+<strong>Plugins</strong> thêm kênh chat hoặc tính năng runtime (Voice Call, Matrix...) — cài qua <code>openclaw plugins install</code> từ npm.
+</details>
+
 ---
 
 ## 🔗 Link hữu ích
@@ -167,6 +183,27 @@ API key chỉ lưu trên máy bạn. SETUP.md có các quy tắc bảo mật ngh
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Ollama](https://ollama.com)
 - [OpenRouter](https://openrouter.ai)
+- [9Router](https://github.com/decolua/9router)
+- [ClawHub (Skills)](https://clawhub.com)
+
+---
+
+## 📈 Lịch sử Star
+
+<div align="center">
+
+[![Star History Chart](https://api.star-history.com/svg?repos=tuanminhhole/openclaw-setup&type=Date)](https://star-history.com/#tuanminhhole/openclaw-setup&Date)
+
+</div>
+
+---
+
+## 🙏 Ghi công
+
+- [OpenClaw](https://openclaw.ai) — AI Gateway framework
+- [9Router](https://github.com/decolua/9router) — AI proxy mã nguồn mở (OAuth, không cần API key)
+- [Playwright](https://playwright.dev) — Engine trình duyệt tự động
+- [ClawHub](https://clawhub.com) — Skills registry
 
 ---
 

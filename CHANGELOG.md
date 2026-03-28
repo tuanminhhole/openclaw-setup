@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] — 2026-03-28
+
+### ✨ New Features
+- **9Router Integration** — AI proxy, không cần API key, multi-container Docker (`docker-compose.yml` 2 service)
+- **Skills System (ClawHub)** — 8 agent capabilities: Web Search, Browser Automation, Memory, RAG, Image Gen, Bot Scheduler, Code Interpreter, Email Assistant
+- **Plugins System (npm)** — 4 runtime extensions: Voice Call, Matrix, MS Teams, Nostr
+- **Browser Automation** — Full Chrome Debug Mode support (socat proxy, agent-browser, Playwright engine)
+- **Task Scheduler** — Windows Scheduled Task auto-starts Chrome Debug khi logon (delay 10s)
+- **Skill-aware .env** — `.env` template tự động thêm env vars cho skills cần API key (Tavily, SMTP, Flux...)
+- **Post-setup Management** — Hướng dẫn thêm/bỏ skills/plugins sau khi setup qua `docker exec`
+
+### 🎨 UI/UX
+- Tách Skills (4-column grid) và Plugins (riêng biệt) — rõ ràng hơn
+- Skill cards hiện notes (⚙️) cho skills cần setup thêm
+- Browser Automation notice card ở Step 4 với `.bat` + `.ps1` scripts
+- Management guide card (🔧) với `docker exec` commands
+
+### 📚 Documentation
+- `docs/browser-automation-guide.md` — Hướng dẫn sử dụng Browser Automation cho user
+- `docs/skills-plugins-guide.md` — Tổng hợp toàn bộ skills/plugins + setup + env vars
+- README.md / README.vi.md — Thêm 9Router, Skills/Plugins, FAQs mới
+
+### 🔧 Technical
+- `state.config.skills[]` + `state.config.plugins[]` quản lý độc lập
+- `openclaw.json` inject `browser` config khi Browser skill selected
+- Dockerfile conditional: socat, agent-browser chỉ khi cần
+- docker-compose: `extra_hosts` cho cả 9Router lẫn non-9Router
+
+---
+
 ## [2.0.0] — 2026-03-27
 
 ### ✨ New Features

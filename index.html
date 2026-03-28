@@ -134,11 +134,20 @@
         </div>
       </div>
 
-      <!-- Plugins -->
+      <!-- Skills (ClawHub) -->
       <div class="form-group">
-        <label class="form-group__label">Plugins — Tùy chọn mở rộng</label>
-        <p class="form-group__hint" style="margin-bottom: 12px;">Chọn các plugin bạn muốn cài thêm. Có thể thêm/bỏ sau.</p>
+        <label class="form-group__label">🧠 Skills — Kỹ năng mở rộng</label>
+        <p class="form-group__hint" style="margin-bottom: 12px;">Chọn skills để bot có thêm khả năng. Được cài từ <a href="https://clawhub.com" target="_blank" style="color: var(--claw-coral);">ClawHub</a> registry.</p>
         <div class="plugin-grid" id="plugin-grid">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+
+      <!-- Plugins (npm packages — extra channels) -->
+      <div class="form-group">
+        <label class="form-group__label">🔌 Plugins — Kênh & mở rộng thêm</label>
+        <p class="form-group__hint" style="margin-bottom: 12px;">Thêm kênh chat hoặc tính năng runtime. Cài qua npm (<code>openclaw plugins install</code>).</p>
+        <div class="plugin-grid" id="extra-plugin-grid">
           <!-- Rendered by JS -->
         </div>
       </div>
@@ -330,6 +339,105 @@
               📱 Ở bước <strong>QR Login</strong>, mở file ảnh QR → quét bằng <strong>Zalo trên điện thoại</strong> → xác nhận → <strong>Done!</strong>
             </p>
           </div>
+        </div>
+      </div>
+
+      <!-- 9Router post-setup notice (shown only when 9Router selected) -->
+      <div id="9router-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(0, 200, 150, 0.3);">
+        <h3 class="cred-section__title">🔀 Sau khi Docker chạy — Setup 9Router</h3>
+        <div style="font-size: 14px; color: var(--text-secondary);">
+          <div class="cred-step" style="margin-bottom: 8px;">
+            <span class="cred-step__number">1</span>
+            <span class="cred-step__text">Mở trình duyệt → <a href="http://localhost:20128/dashboard" target="_blank" style="color: var(--accent);">localhost:20128/dashboard</a></span>
+          </div>
+          <div class="cred-step" style="margin-bottom: 8px;">
+            <span class="cred-step__number">2</span>
+            <span class="cred-step__text">Đăng nhập OAuth vào các AI provider bạn muốn dùng (Google, Claude, Qwen...)</span>
+          </div>
+          <div class="cred-step" style="margin-bottom: 8px;">
+            <span class="cred-step__number">3</span>
+            <span class="cred-step__text">9Router tự động route request từ OpenClaw → AI provider tối ưu nhất. <strong>Done!</strong> 🎉</span>
+          </div>
+        </div>
+        <div style="margin-top: 12px; padding: 10px 14px; background: rgba(255, 193, 7, 0.06); border: 1px solid rgba(255, 193, 7, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
+          ⚠️ <strong>Lưu ý:</strong> 9Router là tool cộng đồng (open-source). Kiểm tra Terms of Service của từng AI provider trước khi dùng.
+        </div>
+      </div>
+
+      <!-- Browser Automation post-setup notice (shown only when browser skill selected) -->
+      <div id="browser-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(66, 133, 244, 0.3);">
+        <h3 class="cred-section__title">🌐 Browser Automation — Bật Chrome Debug Mode</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+          Bot cần kết nối tới Chrome trên máy bạn qua <strong>Debug Mode</strong>. Lưu file <code>.bat</code> bên dưới và chạy <strong>trước khi khởi động Docker</strong>.
+        </p>
+
+        <!-- Chrome Debug .bat script -->
+        <div class="code-block" style="margin-bottom: 16px;">
+          <div class="code-block__header">
+            <span class="code-block__filename">start-chrome-debug.bat</span>
+            <button class="btn-copy" onclick="copyToClipboard(this, 'out-chrome-bat')">📋 Copy</button>
+          </div>
+          <pre class="code-block__content" id="out-chrome-bat"></pre>
+        </div>
+
+        <!-- Task Scheduler .ps1 script -->
+        <div style="margin-bottom: 12px;">
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+            ⏰ <strong>Tự động bật Chrome Debug khi mở máy:</strong> Chạy script PowerShell bên dưới <strong>1 lần</strong> (Run as Administrator) để đăng ký Task Scheduler:
+          </p>
+          <div class="code-block">
+            <div class="code-block__header">
+              <span class="code-block__filename">setup-chrome-task.ps1</span>
+              <button class="btn-copy" onclick="copyToClipboard(this, 'out-task-ps1')">📋 Copy</button>
+            </div>
+            <pre class="code-block__content" id="out-task-ps1"></pre>
+          </div>
+        </div>
+
+        <div style="padding: 10px 14px; background: rgba(66, 133, 244, 0.06); border: 1px solid rgba(66, 133, 244, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
+          💡 <strong>Lưu ý:</strong>
+          <ul style="margin: 6px 0 0 16px; padding: 0; line-height: 1.7;">
+            <li>Chrome debug dùng <strong>profile riêng</strong> — bạn cần login lại Facebook/Gmail 1 lần</li>
+            <li>Phải bật Chrome debug <strong>trước</strong> khi Docker chạy (hoặc restart Docker sau)</li>
+            <li>Port 9222 chỉ bind localhost — <strong>an toàn</strong> trên mạng nội bộ</li>
+            <li>Nói với bot "<em>dùng browser mở...</em>" để bot chủ động dùng trình duyệt</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Post-setup management guide -->
+      <div id="management-guide" class="cred-section" style="margin-top: 24px; border-color: rgba(139, 92, 246, 0.3);">
+        <h3 class="cred-section__title">🔧 Thêm / bỏ Skills & Plugins sau khi setup</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+          Không cần chạy lại wizard. Dùng lệnh bên dưới trực tiếp trong Docker container:
+        </p>
+        <div class="code-block" style="margin-bottom: 12px;">
+          <div class="code-block__header">
+            <span class="code-block__filename">Terminal</span>
+            <button class="btn-copy" onclick="copyToClipboard(this, 'out-manage-cmds')">📋 Copy</button>
+          </div>
+          <pre class="code-block__content" id="out-manage-cmds"># Vào container
+docker exec -it openclaw-bot sh
+
+# Thêm skill mới
+openclaw skills install web-search
+openclaw skills install memory
+
+# Xóa skill
+openclaw skills uninstall web-search
+
+# Thêm plugin mới
+openclaw plugins install @openclaw/voice-call
+
+# Xóa plugin
+openclaw plugins uninstall @openclaw/voice-call
+
+# Restart để áp dụng
+exit
+docker restart openclaw-bot</pre>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
+          💡 <strong>Tip:</strong> Nếu muốn thay đổi lâu dài (persist qua Docker rebuild), hãy sửa <code>Dockerfile</code> rồi <code>docker compose build && docker compose up -d</code>.
         </div>
       </div>
 

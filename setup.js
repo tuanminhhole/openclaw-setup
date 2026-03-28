@@ -14,6 +14,7 @@
     openai: `${SVG_CDN}/openai/light.svg`,
     openrouter: `${SVG_CDN}/openrouter/light.svg`,
     ollama: `${SVG_CDN}/ollama/light.svg`,
+    '9router': null, // Uses emoji icon 🔀 instead of SVG
   };
 
   // Language flag icons (inline SVG circles with flag colors)
@@ -35,6 +36,7 @@
       language: 'vi',
       systemPrompt: '',
       plugins: [],
+      skills: [],
     },
   };
 
@@ -113,57 +115,119 @@
         { id: 'ollama/gemma3:12b', name: 'Gemma 3 12B', desc: 'Google, tiếng Việt tốt', badge: '🏠 Local' },
       ],
     },
+    '9router': {
+      name: '9Router (Proxy)',
+      logo: null,
+      logoEmoji: '🔀',
+      envKey: null,
+      envLabel: null,
+      envLink: 'https://github.com/decolua/9router',
+      envInstructions: '9Router chạy cùng Docker — <strong>không cần API key</strong>. Sau khi <code>docker compose up</code>, mở <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> → đăng nhập OAuth vào các AI provider.',
+      free: true,
+      isProxy: true,
+      models: [
+        { id: 'openai/gpt-4o', name: 'Auto (9Router)', desc: '9Router tự route model tối ưu', badge: '🔀 Proxy' },
+      ],
+    },
   };
 
-  // ========== Available Plugins ==========
+  // ========== Available Plugins (npm packages — runtime/channel extensions) ==========
   const PLUGINS = [
+    {
+      id: 'voice-call',
+      name: 'Voice Call',
+      icon: '📞',
+      desc: 'Gọi thoại AI qua điện thoại',
+      package: '@openclaw/voice-call',
+    },
+    {
+      id: 'matrix',
+      name: 'Matrix Chat',
+      icon: '💬',
+      desc: 'Kết nối thêm kênh Matrix/Element',
+      package: '@openclaw/matrix',
+    },
+    {
+      id: 'msteams',
+      name: 'MS Teams',
+      icon: '🏢',
+      desc: 'Kết nối Microsoft Teams',
+      package: '@openclaw/msteams',
+    },
+    {
+      id: 'nostr',
+      name: 'Nostr',
+      icon: '🟣',
+      desc: 'Kết nối mạng xã hội Nostr',
+      package: '@openclaw/nostr',
+    },
+  ];
+
+  // ========== Available Skills (ClawHub registry — agent capabilities) ==========
+  const SKILLS = [
+    {
+      id: 'web-search',
+      name: 'Web Search',
+      icon: '🔍',
+      desc: 'Tìm kiếm web, trả về kết quả realtime',
+      slug: 'web-search',
+      note: 'Cần API key (Tavily hoặc SerpApi) trong .env',
+      envVars: ['TAVILY_API_KEY=<your_tavily_key>'],
+    },
     {
       id: 'browser',
       name: 'Browser Automation',
       icon: '🌐',
       desc: 'Tự động thao tác trình duyệt (Playwright)',
-      package: '@openclaw/browser',
-      category: 'automation',
-    },
-    {
-      id: 'scheduler',
-      name: 'Task Scheduler',
-      icon: '⏰',
-      desc: 'Lên lịch tác vụ, nhắc nhở định kỳ',
-      package: '@openclaw/scheduler',
-      category: 'automation',
+      slug: 'browser-automation',
+      note: 'Cần bật Chrome Debug Mode trên máy host',
     },
     {
       id: 'memory',
       name: 'Long-term Memory',
       icon: '🧠',
       desc: 'Nhớ hội thoại xuyên phiên, context dài hạn',
-      package: '@openclaw/memory',
-      category: 'core',
-    },
-    {
-      id: 'web-search',
-      name: 'Web Search',
-      icon: '🔍',
-      desc: 'Tìm kiếm web, trả về kết quả realtime',
-      package: '@openclaw/web-search',
-      category: 'core',
+      slug: 'memory',
     },
     {
       id: 'rag',
       name: 'RAG / Knowledge Base',
       icon: '📚',
       desc: 'Chat với tài liệu, file PDF, codebase',
-      package: '@openclaw/rag',
-      category: 'core',
+      slug: 'rag',
+      note: 'Đặt file vào thư mục .openclaw/docs/',
     },
     {
       id: 'image-gen',
       name: 'Image Generation',
       icon: '🎨',
       desc: 'Tạo ảnh bằng AI (DALL·E, Flux...)',
-      package: '@openclaw/image-gen',
-      category: 'creative',
+      slug: 'image-gen',
+      note: 'Dùng chung OPENAI_API_KEY (DALL-E) hoặc thêm FLUX_API_KEY',
+      envVars: ['# FLUX_API_KEY=<your_flux_key>  # chỉ cần nếu dùng Flux'],
+    },
+    {
+      id: 'scheduler',
+      name: 'Bot Scheduler',
+      icon: '⏰',
+      desc: 'Bot tự nhắc nhở, lên lịch gửi tin nhắn',
+      slug: 'scheduler',
+    },
+    {
+      id: 'code-interpreter',
+      name: 'Code Interpreter',
+      icon: '💻',
+      desc: 'Chạy code Python/JS trong sandbox',
+      slug: 'code-interpreter',
+    },
+    {
+      id: 'email',
+      name: 'Email Assistant',
+      icon: '📧',
+      desc: 'Quản lý, soạn, tóm tắt email',
+      slug: 'email-assistant',
+      note: 'Cần cấu hình SMTP trong .env',
+      envVars: ['SMTP_HOST=smtp.gmail.com', 'SMTP_PORT=587', 'SMTP_USER=<your_email>', 'SMTP_PASS=<your_app_password>'],
     },
   ];
 
@@ -388,15 +452,21 @@
     const grid = document.getElementById('provider-grid');
     if (!grid) return;
 
-    grid.innerHTML = Object.entries(PROVIDERS).map(([key, p]) => `
-      <div class="provider-card" data-provider="${key}" onclick="window.__selectProvider('${key}')">
-        <div class="provider-card__icon"><img src="${p.logo}" alt="${p.name}" width="28" height="28"></div>
-        <div class="provider-card__info">
-          <div class="provider-card__name">${p.name}</div>
-          <div class="provider-card__badge ${p.free ? 'badge--free' : 'badge--paid'}">${p.free ? '🆓 Free' : '🔒 Paid'}</div>
-        </div>
-      </div>
-    `).join('');
+    grid.innerHTML = Object.entries(PROVIDERS).map(([key, p]) => {
+      const iconHTML = p.logo
+        ? `<img src="${p.logo}" alt="${p.name}" width="28" height="28">`
+        : `<span style="font-size:28px;line-height:1">${p.logoEmoji || '🤖'}</span>`;
+      const badgeClass = p.isProxy ? 'badge--proxy' : (p.free ? 'badge--free' : 'badge--paid');
+      const badgeText = p.isProxy ? '🔀 Proxy' : (p.free ? '🆓 Free' : '🔒 Paid');
+      return `
+        <div class="provider-card" data-provider="${key}" onclick="window.__selectProvider('${key}')">
+          <div class="provider-card__icon">${iconHTML}</div>
+          <div class="provider-card__info">
+            <div class="provider-card__name">${p.name}</div>
+            <div class="provider-card__badge ${badgeClass}">${badgeText}</div>
+          </div>
+        </div>`;
+    }).join('');
   }
 
   window.__selectProvider = function (key) {
@@ -418,21 +488,49 @@
   };
 
   function renderPluginGrid() {
-    const grid = document.getElementById('plugin-grid');
-    if (!grid) return;
+    // Skills grid (agent capabilities from ClawHub)
+    const skillGrid = document.getElementById('plugin-grid');
+    if (skillGrid) {
+      skillGrid.innerHTML = SKILLS.map((s) => `
+        <label class="plugin-card" data-skill="${s.id}">
+          <input type="checkbox" class="plugin-checkbox" value="${s.id}" onchange="window.__toggleSkill('${s.id}', this.checked)">
+          <div class="plugin-card__icon">${s.icon}</div>
+          <div class="plugin-card__info">
+            <div class="plugin-card__name">${s.name}</div>
+            <div class="plugin-card__desc">${s.desc}</div>
+            ${s.note ? `<div class="plugin-card__note">⚙️ ${s.note}</div>` : ''}
+          </div>
+          <div class="plugin-card__check">✓</div>
+        </label>
+      `).join('');
+    }
 
-    grid.innerHTML = PLUGINS.map((p) => `
-      <label class="plugin-card" data-plugin="${p.id}">
-        <input type="checkbox" class="plugin-checkbox" value="${p.id}" onchange="window.__togglePlugin('${p.id}', this.checked)">
-        <div class="plugin-card__icon">${p.icon}</div>
-        <div class="plugin-card__info">
-          <div class="plugin-card__name">${p.name}</div>
-          <div class="plugin-card__desc">${p.desc}</div>
-        </div>
-        <div class="plugin-card__check">✓</div>
-      </label>
-    `).join('');
+    // Plugins grid (npm packages — extra channels/extensions)
+    const pluginGrid = document.getElementById('extra-plugin-grid');
+    if (pluginGrid) {
+      pluginGrid.innerHTML = PLUGINS.map((p) => `
+        <label class="plugin-card" data-plugin="${p.id}">
+          <input type="checkbox" class="plugin-checkbox" value="${p.id}" onchange="window.__togglePlugin('${p.id}', this.checked)">
+          <div class="plugin-card__icon">${p.icon}</div>
+          <div class="plugin-card__info">
+            <div class="plugin-card__name">${p.name}</div>
+            <div class="plugin-card__desc">${p.desc}</div>
+          </div>
+          <div class="plugin-card__check">✓</div>
+        </label>
+      `).join('');
+    }
   }
+
+  window.__toggleSkill = function (id, checked) {
+    if (checked && !state.config.skills.includes(id)) {
+      state.config.skills.push(id);
+    } else {
+      state.config.skills = state.config.skills.filter((s) => s !== id);
+    }
+    document.querySelector(`.plugin-card[data-skill="${id}"]`)
+      ?.classList.toggle('plugin-card--selected', checked);
+  };
 
   window.__togglePlugin = function (id, checked) {
     if (checked && !state.config.plugins.includes(id)) {
@@ -504,7 +602,9 @@
       const steps = [];
 
       // Provider credential step
-      if (provider.isLocal) {
+      if (provider.isProxy) {
+        steps.push({ text: provider.envInstructions });
+      } else if (provider.isLocal) {
         steps.push({ text: provider.envInstructions });
       } else {
         steps.push({ text: `Lấy <strong>${provider.envLabel}</strong>: ${provider.envInstructions}` });
@@ -514,7 +614,11 @@
       ch.credSteps.forEach((s) => steps.push(s));
 
       // Final step
-      steps.push({ text: 'Tạo file <code>docker/openclaw/.env</code> trong thư mục project và paste tất cả key vào' });
+      if (provider.isProxy) {
+        steps.push({ text: 'Tạo file <code>docker/openclaw/.env</code> trong thư mục project — chỉ cần Bot Token (không cần AI API key!)' });
+      } else {
+        steps.push({ text: 'Tạo file <code>docker/openclaw/.env</code> trong thư mục project và paste tất cả key vào' });
+      }
 
       credContainer.innerHTML = steps.map((s, i) => `
         <div class="cred-step">
@@ -528,7 +632,10 @@
     const envContent = document.getElementById('env-content');
     if (envContent) {
       const lines = [];
-      if (provider.isLocal) {
+      if (provider.isProxy) {
+        // 9Router: no AI API key needed, only channel token
+        lines.push('# Không cần AI API key — 9Router xử lý qua dashboard');
+      } else if (provider.isLocal) {
         lines.push(`OLLAMA_HOST=http://host.docker.internal:11434`);
       } else {
         lines.push(`${provider.envKey}=<your_${provider.envKey.toLowerCase()}>`);
@@ -536,8 +643,27 @@
       if (ch.envExtra) {
         lines.push(ch.envExtra);
       }
+
+      // Skill-specific env vars
+      const selectedSkillEnvVars = [];
+      state.config.skills.forEach((sid) => {
+        const skill = SKILLS.find((s) => s.id === sid);
+        if (skill && skill.envVars && skill.envVars.length > 0) {
+          selectedSkillEnvVars.push(`# --- ${skill.name} ---`);
+          skill.envVars.forEach((v) => selectedSkillEnvVars.push(v));
+        }
+      });
+      if (selectedSkillEnvVars.length > 0) {
+        lines.push('');
+        lines.push('# ====== Skill env vars ======');
+        selectedSkillEnvVars.forEach((v) => lines.push(v));
+      }
+
       envContent.innerHTML = lines.map((line) => {
+        if (!line || line.trim() === '') return '';
+        if (line.startsWith('#')) return `<span class="env-comment">${line}</span>`;
         const eq = line.indexOf('=');
+        if (eq === -1) return line;
         const key = line.substring(0, eq);
         const val = line.substring(eq + 1);
         return `<span class="env-key">${key}</span>=<span class="env-val">${val}</span>`;
@@ -565,7 +691,91 @@
     const provider = PROVIDERS[state.config.provider];
     if (!provider) return;
 
+    const is9Router = provider.isProxy;
+
+    // Show/hide 9Router post-setup notice
+    const routerNotice = document.getElementById('9router-notice');
+    if (routerNotice) routerNotice.style.display = is9Router ? '' : 'none';
+
+    // Show/hide Browser Automation notice + generate scripts
+    const browserNotice = document.getElementById('browser-notice');
+    const hasBrowserSkill = state.config.skills.includes('browser');
+    if (browserNotice) browserNotice.style.display = hasBrowserSkill ? '' : 'none';
+
+    if (hasBrowserSkill) {
+      // Chrome Debug .bat script
+      const chromeBat = `@echo off
+echo ============================================
+echo   OpenClaw - Chrome Debug Mode
+echo ============================================
+echo.
+echo Dang tat Chrome cu (neu co)...
+taskkill /F /IM chrome.exe >nul 2>&1
+timeout /t 3 /nobreak >nul
+echo Dang mo Chrome voi Debug Mode...
+start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" ^
+  --remote-debugging-port=9222 ^
+  --remote-allow-origins=* ^
+  --user-data-dir="%TEMP%\\chrome-debug"
+timeout /t 4 /nobreak >nul
+powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:9222/json/version' -UseBasicParsing -TimeoutSec 5 | Out-Null; Write-Host 'OK! Chrome Debug Mode dang chay tren port 9222.' -ForegroundColor Green } catch { Write-Host 'LOI: Port 9222 chua mo. Thu lai.' -ForegroundColor Red }"
+echo.
+pause`;
+      setOutput('out-chrome-bat', chromeBat);
+
+      // Task Scheduler PowerShell script
+      const taskPs1 = `# ============================================
+# OpenClaw - Auto-start Chrome Debug khi logon
+# Chay script nay 1 lan voi Run as Administrator
+# ============================================
+
+# Duong dan toi file .bat
+$batPath = "$env:USERPROFILE\\start-chrome-debug.bat"
+
+# Kiem tra file .bat ton tai
+if (-not (Test-Path $batPath)) {
+  Write-Host "LOI: Khong tim thay $batPath" -ForegroundColor Red
+  Write-Host "Hay luu file start-chrome-debug.bat vao $env:USERPROFILE truoc." -ForegroundColor Yellow
+  exit 1
+}
+
+# Tao Scheduled Task
+$action   = New-ScheduledTaskAction -Execute $batPath
+$trigger  = New-ScheduledTaskTrigger -AtLogOn
+$trigger.Delay = "PT10S"   # Delay 10 giay sau khi logon
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+
+Register-ScheduledTask \\
+  -TaskName "OpenClaw-ChromeDebug" \\
+  -Description "Tu dong bat Chrome Debug Mode cho OpenClaw Browser Automation" \\
+  -Action $action \\
+  -Trigger $trigger \\
+  -Settings $settings \\
+  -Force
+
+Write-Host ""
+Write-Host "DONE! Task 'OpenClaw-ChromeDebug' da duoc tao." -ForegroundColor Green
+Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (delay 10s)." -ForegroundColor Cyan`;
+      setOutput('out-task-ps1', taskPs1);
+    }
+
+    // Show Docker output (ensure visible, may have been hidden by Zalo Personal)
+    const dockerOut = document.getElementById('docker-output');
+    const nativeOut = document.getElementById('native-output');
+    const aiShortcut = document.getElementById('ai-agent-shortcut');
+    if (dockerOut) dockerOut.style.display = '';
+    if (nativeOut) nativeOut.style.display = 'none';
+    if (aiShortcut) aiShortcut.style.display = '';
+
+    // Reset step 4 heading
+    const title = document.getElementById('step4-title');
+    const desc = document.getElementById('step4-desc');
+    if (title) title.textContent = '🎉 Config đã sẵn sàng!';
+    if (desc) desc.textContent = 'Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup.';
+
     const agentId = state.config.botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
+
+    const hasBrowser = state.config.skills.includes('browser');
 
     // 1. openclaw.json
     const clawConfig = {
@@ -589,6 +799,29 @@
       },
     };
 
+    // 9Router: add proxy endpoint config
+    if (is9Router) {
+      clawConfig.providers = {
+        openai: {
+          baseURL: 'http://9router:20128/v1',
+        },
+      };
+    }
+
+    // Browser Automation: inject browser config
+    if (hasBrowser) {
+      clawConfig.browser = {
+        enabled: true,
+        defaultProfile: 'host-chrome',
+        profiles: {
+          'host-chrome': {
+            cdpUrl: 'http://127.0.0.1:9222',
+            color: '#4285F4',
+          },
+        },
+      };
+    }
+
     setOutput('out-openclaw-json', JSON.stringify(clawConfig, null, 2));
 
     // 2. Agent YAML
@@ -611,46 +844,112 @@ ${state.config.systemPrompt.split('\n').map((l) => '  ' + l).join('\n')}`;
       if (plug) allPlugins.push(plug.package);
     });
 
+    const allSkills = [];
+    state.config.skills.forEach((sid) => {
+      const skill = SKILLS.find((s) => s.id === sid);
+      if (skill) allSkills.push(skill.slug);
+    });
+
     const pluginLines = allPlugins.length > 0
-      ? `\n# Install plugins\nRUN openclaw plugins install ${allPlugins.join(' ')}\n`
+      ? `\n# Install plugins (npm)\nRUN openclaw plugins install ${allPlugins.join(' ')}\n`
       : '';
+
+    const skillLines = allSkills.length > 0
+      ? `\n# Install skills (ClawHub)\nRUN openclaw skills install ${allSkills.join(' ')}\n`
+      : '';
+
+    // Browser Automation: extra Docker deps
+    const browserAptExtra = hasBrowser ? ' socat' : '';
+    const browserInstallLines = hasBrowser
+      ? `\n# Browser Automation: Playwright engine\nRUN npm install -g agent-browser && npx agent-browser install --with-deps || true\n`
+      : '';
+    const browserCmd = hasBrowser
+      ? 'CMD socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & openclaw gateway run'
+      : 'CMD ["openclaw", "gateway", "run"]';
 
     const dockerfile = `FROM node:22-slim
 
-RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g openclaw@latest
-${pluginLines}
+${pluginLines}${skillLines}${browserInstallLines}
 WORKDIR /root/.openclaw
 
 EXPOSE 18789
 
-CMD ["openclaw", "gateway", "run"]`;
+${browserCmd}`;
 
     setOutput('out-dockerfile', dockerfile);
 
     // 4. docker-compose.yml
-    const compose = `services:
+    // extra_hosts always needed for browser (socat → host Chrome)
+    const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
+
+    let compose;
+    if (is9Router) {
+      compose = `services:
   ai-bot:
     build: .
     container_name: openclaw-bot
     restart: always
     env_file:
       - .env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - 9router
+${extraHostsBlock}
+    volumes:
+      - <PROJECT_DIR>/.openclaw:/root/.openclaw
+    ports:
+      - "18789:18789"
+
+  9router:
+    image: node:22-slim
+    container_name: 9router
+    restart: always
+    entrypoint: ["/bin/sh", "-c", "npm install -g 9router && 9router"]
+    environment:
+      - PORT=20128
+      - HOSTNAME=0.0.0.0
+    volumes:
+      - 9router-data:/root/.9router
+    ports:
+      - "20128:20128"
+
+volumes:
+  9router-data:`;
+    } else {
+      compose = `services:
+  ai-bot:
+    build: .
+    container_name: openclaw-bot
+    restart: always
+    env_file:
+      - .env
+${extraHostsBlock}
     volumes:
       - <PROJECT_DIR>/.openclaw:/root/.openclaw
     ports:
       - "18789:18789"`;
+    }
 
     setOutput('out-compose', compose);
 
     // 5. Docker commands
-    setOutput('out-commands', `cd <PROJECT_DIR>/docker/openclaw
+    if (is9Router) {
+      setOutput('out-commands', `cd <PROJECT_DIR>/docker/openclaw
+docker compose build
+docker compose up -d
+
+# 📋 Sau khi chạy xong:
+# 1. Mở http://localhost:20128/dashboard
+# 2. Login OAuth vào AI providers (Google, Claude...)
+# 3. Test bot trên Telegram! 🎉`);
+    } else {
+      setOutput('out-commands', `cd <PROJECT_DIR>/docker/openclaw
 docker compose build
 docker compose up -d
 docker logs -f openclaw-bot`);
+    }
 
     // Update agent filename
     const afEl = document.getElementById('agent-filename');
@@ -661,7 +960,8 @@ docker logs -f openclaw-bot`);
     if (envInfo) {
       const keys = [];
       if (provider.envKey) keys.push(`${provider.envKey}=<your-key>`);
-      ch.envKeys.forEach(k => keys.push(`${k.key}=<your-value>`));
+      if (!is9Router) ch.envKeys.forEach(k => keys.push(`${k.key}=<your-value>`));
+      if (is9Router) keys.push('# AI key: config qua 9Router dashboard');
       envInfo.textContent = keys.join('\n');
     }
   }
