@@ -781,14 +781,18 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       },
     };
 
-    // 9Router: add proxy endpoint config
+    // 9Router: override openai provider to route through 9Router proxy
     if (is9Router) {
+      const modelId = state.config.model.split('/')[1] || 'gpt-4o';
       clawConfig.models = {
         mode: 'merge',
         providers: {
-          '9router': {
+          openai: {
             baseUrl: 'http://9router:20128/v1',
             api: 'openai-completions',
+            models: [
+              { id: modelId, name: `${modelId} (via 9Router)` },
+            ],
           },
         },
       };
