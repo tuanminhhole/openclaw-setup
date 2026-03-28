@@ -781,9 +781,13 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
 
     // 9Router: add proxy endpoint config
     if (is9Router) {
-      clawConfig.providers = {
-        openai: {
-          baseURL: 'http://9router:20128/v1',
+      clawConfig.models = {
+        mode: 'merge',
+        providers: {
+          '9router': {
+            baseUrl: 'http://9router:20128/v1',
+            api: 'openai-completions',
+          },
         },
       };
     }
@@ -890,10 +894,9 @@ ${extraHostsBlock}
     image: node:22-slim
     container_name: 9router
     restart: always
-    entrypoint: ["/bin/sh", "-c", "npm install -g 9router && 9router"]
+    entrypoint: ["/bin/sh", "-c", "npm install -g 9router && mkdir -p /root/.9router && [ -f /root/.9router/db.json ] || echo '{}' > /root/.9router/db.json && 9router --no-browser --host 0.0.0.0 -p 20128"]
     environment:
-      - PORT=20128
-      - HOSTNAME=0.0.0.0
+      - CI=true
     volumes:
       - 9router-data:/root/.9router
     ports:
