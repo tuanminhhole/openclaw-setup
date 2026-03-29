@@ -237,12 +237,12 @@
         </p>
 
         <div class="file-tree" style="text-align: left; margin: 0 auto; max-width: 520px;"><span class="dir">&lt;PROJECT_DIR&gt;/</span>
-├── <span class="dir">.openclaw/</span>                    <span class="comment">← Config chính</span>
+├── <span class="dir">.openclaw/</span>                    <span class="comment">← <span data-vi="Config chính" data-en="Main config">Config chính</span></span>
 │   ├── <span class="file">openclaw.json</span>
 │   ├── <span class="file">auth-profiles.json</span>
-│   ├── <span class="dir">workspace/</span>                <span class="comment">← Tính cách bot</span>
-│   │   ├── <span class="file">IDENTITY.md</span>           <span class="comment">← Tên, emoji, vibe</span>
-│   │   └── <span class="file">SOUL.md</span>               <span class="comment">← Tính cách, quy tắc</span>
+│   ├── <span class="dir">workspace/</span>                <span class="comment">← <span data-vi="Tính cách bot" data-en="Bot persona">Tính cách bot</span></span>
+│   │   ├── <span class="file">IDENTITY.md</span>           <span class="comment">← <span data-vi="Tên, emoji, vibe" data-en="Name, emoji, vibe">Tên, emoji, vibe</span></span>
+│   │   └── <span class="file">SOUL.md</span>               <span class="comment">← <span data-vi="Tính cách, quy tắc" data-en="Personality, rules">Tính cách, quy tắc</span></span>
 │   ├── <span class="dir">credentials/</span>
 │   ├── <span class="dir">agents/</span>
 │   │   └── <span class="file" id="agent-filename-tree">&lt;bot&gt;.yaml</span>
@@ -353,7 +353,7 @@
         <!-- Lệnh docker exec -->
         <div class="code-block" style="margin-bottom: 16px;">
           <div class="code-block__header">
-            <span class="code-block__filename">Terminal — Chạy 1 lần</span>
+            <span class="code-block__filename" data-vi="Terminal — Chạy 1 lần" data-en="Terminal — Run once">Terminal — Chạy 1 lần</span>
             <button class="btn-copy" onclick="copyToClipboard(this, 'out-zalo-onboard-cmd')">📋 Copy</button>
           </div>
           <pre class="code-block__content" id="out-zalo-onboard-cmd"></pre>
@@ -363,39 +363,39 @@
         <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;" data-vi="Wizard sẽ hỏi lần lượt. <strong>Chọn đúng như bảng bên dưới:</strong>" data-en="The wizard will ask prompts. <strong>Choose exactly as below:</strong>">Wizard sẽ hỏi lần lượt. <strong>Chọn đúng như bảng bên dưới:</strong></p>
         <div class="code-block" style="font-size: 13px; margin-bottom: 12px;">
           <div class="code-block__header">
-            <span class="code-block__filename">Cheat Sheet — Chọn gì ở mỗi bước</span>
+            <span class="code-block__filename" data-vi="Cheat Sheet — Chọn gì ở mỗi bước" data-en="Cheat Sheet — What to choose">Cheat Sheet — Chọn gì ở mỗi bước</span>
           </div>
           <pre class="code-block__content" id="out-zalo-onboard-guide"></pre>
         </div>
 
         <div style="padding: 10px 14px; background: rgba(255, 193, 7, 0.06); border: 1px solid rgba(255, 193, 7, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
           <ul style="margin: 0; padding: 0 0 0 16px; line-height: 1.7;">
-            <li>Session Zalo được <strong>lưu trong volume</strong> — restart container không cần login lại</li>
-            <li>Chỉ cần chạy <code>openclaw onboard</code> lại nếu session hết hạn (thường vài tuần)</li>
-            <li>⚠️ Zalo Personal dùng <strong>unofficial API</strong> — chỉ nên dùng tài khoản phụ</li>
+            <li><span data-vi="Session Zalo được <strong>lưu trong volume</strong> — restart container không cần login lại" data-en="Zalo session is <strong>saved in volume</strong> — no need to re-login on restart">Session Zalo được <strong>lưu trong volume</strong> — restart container không cần login lại</span></li>
+            <li><span data-vi="Chỉ cần chạy <code>openclaw onboard</code> lại nếu session hết hạn (thường vài tuần)" data-en="Run <code>openclaw onboard</code> again only if session expires (usually weeks)">Chỉ cần chạy <code>openclaw onboard</code> lại nếu session hết hạn (thường vài tuần)</span></li>
+            <li><span data-vi="⚠️ Zalo Personal dùng <strong>unofficial API</strong> — chỉ nên dùng tài khoản phụ" data-en="⚠️ Zalo Personal uses <strong>unofficial API</strong> — use alternate account only">⚠️ Zalo Personal dùng <strong>unofficial API</strong> — chỉ nên dùng tài khoản phụ</span></li>
           </ul>
         </div>
       </div>
 
       <!-- 9Router post-setup notice (shown only when 9Router selected) -->
       <div id="9router-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(0, 200, 150, 0.3);">
-        <h3 class="cred-section__title">🔀 Sau khi Docker chạy — Setup 9Router</h3>
+        <h3 class="cred-section__title"><span data-vi="🔀 Sau khi Docker chạy — Setup 9Router" data-en="🔀 After Docker runs — Setup 9Router">🔀 Sau khi Docker chạy — Setup 9Router</span></h3>
         <div style="font-size: 14px; color: var(--text-secondary);">
           <div class="cred-step" style="margin-bottom: 8px;">
             <span class="cred-step__number">1</span>
-            <span class="cred-step__text">Mở trình duyệt → <a href="http://localhost:20128/dashboard" target="_blank" style="color: var(--accent);">localhost:20128/dashboard</a></span>
+            <span class="cred-step__text"><span data-vi="Mở trình duyệt" data-en="Open browser">Mở trình duyệt</span> → <a href="http://localhost:20128/dashboard" target="_blank" style="color: var(--accent);">localhost:20128/dashboard</a></span>
           </div>
           <div class="cred-step" style="margin-bottom: 8px;">
             <span class="cred-step__number">2</span>
-            <span class="cred-step__text">Đăng nhập OAuth vào các AI provider bạn muốn dùng (Google, Claude, Qwen...)</span>
+            <span class="cred-step__text" data-vi="Đăng nhập OAuth vào các AI provider bạn muốn dùng (Google, Claude, Qwen...)" data-en="OAuth login to the AI providers you want to use (Google, Claude, Qwen...)">Đăng nhập OAuth vào các AI provider bạn muốn dùng (Google, Claude, Qwen...)</span>
           </div>
           <div class="cred-step" style="margin-bottom: 8px;">
             <span class="cred-step__number">3</span>
-            <span class="cred-step__text">9Router tự động route request từ OpenClaw → AI provider tối ưu nhất. <strong>Done!</strong> 🎉</span>
+            <span class="cred-step__text"><span data-vi="9Router tự động route request từ OpenClaw → AI provider tối ưu nhất." data-en="9Router auto-routes requests from OpenClaw → optimal AI provider.">9Router tự động route request từ OpenClaw → AI provider tối ưu nhất.</span> <strong>Done!</strong> 🎉</span>
           </div>
         </div>
         <div style="margin-top: 12px; padding: 10px 14px; background: rgba(255, 193, 7, 0.06); border: 1px solid rgba(255, 193, 7, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
-          ⚠️ <strong>Lưu ý:</strong> 9Router là tool cộng đồng (open-source). Kiểm tra Terms of Service của từng AI provider trước khi dùng.
+          ⚠️ <strong data-vi="Lưu ý:" data-en="Note:">Lưu ý:</strong> <span data-vi="9Router là tool cộng đồng (open-source). Kiểm tra Terms of Service của từng AI provider trước khi dùng." data-en="9Router is a community open-source tool. Check the Terms of Service for each AI provider before using.">9Router là tool cộng đồng (open-source). Kiểm tra Terms of Service của từng AI provider trước khi dùng.</span>
         </div>
       </div>
 
@@ -451,7 +451,7 @@ exit
 docker restart openclaw-bot</pre>
         </div>
         <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
-          💡 <strong>Tip:</strong> Nếu muốn thay đổi lâu dài (persist qua Docker rebuild), hãy sửa <code>Dockerfile</code> rồi <code>docker compose build && docker compose up -d</code>.
+          💡 <strong data-vi="Tip:" data-en="Tip:">Tip:</strong> <span data-vi="Nếu muốn thay đổi lâu dài (persist qua Docker rebuild), hãy sửa <code>Dockerfile</code> rồi <code>docker compose build &amp;&amp; docker compose up -d</code>." data-en="For permanent changes (persist across Docker rebuilds), edit the <code>Dockerfile</code> then run <code>docker compose build &amp;&amp; docker compose up -d</code>.">Nếu muốn thay đổi lâu dài (persist qua Docker rebuild), hãy sửa <code>Dockerfile</code> rồi <code>docker compose build &amp;&amp; docker compose up -d</code>.</span>
         </div>
       </div>
 

@@ -129,7 +129,7 @@
       free: true,
       isProxy: true,
       models: [
-        { id: 'smart-route', name: 'Smart Proxy (Auto Route)', descVi: 'Tự động luân chuyển vương bài mọi Provider', descEn: 'Smart auto-routing across top providers', badge: '🌟 Khuyên dùng' },
+        { id: 'smart-route', name: 'Smart Proxy (Auto Route)', descVi: 'Tự động luân chuyển vương bài mọi Provider', descEn: 'Smart auto-routing across top providers', badgeVi: '🌟 Khuyên dùng', badgeEn: '🌟 Recommended' },
         { id: 'cx/gpt-5.4', name: 'GPT 5.4 (Codex)', descVi: 'Sức mạnh code tối đa từ OpenAI Codex', descEn: 'Max coding power from OpenAI Codex', badge: '🤖 Codex' },
         { id: 'ag/claude-opus-4-6-thinking', name: 'Claude Opus 4.6 Thinking (AG)', descVi: 'Cỗ máy suy luận từ Antigravity', descEn: 'Reasoning engine from Antigravity', badge: '🚀 AG' },
         { id: 'ag/gemini-3.1-pro-high', name: 'Gemini 3.1 Pro High (AG)', descVi: 'Ngữ cảnh khổng lồ từ Antigravity', descEn: 'Huge context from Antigravity', badge: '🚀 AG' },
