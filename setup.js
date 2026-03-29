@@ -129,9 +129,14 @@
       free: true,
       isProxy: true,
       models: [
-        { id: '9router/cx/gpt-5.4', name: 'GPT-5.4 (Codex)', desc: 'Flagship, mạnh nhất', badge: '🔀 Proxy' },
-        { id: '9router/cx/gpt-5.3-codex', name: 'GPT-5.3 Codex', desc: 'Chuyên code, agent', badge: '🔀 Proxy' },
-        { id: '9router/cx/gpt-5.1-codex-mini', name: 'GPT-5.1 Mini', desc: 'Nhanh, nhẹ', badge: '🔀 Proxy' },
+        { id: 'smart-route', name: 'Smart Proxy (Auto Route)', desc: 'Tự động luân chuyển vương bài mọi Provider', badge: '🌟 Khuyên dùng' },
+        { id: 'cx/gpt-5.4', name: 'GPT 5.4 (Codex)', desc: 'Sức mạnh code tối đa từ OpenAI Codex', badge: '🤖 Codex' },
+        { id: 'ag/claude-opus-4-6-thinking', name: 'Claude Opus 4.6 Thinking (AG)', desc: 'Cỗ máy suy luận từ Antigravity', badge: '🚀 AG' },
+        { id: 'ag/gemini-3.1-pro-high', name: 'Gemini 3.1 Pro High (AG)', desc: 'Ngữ cảnh khổng lồ từ Antigravity', badge: '🚀 AG' },
+        { id: 'cc/claude-opus-4-6', name: 'Claude Opus 4.6 (Claude Code)', desc: 'Thuần tuý Anthropic', badge: '✨ Claude' },
+        { id: 'cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Claude Code)', desc: 'Nhanh, thông minh', badge: '✨ Claude' },
+        { id: 'gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', desc: 'Cân bằng, tốc độ từ GitHub Copilot', badge: '💻 Copilot' },
+        { id: 'gh/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', desc: 'Suy luận mạnh nhất từ Copilot', badge: '💻 Copilot' },
       ],
     },
   };
@@ -289,7 +294,7 @@
 
   // ========== Default system prompts ==========
   const DEFAULT_PROMPTS = {
-    vi: `Bạn là {BOT_NAME}, trợ lý AI cá nhân.
+    vi: `Bạn là {BOT_NAME}, {BOT_DESC}.
 
 ## Tính cách
 - Thân thiện, hữu ích
@@ -299,7 +304,7 @@
 ## Quy tắc
 - Trả lời ngắn gọn, súc tích
 - Hỏi lại khi chưa rõ yêu cầu`,
-    en: `You are {BOT_NAME}, a personal AI assistant.
+    en: `You are {BOT_NAME}, {BOT_DESC}.
 
 ## Personality
 - Friendly and helpful
@@ -431,7 +436,8 @@
     const prompt = document.getElementById('cfg-prompt');
     if (prompt && !prompt.dataset.userEdited) {
       const name = document.getElementById('cfg-name')?.value || 'Bot';
-      prompt.value = DEFAULT_PROMPTS[val].replace('{BOT_NAME}', name);
+      const desc = document.getElementById('cfg-desc')?.value || (val === 'vi' ? 'trợ lý AI cá nhân' : 'a personal AI assistant');
+      prompt.value = DEFAULT_PROMPTS[val].replace('{BOT_NAME}', name).replace('{BOT_DESC}', desc);
       // Auto-expand
       prompt.style.height = 'auto';
       prompt.style.height = prompt.scrollHeight + 'px';
@@ -626,11 +632,13 @@
     };
 
     document.addEventListener('input', (e) => {
-      if (e.target.id === 'cfg-name') {
+      if (e.target.id === 'cfg-name' || e.target.id === 'cfg-desc') {
         const prompt = document.getElementById('cfg-prompt');
         const lang = document.getElementById('cfg-language')?.value || 'vi';
+        const nameVal = document.getElementById('cfg-name')?.value || 'Bot';
+        const descVal = document.getElementById('cfg-desc')?.value || (lang === 'vi' ? 'trợ lý AI cá nhân' : 'a personal AI assistant');
         if (prompt && !prompt.dataset.userEdited) {
-          prompt.value = DEFAULT_PROMPTS[lang].replace('{BOT_NAME}', e.target.value || 'Bot');
+          prompt.value = DEFAULT_PROMPTS[lang].replace('{BOT_NAME}', nameVal).replace('{BOT_DESC}', descVal);
           autoExpand(prompt);
         }
       }
@@ -648,8 +656,9 @@
     const prompt = document.getElementById('cfg-prompt');
     const lang = document.getElementById('cfg-language')?.value || 'vi';
     const name = document.getElementById('cfg-name')?.value || 'Bot';
+    const desc = document.getElementById('cfg-desc')?.value || (lang === 'vi' ? 'trợ lý AI cá nhân' : 'a personal AI assistant');
     if (prompt && !prompt.dataset.userEdited) {
-      prompt.value = DEFAULT_PROMPTS[lang].replace('{BOT_NAME}', name);
+      prompt.value = DEFAULT_PROMPTS[lang].replace('{BOT_NAME}', name).replace('{BOT_DESC}', desc);
       setTimeout(() => { prompt.style.height = 'auto'; prompt.style.height = prompt.scrollHeight + 'px'; }, 50);
     }
     // Update security rules language
@@ -897,9 +906,14 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
             apiKey: 'sk-no-key',
             api: 'openai-completions',
             models: [
-              { id: 'cx/gpt-5.4', name: 'GPT-5.4 (via 9Router/Codex)', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'cx/gpt-5.3-codex', name: 'GPT-5.3 Codex (via 9Router)', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'cx/gpt-5.1-codex-mini', name: 'GPT-5.1 Mini (via 9Router)', contextWindow: 200000, maxTokens: 8192 },
+              { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 },
+              { id: 'cx/gpt-5.4', name: 'GPT 5.4 (Codex)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ag/claude-opus-4-6-thinking', name: 'Claude Opus 4.6 Thinking (AG)', contextWindow: 200000, maxTokens: 8192 },
+              { id: 'ag/gemini-3.1-pro-high', name: 'Gemini 3.1 Pro High (AG)', contextWindow: 1000000, maxTokens: 8192 },
+              { id: 'cc/claude-opus-4-6', name: 'Claude Opus 4.6 (Claude Code)', contextWindow: 200000, maxTokens: 8192 },
+              { id: 'cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Claude Code)', contextWindow: 200000, maxTokens: 8192 },
+              { id: 'gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'gh/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', contextWindow: 200000, maxTokens: 8192 },
             ],
           },
         },
@@ -1028,7 +1042,8 @@ ${extraHostsBlock}
     image: node:22-slim
     container_name: 9router
     restart: always
-    entrypoint: ["/bin/sh", "-c", "npm install -g 9router && 9router"]
+    entrypoint: >
+      /bin/sh -c "npm install -g 9router && [ ! -f /root/.9router/db.json ] && echo '{\\"combos\\":[{\\"id\\":\\"smart-route\\",\\"name\\":\\"smart-route\\",\\"alias\\":\\"smart-route\\",\\"models\\":[\\"cx/gpt-5.4\\",\\"ag/claude-opus-4-6-thinking\\",\\"cc/claude-opus-4-6\\",\\"gh/gpt-5.4\\",\\"ag/gemini-3.1-pro-high\\",\\"cc/claude-sonnet-4-6\\",\\"gh/claude-opus-4.6\\"]}]}' > /root/.9router/db.json; 9router"
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0

@@ -4,7 +4,7 @@
 
 **Create your own free AI Bot on Telegram or Zalo in minutes.**
 
-[![Version](https://img.shields.io/badge/Version-3.0.1-FF6B35?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-3.0.2-FF6B35?style=for-the-badge)](CHANGELOG.md)
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-Gateway-FF6B35?style=for-the-badge&logo=npm)](https://openclaw.ai)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/BotFather)

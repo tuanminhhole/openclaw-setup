@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.2] — 2026-03-29
+
+### ✨ 9Router Smart Proxy Expansion
+- **9Router db.json Stability** — Cập nhật logic inject db.json của 9router qua entrypoint để tránh lỗi báo mất file "No such file or directory, lstat db.json".
+- **Flagship Fallback Proxy** — Cấu hình "Smart Proxy" để có danh sách luân chuyển các LLMs Flagship mạnh mẽ nhất hiện tại của Codex, Antigravity, Claude Code, và Github Copilot.
+- **Tùy chỉnh Setup Wizard** — Khi cài đặt hiện tại sẽ thấy danh sách provider/model hoàn chỉnh, và Smart Proxy được đặt làm chuẩn ưu tiên để tự fix lỗi "404 No Active Credentials".
+
 ## [3.0.1] — 2026-03-29
 
 ### ✨ New Features
