@@ -58,7 +58,14 @@
 │   ├── credentials/
 │   │   └── gemini                ← Gemini API key
 │   ├── agents/
-│   │   └── <agent-name>.yaml    ← Agent definition
+│   │   └── <agent-name>.yaml    ← Agent definition (name + model only)
+│   ├── workspace/                ← ⭐ Bot persona & behavior
+│   │   ├── IDENTITY.md           ← Bot name, emoji, vibe
+│   │   ├── SOUL.md               ← Personality, boundaries
+│   │   ├── AGENTS.md             ← Operating rules
+│   │   ├── USER.md               ← User preferences
+│   │   ├── TOOLS.md              ← Tool usage guide
+│   │   └── MEMORY.md             ← Long-term memory
 │   ├── skills/                   ← Slash commands (optional)
 │   ├── identity/
 │   │   └── device.json           ← Device keypair
@@ -344,7 +351,9 @@ Replace the `channels` section with:
 }
 ```
 
-### Step 7: Create an Agent
+### Step 7: Create Agent & Workspace Files
+
+#### 7a. Agent YAML (metadata only, NO system_prompt)
 
 Create a YAML file at `.openclaw/agents/<name>.yaml`. Example — `.openclaw/agents/chat.yaml`:
 
@@ -354,20 +363,30 @@ description: "Personal AI assistant"
 
 model:
   primary: google/gemini-2.5-flash
-
-system_prompt: |
-  You are a personal AI assistant.
-  
-  ## Personality
-  - Friendly and helpful
-  - Reply in the user's language
-  
-  ## Rules
-  - Keep answers concise
-  - Ask for clarification when needed
 ```
 
-Then update `openclaw.json` → add the agent to `agents.list`:
+> **Note:** The YAML file only declares `name`, `description`, `model`. Bot personality lives in workspace files below.
+
+#### 7b. Workspace Markdown Files (⭐ Bot Identity)
+
+OpenClaw **auto-injects** all `.md` files in `.openclaw/workspace/` into the agent's context at the start of every session. This is how the bot "knows" its name, personality, and rules.
+
+| File | Purpose | Required |
+|------|---------|----------|
+| `IDENTITY.md` | Bot name, emoji, self-introduction | ✅ |
+| `SOUL.md` | Personality, style, boundaries | ✅ |
+| `AGENTS.md` | Operating rules, response format | ✅ |
+| `USER.md` | User preferences (language, timezone) | Recommended |
+| `TOOLS.md` | Tool/skill usage conventions | Recommended |
+| `MEMORY.md` | Long-term memory (bot auto-updates) | Optional |
+
+> **Priority order:** Per-agent files (`.openclaw/agents/<id>/`) → Global workspace files (`.openclaw/workspace/`) → Config defaults.
+
+> **System security** (no file deletion, no sensitive directory access, no API key leaks...) is **automatically enforced** by OpenClaw — no need to write it in workspace files.
+
+#### 7c. Update `openclaw.json`
+
+Add the agent to `agents.list`:
 
 ```json
 {

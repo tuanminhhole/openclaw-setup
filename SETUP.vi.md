@@ -58,7 +58,14 @@
 │   ├── credentials/
 │   │   └── <provider>            ← API key của nhà cung cấp AI
 │   ├── agents/
-│   │   └── <agent-name>.yaml    ← Định nghĩa agent
+│   │   └── <agent-name>.yaml    ← Định nghĩa agent (chỉ name + model)
+│   ├── workspace/                ← ⭐ Persona & hành vi bot
+│   │   ├── IDENTITY.md           ← Tên bot, emoji, vibe
+│   │   ├── SOUL.md               ← Tính cách, ranh giới
+│   │   ├── AGENTS.md             ← Quy tắc vận hành
+│   │   ├── USER.md               ← Thông tin người dùng
+│   │   ├── TOOLS.md              ← Hướng dẫn dùng tools
+│   │   └── MEMORY.md             ← Bộ nhớ dài hạn
 │   ├── skills/                   ← Slash commands (tùy chọn)
 │   ├── identity/
 │   │   └── device.json           ← Device keypair
@@ -331,7 +338,9 @@ _(Đổi `gemini` thành `anthropic`, `openai`, `openrouter` tùy provider)_
 { "version": 1, "jobs": [] }
 ```
 
-### Bước 7: Tạo Agent
+### Bước 7: Tạo Agent & Workspace Files
+
+#### 7a. Agent YAML (chỉ metadata, KHÔNG chứa system_prompt)
 
 Tạo file YAML tại `.openclaw/agents/<tên>.yaml`. Ví dụ — `.openclaw/agents/chat.yaml`:
 
@@ -341,22 +350,30 @@ description: "Trợ lý AI cá nhân"
 
 model:
   primary: google/gemini-2.5-flash
-
-system_prompt: |
-  Bạn là trợ lý AI cá nhân.
-  
-  ## Tính cách
-  - Thân thiện, hữu ích
-  - Trả lời bằng tiếng Việt
-  
-  ## Quy tắc
-  - Trả lời ngắn gọn
-  - Hỏi lại khi chưa rõ
 ```
 
-> **Lưu ý:** System Prompt chỉ định vai trò & tính cách bot. Các quy tắc bảo mật hệ thống (không xóa file, không truy cập thư mục nhạy cảm, không lộ API key...) được OpenClaw **tự động áp dụng** — không cần viết vào System Prompt.
+> **Lưu ý:** File YAML chỉ khai báo `name`, `description`, `model`. Tính cách bot nằm ở workspace files bên dưới.
 
-Cập nhật `openclaw.json` → thêm agent vào `agents.list`:
+#### 7b. Workspace Markdown Files (⭐ Bot nhận diện từ đây)
+
+OpenClaw **tự động inject** tất cả file `.md` trong `.openclaw/workspace/` vào context đầu mỗi session. Đây là cách bot "biết" tên mình, tính cách, và quy tắc.
+
+| File | Mục đích | Bắt buộc |
+|------|----------|----------|
+| `IDENTITY.md` | Tên bot, emoji, cách xưng hô | ✅ |
+| `SOUL.md` | Tính cách, phong cách, ranh giới | ✅ |
+| `AGENTS.md` | Quy tắc vận hành, cách trả lời | ✅ |
+| `USER.md` | Thông tin về user (ngôn ngữ, sở thích) | Nên có |
+| `TOOLS.md` | Hướng dẫn dùng tool/skill | Nên có |
+| `MEMORY.md` | Bộ nhớ dài hạn (bot tự cập nhật) | Tùy chọn |
+
+> **Thứ tự ưu tiên:** Per-agent files (`.openclaw/agents/<id>/`) → Global workspace files (`.openclaw/workspace/`) → Config defaults.
+
+> **Bảo mật hệ thống** (không xóa file, không truy cập thư mục nhạy cảm, không lộ API key...) được OpenClaw **tự động áp dụng** — không cần viết vào workspace files.
+
+#### 7c. Cập nhật `openclaw.json`
+
+Thêm agent vào `agents.list`:
 
 ```json
 {

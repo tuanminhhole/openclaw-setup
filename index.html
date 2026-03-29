@@ -76,22 +76,9 @@
     <!-- ===== Step 2: Bot Config ===== -->
     <section class="step" data-step="2">
       <h2 class="step__title">Cấu hình Bot — <span id="selected-channel-label"></span></h2>
-      <p class="step__description">Đặt tên, vai trò, AI model và plugins cho Bot của bạn.</p>
+      <p class="step__description">Chọn AI model, đặt tên, tính cách và quy tắc cho Bot của bạn.</p>
 
-      <!-- Bot name & description -->
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-group__label" for="cfg-name">Tên Bot</label>
-          <input type="text" class="form-input" id="cfg-name" placeholder="VD: Williams, Jarvis, Luna...">
-          <p class="form-group__hint">Tên bot sẽ hiển thị trong system prompt</p>
-        </div>
-        <div class="form-group">
-          <label class="form-group__label" for="cfg-desc">Vai trò / Mô tả</label>
-          <input type="text" class="form-input" id="cfg-desc" placeholder="VD: Personal AI assistant">
-        </div>
-      </div>
-
-      <!-- AI Provider Selection -->
+      <!-- ─── 1. AI Provider Selection (TOP) ─── -->
       <div class="form-group">
         <label class="form-group__label">Nhà cung cấp AI</label>
         <div class="provider-grid" id="provider-grid">
@@ -99,7 +86,7 @@
         </div>
       </div>
 
-      <!-- Model Selection + Language Toggle -->
+      <!-- ─── 2. Model Selection + Language Toggle ─── -->
       <div class="form-group">
         <div class="model-header">
           <label class="form-group__label" for="cfg-model">AI Model</label>
@@ -120,21 +107,85 @@
         </select>
       </div>
 
-      <!-- System Prompt -->
+      <!-- ─── Section divider ─── -->
+      <div class="section-divider">
+        <span class="section-divider__icon">🤖</span>
+        <span class="section-divider__text">Danh tính & Tính cách Bot</span>
+      </div>
+
+      <!-- ─── 3. Bot Identity (Name, Role, Emoji, Vibe) ─── -->
+      <div class="identity-grid">
+        <div class="form-group">
+          <label class="form-group__label" for="cfg-name">Tên Bot</label>
+          <input type="text" class="form-input" id="cfg-name" placeholder="VD: Williams, Jarvis, Luna...">
+        </div>
+        <div class="form-group">
+          <label class="form-group__label" for="cfg-desc">Vai trò / Mô tả</label>
+          <input type="text" class="form-input" id="cfg-desc" placeholder="VD: Trợ lý AI cá nhân">
+        </div>
+        <div class="form-group">
+          <label class="form-group__label" for="cfg-emoji">Emoji</label>
+          <input type="text" class="form-input form-input--emoji" id="cfg-emoji" value="🤖" maxlength="4">
+        </div>
+      </div>
+      <p class="form-group__hint" style="margin-top: -12px; margin-bottom: 24px;">Các thông tin trên sẽ vào <code>IDENTITY.md</code> — nơi bot biết tên mình và cách xưng hô.</p>
+
+      <!-- ─── 4. Personality / System Prompt (→ SOUL.md + AGENTS.md) ─── -->
       <div class="form-group">
-        <label class="form-group__label" for="cfg-prompt">System Prompt — Vai trò & Tính cách</label>
-        <textarea class="form-textarea" id="cfg-prompt" placeholder="Mô tả tính cách, cách xưng hô, quy tắc cho bot..."></textarea>
+        <label class="form-group__label" for="cfg-prompt">Tính cách, Vibe & Quy tắc trả lời</label>
+        <textarea class="form-textarea" id="cfg-prompt" placeholder="Mô tả tính cách, vibe, phong cách trả lời, quy tắc cho bot..."></textarea>
         <div class="prompt-notice">
-          <span class="prompt-notice__icon">🛡️</span>
+          <span class="prompt-notice__icon">📝</span>
           <span class="prompt-notice__text">
-            <strong>Lưu ý:</strong> System Prompt chỉ định vai trò & tính cách bot.
-            Các quy tắc bảo mật hệ thống (không xóa file, không truy cập thư mục nhạy cảm, không lộ API key...)
-            được OpenClaw <strong>tự động áp dụng</strong> — bạn không cần viết vào đây.
+            Nội dung trên sẽ vào <code>SOUL.md</code> (tính cách) và <code>AGENTS.md</code> (quy tắc vận hành).
+            OpenClaw tự động inject vào context đầu mỗi session.
           </span>
         </div>
       </div>
 
-      <!-- Skills (ClawHub) -->
+      <!-- ─── 4b. User Info (→ USER.md) ─── -->
+      <div class="form-group">
+        <label class="form-group__label" for="cfg-user-info">👤 Thông tin về bạn (để bot hiểu bạn hơn)</label>
+        <textarea class="form-textarea" id="cfg-user-info" placeholder="VD: Mình là dev, thích code Python, múi giờ UTC+7. Thích câu trả lời đi thẳng vào vấn đề, không rào trước đón sau..." style="min-height: 100px;"></textarea>
+        <div class="prompt-notice">
+          <span class="prompt-notice__icon">👤</span>
+          <span class="prompt-notice__text">
+            Nội dung trên sẽ vào <code>USER.md</code> — bot dùng để cá nhân hóa cách trả lời cho bạn.
+            Để trống nếu chưa muốn điền.
+          </span>
+        </div>
+      </div>
+
+      <!-- ─── Section divider ─── -->
+      <div class="section-divider">
+        <span class="section-divider__icon">🔐</span>
+        <span class="section-divider__text">Quy tắc Bảo mật</span>
+      </div>
+
+      <!-- ─── 5. Security Rules (editable) ─── -->
+      <div class="form-group">
+        <div class="security-rules-header">
+          <label class="form-group__label">Quy tắc bảo mật mặc định</label>
+          <button type="button" class="btn-toggle-edit" id="btn-toggle-security" onclick="window.__toggleSecurityEdit()">✏️ Sửa</button>
+        </div>
+        <p class="form-group__hint" style="margin-bottom: 12px;">OpenClaw tự áp dụng các quy tắc này. Bạn có thể sửa nếu cần.</p>
+        <textarea class="form-textarea security-textarea" id="cfg-security" readonly></textarea>
+        <div class="prompt-notice" style="background: linear-gradient(135deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02)); border-color: rgba(239,68,68,0.15);">
+          <span class="prompt-notice__icon">🛡️</span>
+          <span class="prompt-notice__text" style="color: var(--text-secondary);">
+            <strong style="color: #f87171;">Quan trọng:</strong> Các quy tắc này bảo vệ hệ thống, credentials, và ví crypto.
+            Sửa cẩn thận — xóa quy tắc bảo mật có thể gây rủi ro.
+          </span>
+        </div>
+      </div>
+
+      <!-- ─── Section divider ─── -->
+      <div class="section-divider">
+        <span class="section-divider__icon">🧩</span>
+        <span class="section-divider__text">Mở rộng</span>
+      </div>
+
+      <!-- ─── 6. Skills (ClawHub) ─── -->
       <div class="form-group">
         <label class="form-group__label">🧠 Skills — Kỹ năng mở rộng</label>
         <p class="form-group__hint" style="margin-bottom: 12px;">Chọn skills để bot có thêm khả năng. Được cài từ <a href="https://clawhub.com" target="_blank" style="color: var(--claw-coral);">ClawHub</a> registry.</p>
@@ -143,7 +194,7 @@
         </div>
       </div>
 
-      <!-- Plugins (npm packages — extra channels) -->
+      <!-- ─── 7. Plugins (npm packages — extra channels) ─── -->
       <div class="form-group">
         <label class="form-group__label">🔌 Plugins — Kênh & mở rộng thêm</label>
         <p class="form-group__hint" style="margin-bottom: 12px;">Thêm kênh chat hoặc tính năng runtime. Cài qua npm (<code>openclaw plugins install</code>).</p>
@@ -197,6 +248,9 @@
 ├── <span class="dir">.openclaw/</span>                    <span class="comment">← Config chính</span>
 │   ├── <span class="file">openclaw.json</span>
 │   ├── <span class="file">auth-profiles.json</span>
+│   ├── <span class="dir">workspace/</span>                <span class="comment">← Tính cách bot</span>
+│   │   ├── <span class="file">IDENTITY.md</span>           <span class="comment">← Tên, emoji, vibe</span>
+│   │   └── <span class="file">SOUL.md</span>               <span class="comment">← Tính cách, quy tắc</span>
 │   ├── <span class="dir">credentials/</span>
 │   ├── <span class="dir">agents/</span>
 │   │   └── <span class="file" id="agent-filename-tree">&lt;bot&gt;.yaml</span>

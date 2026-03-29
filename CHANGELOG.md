@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.1] — 2026-03-29
+
+### ✨ New Features
+- **Wizard UI Redesign (Step 2)** — AI Provider/Model lên đầu, sau đó Identity, Personality, Security Rules, Extensions
+- **User Info textarea** — User tự nhập thông tin về mình → sinh vào `USER.md` để bot cá nhân hóa
+- **Editable Security Rules** — Hiển thị quy tắc bảo mật mặc định, user có thể sửa → inject vào `AGENTS.md`
+- **Section dividers** — Icon dividers giữa các nhóm config (🤖 🔐 🧩)
+
+### 🐛 Bug Fixes
+- **Skills auto-enable** — Khi chọn skill, giờ tự động khai báo trong `openclaw.json` → `skills.entries` (enabled: true). Trước đây chỉ cài Dockerfile nhưng không register → bot không nhận skill
+- **Skills env injection** — Skills cần API key (Tavily, SMTP…) tự động inject env vars vào `skills.entries`
+
+### 🎨 UI/UX
+- Identity grid 3 cột (Tên, Vai trò, Emoji) — bỏ Vibe (gộp vào System Prompt)
+- Emoji input fix: `form-input--emoji` class, cùng height với input khác
+- Label System Prompt → "Tính cách, Vibe & Quy tắc trả lời"
+- Responsive mobile: Name full width, Role + Emoji side-by-side
+- Security textarea readonly mặc định, nút "✏️ Sửa" / "🔒 Khóa" toggle
+
+### 🔧 Technical
+- `state.config.userInfo` — new field, saved from `cfg-user-info` textarea
+- `state.config.securityRules` — editable, defaults per language (vi/en)
+- `DEFAULT_SECURITY_RULES` constant with vi/en templates
+- `clawConfig.skills.entries` generated from selected skills
+- Language toggle updates both prompt and security rules
+
+---
+
 ## [3.0.0] — 2026-03-28
 
 ### ✨ New Features

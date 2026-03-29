@@ -597,6 +597,109 @@ body::after {
   gap: 16px;
 }
 
+/* ============ Identity Grid ============ */
+.identity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 72px;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.form-input--emoji {
+  text-align: center;
+  font-size: 22px;
+  line-height: 1;
+  padding: 10px 4px;
+}
+
+/* ============ Section Dividers ============ */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 32px 0 20px;
+  padding: 0;
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+}
+
+.section-divider::before {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08));
+}
+
+.section-divider::after {
+  background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+}
+
+.section-divider__icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.section-divider__text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* ============ Security Rules ============ */
+.security-rules-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.security-rules-header .form-group__label {
+  margin-bottom: 0;
+}
+
+.btn-toggle-edit {
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.btn-toggle-edit:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.btn-toggle-edit--active {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.security-textarea {
+  min-height: 200px;
+  font-size: 12px !important;
+  line-height: 1.7 !important;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+  opacity: 0.7;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.security-textarea:not([readonly]) {
+  opacity: 1;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 /* ============ Provider Cards ============ */
 .provider-grid {
   display: grid;
@@ -1130,6 +1233,14 @@ body::after {
 
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .identity-grid {
+    grid-template-columns: 1fr 72px;
+  }
+
+  .identity-grid > .form-group:first-child {
+    grid-column: 1 / -1;
   }
 
   .progress-step__label {
