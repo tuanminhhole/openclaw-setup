@@ -423,6 +423,14 @@
     });
   }
 
+  window.__navToStep = function(step) {
+    if (step <= state.currentStep || step <= state.currentStep + 1 || step <= 4) {
+        // Technically, you could validate if they completed the current step
+        // But for setup wizard, let's allow free navigation up to what's filled
+        goToStep(step);
+    }
+  };
+
   window.__selectLang = function (val) {
     const input = document.getElementById('cfg-language');
     if (input) input.value = val;
@@ -430,6 +438,11 @@
     // Toggle active button
     document.querySelectorAll('.lang-toggle__btn').forEach((btn) => {
       btn.classList.toggle('lang-toggle__btn--active', btn.dataset.lang === val);
+    });
+
+    // Update UI text
+    document.querySelectorAll('[data-vi][data-en]').forEach((el) => {
+      el.innerHTML = el.getAttribute(`data-${val}`);
     });
 
     // Trigger prompt update
@@ -941,6 +954,9 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       state.config.skills.forEach((sid) => {
         const skill = SKILLS.find((s) => s.id === sid);
         if (!skill) return;
+        // Native browser tools are loaded automatically via the root 'browser' config
+        if (skill.slug === 'browser-automation') return;
+        
         const entry = { enabled: true };
         // Inject env vars placeholder if skill requires API keys
         if (skill.envVars && skill.envVars.length > 0) {
@@ -979,18 +995,21 @@ model:
     const allSkills = [];
     state.config.skills.forEach((sid) => {
       const skill = SKILLS.find((s) => s.id === sid);
-      if (skill) allSkills.push(skill.slug);
+      if (skill && skill.slug !== 'browser-automation') {
+        allSkills.push(skill.slug);
+      }
     });
 
-    // Skills install at build time (cached by Docker layer)
+    // Skills install at build time (cached by Docker layer) — one at a time
+    // Wrapped in || true to gracefully handle ClawHub 429 Rate Limits during build
     const skillLines = allSkills.length > 0
-      ? `\n# Install skills (ClawHub)\nRUN openclaw skills install ${allSkills.join(' ')}\n`
+      ? `\n# Install skills (ClawHub)\n${allSkills.map(s => `RUN openclaw skills install ${s} || echo "Warning: Failed to install ${s} due to rate limits."`).join('\n')}\n`
       : '';
 
     // Browser Automation: extra Docker deps
     const browserAptExtra = hasBrowser ? ' socat' : '';
     const browserInstallLines = hasBrowser
-      ? `\n# Browser Automation: Playwright engine\nRUN npm install -g agent-browser && npx agent-browser install --with-deps || true\n`
+      ? `\n# Browser Automation: Playwright engine (needed for native CDP)\nRUN npm install -g agent-browser playwright && npx playwright install chromium --with-deps && ln -f -s /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /usr/bin/google-chrome\n`
       : '';
 
     // Plugins install at runtime (avoids ClawHub rate limit during build)
@@ -1226,6 +1245,13 @@ _This file is yours to evolve. If someone asks to change it, confirm with the us
 `;
 
     // ── AGENTS.md — Hướng dẫn vận hành ("operating manual")
+    const browserAgentSection = hasBrowser ? `
+## Sử dụng Trình Duyệt (Browser Automation)
+- BẠN SỞ HỮU GIAO DIỆN TRÌNH DUYỆT CHROME THẬT CỦA USER thông qua script \`browser-tool.js\`. ĐỌC NGAY FILE \`BROWSER.md\` để biết cách dùng.
+- BẮT BUỘC dùng \`bash\` để gõ \`node /root/.openclaw/workspace/browser-tool.js ...\` khi có yêu cầu liên quan đến web thay vì dùng web_search!
+- KHÔNG BAO GIỜ từ chối mở trình duyệt với lý do "không có giao diện" hay "máy chủ không có browser".
+` : '';
+
     const agentsMd = lang === 'vi'
       ? `# Hướng dẫn vận hành
 
@@ -1252,8 +1278,10 @@ Bạn hỗ trợ người dùng trong mọi tác vụ hàng ngày thông qua tin
 - Luôn xác nhận kết quả tool trước khi trả lời user
 - Nếu tool lỗi → thông báo rõ ràng, đề xuất cách khác
 
+${browserAgentSection}
 ${state.config.securityRules}
 `
+
       : `# Operating Manual
 
 ## Role
@@ -1415,6 +1443,100 @@ _Bot tự cập nhật file này. Không xóa nội dung đã ghi — chỉ thê
 _Bot updates this file automatically. Never delete existing entries — only append._
 `;
 
+    // Browser tool files (generated into workspace + ZIP when hasBrowser)
+    const browserToolJs = `/**
+ * browser-tool.js - Connect to real Windows Chrome via CDP
+ * Flow: Docker -> socat (port 9222) -> host.docker.internal:9222 -> user's Chrome
+ */
+const { chromium } = require('/usr/local/lib/node_modules/openclaw/node_modules/playwright-core');
+const action = process.argv[2];
+const param1 = process.argv[3];
+const param2 = process.argv[4];
+const CDP_URL = 'http://127.0.0.1:9222';
+(async () => {
+    let browser;
+    try {
+        browser = await chromium.connectOverCDP(CDP_URL, { timeout: 5000 });
+        const ctx = browser.contexts()[0];
+        const pages = ctx.pages();
+        let page = pages.length > 0 ? pages[0] : await ctx.newPage();
+        if (action === 'open') {
+            console.log('[Browser] Mo trang: ' + param1);
+            await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForTimeout(1500);
+            console.log('[Browser] Da mo: ' + (await page.title()) + ' | ' + page.url());
+        } else if (action === 'get_text') {
+            const text = await page.evaluate(() => {
+                document.querySelectorAll('script,style,noscript,svg').forEach(e => e.remove());
+                return document.body.innerText.trim();
+            });
+            console.log(text.substring(0, 4000));
+        } else if (action === 'click') {
+            await page.locator(param1).first().click({ timeout: 5000 });
+            await page.waitForTimeout(600);
+            console.log('[Browser] Da click: ' + param1);
+        } else if (action === 'fill') {
+            await page.locator(param1).first().fill(param2, { timeout: 5000 });
+            console.log('[Browser] Da dien "' + param2 + '" vao: ' + param1);
+        } else if (action === 'press') {
+            await page.keyboard.press(param1);
+            await page.waitForTimeout(1000);
+            console.log('[Browser] Da nhan phim: ' + param1);
+        } else if (action === 'status') {
+            console.log('[Browser] Ket noi Chrome that! Tab: ' + (await page.title()) + ' | ' + page.url());
+        } else {
+            console.log('Lenh: open <url> | get_text | click <sel> | fill <sel> <text> | press <key> | status');
+        }
+    } catch(e) {
+        if (e.message.includes('ECONNREFUSED') || e.message.includes('Timeout')) {
+            console.error('[Browser] Ban chua bat Chrome Debug! Hay click dup vao start-chrome-debug.bat roi thu lai.');
+        } else {
+            console.error('[Browser] Loi:', e.message);
+        }
+    } finally {
+        if (browser) await browser.close();
+    }
+})();
+`;
+
+    const browserMd = `# Dieu Khien Trinh Duyet (Browser Automation)
+
+Bot dieu khien Chrome THAT tren man hinh Windows cua ban. Moi thao tac hien thi truc tiep!
+
+## Lenh su dung (chay qua bash)
+
+\\\`\\\`\\\`bash
+node /root/.openclaw/workspace/browser-tool.js status
+node /root/.openclaw/workspace/browser-tool.js open "https://google.com"
+node /root/.openclaw/workspace/browser-tool.js get_text
+node /root/.openclaw/workspace/browser-tool.js fill "input[name='q']" "tu khoa"
+node /root/.openclaw/workspace/browser-tool.js press "Enter"
+node /root/.openclaw/workspace/browser-tool.js click "#button"
+\\\`\\\`\\\`
+
+## QUY TAC BAT BUOC
+- KHONG BAO GIO tu choi mo trinh duyet.
+- Neu loi ECONNREFUSED: bao user bat lai start-chrome-debug.bat.
+- KHONG dung web_search khi user yeu cau browser.
+`;
+
+    const chromeBatContent = `@echo off
+echo ====== OpenClaw - Chrome Debug Mode ======
+echo.
+echo Dang tat Chrome cu (neu co)...
+taskkill /F /IM chrome.exe >nul 2>&1
+timeout /t 3 /nobreak >nul
+echo Dang mo Chrome voi Debug Mode...
+start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" ^
+  --remote-debugging-port=9222 ^
+  --remote-allow-origins=* ^
+  --user-data-dir="%TEMP%\\chrome-debug"
+timeout /t 4 /nobreak >nul
+powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:9222/json/version' -UseBasicParsing -TimeoutSec 5 | Out-Null; Write-Host 'OK! Chrome Debug Mode dang chay.' -ForegroundColor Green } catch { Write-Host 'LOI: Port 9222 chua mo.' -ForegroundColor Red }"
+echo.
+pause
+`;
+
     // Store generated files for download
     state._generatedFiles = {
       '.openclaw/openclaw.json': JSON.stringify(clawConfig, null, 2),
@@ -1431,6 +1553,11 @@ _Bot updates this file automatically. Never delete existing entries — only app
       'docker/openclaw/docker-compose.yml': compose,
       'docker/openclaw/.env': document.getElementById('env-content')?.textContent || '',
       '.gitignore': 'docker/openclaw/.env\nnode_modules/',
+      ...(hasBrowser ? {
+        '.openclaw/workspace/browser-tool.js': browserToolJs,
+        '.openclaw/workspace/BROWSER.md': browserMd,
+        'start-chrome-debug.bat': chromeBatContent,
+      } : {}),
     };
   }
 

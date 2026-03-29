@@ -15,29 +15,29 @@
   <header class="header">
     <div class="header__logo" aria-hidden="true">🦞</div>
     <h1 class="header__title">OpenClaw Setup</h1>
-    <p class="header__subtitle">Tạo AI Bot miễn phí trên Telegram hoặc Zalo trong vài phút</p>
+    <p class="header__subtitle" data-vi="Tạo AI Bot miễn phí trên Telegram hoặc Zalo trong vài phút" data-en="Create your free AI Bot on Telegram or Zalo in minutes">Tạo AI Bot miễn phí trên Telegram hoặc Zalo trong vài phút</p>
   </header>
 
   <!-- ========== Progress Bar ========== -->
   <nav class="progress-bar" aria-label="Setup progress">
-    <div class="progress-step progress-step--active" data-pstep="1">
+    <div class="progress-step progress-step--active" data-pstep="1" onclick="window.__navToStep && window.__navToStep(1)" style="cursor:pointer" title="Bước 1">
       <span class="progress-step__circle">1</span>
-      <span class="progress-step__label">Chọn kênh</span>
+      <span class="progress-step__label" data-vi="Chọn kênh" data-en="Channel">Chọn kênh</span>
     </div>
     <div class="progress-line" data-after="1"></div>
-    <div class="progress-step" data-pstep="2">
+    <div class="progress-step" data-pstep="2" onclick="window.__navToStep && window.__navToStep(2)" style="cursor:pointer" title="Bước 2">
       <span class="progress-step__circle">2</span>
-      <span class="progress-step__label">Cấu hình Bot</span>
+      <span class="progress-step__label" data-vi="Cấu hình Bot" data-en="Configure Bot">Cấu hình Bot</span>
     </div>
     <div class="progress-line" data-after="2"></div>
-    <div class="progress-step" data-pstep="3">
+    <div class="progress-step" data-pstep="3" onclick="window.__navToStep && window.__navToStep(3)" style="cursor:pointer" title="Bước 3">
       <span class="progress-step__circle">3</span>
       <span class="progress-step__label">API Keys</span>
     </div>
     <div class="progress-line" data-after="3"></div>
-    <div class="progress-step" data-pstep="4">
+    <div class="progress-step" data-pstep="4" onclick="window.__navToStep && window.__navToStep(4)" style="cursor:pointer" title="Bước 4">
       <span class="progress-step__circle">4</span>
-      <span class="progress-step__label">Hoàn tất</span>
+      <span class="progress-step__label" data-vi="Hoàn tất" data-en="Finish">Hoàn tất</span>
     </div>
   </nav>
 
@@ -413,41 +413,22 @@
 
       <!-- Browser Automation post-setup notice (shown only when browser skill selected) -->
       <div id="browser-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(66, 133, 244, 0.3);">
-        <h3 class="cred-section__title">🌐 Browser Automation — Bật Chrome Debug Mode</h3>
+        <h3 class="cred-section__title"><span data-vi="🌐 Trình Duyệt — Mở Chrome Debug Mode" data-en="🌐 Browser — Enable Chrome Debug Mode">🌐 Trình Duyệt — Mở Chrome Debug Mode</span></h3>
         <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
-          Bot cần kết nối tới Chrome trên máy bạn qua <strong>Debug Mode</strong>. Lưu file <code>.bat</code> bên dưới và chạy <strong>trước khi khởi động Docker</strong>.
+          <span data-vi="File <code>start-chrome-debug.bat</code> đã có trong gói ZIP bạn vừa tải. Mỗi khi cần bot duyệt web:" data-en="The file <code>start-chrome-debug.bat</code> is included in your downloaded ZIP. Whenever you need the bot to browse the web:">File <code>start-chrome-debug.bat</code> đã có trong gói ZIP bạn vừa tải. Mỗi khi cần bot duyệt web:</span>
         </p>
-
-        <!-- Chrome Debug .bat script -->
-        <div class="code-block" style="margin-bottom: 16px;">
-          <div class="code-block__header">
-            <span class="code-block__filename">start-chrome-debug.bat</span>
-            <button class="btn-copy" onclick="copyToClipboard(this, 'out-chrome-bat')">📋 Copy</button>
-          </div>
-          <pre class="code-block__content" id="out-chrome-bat"></pre>
-        </div>
-
-        <!-- Task Scheduler .ps1 script -->
-        <div style="margin-bottom: 12px;">
-          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
-            ⏰ <strong>Tự động bật Chrome Debug khi mở máy:</strong> Chạy script PowerShell bên dưới <strong>1 lần</strong> (Run as Administrator) để đăng ký Task Scheduler:
-          </p>
-          <div class="code-block">
-            <div class="code-block__header">
-              <span class="code-block__filename">setup-chrome-task.ps1</span>
-              <button class="btn-copy" onclick="copyToClipboard(this, 'out-task-ps1')">📋 Copy</button>
-            </div>
-            <pre class="code-block__content" id="out-task-ps1"></pre>
-          </div>
-        </div>
+        <ol style="font-size: 14px; color: var(--text-secondary); padding-left: 20px; line-height: 1.9; margin-bottom: 16px;">
+          <li><span data-vi="Giải nén gói ZIP vào thư mục dự án" data-en="Extract the ZIP into your project folder">Giải nén gói ZIP vào thư mục dự án</span></li>
+          <li><strong><span data-vi="Click đúp vào <code>start-chrome-debug.bat</code>" data-en="Double-click <code>start-chrome-debug.bat</code>">Click đúp vào <code>start-chrome-debug.bat</code></span></strong></li>
+          <li><span data-vi="Chạy Docker xong rồi bảo bot “dùng browser mở...”" data-en="Start Docker, then tell the bot “open browser and...”">Chạy Docker xong rồi bảo bot “dùng browser mở...”</span></li>
+          <li><span data-vi="Bot thiết lập xong rồi — bạn sẽ thấy Chrome di chuyển trực tiếp trên màn hình!" data-en="Watch Chrome move in real-time on your screen — the bot is driving it!">Bot thiết lập xong rồi — bạn sẽ thấy Chrome di chuyển trực tiếp trên màn hình!</span></li>
+        </ol>
 
         <div style="padding: 10px 14px; background: rgba(66, 133, 244, 0.06); border: 1px solid rgba(66, 133, 244, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
-          💡 <strong>Lưu ý:</strong>
-          <ul style="margin: 6px 0 0 16px; padding: 0; line-height: 1.7;">
-            <li>Chrome debug dùng <strong>profile riêng</strong> — bạn cần login lại Facebook/Gmail 1 lần</li>
-            <li>Phải bật Chrome debug <strong>trước</strong> khi Docker chạy (hoặc restart Docker sau)</li>
-            <li>Port 9222 chỉ bind localhost — <strong>an toàn</strong> trên mạng nội bộ</li>
-            <li>Nói với bot "<em>dùng browser mở...</em>" để bot chủ động dùng trình duyệt</li>
+          <ul style="margin: 0; padding: 0 0 0 16px; line-height: 1.8;">
+            <li><span data-vi="Phải mở <code>start-chrome-debug.bat</code> <strong>trước</strong> khi Docker chạy" data-en="Open <code>start-chrome-debug.bat</code> <strong>before</strong> starting Docker">Phải mở <code>start-chrome-debug.bat</code> <strong>trước</strong> khi Docker chạy</span></li>
+            <li><span data-vi="Chrome dùng <strong>profile riêng</strong> — cần login Gmail/Facebook 1 lần trong Chrome debug" data-en="Chrome uses a <strong>separate profile</strong> — log into Gmail/Facebook once in the debug window">Chrome dùng <strong>profile riêng</strong> — cần login Gmail/Facebook 1 lần trong Chrome debug</span></li>
+            <li><span data-vi="Port 9222 chỉ bind localhost — <strong>an toàn</strong>" data-en="Port 9222 binds localhost only — <strong>safe</strong> on your network">Port 9222 chỉ bind localhost — <strong>an toàn</strong></span></li>
           </ul>
         </div>
       </div>
