@@ -51,12 +51,12 @@
       envKey: 'GOOGLE_API_KEY',
       envLabel: 'Google AI API Key',
       envLink: 'https://aistudio.google.com/apikey',
-      envInstructions: 'Vào <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> → Create API Key → Copy',
+      envInstructionsVi: 'Vào <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> → Create API Key → Copy', envInstructionsEn: 'Go to <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a> → Create API Key → Copy',
       free: true,
       models: [
-        { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', desc: 'Nhanh, miễn phí, đa năng', badge: '🆓 Free' },
-        { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', desc: 'Thông minh hơn, phân tích sâu', badge: '🆓 Free' },
-        { id: 'google/gemini-3.0-flash', name: 'Gemini 3.0 Flash', desc: 'Thế hệ mới, cực nhanh', badge: '🆓 Free' },
+        { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', descVi: 'Nhanh, miễn phí, đa năng', descEn: 'Fast, free, versatile', badge: '🆓 Free' },
+        { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', descVi: 'Thông minh hơn, phân tích sâu', descEn: 'Smarter, deeper analysis', badge: '🆓 Free' },
+        { id: 'google/gemini-3.0-flash', name: 'Gemini 3.0 Flash', descVi: 'Thế hệ mới, cực nhanh', descEn: 'Next gen, extremely fast', badge: '🆓 Free' },
       ],
     },
     anthropic: {
@@ -65,12 +65,12 @@
       envKey: 'ANTHROPIC_API_KEY',
       envLabel: 'Anthropic API Key',
       envLink: 'https://console.anthropic.com/settings/keys',
-      envInstructions: 'Vào <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> → Create Key → Copy',
+      envInstructionsVi: 'Vào <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> → Create Key → Copy', envInstructionsEn: 'Go to <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com/settings/keys</a> → Create Key → Copy',
       free: false,
       models: [
-        { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', desc: 'Cân bằng tốc độ & chất lượng', badge: '💰 Paid' },
-        { id: 'anthropic/claude-opus-4', name: 'Claude Opus 4', desc: 'Mạnh nhất, suy luận sâu', badge: '💰 Paid' },
-        { id: 'anthropic/claude-haiku-3.5', name: 'Claude Haiku 3.5', desc: 'Nhanh, rẻ nhất', badge: '💰 Paid' },
+        { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', descVi: 'Cân bằng tốc độ & chất lượng', descEn: 'Balanced speed & quality', badge: '💰 Paid' },
+        { id: 'anthropic/claude-opus-4', name: 'Claude Opus 4', descVi: 'Mạnh nhất, suy luận sâu', descEn: 'Strongest, deep reasoning', badge: '💰 Paid' },
+        { id: 'anthropic/claude-haiku-3.5', name: 'Claude Haiku 3.5', descVi: 'Nhanh, rẻ nhất', descEn: 'Fastest, cheapest', badge: '💰 Paid' },
       ],
     },
     openai: {
@@ -79,13 +79,13 @@
       envKey: 'OPENAI_API_KEY',
       envLabel: 'OpenAI API Key',
       envLink: 'https://platform.openai.com/api-keys',
-      envInstructions: 'Vào <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a> → Create new secret key → Copy. <br><strong>Lưu ý:</strong> Codex models cũng dùng chung API key này (không cần đăng nhập OAuth riêng).',
+      envInstructionsVi: 'Vào <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a> → Create new secret key → Copy. <br><strong>Lưu ý:</strong> Codex models cũng dùng chung API key này.', envInstructionsEn: 'Go to <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a> → Create new secret key → Copy. <br><strong>Note:</strong> Codex models also use this key.',
       free: false,
       models: [
-        { id: 'openai/gpt-4o', name: 'GPT-4o', desc: 'Đa năng, nhanh', badge: '💰 Paid' },
-        { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', desc: 'Rẻ, phù hợp chat', badge: '💰 Paid' },
-        { id: 'openai/o3', name: 'o3', desc: 'Suy luận mạnh nhất', badge: '💰 Paid' },
-        { id: 'openai/codex-mini', name: 'Codex Mini', desc: 'Chuyên code, agent', badge: '💰 Paid' },
+        { id: 'openai/gpt-4o', name: 'GPT-4o', descVi: 'Đa năng, nhanh', descEn: 'Versatile, rapid', badge: '💰 Paid' },
+        { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', descVi: 'Rẻ, phù hợp chat', descEn: 'Cheap, good for chat', badge: '💰 Paid' },
+        { id: 'openai/o3', name: 'o3', descVi: 'Suy luận mạnh nhất', descEn: 'Strongest reasoning', badge: '💰 Paid' },
+        { id: 'openai/codex-mini', name: 'Codex Mini', descVi: 'Chuyên code, agent', descEn: 'Optimized for code/agents', badge: '💰 Paid' },
       ],
     },
     openrouter: {
@@ -94,12 +94,12 @@
       envKey: 'OPENROUTER_API_KEY',
       envLabel: 'OpenRouter API Key',
       envLink: 'https://openrouter.ai/keys',
-      envInstructions: 'Vào <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a> → Create Key → Copy. OpenRouter hỗ trợ nhiều model miễn phí!',
+      envInstructionsVi: 'Vào <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a> → Create Key → Copy. OpenRouter hỗ trợ nhiều model miễn phí!', envInstructionsEn: 'Go to <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a> → Create Key → Copy. OpenRouter provides many free models!',
       free: true,
       models: [
-        { id: 'openrouter/google/gemma-3-12b-it:free', name: 'Gemma 3 12B', desc: 'Google, miễn phí', badge: '🆓 Free' },
-        { id: 'openrouter/nvidia/nemotron-nano-9b-v2:free', name: 'Nemotron Nano 9B', desc: 'NVIDIA, miễn phí', badge: '🆓 Free' },
-        { id: 'openrouter/qwen/qwen3-coder:free', name: 'Qwen 3 Coder', desc: 'Alibaba, code, miễn phí', badge: '🆓 Free' },
+        { id: 'openrouter/google/gemma-3-12b-it:free', name: 'Gemma 3 12B', descVi: 'Google, miễn phí', descEn: 'Google, free', badge: '🆓 Free' },
+        { id: 'openrouter/nvidia/nemotron-nano-9b-v2:free', name: 'Nemotron Nano 9B', descVi: 'NVIDIA, miễn phí', descEn: 'NVIDIA, free', badge: '🆓 Free' },
+        { id: 'openrouter/qwen/qwen3-coder:free', name: 'Qwen 3 Coder', descVi: 'Alibaba, code, miễn phí', descEn: 'Alibaba, code, free', badge: '🆓 Free' },
       ],
     },
     ollama: {
@@ -108,14 +108,14 @@
       envKey: 'OLLAMA_HOST',
       envLabel: 'Ollama Host URL',
       envLink: 'https://ollama.com',
-      envInstructions: 'Cài <a href="https://ollama.com" target="_blank">Ollama</a> → chạy <code>ollama serve</code> → model sẽ chạy offline trên máy bạn. Không cần API key!',
+      envInstructionsVi: 'Cài <a href="https://ollama.com" target="_blank">Ollama</a> → chạy <code>ollama serve</code> → model chạy offline trên máy bạn.', envInstructionsEn: 'Install <a href="https://ollama.com" target="_blank">Ollama</a> → run <code>ollama serve</code> → model will run offline on your machine.',
       free: true,
       isLocal: true,
       models: [
-        { id: 'ollama/qwen3:8b', name: 'Qwen 3 8B', desc: 'Đa ngôn ngữ, nhẹ', badge: '🏠 Local' },
-        { id: 'ollama/deepseek-r1:8b', name: 'DeepSeek R1 8B', desc: 'Suy luận, code', badge: '🏠 Local' },
-        { id: 'ollama/llama3.3:8b', name: 'Llama 3.3 8B', desc: 'Meta, đa năng', badge: '🏠 Local' },
-        { id: 'ollama/gemma3:12b', name: 'Gemma 3 12B', desc: 'Google, tiếng Việt tốt', badge: '🏠 Local' },
+        { id: 'ollama/qwen3:8b', name: 'Qwen 3 8B', descVi: 'Đa ngôn ngữ, nhẹ', descEn: 'Multi-lingual, lightweight', badge: '🏠 Local' },
+        { id: 'ollama/deepseek-r1:8b', name: 'DeepSeek R1 8B', descVi: 'Suy luận, code', descEn: 'Reasoning, code', badge: '🏠 Local' },
+        { id: 'ollama/llama3.3:8b', name: 'Llama 3.3 8B', descVi: 'Meta, đa năng', descEn: 'Meta, versatile', badge: '🏠 Local' },
+        { id: 'ollama/gemma3:12b', name: 'Gemma 3 12B', descVi: 'Google, tiếng Việt tốt', descEn: 'Google, great logic', badge: '🏠 Local' },
       ],
     },
     '9router': {
@@ -125,18 +125,18 @@
       envKey: null,
       envLabel: null,
       envLink: 'https://github.com/decolua/9router',
-      envInstructions: '9Router chạy cùng Docker — <strong>không cần API key</strong>. Sau khi <code>docker compose up</code>, mở <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> → đăng nhập OAuth vào các AI provider.',
+      envInstructionsVi: '9Router chạy cùng Docker — <strong>không cần API key</strong>. Sau khi <code>docker compose up</code>, mở <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> → đăng nhập OAuth.', envInstructionsEn: '9Router runs with Docker — <strong>no API key needed</strong>. After <code>docker compose up</code>, open <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> and OAuth login.',
       free: true,
       isProxy: true,
       models: [
-        { id: 'smart-route', name: 'Smart Proxy (Auto Route)', desc: 'Tự động luân chuyển vương bài mọi Provider', badge: '🌟 Khuyên dùng' },
-        { id: 'cx/gpt-5.4', name: 'GPT 5.4 (Codex)', desc: 'Sức mạnh code tối đa từ OpenAI Codex', badge: '🤖 Codex' },
-        { id: 'ag/claude-opus-4-6-thinking', name: 'Claude Opus 4.6 Thinking (AG)', desc: 'Cỗ máy suy luận từ Antigravity', badge: '🚀 AG' },
-        { id: 'ag/gemini-3.1-pro-high', name: 'Gemini 3.1 Pro High (AG)', desc: 'Ngữ cảnh khổng lồ từ Antigravity', badge: '🚀 AG' },
-        { id: 'cc/claude-opus-4-6', name: 'Claude Opus 4.6 (Claude Code)', desc: 'Thuần tuý Anthropic', badge: '✨ Claude' },
-        { id: 'cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Claude Code)', desc: 'Nhanh, thông minh', badge: '✨ Claude' },
-        { id: 'gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', desc: 'Cân bằng, tốc độ từ GitHub Copilot', badge: '💻 Copilot' },
-        { id: 'gh/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', desc: 'Suy luận mạnh nhất từ Copilot', badge: '💻 Copilot' },
+        { id: 'smart-route', name: 'Smart Proxy (Auto Route)', descVi: 'Tự động luân chuyển vương bài mọi Provider', descEn: 'Smart auto-routing across top providers', badge: '🌟 Khuyên dùng' },
+        { id: 'cx/gpt-5.4', name: 'GPT 5.4 (Codex)', descVi: 'Sức mạnh code tối đa từ OpenAI Codex', descEn: 'Max coding power from OpenAI Codex', badge: '🤖 Codex' },
+        { id: 'ag/claude-opus-4-6-thinking', name: 'Claude Opus 4.6 Thinking (AG)', descVi: 'Cỗ máy suy luận từ Antigravity', descEn: 'Reasoning engine from Antigravity', badge: '🚀 AG' },
+        { id: 'ag/gemini-3.1-pro-high', name: 'Gemini 3.1 Pro High (AG)', descVi: 'Ngữ cảnh khổng lồ từ Antigravity', descEn: 'Huge context from Antigravity', badge: '🚀 AG' },
+        { id: 'cc/claude-opus-4-6', name: 'Claude Opus 4.6 (Claude Code)', descVi: 'Thuần tuý Anthropic', descEn: 'Pure Anthropic engine', badge: '✨ Claude' },
+        { id: 'cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Claude Code)', descVi: 'Nhanh, thông minh', descEn: 'Fast & smart', badge: '✨ Claude' },
+        { id: 'gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', descVi: 'Cân bằng, tốc độ từ GitHub Copilot', descEn: 'Balanced & fast from GitHub Copilot', badge: '💻 Copilot' },
+        { id: 'gh/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', descVi: 'Suy luận mạnh nhất từ Copilot', descEn: 'Strongest reasoning from Copilot', badge: '💻 Copilot' },
       ],
     },
   };
@@ -147,28 +147,28 @@
       id: 'voice-call',
       name: 'Voice Call',
       icon: '📞',
-      desc: 'Gọi thoại AI qua điện thoại',
+      descVi: 'Gọi thoại AI qua điện thoại', descEn: 'AI voice calls via phone',
       package: '@openclaw/voice-call',
     },
     {
       id: 'matrix',
       name: 'Matrix Chat',
       icon: '💬',
-      desc: 'Kết nối thêm kênh Matrix/Element',
+      descVi: 'Kết nối thêm kênh Matrix/Element', descEn: 'Connect to Matrix/Element channels',
       package: '@openclaw/matrix',
     },
     {
       id: 'msteams',
       name: 'MS Teams',
       icon: '🏢',
-      desc: 'Kết nối Microsoft Teams',
+      descVi: 'Kết nối Microsoft Teams', descEn: 'Connect Microsoft Teams',
       package: '@openclaw/msteams',
     },
     {
       id: 'nostr',
       name: 'Nostr',
       icon: '🟣',
-      desc: 'Kết nối mạng xã hội Nostr',
+      descVi: 'Kết nối mạng xã hội Nostr', descEn: 'Connect Nostr social network',
       package: '@openclaw/nostr',
     },
   ];
@@ -179,64 +179,64 @@
       id: 'web-search',
       name: 'Web Search',
       icon: '🔍',
-      desc: 'Tìm kiếm web, trả về kết quả realtime',
+      descVi: 'Tìm kiếm web, trả về kết quả realtime', descEn: 'Web search, returns realtime results',
       slug: 'web-search',
-      note: 'Cần API key (Tavily hoặc SerpApi) trong .env',
+      noteVi: 'Cần API key (Tavily/SerpApi) trong .env', noteEn: 'Requires API key (Tavily/SerpApi) in .env',
       envVars: ['TAVILY_API_KEY=<your_tavily_key>'],
     },
     {
       id: 'browser',
       name: 'Browser Automation',
       icon: '🌐',
-      desc: 'Tự động thao tác trình duyệt (Playwright)',
+      descVi: 'Tự động thao tác trình duyệt (Playwright)', descEn: 'Automated browser control (Playwright)',
       slug: 'browser-automation',
-      note: 'Cần bật Chrome Debug Mode trên máy host',
+      noteVi: 'Cần bật Chrome Debug Mode trên máy host', noteEn: 'Requires Chrome Debug Mode on host',
     },
     {
       id: 'memory',
       name: 'Long-term Memory',
       icon: '🧠',
-      desc: 'Nhớ hội thoại xuyên phiên, context dài hạn',
+      descVi: 'Nhớ hội thoại xuyên phiên, context dài hạn', descEn: 'Cross-session memory, long-term context',
       slug: 'memory',
     },
     {
       id: 'rag',
       name: 'RAG / Knowledge Base',
       icon: '📚',
-      desc: 'Chat với tài liệu, file PDF, codebase',
+      descVi: 'Chat với tài liệu, file PDF, codebase', descEn: 'Chat with docs, PDFs, codebase',
       slug: 'rag',
-      note: 'Đặt file vào thư mục .openclaw/docs/',
+      noteVi: 'Đặt file vào thư mục .openclaw/docs/', noteEn: 'Put files in .openclaw/docs/ folder',
     },
     {
       id: 'image-gen',
       name: 'Image Generation',
       icon: '🎨',
-      desc: 'Tạo ảnh bằng AI (DALL·E, Flux...)',
+      descVi: 'Tạo ảnh bằng AI (DALL·E, Flux...)', descEn: 'Generate images using AI (DALL-E, Flux...)',
       slug: 'image-gen',
-      note: 'Dùng chung OPENAI_API_KEY (DALL-E) hoặc thêm FLUX_API_KEY',
+      noteVi: 'Dùng chung OPENAI_API_KEY (DALL-E) hoặc thêm FLUX_API_KEY', noteEn: 'Uses OPENAI_API_KEY (DALL-E) or FLUX_API_KEY',
       envVars: ['# FLUX_API_KEY=<your_flux_key>  # chỉ cần nếu dùng Flux'],
     },
     {
       id: 'scheduler',
       name: 'Bot Scheduler',
       icon: '⏰',
-      desc: 'Bot tự nhắc nhở, lên lịch gửi tin nhắn',
+      descVi: 'Bot tự nhắc nhở, lên lịch gửi tin nhắn', descEn: 'Bot self-reminders, message scheduling',
       slug: 'scheduler',
     },
     {
       id: 'code-interpreter',
       name: 'Code Interpreter',
       icon: '💻',
-      desc: 'Chạy code Python/JS trong sandbox',
+      descVi: 'Chạy code Python/JS trong sandbox', descEn: 'Run Python/JS code in sandbox',
       slug: 'code-interpreter',
     },
     {
       id: 'email',
       name: 'Email Assistant',
       icon: '📧',
-      desc: 'Quản lý, soạn, tóm tắt email',
+      descVi: 'Quản lý, soạn, tóm tắt email', descEn: 'Manage, compose, summarize emails',
       slug: 'email-assistant',
-      note: 'Cần cấu hình SMTP trong .env',
+      noteVi: 'Cần cấu hình SMTP trong .env', noteEn: 'Requires SMTP configuration in .env',
       envVars: ['SMTP_HOST=smtp.gmail.com', 'SMTP_PORT=587', 'SMTP_USER=<your_email>', 'SMTP_PASS=<your_app_password>'],
     },
   ];
@@ -248,7 +248,7 @@
       envKeys: [],
       envExtra: 'TELEGRAM_BOT_TOKEN=<your_bot_token>',
       credSteps: [
-        { text: 'Mở Telegram → tìm <a href="https://t.me/BotFather" target="_blank">@BotFather</a> → gửi <code>/newbot</code> → đặt tên bot → copy token' },
+        { textVi: 'Mở Telegram → tìm <a href="https://t.me/BotFather" target="_blank">@BotFather</a> → gửi <code>/newbot</code> → đặt tên bot → copy token', textEn: 'Open Telegram → find <a href="https://t.me/BotFather" target="_blank">@BotFather</a> → send <code>/newbot</code> → name bot → copy token' },
       ],
       channelConfig: {
         telegram: {
@@ -266,7 +266,7 @@
       envKeys: [],
       envExtra: 'ZALO_BOT_TOKEN=<your_zalo_bot_token>',
       credSteps: [
-        { text: 'Vào <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a> → Tạo bot mới → copy Bot Token' },
+        { textVi: 'Vào <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a> → Tạo bot mới → copy Bot Token', textEn: 'Go to <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a> → Create new bot → copy Bot Token' },
       ],
       channelConfig: {
         zalo: {
@@ -280,8 +280,8 @@
       envKeys: [],
       envExtra: '',
       credSteps: [
-        { text: '⚠️ Zalo Personal dùng <strong>unofficial API (zca-js)</strong> — chỉ nên dùng tài khoản phụ' },
-        { text: 'Sau khi Docker chạy, bạn cần chạy <code>docker exec -it openclaw-bot openclaw onboard</code> để <strong>quét QR code</strong> login Zalo. Chỉ cần làm <strong>1 lần</strong>.' },
+        { textVi: '⚠️ Zalo Personal dùng <strong>unofficial API (zca-js)</strong> — chỉ nên dùng tài khoản phụ', textEn: '⚠️ Zalo Personal uses <strong>unofficial API (zca-js)</strong> — use an alternate account' },
+        { textVi: 'Sau khi Docker chạy, chạy <code>docker exec -it openclaw-bot openclaw onboard</code> để <strong>quét QR code</strong> login Zalo.', textEn: 'After Docker starts, run <code>docker exec -it openclaw-bot openclaw onboard</code> to <strong>scan QR code</strong> and login Zalo. 1-time setup.' },
       ],
       channelConfig: {
         zalouser: {
@@ -457,6 +457,7 @@
     }
 
     // Update security rules language
+    renderPluginGrid(); renderProviderCards();
     const securityEl = document.getElementById('cfg-security');
     if (securityEl && !securityEl.dataset.userEdited) {
       securityEl.value = DEFAULT_SECURITY_RULES[val];
@@ -581,6 +582,8 @@
   };
 
   function renderPluginGrid() {
+    const lang = document.getElementById('cfg-language')?.value || 'vi';
+    
     // Skills grid (agent capabilities from ClawHub)
     const skillGrid = document.getElementById('plugin-grid');
     if (skillGrid) {
@@ -590,8 +593,8 @@
           <div class="plugin-card__icon">${s.icon}</div>
           <div class="plugin-card__info">
             <div class="plugin-card__name">${s.name}</div>
-            <div class="plugin-card__desc">${s.desc}</div>
-            ${s.note ? `<div class="plugin-card__note">⚙️ ${s.note}</div>` : ''}
+            <div class="plugin-card__desc">${lang === 'vi' ? (s.descVi || s.desc) : (s.descEn || s.desc)}</div>
+            ${(s.noteVi || s.note) ? `<div class="plugin-card__note">⚙️ ${lang === 'vi' ? (s.noteVi || s.note) : (s.noteEn || s.note)}</div>` : ''}
           </div>
           <div class="plugin-card__check">✓</div>
         </label>
@@ -607,7 +610,7 @@
           <div class="plugin-card__icon">${p.icon}</div>
           <div class="plugin-card__info">
             <div class="plugin-card__name">${p.name}</div>
-            <div class="plugin-card__desc">${p.desc}</div>
+            <div class="plugin-card__desc">${lang === 'vi' ? (p.descVi || p.desc) : (p.descEn || p.desc)}</div>
           </div>
           <div class="plugin-card__check">✓</div>
         </label>
@@ -675,6 +678,7 @@
       setTimeout(() => { prompt.style.height = 'auto'; prompt.style.height = prompt.scrollHeight + 'px'; }, 50);
     }
     // Update security rules language
+    renderPluginGrid(); renderProviderCards();
     const securityEl = document.getElementById('cfg-security');
     if (securityEl && !securityEl.dataset.userEdited) {
       securityEl.value = DEFAULT_SECURITY_RULES[lang];
@@ -708,23 +712,26 @@
     if (credContainer) {
       const steps = [];
 
+      const lang = document.getElementById('cfg-language')?.value || 'vi';
+      
       // Provider credential step
+      let pInst = lang === 'vi' ? (provider.envInstructionsVi || provider.envInstructions) : (provider.envInstructionsEn || provider.envInstructions);
       if (provider.isProxy) {
-        steps.push({ text: provider.envInstructions });
+        steps.push({ text: pInst });
       } else if (provider.isLocal) {
-        steps.push({ text: provider.envInstructions });
+        steps.push({ text: pInst });
       } else {
-        steps.push({ text: `Lấy <strong>${provider.envLabel}</strong>: ${provider.envInstructions}` });
+        steps.push({ text: `${lang === 'vi' ? 'Lấy' : 'Get'} <strong>${provider.envLabel}</strong>: ${pInst}` });
       }
 
       // Channel-specific steps
-      ch.credSteps.forEach((s) => steps.push(s));
+      ch.credSteps.forEach((s) => steps.push({ text: lang === 'vi' ? (s.textVi || s.text) : (s.textEn || s.text) }));
 
       // Final step
       if (provider.isProxy) {
-        steps.push({ text: 'Tạo file <code>docker/openclaw/.env</code> trong thư mục project — chỉ cần Bot Token (không cần AI API key!)' });
+        steps.push({ text: lang === 'vi' ? 'Tạo file <code>docker/openclaw/.env</code> trong project — chỉ cần Bot Token (không cần AI API key!)' : 'Create <code>docker/openclaw/.env</code> in project — only Bot Token needed (no AI API keys!)' });
       } else {
-        steps.push({ text: 'Tạo file <code>docker/openclaw/.env</code> trong thư mục project và paste tất cả key vào' });
+        steps.push({ text: lang === 'vi' ? 'Tạo file <code>docker/openclaw/.env</code> trong project và paste tất cả key vào' : 'Create <code>docker/openclaw/.env</code> in project and paste all keys' });
       }
 
       credContainer.innerHTML = steps.map((s, i) => `
@@ -1563,9 +1570,11 @@ pause
 
   // ========== Zalo Personal Onboard Guide (post-Docker-setup) ==========
   function generateZaloOnboardGuide() {
+    const lang = document.getElementById('cfg-language')?.value || 'vi';
     setOutput('out-zalo-onboard-cmd', `docker exec -it openclaw-bot openclaw onboard`);
 
-    setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
+    if (lang === 'vi') {
+      setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
 │  OpenClaw sẽ hỏi lần lượt — chọn như sau:          │
 ├──────────────────────┬──────────────────────────────┤
 │  Câu hỏi             │  Chọn                        │
@@ -1587,12 +1596,42 @@ pause
 │  Hatch your bot?     │  ✅ Do this later             │
 ├──────────────────────┴──────────────────────────────┤
 │  💡 Bước QR Login:                                  │
-│  Khi bước QR hiện ra, OpenClaw sẽ lưu file ảnh QR  │
+│  Khi bước QR hiện ra, test_openclaw sẽ lưu file QR │
 │  vào thư mục /tmp trong container.                  │
 │  Dùng lệnh: docker cp openclaw-bot:/tmp/qr.png .   │
 │  Mở file ảnh → quét bằng Zalo điện thoại →          │
 │  xác nhận kết nối → quay lại chọn Yes.              │
 └─────────────────────────────────────────────────────┘`);
+    } else {
+      setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
+│  OpenClaw will prompt you — choose as follows:     │
+├──────────────────────┬──────────────────────────────┤
+│  Prompt              │  Choice                      │
+├──────────────────────┼──────────────────────────────┤
+│  Security warning    │  ✅ Yes                       │
+│  Setup mode          │  ✅ QuickStart                │
+│  Config handling     │  ✅ Use existing values       │
+│  Model/auth provider │  Choose any (e.g. Google)    │
+│  API key             │  Enter key (or press Enter   │
+│                      │  if already in .env)          │
+│  Select channel      │  ✅ Zalo (Personal Account)   │
+│  Login via QR?       │  ✅ Yes                       │
+│  ─── QR LOGIN ───    │  📱 Open QR file → Scan Zalo │
+│  Did you scan QR?    │  ✅ Yes                       │
+│  DM policy           │  ✅ Pairing (recommended)     │
+│  Configure groups?   │  ✅ No                        │
+│  Configure skills?   │  ✅ No                        │
+│  Enable hooks?       │  ✅ Enter (default)           │
+│  Hatch your bot?     │  ✅ Do this later             │
+├──────────────────────┴──────────────────────────────┤
+│  💡 QR Login Step:                                  │
+│  When prompted, OpenClaw saves the QR code to       │
+│  /tmp inside the container.                         │
+│  Run: docker cp openclaw-bot:/tmp/qr.png .          │
+│  Open image → scan with Zalo mobile app →           │
+│  confirm login → go back & select Yes.              │
+└─────────────────────────────────────────────────────┘`);
+    }
   }
 
   function setOutput(id, text) {

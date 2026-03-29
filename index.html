@@ -32,7 +32,7 @@
     <div class="progress-line" data-after="2"></div>
     <div class="progress-step" data-pstep="3" onclick="window.__navToStep && window.__navToStep(3)" style="cursor:pointer" title="Bước 3">
       <span class="progress-step__circle">3</span>
-      <span class="progress-step__label">API Keys</span>
+      <span class="progress-step__label" data-vi="API Keys" data-en="API Keys">API Keys</span>
     </div>
     <div class="progress-line" data-after="3"></div>
     <div class="progress-step" data-pstep="4" onclick="window.__navToStep && window.__navToStep(4)" style="cursor:pointer" title="Bước 4">
@@ -46,28 +46,41 @@
 
     <!-- ===== Step 1: Choose Channel ===== -->
     <section class="step step--active" data-step="1">
-      <h2 class="step__title">Chọn kênh chat cho Bot</h2>
-      <p class="step__description">Bot AI của bạn sẽ hoạt động trên nền tảng nào? Chọn 1 kênh bên dưới.</p>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+        <h2 class="step__title" data-vi="Chọn kênh chat cho Bot" data-en="Choose Chat Channel" style="margin-bottom: 0;">Chọn kênh chat cho Bot</h2>
+        <input type="hidden" id="cfg-language" value="vi">
+        <div class="lang-toggle" id="lang-toggle">
+          <button type="button" class="lang-toggle__btn lang-toggle__btn--active" data-lang="vi" onclick="window.__selectLang('vi')">
+            <span class="lang-toggle__flag" data-lang="vi"></span>
+            <span>VI</span>
+          </button>
+          <button type="button" class="lang-toggle__btn" data-lang="en" onclick="window.__selectLang('en')">
+            <span class="lang-toggle__flag" data-lang="en"></span>
+            <span>EN</span>
+          </button>
+        </div>
+      </div>
+      <p class="step__description" data-vi="Bot AI của bạn sẽ hoạt động trên nền tảng nào? Chọn 1 kênh bên dưới." data-en="Which platform will your AI Bot operate on? Choose a channel below.">Bot AI của bạn sẽ hoạt động trên nền tảng nào? Chọn 1 kênh bên dưới.</p>
 
       <div class="channel-grid">
         <div class="channel-card" data-channel="telegram" id="card-telegram">
           <div class="channel-card__icon"><img src="https://thesvg.org/icons/telegram/default.svg" alt="Telegram" width="32" height="32"></div>
           <h3 class="channel-card__name">Telegram</h3>
-          <p class="channel-card__desc">Bot API chính thức. Hỗ trợ DM & nhóm. Phổ biến nhất.</p>
+          <p class="channel-card__desc" data-vi="Bot API chính thức. Hỗ trợ DM & nhóm. Phổ biến nhất." data-en="Official Bot API. Supports DMs & groups. Most popular.">Bot API chính thức. Hỗ trợ DM & nhóm. Phổ biến nhất.</p>
           <span class="channel-card__badge badge--official">✅ Official</span>
         </div>
 
         <div class="channel-card" data-channel="zalo-bot" id="card-zalo-bot">
           <div class="channel-card__icon"><img src="https://thesvg.org/icons/zalo/default.svg" alt="Zalo" width="32" height="32"></div>
           <h3 class="channel-card__name">Zalo Bot API</h3>
-          <p class="channel-card__desc">Bot API chính thức Zalo. Chat 1:1. Phù hợp hỗ trợ khách hàng.</p>
+          <p class="channel-card__desc" data-vi="Bot API chính thức Zalo. Chat 1:1. Phù hợp hỗ trợ khách hàng." data-en="Official Zalo Bot API. 1:1 Chat. Good for customer support.">Bot API chính thức Zalo. Chat 1:1. Phù hợp hỗ trợ khách hàng.</p>
           <span class="channel-card__badge badge--official">✅ Official</span>
         </div>
 
         <div class="channel-card" data-channel="zalo-personal" id="card-zalo-personal">
           <div class="channel-card__icon"><img src="https://thesvg.org/icons/zalo/default.svg" alt="Zalo" width="32" height="32" style="opacity: 0.7;"></div>
           <h3 class="channel-card__name">Zalo Personal</h3>
-          <p class="channel-card__desc">Dùng tài khoản Zalo cá nhân. Login bằng QR code.</p>
+          <p class="channel-card__desc" data-vi="Dùng tài khoản Zalo cá nhân. Login bằng QR code." data-en="Use personal Zalo account. Login via QR code.">Dùng tài khoản Zalo cá nhân. Login bằng QR code.</p>
           <span class="channel-card__badge badge--warning">⚠️ Unofficial</span>
         </div>
       </div>
@@ -75,12 +88,12 @@
 
     <!-- ===== Step 2: Bot Config ===== -->
     <section class="step" data-step="2">
-      <h2 class="step__title">Cấu hình Bot — <span id="selected-channel-label"></span></h2>
-      <p class="step__description">Chọn AI model, đặt tên, tính cách và quy tắc cho Bot của bạn.</p>
+      <h2 class="step__title"><span data-vi="Cấu hình Bot — " data-en="Configure Bot — ">Cấu hình Bot — </span><span id="selected-channel-label"></span></h2>
+      <p class="step__description" data-vi="Chọn AI model, đặt tên, tính cách và quy tắc cho Bot của bạn." data-en="Choose AI model, set name, persona and rules for your Bot.">Chọn AI model, đặt tên, tính cách và quy tắc cho Bot của bạn.</p>
 
       <!-- ─── 1. AI Provider Selection (TOP) ─── -->
       <div class="form-group">
-        <label class="form-group__label">Nhà cung cấp AI</label>
+        <label class="form-group__label" data-vi="Nhà cung cấp AI" data-en="AI Provider">Nhà cung cấp AI</label>
         <div class="provider-grid" id="provider-grid">
           <!-- Rendered by JS -->
         </div>
@@ -90,17 +103,7 @@
       <div class="form-group">
         <div class="model-header">
           <label class="form-group__label" for="cfg-model">AI Model</label>
-          <input type="hidden" id="cfg-language" value="vi">
-          <div class="lang-toggle" id="lang-toggle">
-            <button type="button" class="lang-toggle__btn lang-toggle__btn--active" data-lang="vi" onclick="window.__selectLang('vi')">
-              <span class="lang-toggle__flag" data-lang="vi"></span>
-              <span>VI</span>
-            </button>
-            <button type="button" class="lang-toggle__btn" data-lang="en" onclick="window.__selectLang('en')">
-              <span class="lang-toggle__flag" data-lang="en"></span>
-              <span>EN</span>
-            </button>
-          </div>
+
         </div>
         <select class="form-select" id="cfg-model">
           <!-- Populated by JS based on provider -->
@@ -110,17 +113,17 @@
       <!-- ─── Section divider ─── -->
       <div class="section-divider">
         <span class="section-divider__icon">🤖</span>
-        <span class="section-divider__text">Danh tính & Tính cách Bot</span>
+        <span class="section-divider__text" data-vi="Danh tính & Tính cách Bot" data-en="Identity & Persona">Danh tính & Tính cách Bot</span>
       </div>
 
       <!-- ─── 3. Bot Identity (Name, Role, Emoji, Vibe) ─── -->
       <div class="identity-grid">
         <div class="form-group">
-          <label class="form-group__label" for="cfg-name">Tên Bot</label>
+          <label class="form-group__label" for="cfg-name" data-vi="Tên Bot" data-en="Bot Name">Tên Bot</label>
           <input type="text" class="form-input" id="cfg-name" placeholder="VD: Williams, Jarvis, Luna...">
         </div>
         <div class="form-group">
-          <label class="form-group__label" for="cfg-desc">Vai trò / Mô tả</label>
+          <label class="form-group__label" for="cfg-desc" data-vi="Vai trò / Mô tả" data-en="Role / Description">Vai trò / Mô tả</label>
           <input type="text" class="form-input" id="cfg-desc" placeholder="VD: Trợ lý AI cá nhân">
         </div>
         <div class="form-group">
@@ -128,67 +131,58 @@
           <input type="text" class="form-input form-input--emoji" id="cfg-emoji" value="🤖" maxlength="4">
         </div>
       </div>
-      <p class="form-group__hint" style="margin-top: -12px; margin-bottom: 24px;">Các thông tin trên sẽ vào <code>IDENTITY.md</code> — nơi bot biết tên mình và cách xưng hô.</p>
+      <p class="form-group__hint" style="margin-top: -12px; margin-bottom: 24px;" data-vi="Các thông tin trên sẽ vào <code>IDENTITY.md</code> — nơi bot biết tên mình và cách xưng hô." data-en="This info configures <code>IDENTITY.md</code> — where the bot knows its name and how to address itself.">Các thông tin trên sẽ vào <code>IDENTITY.md</code> — nơi bot biết tên mình và cách xưng hô.</p>
 
       <!-- ─── 4. Personality / System Prompt (→ SOUL.md + AGENTS.md) ─── -->
       <div class="form-group">
-        <label class="form-group__label" for="cfg-prompt">Tính cách, Vibe & Quy tắc trả lời</label>
+        <label class="form-group__label" for="cfg-prompt" data-vi="Tính cách, Vibe & Quy tắc trả lời" data-en="Personality, Vibe & Rules">Tính cách, Vibe & Quy tắc trả lời</label>
         <textarea class="form-textarea" id="cfg-prompt" placeholder="Mô tả tính cách, vibe, phong cách trả lời, quy tắc cho bot..."></textarea>
         <div class="prompt-notice">
           <span class="prompt-notice__icon">📝</span>
-          <span class="prompt-notice__text">
-            Nội dung trên sẽ vào <code>SOUL.md</code> (tính cách) và <code>AGENTS.md</code> (quy tắc vận hành).
-            OpenClaw tự động inject vào context đầu mỗi session.
-          </span>
+          <span class="prompt-notice__text" data-vi="Nội dung trên sẽ vào <code>SOUL.md</code> (tính cách) và <code>AGENTS.md</code> (quy tắc vận hành). OpenClaw tự động inject vào context đầu mỗi session." data-en="This configures <code>SOUL.md</code> (personality) and <code>AGENTS.md</code> (rules). OpenClaw automatically injects this into every session.">Nội dung trên sẽ vào <code>SOUL.md</code> (tính cách) và <code>AGENTS.md</code> (quy tắc vận hành). OpenClaw tự động inject vào context đầu mỗi session.</span>
         </div>
       </div>
 
       <!-- ─── 4b. User Info (→ USER.md) ─── -->
       <div class="form-group">
-        <label class="form-group__label" for="cfg-user-info">👤 Thông tin về bạn (để bot hiểu bạn hơn)</label>
+        <label class="form-group__label" for="cfg-user-info" data-vi="👤 Thông tin về bạn (để bot hiểu bạn hơn)" data-en="👤 About You (so the bot replies better)">👤 Thông tin về bạn (để bot hiểu bạn hơn)</label>
         <textarea class="form-textarea" id="cfg-user-info" placeholder="VD: Mình là dev, thích code Python, múi giờ UTC+7. Thích câu trả lời đi thẳng vào vấn đề, không rào trước đón sau..." style="min-height: 100px;"></textarea>
         <div class="prompt-notice">
           <span class="prompt-notice__icon">👤</span>
-          <span class="prompt-notice__text">
-            Nội dung trên sẽ vào <code>USER.md</code> — bot dùng để cá nhân hóa cách trả lời cho bạn.
-            Để trống nếu chưa muốn điền.
-          </span>
+          <span class="prompt-notice__text" data-vi="Nội dung trên sẽ vào <code>USER.md</code> — bot dùng để cá nhân hóa cách trả lời cho bạn. Để trống nếu chưa muốn điền." data-en="This configures <code>USER.md</code> — used to personalize answers for you. Leave blank if not needed.">Nội dung trên sẽ vào <code>USER.md</code> — bot dùng để cá nhân hóa cách trả lời cho bạn. Để trống nếu chưa muốn điền.</span>
         </div>
       </div>
 
       <!-- ─── Section divider ─── -->
       <div class="section-divider">
         <span class="section-divider__icon">🔐</span>
-        <span class="section-divider__text">Quy tắc Bảo mật</span>
+        <span class="section-divider__text" data-vi="Quy tắc Bảo mật" data-en="Security Rules">Quy tắc Bảo mật</span>
       </div>
 
       <!-- ─── 5. Security Rules (editable) ─── -->
       <div class="form-group">
         <div class="security-rules-header">
-          <label class="form-group__label">Quy tắc bảo mật mặc định</label>
-          <button type="button" class="btn-toggle-edit" id="btn-toggle-security" onclick="window.__toggleSecurityEdit()">✏️ Sửa</button>
+          <label class="form-group__label" data-vi="Quy tắc bảo mật mặc định" data-en="Default Security Rules">Quy tắc bảo mật mặc định</label>
+          <button type="button" class="btn-toggle-edit" id="btn-toggle-security" onclick="window.__toggleSecurityEdit()"><span data-vi="✏️ Sửa" data-en="✏️ Edit">✏️ Sửa</span></button>
         </div>
-        <p class="form-group__hint" style="margin-bottom: 12px;">OpenClaw tự áp dụng các quy tắc này. Bạn có thể sửa nếu cần.</p>
+        <p class="form-group__hint" style="margin-bottom: 12px;" data-vi="OpenClaw tự áp dụng các quy tắc này. Bạn có thể sửa nếu cần." data-en="OpenClaw applies these rules by default. You can edit if needed.">OpenClaw tự áp dụng các quy tắc này. Bạn có thể sửa nếu cần.</p>
         <textarea class="form-textarea security-textarea" id="cfg-security" readonly></textarea>
         <div class="prompt-notice" style="background: linear-gradient(135deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02)); border-color: rgba(239,68,68,0.15);">
           <span class="prompt-notice__icon">🛡️</span>
-          <span class="prompt-notice__text" style="color: var(--text-secondary);">
-            <strong style="color: #f87171;">Quan trọng:</strong> Các quy tắc này bảo vệ hệ thống, credentials, và ví crypto.
-            Sửa cẩn thận — xóa quy tắc bảo mật có thể gây rủi ro.
-          </span>
+          <span class="prompt-notice__text" style="color: var(--text-secondary);" data-vi="<strong style='color: #f87171;'>Quan trọng:</strong> Các quy tắc này bảo vệ hệ thống, credentials, và ví crypto. Sửa cẩn thận — xóa quy tắc bảo mật có thể gây rủi ro." data-en="<strong style='color: #f87171;'>Important:</strong> These rules protect your system, credentials, and crypto wallets. Edit carefully — removing them causes risk."><strong style="color: #f87171;">Quan trọng:</strong> Các quy tắc này bảo vệ hệ thống, credentials, và ví crypto. Sửa cẩn thận — xóa quy tắc bảo mật có thể gây rủi ro.</span>
         </div>
       </div>
 
       <!-- ─── Section divider ─── -->
       <div class="section-divider">
         <span class="section-divider__icon">🧩</span>
-        <span class="section-divider__text">Mở rộng</span>
+        <span class="section-divider__text" data-vi="Mở rộng" data-en="Extensions">Mở rộng</span>
       </div>
 
       <!-- ─── 6. Skills (ClawHub) ─── -->
       <div class="form-group">
-        <label class="form-group__label">🧠 Skills — Kỹ năng mở rộng</label>
-        <p class="form-group__hint" style="margin-bottom: 12px;">Chọn skills để bot có thêm khả năng. Được cài từ <a href="https://clawhub.com" target="_blank" style="color: var(--claw-coral);">ClawHub</a> registry.</p>
+        <label class="form-group__label" data-vi="🧠 Skills — Kỹ năng mở rộng" data-en="🧠 Skills — Capabilities">🧠 Skills — Kỹ năng mở rộng</label>
+        <p class="form-group__hint" style="margin-bottom: 12px;" data-vi="Chọn skills để bot có thêm khả năng. Được cài từ <a href='https://clawhub.com' target='_blank' style='color: var(--claw-coral);'>ClawHub</a> registry." data-en="Choose skills to give your bot new superpowers. Installed from <a href='https://clawhub.com' target='_blank' style='color: var(--claw-coral);'>ClawHub</a> registry.">Chọn skills để bot có thêm khả năng. Được cài từ <a href="https://clawhub.com" target="_blank" style="color: var(--claw-coral);">ClawHub</a> registry.</p>
         <div class="plugin-grid" id="plugin-grid">
           <!-- Rendered by JS -->
         </div>
@@ -196,8 +190,8 @@
 
       <!-- ─── 7. Plugins (npm packages — extra channels) ─── -->
       <div class="form-group">
-        <label class="form-group__label">🔌 Plugins — Kênh & mở rộng thêm</label>
-        <p class="form-group__hint" style="margin-bottom: 12px;">Thêm kênh chat hoặc tính năng runtime. Cài qua npm (<code>openclaw plugins install</code>).</p>
+        <label class="form-group__label" data-vi="🔌 Plugins — Kênh & mở rộng thêm" data-en="🔌 Plugins — Channels & Addons">🔌 Plugins — Kênh & mở rộng thêm</label>
+        <p class="form-group__hint" style="margin-bottom: 12px;" data-vi="Thêm kênh chat hoặc tính năng runtime. Cài qua npm (<code>openclaw plugins install</code>)." data-en="Add chat channels or runtime features. Installed via npm (<code>openclaw plugins install</code>).">Thêm kênh chat hoặc tính năng runtime. Cài qua npm (<code>openclaw plugins install</code>).</p>
         <div class="plugin-grid" id="extra-plugin-grid">
           <!-- Rendered by JS -->
         </div>
@@ -206,42 +200,40 @@
 
     <!-- ===== Step 3: Credentials ===== -->
     <section class="step" data-step="3">
-      <h2 class="step__title">Chuẩn bị API Keys</h2>
-      <p class="step__description">Tạo file <code>.env</code> với các key cần thiết. <strong>Không paste key vào chat!</strong></p>
+      <h2 class="step__title" data-vi="Chuẩn bị API Keys" data-en="Prepare API Keys">Chuẩn bị API Keys</h2>
+      <p class="step__description" data-vi="Tạo file <code>.env</code> với các key cần thiết. <strong>Không paste key vào chat!</strong>" data-en="Create an <code>.env</code> file. <strong>Never paste keys into the chat!</strong>">Tạo file <code>.env</code> với các key cần thiết. <strong>Không paste key vào chat!</strong></p>
 
       <div class="cred-section">
-        <h3 class="cred-section__title">📋 Các bước lấy credentials</h3>
+        <h3 class="cred-section__title" data-vi="📋 Các bước lấy credentials" data-en="📋 Steps to get credentials">📋 Các bước lấy credentials</h3>
         <div id="cred-steps"></div>
       </div>
 
       <div class="env-preview">
         <div class="env-preview__header">
           <span class="env-preview__filename">📄 docker/openclaw/.env</span>
-          <button class="btn-copy" onclick="copyToClipboard(this, 'env-content')">📋 Copy</button>
+          <button class="btn-copy" onclick="copyToClipboard(this, 'env-content')"><span data-vi="📋 Copy" data-en="📋 Copy">📋 Copy</span></button>
         </div>
         <pre id="env-content"></pre>
       </div>
 
       <div class="warning-box" id="zalo-warning" style="display: none;">
         <span class="warning-box__icon">⚠️</span>
-        <span class="warning-box__text">
-          <strong>Zalo Personal</strong> sử dụng unofficial API (zca-js). Tài khoản Zalo của bạn có thể bị hạn chế hoặc khóa. Chỉ nên dùng với tài khoản phụ.
-        </span>
+        <span class="warning-box__text" data-vi="<strong>Zalo Personal</strong> sử dụng unofficial API (zca-js). Tài khoản Zalo của bạn có thể bị hạn chế hoặc khóa. Chỉ nên dùng với tài khoản phụ." data-en="<strong>Zalo Personal</strong> uses an unofficial API (zca-js). Your account may be restricted or blocked. Always use an alternate account."><strong>Zalo Personal</strong> sử dụng unofficial API (zca-js). Tài khoản Zalo của bạn có thể bị hạn chế hoặc khóa. Chỉ nên dùng với tài khoản phụ.</span>
       </div>
     </section>
 
     <!-- ===== Step 4: Generated Output ===== -->
     <section class="step" data-step="4">
-      <h2 id="step4-title" class="step__title">🎉 Config đã sẵn sàng!</h2>
-      <p id="step4-desc" class="step__description">Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup.</p>
+      <h2 id="step4-title" class="step__title" data-vi="🎉 Config đã sẵn sàng!" data-en="🎉 Config is Ready!">🎉 Config đã sẵn sàng!</h2>
+      <p id="step4-desc" class="step__description" data-vi="Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup." data-en="Copy the files below to your project folder, or use an AI Agent (Antigravity) to auto-setup.">Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup.</p>
 
       <!-- Download CTA + File Tree -->
       <div class="output-section" style="text-align: center; padding: 28px 24px; border: 1px solid rgba(255, 107, 53, 0.15); border-radius: 12px; background: linear-gradient(135deg, rgba(255,107,53,0.03), rgba(139,92,246,0.03));">
         <button class="btn btn--primary" onclick="downloadAllConfigs(this)" style="font-size: 15px; padding: 14px 36px; margin-bottom: 12px;">
-          📥 Download tất cả configs (.zip)
+          <span data-vi="📥 Download tất cả configs (.zip)" data-en="📥 Download all configs (.zip)">📥 Download tất cả configs (.zip)</span>
         </button>
         <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 20px;">
-          Giải nén vào thư mục project → sửa <code>.env</code> → <code>docker compose build && docker compose up -d</code>
+          <span data-vi="Giải nén vào thư mục project → sửa <code>.env</code> → <code>docker compose build && docker compose up -d</code>" data-en="Extract to project folder → edit <code>.env</code> → <code>docker compose build && docker compose up -d</code>">Giải nén vào thư mục project → sửa <code>.env</code> → <code>docker compose build && docker compose up -d</code></span>
         </p>
 
         <div class="file-tree" style="text-align: left; margin: 0 auto; max-width: 520px;"><span class="dir">&lt;PROJECT_DIR&gt;/</span>
@@ -342,7 +334,7 @@
 
         <!-- Docker Commands -->
         <div class="output-section">
-          <h3 class="output-section__title">🚀 Build & Chạy</h3>
+          <h3 class="output-section__title" data-vi="🚀 Build & Chạy" data-en="🚀 Build & Run">🚀 Build & Chạy</h3>
           <div class="code-block">
             <div class="code-block__header">
               <span class="code-block__filename">Terminal</span>
@@ -355,10 +347,8 @@
 
       <!-- ===== Zalo Personal: Post-setup Docker Onboard Guide ===== -->
       <div id="zalo-onboard-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(255, 193, 7, 0.3);">
-        <h3 class="cred-section__title">📱 Zalo Personal — Login QR Code (chỉ 1 lần)</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
-          Sau khi <code>docker compose up -d</code>, chạy lệnh bên dưới để mở wizard login Zalo trong container:
-        </p>
+        <h3 class="cred-section__title" data-vi="📱 Zalo Personal — Login QR Code (chỉ 1 lần)" data-en="📱 Zalo Personal — Login QR Code (1-time)">📱 Zalo Personal — Login QR Code (chỉ 1 lần)</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;" data-vi="Sau khi <code>docker compose up -d</code>, chạy lệnh bên dưới để mở wizard login Zalo trong container:" data-en="After <code>docker compose up -d</code>, run this to open the Zalo login wizard inside the container:">Sau khi <code>docker compose up -d</code>, chạy lệnh bên dưới để mở wizard login Zalo trong container:</p>
 
         <!-- Lệnh docker exec -->
         <div class="code-block" style="margin-bottom: 16px;">
@@ -370,9 +360,7 @@
         </div>
 
         <!-- Cheat sheet -->
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
-          Wizard sẽ hỏi lần lượt. <strong>Chọn đúng như bảng bên dưới:</strong>
-        </p>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;" data-vi="Wizard sẽ hỏi lần lượt. <strong>Chọn đúng như bảng bên dưới:</strong>" data-en="The wizard will ask prompts. <strong>Choose exactly as below:</strong>">Wizard sẽ hỏi lần lượt. <strong>Chọn đúng như bảng bên dưới:</strong></p>
         <div class="code-block" style="font-size: 13px; margin-bottom: 12px;">
           <div class="code-block__header">
             <span class="code-block__filename">Cheat Sheet — Chọn gì ở mỗi bước</span>
@@ -435,10 +423,8 @@
 
       <!-- Post-setup management guide -->
       <div id="management-guide" class="cred-section" style="margin-top: 24px; border-color: rgba(139, 92, 246, 0.3);">
-        <h3 class="cred-section__title">🔧 Thêm / bỏ Skills & Plugins sau khi setup</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
-          Không cần chạy lại wizard. Dùng lệnh bên dưới trực tiếp trong Docker container:
-        </p>
+        <h3 class="cred-section__title" data-vi="🔧 Thêm / bỏ Skills & Plugins sau khi setup" data-en="🔧 Add / Remove Skills & Plugins later">🔧 Thêm / bỏ Skills & Plugins sau khi setup</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;" data-vi="Không cần chạy lại wizard. Dùng lệnh bên dưới trực tiếp trong Docker container:" data-en="No need to run wizard again. Use the commands below directly inside the Docker container:">Không cần chạy lại wizard. Dùng lệnh bên dưới trực tiếp trong Docker container:</p>
         <div class="code-block" style="margin-bottom: 12px;">
           <div class="code-block__header">
             <span class="code-block__filename">Terminal</span>
@@ -471,10 +457,8 @@ docker restart openclaw-bot</pre>
 
       <!-- AI Agent shortcut -->
       <div id="ai-agent-shortcut" class="cred-section" style="margin-top: 24px; border-color: rgba(255, 107, 53, 0.2);">
-        <h3 class="cred-section__title">🤖 Hoặc dùng AI Agent (nhanh hơn)</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px;">
-          Mở Antigravity IDE → paste lệnh bên dưới → AI sẽ tự tạo tất cả files và chạy Docker cho bạn:
-        </p>
+        <h3 class="cred-section__title" data-vi="🤖 Hoặc dùng AI Agent (nhanh hơn)" data-en="🤖 Or use AI Agent (faster)">🤖 Hoặc dùng AI Agent (nhanh hơn)</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px;" data-vi="Mở Antigravity IDE → paste lệnh bên dưới → AI sẽ tự tạo tất cả files và chạy Docker cho bạn:" data-en="Open Antigravity IDE → paste the prompt below → AI will create all files and run Docker for you:">Mở Antigravity IDE → paste lệnh bên dưới → AI sẽ tự tạo tất cả files và chạy Docker cho bạn:</p>
         <div class="code-block">
           <div class="code-block__header">
             <span class="code-block__filename">Paste vào Antigravity Chat</span>
@@ -492,7 +476,7 @@ My project folder: &lt;YOUR_PATH — e.g. D:\MyAIBot&gt;</pre>
   <!-- ========== Navigation ========== -->
   <div class="nav-buttons">
     <button class="btn btn--ghost" id="btn-prev" style="visibility: hidden;">
-      ← Quay lại
+      <span data-vi="← Quay lại" data-en="← Go Back">← Quay lại</span>
     </button>
     <button class="btn btn--primary" id="btn-next" disabled>
       <span id="btn-next-label">Tiếp theo</span> →
