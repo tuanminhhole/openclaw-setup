@@ -129,14 +129,14 @@
       free: true,
       isProxy: true,
       models: [
-        { id: 'smart-route', name: 'Smart Proxy (Auto Route)', descVi: 'Tự động luân chuyển vương bài mọi Provider', descEn: 'Smart auto-routing across top providers', badgeVi: '🌟 Khuyên dùng', badgeEn: '🌟 Recommended' },
-        { id: 'cx/gpt-5.4', name: 'GPT 5.4 (Codex)', descVi: 'Sức mạnh code tối đa từ OpenAI Codex', descEn: 'Max coding power from OpenAI Codex', badge: '🤖 Codex' },
-        { id: 'ag/claude-opus-4-6-thinking', name: 'Claude Opus 4.6 Thinking (AG)', descVi: 'Cỗ máy suy luận từ Antigravity', descEn: 'Reasoning engine from Antigravity', badge: '🚀 AG' },
-        { id: 'ag/gemini-3.1-pro-high', name: 'Gemini 3.1 Pro High (AG)', descVi: 'Ngữ cảnh khổng lồ từ Antigravity', descEn: 'Huge context from Antigravity', badge: '🚀 AG' },
-        { id: 'cc/claude-opus-4-6', name: 'Claude Opus 4.6 (Claude Code)', descVi: 'Thuần tuý Anthropic', descEn: 'Pure Anthropic engine', badge: '✨ Claude' },
-        { id: 'cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Claude Code)', descVi: 'Nhanh, thông minh', descEn: 'Fast & smart', badge: '✨ Claude' },
-        { id: 'gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', descVi: 'Cân bằng, tốc độ từ GitHub Copilot', descEn: 'Balanced & fast from GitHub Copilot', badge: '💻 Copilot' },
-        { id: 'gh/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', descVi: 'Suy luận mạnh nhất từ Copilot', descEn: 'Strongest reasoning from Copilot', badge: '💻 Copilot' },
+        { id: '9router/smart-route', name: 'Smart Proxy (Auto Route)', descVi: 'Tự động luân chuyển vương bài mọi Provider', descEn: 'Smart auto-routing across top providers', badgeVi: '🌟 Khuyên dùng', badgeEn: '🌟 Recommended' },
+        { id: '9router/cx/gpt-5.4', name: 'GPT 5.4 (Codex)', descVi: 'Sức mạnh code tối đa từ OpenAI Codex', descEn: 'Max coding power from OpenAI Codex', badge: '🤖 Codex' },
+        { id: '9router/ag/claude-opus-4-6-thinking', name: 'Claude Opus 4.6 Thinking (AG)', descVi: 'Cỗ máy suy luận từ Antigravity', descEn: 'Reasoning engine from Antigravity', badge: '🚀 AG' },
+        { id: '9router/ag/gemini-3.1-pro-high', name: 'Gemini 3.1 Pro High (AG)', descVi: 'Ngữ cảnh khổng lồ từ Antigravity', descEn: 'Huge context from Antigravity', badge: '🚀 AG' },
+        { id: '9router/cc/claude-opus-4-6', name: 'Claude Opus 4.6 (Claude Code)', descVi: 'Thuần tuý Anthropic', descEn: 'Pure Anthropic engine', badge: '✨ Claude' },
+        { id: '9router/cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Claude Code)', descVi: 'Nhanh, thông minh', descEn: 'Fast & smart', badge: '✨ Claude' },
+        { id: '9router/gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', descVi: 'Cân bằng, tốc độ từ GitHub Copilot', descEn: 'Balanced & fast from GitHub Copilot', badge: '💻 Copilot' },
+        { id: '9router/gh/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', descVi: 'Suy luận mạnh nhất từ Copilot', descEn: 'Strongest reasoning from Copilot', badge: '💻 Copilot' },
       ],
     },
   };
@@ -218,10 +218,9 @@
     },
     {
       id: 'scheduler',
-      name: 'Bot Scheduler',
+      name: 'Native Cron Scheduler',
       icon: '⏰',
-      descVi: 'Bot tự nhắc nhở, lên lịch gửi tin nhắn', descEn: 'Bot self-reminders, message scheduling',
-      slug: 'scheduler',
+      descVi: 'Gọi Cron gốc trên nền tảng (không tải qua HUB)', descEn: 'Native Cron background jobs (No skill download)',
     },
     {
       id: 'code-interpreter',
@@ -286,6 +285,15 @@
       channelConfig: {
         zalouser: {
           enabled: true,
+          accounts: {
+            default: {
+              dmPolicy: 'open',
+              allowFrom: ['*'],
+              groupPolicy: 'allowlist',
+            },
+          },
+          dmPolicy: 'open',
+          groupPolicy: 'allowlist',
         },
       },
       pluginInstall: '@openclaw/zalouser',
@@ -535,9 +543,12 @@
     if (state.currentStep === state.totalSteps) {
       btnNext.style.display = 'none';
     } else {
+      const lang = document.getElementById('cfg-language')?.value || 'vi';
       btnNext.style.display = '';
       btnNext.disabled = state.currentStep === 1 && !state.channel;
-      btnNextLabel.textContent = state.currentStep === 3 ? 'Generate Configs' : 'Tiếp theo';
+      btnNextLabel.textContent = state.currentStep === 3 
+        ? (lang === 'vi' ? 'Generate Configs' : 'Generate Configs') 
+        : (lang === 'vi' ? 'Tiếp theo' : 'Next');
     }
   }
 
@@ -576,7 +587,7 @@
     const modelSelect = document.getElementById('cfg-model');
     if (modelSelect) {
       modelSelect.innerHTML = p.models.map((m) =>
-        `<option value="${m.id}">${m.name} — ${m.desc} ${m.badge}</option>`
+        `<option value="${m.id}">${m.name} — ${(() => { const l=document.getElementById('cfg-language')?.value||'vi'; return l==='vi'?(m.descVi||m.desc):(m.descEn||m.desc); })()} ${(() => { const l=document.getElementById('cfg-language')?.value||'vi'; return l==='vi'?(m.badgeVi||m.badge):(m.badgeEn||m.badge); })()}</option>`
       ).join('');
     }
   };
@@ -886,8 +897,8 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
     // Reset step 4 heading
     const title = document.getElementById('step4-title');
     const desc = document.getElementById('step4-desc');
-    if (title) title.textContent = '🎉 Config đã sẵn sàng!';
-    if (desc) desc.textContent = 'Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup.';
+    if (title) title.textContent = (document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '🎉 Config đã sẵn sàng!' : '🎉 Config is Ready!';
+    if (desc) desc.textContent = (document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? 'Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup.' : 'Copy the files below to your project folder, or use an AI Agent (Antigravity) to auto-setup.';
 
     const agentId = state.config.botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
 
@@ -908,9 +919,11 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       },
       commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
       channels: ch.channelConfig,
+      tools: { profile: 'full' },
       gateway: {
-        port: 18789,
+        port: 18791,
         mode: 'local',
+        bind: '0.0.0.0',
         auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
       },
     };
@@ -963,6 +976,8 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         if (!skill) return;
         // Native browser tools are loaded automatically via the root 'browser' config
         if (skill.slug === 'browser-automation') return;
+        // scheduler is now native cron (not a skill), skip registering in skills.entries
+        if (skill.id === 'scheduler' || !skill.slug) return;
         
         const entry = { enabled: true };
         // Inject env vars placeholder if skill requires API keys
@@ -1002,7 +1017,7 @@ model:
     const allSkills = [];
     state.config.skills.forEach((sid) => {
       const skill = SKILLS.find((s) => s.id === sid);
-      if (skill && skill.slug !== 'browser-automation') {
+      if (skill && skill.slug && skill.slug !== 'browser-automation') {
         allSkills.push(skill.slug);
       }
     });
@@ -1027,7 +1042,9 @@ model:
     const browserPrefix = hasBrowser
       ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & '
       : '';
-    const finalCmd = `CMD sh -c "${pluginInstallCmd}${browserPrefix}${gatewayCmd}"`;
+    // Patch config on every startup to survive openclaw onboard overwrites
+    const patchCmd = `node -e \\"const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full'});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
+    const finalCmd = `CMD sh -c "${pluginInstallCmd}${patchCmd}${browserPrefix}${gatewayCmd}"`;
 
     const dockerfile = `FROM node:22-slim
 
@@ -1037,7 +1054,7 @@ RUN npm install -g openclaw@latest
 ${skillLines}${browserInstallLines}
 WORKDIR /root/.openclaw
 
-EXPOSE 18789
+EXPOSE 18791
 
 ${finalCmd}`;
 
@@ -1104,10 +1121,10 @@ ${extraHostsBlock}
 docker compose build
 docker compose up -d
 
-# 📋 Sau khi chạy xong:
-# 1. Mở http://localhost:20128/dashboard
-# 2. Login OAuth vào AI providers (Google, Claude...)
-# 3. Test bot trên Telegram! 🎉`);
+${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 📋 Sau khi chạy xong:' : '# 📋 After running:'}
+${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 1. Mở http://localhost:20128/dashboard' : '# 1. Open http://localhost:20128/dashboard'}
+${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 2. Login OAuth vào AI providers (Google, Claude...)' : '# 2. Login via OAuth to AI providers (Google, Claude...)'}
+${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 3. Test bot trên ' + (state.channel === 'telegram' ? 'Telegram' : 'Zalo') + '! 🎉' : '# 3. Test bot on ' + (state.channel === 'telegram' ? 'Telegram' : 'Zalo') + '! 🎉'}`);
     } else {
       setOutput('out-commands', `cd <PROJECT_DIR>/docker/openclaw
 docker compose build

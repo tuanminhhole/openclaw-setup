@@ -430,23 +430,23 @@
             <span class="code-block__filename">Terminal</span>
             <button class="btn-copy" onclick="copyToClipboard(this, 'out-manage-cmds')">📋 Copy</button>
           </div>
-          <pre class="code-block__content" id="out-manage-cmds"># Vào container
+          <pre class="code-block__content" id="out-manage-cmds"><span data-vi="# Vào container" data-en="# Enter container"># Vào container</span>
 docker exec -it openclaw-bot sh
 
-# Thêm skill mới
+<span data-vi="# Thêm skill mới" data-en="# Add new skill"># Thêm skill mới</span>
 openclaw skills install web-search
 openclaw skills install memory
 
-# Xóa skill
+<span data-vi="# Xóa skill" data-en="# Remove skill"># Xóa skill</span>
 openclaw skills uninstall web-search
 
-# Thêm plugin mới
+<span data-vi="# Thêm plugin mới" data-en="# Add new plugin"># Thêm plugin mới</span>
 openclaw plugins install @openclaw/voice-call
 
-# Xóa plugin
+<span data-vi="# Xóa plugin" data-en="# Remove plugin"># Xóa plugin</span>
 openclaw plugins uninstall @openclaw/voice-call
 
-# Restart để áp dụng
+<span data-vi="# Restart để áp dụng" data-en="# Restart to apply"># Restart để áp dụng</span>
 exit
 docker restart openclaw-bot</pre>
         </div>
@@ -479,7 +479,7 @@ My project folder: &lt;YOUR_PATH — e.g. D:\MyAIBot&gt;</pre>
       <span data-vi="← Quay lại" data-en="← Go Back">← Quay lại</span>
     </button>
     <button class="btn btn--primary" id="btn-next" disabled>
-      <span id="btn-next-label">Tiếp theo</span> →
+      <span id="btn-next-label" data-vi="Tiếp theo" data-en="Next">Tiếp theo</span> →
     </button>
   </div>
 
