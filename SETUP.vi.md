@@ -419,6 +419,14 @@ docker logs openclaw-bot --tail 50
 docker compose restart
 ```
 
+Nếu bot **không tạo được cron job** (lỗi "pairing required"):
+
+```bash
+docker exec -i openclaw-bot openclaw devices approve --latest
+```
+
+> **Lưu ý:** Từ OpenClaw v2026.3.x, gateway yêu cầu device pairing cho CLI connections. Dockerfile đã tự động approve khi khởi động, nhưng nếu lỗi vẫn xảy ra, chạy lệnh trên 1 lần.
+
 ---
 
 ## ✅ Checklist Bảo Mật Sau Setup

@@ -1044,7 +1044,9 @@ model:
       : '';
     // Patch config on every startup to survive openclaw onboard overwrites
     const patchCmd = `node -e \\"const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full'});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
-    const finalCmd = `CMD sh -c "${pluginInstallCmd}${patchCmd}${browserPrefix}${gatewayCmd}"`;
+    // Auto-approve device pairing after gateway starts (required since v2026.3.x)
+    const autoApproveCmd = '(sleep 5 && openclaw devices approve --latest 2>/dev/null || true) & ';
+    const finalCmd = `CMD sh -c "${pluginInstallCmd}${patchCmd}${browserPrefix}${autoApproveCmd}${gatewayCmd}"`;
 
     const dockerfile = `FROM node:22-slim
 
@@ -1116,6 +1118,9 @@ ${extraHostsBlock}
     setOutput('out-compose', compose);
 
     // 5. Docker commands
+    const approveNote = (document.getElementById('cfg-language')?.value || 'vi') === 'vi'
+      ? `\n# ⚠️ Nếu bot không tạo được cron job (lỗi pairing):\n# docker exec -i openclaw-bot openclaw devices approve --latest`
+      : `\n# ⚠️ If bot can't create cron jobs (pairing error):\n# docker exec -i openclaw-bot openclaw devices approve --latest`;
     if (is9Router) {
       setOutput('out-commands', `cd <PROJECT_DIR>/docker/openclaw
 docker compose build
@@ -1124,12 +1129,12 @@ docker compose up -d
 ${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 📋 Sau khi chạy xong:' : '# 📋 After running:'}
 ${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 1. Mở http://localhost:20128/dashboard' : '# 1. Open http://localhost:20128/dashboard'}
 ${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 2. Login OAuth vào AI providers (Google, Claude...)' : '# 2. Login via OAuth to AI providers (Google, Claude...)'}
-${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 3. Test bot trên ' + (state.channel === 'telegram' ? 'Telegram' : 'Zalo') + '! 🎉' : '# 3. Test bot on ' + (state.channel === 'telegram' ? 'Telegram' : 'Zalo') + '! 🎉'}`);
+${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 3. Test bot trên ' + (state.channel === 'telegram' ? 'Telegram' : 'Zalo') + '! 🎉' : '# 3. Test bot on ' + (state.channel === 'telegram' ? 'Telegram' : 'Zalo') + '! 🎉'}${approveNote}`);
     } else {
       setOutput('out-commands', `cd <PROJECT_DIR>/docker/openclaw
 docker compose build
 docker compose up -d
-docker logs -f openclaw-bot`);
+docker logs -f openclaw-bot${approveNote}`);
     }
 
     // Update agent filename
