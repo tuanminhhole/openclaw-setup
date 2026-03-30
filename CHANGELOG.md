@@ -2,104 +2,112 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.0] — 2026-03-30
+
+### ✨ New Features & Updates
+- **Full English Localization** — Completed all English translations for the Setup Wizard (Buttons, Labels, Step 4 Output).
+- **Language Toggle Relocation** — Moved the language toggle (VI/EN) to a more visible and accessible location.
+- **Setup UI/UX Fixes** — Improved the Setup Wizard UI for Browser Automation and resolved display issues (such as the undefined model badge).
+- **Reference Error Fixes** — Fixed several Reference Errors during the setup execution.
+
 ## [3.0.2] — 2026-03-29
 
 ### ✨ 9Router Smart Proxy Expansion
-- **9Router db.json Stability** — Cập nhật logic inject db.json của 9router qua entrypoint để tránh lỗi báo mất file "No such file or directory, lstat db.json".
-- **Flagship Fallback Proxy** — Cấu hình "Smart Proxy" để có danh sách luân chuyển các LLMs Flagship mạnh mẽ nhất hiện tại của Codex, Antigravity, Claude Code, và Github Copilot.
-- **Tùy chỉnh Setup Wizard** — Khi cài đặt hiện tại sẽ thấy danh sách provider/model hoàn chỉnh, và Smart Proxy được đặt làm chuẩn ưu tiên để tự fix lỗi "404 No Active Credentials".
+- **9Router db.json Stability** — Updated the `db.json` injection logic for 9Router via entrypoint to prevent "No such file or directory, lstat db.json" errors.
+- **Flagship Fallback Proxy** — Configured "Smart Proxy" with a rotating list of the most powerful flagship LLMs from Codex, Antigravity, Claude Code, and Github Copilot.
+- **Setup Wizard Customization** — The wizard now displays a complete list of providers/models, setting the Smart Proxy as the preferred default to automatically resolve "404 No Active Credentials" errors.
 
 ## [3.0.1] — 2026-03-29
 
 ### ✨ New Features
-- **Wizard UI Redesign (Step 2)** — AI Provider/Model lên đầu, sau đó Identity, Personality, Security Rules, Extensions
-- **User Info textarea** — User tự nhập thông tin về mình → sinh vào `USER.md` để bot cá nhân hóa
-- **Editable Security Rules** — Hiển thị quy tắc bảo mật mặc định, user có thể sửa → inject vào `AGENTS.md`
-- **Section dividers** — Icon dividers giữa các nhóm config (🤖 🔐 🧩)
+- **Wizard UI Redesign (Step 2)** — Brought AI Provider/Model selection to the top, followed by Identity, Personality, Security Rules, and Extensions.
+- **User Info Textarea** — Users can input information about themselves → injected into `USER.md` for bot personalization.
+- **Editable Security Rules** — Displays default security rules, users can edit them → injected into `AGENTS.md`.
+- **Section Dividers** — Added icon dividers between config groups (🤖 🔐 🧩).
 
 ### 🐛 Bug Fixes
-- **Skills auto-enable** — Khi chọn skill, giờ tự động khai báo trong `openclaw.json` → `skills.entries` (enabled: true). Trước đây chỉ cài Dockerfile nhưng không register → bot không nhận skill
-- **Skills env injection** — Skills cần API key (Tavily, SMTP…) tự động inject env vars vào `skills.entries`
+- **Skills Auto-enable** — Selecting a skill now automatically registers it in `openclaw.json` → `skills.entries` (enabled: true). Previously, it only set up the Dockerfile without registering, making the bot ignore the skill.
+- **Skills Env Injection** — Skills requiring API keys (Tavily, SMTP…) now automatically inject env vars into `skills.entries`.
 
 ### 🎨 UI/UX
-- Identity grid 3 cột (Tên, Vai trò, Emoji) — bỏ Vibe (gộp vào System Prompt)
-- Emoji input fix: `form-input--emoji` class, cùng height với input khác
-- Label System Prompt → "Tính cách, Vibe & Quy tắc trả lời"
-- Responsive mobile: Name full width, Role + Emoji side-by-side
-- Security textarea readonly mặc định, nút "✏️ Sửa" / "🔒 Khóa" toggle
+- Identity grid changed to 3 columns (Name, Role, Emoji) — removed Vibe (merged into System Prompt).
+- Emoji input fix: assigned `form-input--emoji` class, matching the height of other inputs.
+- System Prompt label changed to "Personality, Vibe & Response Rules".
+- Responsive mobile: Name is full width, Role + Emoji are side-by-side.
+- Security textarea is readonly by default, equipped with a "✏️ Edit" / "🔒 Lock" toggle button.
 
 ### 🔧 Technical
-- `state.config.userInfo` — new field, saved from `cfg-user-info` textarea
-- `state.config.securityRules` — editable, defaults per language (vi/en)
-- `DEFAULT_SECURITY_RULES` constant with vi/en templates
-- `clawConfig.skills.entries` generated from selected skills
-- Language toggle updates both prompt and security rules
+- `state.config.userInfo` — new field, saved from the `cfg-user-info` textarea.
+- `state.config.securityRules` — editable, defaults per language (vi/en).
+- `DEFAULT_SECURITY_RULES` constant established with vi/en templates.
+- `clawConfig.skills.entries` generated dynamically from selected skills.
+- Language toggle now updates both the system prompt and security rules dynamically.
 
 ---
 
 ## [3.0.0] — 2026-03-28
 
 ### ✨ New Features
-- **9Router Integration** — AI proxy, không cần API key, multi-container Docker (`docker-compose.yml` 2 service)
-- **Skills System (ClawHub)** — 8 agent capabilities: Web Search, Browser Automation, Memory, RAG, Image Gen, Bot Scheduler, Code Interpreter, Email Assistant
-- **Plugins System (npm)** — 4 runtime extensions: Voice Call, Matrix, MS Teams, Nostr
-- **Browser Automation** — Full Chrome Debug Mode support (socat proxy, agent-browser, Playwright engine)
-- **Task Scheduler** — Windows Scheduled Task auto-starts Chrome Debug khi logon (delay 10s)
-- **Skill-aware .env** — `.env` template tự động thêm env vars cho skills cần API key (Tavily, SMTP, Flux...)
-- **Post-setup Management** — Hướng dẫn thêm/bỏ skills/plugins sau khi setup qua `docker exec`
+- **9Router Integration** — AI proxy, no API key required, multi-container Docker (`docker-compose.yml` 2 services).
+- **Skills System (ClawHub)** — 8 agent capabilities: Web Search, Browser Automation, Memory, RAG, Image Gen, Bot Scheduler, Code Interpreter, Email Assistant.
+- **Plugins System (npm)** — 4 runtime extensions: Voice Call, Matrix, MS Teams, Nostr.
+- **Browser Automation** — Full Chrome Debug Mode support (socat proxy, agent-browser, Playwright engine).
+- **Task Scheduler** — Windows Scheduled Task auto-starts Chrome Debug mode on logon (10s delay).
+- **Skill-aware .env** — `.env` template automatically includes env vars for skills requiring API keys (Tavily, SMTP, Flux...).
+- **Post-setup Management** — Added guide for adding/removing skills/plugins post-setup via `docker exec`.
 
 ### 🎨 UI/UX
-- Tách Skills (4-column grid) và Plugins (riêng biệt) — rõ ràng hơn
-- Skill cards hiện notes (⚙️) cho skills cần setup thêm
-- Browser Automation notice card ở Step 4 với `.bat` + `.ps1` scripts
-- Management guide card (🔧) với `docker exec` commands
+- Separated Skills (4-column grid) from Plugins — clearer interface layout.
+- Skill cards now show notes (⚙️) for skills that require extra setup.
+- Added Browser Automation notice card in Step 4 featuring `.bat` + `.ps1` scripts.
+- Management guide card (🔧) featuring `docker exec` commands.
 
 ### 📚 Documentation
-- `docs/browser-automation-guide.md` — Hướng dẫn sử dụng Browser Automation cho user
-- `docs/skills-plugins-guide.md` — Tổng hợp toàn bộ skills/plugins + setup + env vars
-- README.md / README.vi.md — Thêm 9Router, Skills/Plugins, FAQs mới
+- `docs/browser-automation-guide.md` — Included Browser Automation usage guide for users.
+- `docs/skills-plugins-guide.md` — Synthesized all skills/plugins + setup steps + list of required env vars.
+- README.md / README.vi.md — Updated with 9Router, Skills/Plugins, and new FAQs.
 
 ### 🔧 Technical
-- `state.config.skills[]` + `state.config.plugins[]` quản lý độc lập
-- `openclaw.json` inject `browser` config khi Browser skill selected
-- Dockerfile conditional: socat, agent-browser chỉ khi cần
-- docker-compose: `extra_hosts` cho cả 9Router lẫn non-9Router
+- `state.config.skills[]` + `state.config.plugins[]` are managed independently.
+- `openclaw.json` dynamically injects `browser` config when Browser skill is selected.
+- Dockerfile conditional logic: socat, agent-browser included only when necessary.
+- docker-compose: added `extra_hosts` block for both 9Router and non-9Router setups.
 
 ---
 
 ## [2.0.0] — 2026-03-27
 
 ### ✨ New Features
-- **Setup Wizard UI** — Interactive web wizard (`index.html`) to configure OpenClaw bots visually
-- **Multi-Channel Support** — Telegram, Zalo Bot API, Zalo Personal channel selection
-- **Multi-Provider AI** — Google Gemini, Anthropic Claude, OpenAI/Codex, OpenRouter, Ollama (local)
-- **Plugin System** — Modular plugin grid: Browser Automation, Scheduler, Memory, Web Search, RAG, Image Gen
-- **Config Generation** — Auto-generates `openclaw.json`, `agent.yaml`, `Dockerfile`, `docker-compose.yml`
-- **Language Toggle** — VI/EN toggle switch with SVG flag icons
-- **Brand Logos** — Real SVG logos from [thesvg.org](https://thesvg.org) for all providers and channels
+- **Setup Wizard UI** — Interactive web wizard (`index.html`) to configure OpenClaw bots visually.
+- **Multi-Channel Support** — Added support for Telegram, Zalo Bot API, and Zalo Personal channels.
+- **Multi-Provider AI** — Support for Google Gemini, Anthropic Claude, OpenAI/Codex, OpenRouter, and Ollama (local).
+- **Plugin System** — Modular plugin grid supporting Browser Automation, Scheduler, Memory, Web Search, RAG, and Image Gen.
+- **Config Generation** — Automatically generates `openclaw.json`, `agent.yaml`, `Dockerfile`, and `docker-compose.yml`.
+- **Language Toggle** — VI/EN toggle switch utilizing SVG flag icons.
+- **Brand Logos** — Implemented high-quality SVG logos from [thesvg.org](https://thesvg.org) for all providers and channels.
 
 ### 🎨 Design
-- Dark-themed glassmorphism UI with animated multi-layer gradients
-- Provider cards with unique colored icon backgrounds (Gemini purple, Claude orange, OpenAI green, OpenRouter violet, Ollama cyan)
-- Auto-expanding System Prompt textarea (no internal scroll)
-- Shimmer animation on title, glow effects on selected cards
+- Dark-themed glassmorphism UI overlaid with animated multi-layer gradients.
+- Provider cards designed with unique colored icon backgrounds (Gemini purple, Claude orange, OpenAI green, OpenRouter violet, Ollama cyan).
+- Auto-expanding System Prompt textarea without internal scroll.
+- Developed a shimmer animation on the title and glow effects on selected cards.
 
 ### 📚 Documentation
-- `README.md` / `README.vi.md` — Full bilingual docs with multi-provider table
-- `SETUP.md` / `SETUP.vi.md` — Technical setup guide for AI agents
-- Security notice: System Prompt = personality only, framework enforces security rules
+- `README.md` / `README.vi.md` — Authored full bilingual docs, including a multi-provider comparison table.
+- `SETUP.md` / `SETUP.vi.md` — Provided a technical setup guide specifically intended for AI agents.
+- Security directive notice: Clarified that System Prompt determines personality only, while the framework enforces security rules.
 
 ### 🔒 Security
-- No-credentials-in-UI policy — users create `.env` files locally
-- Dynamic credential instructions per provider + channel
-- OpenClaw framework auto-enforces system security rules
+- Enforced a No-credentials-in-UI policy — instructing users to create `.env` files locally.
+- Dynamic credential instructions presented conditionally per provider and channel.
+- OpenClaw framework automatically enforces default system security rules.
 
 ---
 
 ## [1.0.0] — 2026-03-26
 
 ### Initial Release
-- Basic OpenClaw setup guide
-- Telegram-only configuration
-- Google Gemini single provider support
-- Manual config file instructions
+- Published basic OpenClaw setup guide.
+- Configured Telegram-only support.
+- Configured Google Gemini single provider support.
+- Included manual configuration file setup instructions.
