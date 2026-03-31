@@ -4,11 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [4.0.7] — 2026-03-31
 
-### ✨ Setup UI/UX Redesign
-- **Clean 3-Section UI**: Step 3 credentials section is now redesigned into three distinct categories: AI Provider, Chat Channel, and Skills, providing a cleaner, more intuitive workflow.
-- **9Router Auto Security**: Replaced manual API key inputs with an iOS-style toggle. When enabled, it auto-generates a secure 32-character hex key for your 9Router proxy, zero config required.
-- **Cross-Platform Auto Browser**: Generates a Linux/macOS `.sh` script in addition to the Windows `.bat` script for easy, out-of-the-box Chrome Debug automation on all operating systems.
-- **CLI Parity**: The `npx create-openclaw-bot` command now prompts for User Identity and Bot Persona, bringing the CLI to full feature parity with the GUI Wizard while keeping the setup zero-restart.
+### ✨ 9Router Stability & Ollama Cloud
+- **Stable 9Router Integration (Zero Config)**: The 9Router proxy is now fully stabilized and runs securely within the Docker network via `sk-no-key`. External configuration (API keys, manual routing) is removed from `.env` and elegantly managed via the [9Router Dashboard](http://localhost:20128/dashboard).
+- **Expanded Model Connectivity**: Added comprehensive support for Ollama Cloud models (*Qwen 3.5, GLM-5, MiniMax, GPT-OSS*), Kiro Haiku, Qwen Flash, and extended iFlow free tiers.
+- **Smart Routing Injection**: The configuration dynamically injects the `smart-route` combination to balance logic workload across Codex, Claude Code, Gemini, and iFlow.
+
+### 🧹 Clean Workspace & Cross-Platform Auto-Setup
+- **Zero-Clutter Generation**: Eliminated all redundant `.env.example` and static `docker-compose` sample templates. The `.bat` / CLI wizard now dynamically constructs the precise Docker environment necessary.
+- **Cross-Platform Auto Browser**: Added a native macOS/Linux `start-chrome-debug.sh` boot script alongside the Windows `.bat`, providing instant 1-click Chrome Debug Mode initialization.
+- **CLI Feature Parity**: `npx create-openclaw-bot` now prompts for User Identity and Bot Persona, matching the GUI Web UI capabilities exactly.
 
 ## [4.0.1] — 2026-03-31
 

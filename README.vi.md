@@ -25,12 +25,14 @@ Một công cụ trực quan <strong>Setup Wizard (UI)</strong> & <strong>CLI</s
 
 ---
 
-## 🆕 Có gì mới ở bản 4.0.7
-- 🔐 **Bảo mật 9Router Tự động**: Tích hợp nút gạt tạo API Key Hex 32-ký tự tự động cho proxy 9Router. Không lo lộ port trên VPS!
-- 🪄 **Giao diện 3 Phần Trực quan**: Bước 3 trên Web UI được thiết kế lại thành 3 khu vực rõ rệt (AI Provider, Kênh chat, Skills) kèm nút gạt iOS-style cực đẹp.
-- ⚡ **Cài đặt 1 lệnh (`npx create-openclaw-bot`)**: Cực kỳ tiện lợi cho ae cài qua VPS/SSH — script sẽ tự hỏi Persona, Identity của người dùng và kích hoạt `docker compose up -d` ngay lập tức.
-- 🌐 **Hỗ trợ Đa nền tảng Auto Browser**: Tự động sinh cả file `.bat` (cho Windows) và `.sh` (cho macOS/Linux) để bật Chrome Debug Mode mượt mà.
----
+## 🆕 Có gì mới ở bản OpenClaw Setup v4
+
+> **Bản cập nhật lớn nhất về Tự động hóa, Ổn định và Định tuyến AI!**
+
+- 🚀 **Cài đặt Tự động với `npx`**: Tạm biệt việc tải file `.zip` thủ công hay cấu hình `.env` phức tạp. Giờ đây bạn chỉ cần chạy lệnh CLI `npx create-openclaw-bot` hoặc dùng Web Wizard để hệ thống tự động sinh ra toàn bộ file cần thiết!
+- 🔀 **Đơn giản hóa 9Router Smart Routing**: Hệ thống định tuyến AI giờ đây mặc định trỏ về `smart-route`. Nền tảng tự động luân chuyển và dự phòng (fallback) qua các model flagship (Anthropic, OpenAI Codex, Gemini, Qwen) mà không cần cấu hình thêm API key rườm rà.
+- 🌐 **Browser Automation Đa nền tảng**: Tích hợp sẵn tính năng Web Search và Tự động hóa trình duyệt ngay lúc cài đặt. Không chỉ hỗ trợ Windows (file `.bat`), mà còn bổ sung file `.sh` giúp Mac/Linux chạy mượt mà.
+- 🧹 **Tối ưu triệt để Workspace**: Xoá hoàn toàn các file "rác" như `.env.example` hay docker template dư thừa. Setup Wizard chỉ giữ lại những gì thực sự hoạt động, tối ưu bảo mật và triệt tiêu mọi lỗi khi chạy.
 
 ## ✨ Tính năng
 
@@ -97,6 +99,7 @@ Dùng NPX là cách cài chuẩn nhất:
 <br>
 
 1. **Clone repo:**
+
    ```bash
    git clone https://github.com/tuanminhhole/openclaw-setup.git
    cd openclaw-setup
@@ -109,7 +112,6 @@ Dùng NPX là cách cài chuẩn nhất:
    - Tự động generate tất cả config files về file `setup-openclaw.bat`
 
 </details>
-
 
 ### 3️⃣ Cách C — Dùng AI Agent (Antigravity)
 
@@ -158,6 +160,7 @@ Trên máy tính của bạn trong Docker container. Khi tắt máy, bot cũng t
 docker compose down      # Tắt
 docker compose up -d     # Bật
 ```
+
 </details>
 
 <details>

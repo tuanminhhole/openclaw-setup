@@ -25,11 +25,15 @@ An interactive <strong>CLI tool</strong> and <strong>Setup Wizard</strong> to de
 
 ---
 
-## 🆕 What's new in v4.0.7
-- 🔐 **9Router Auto-Security**: Secure your proxy with 1-click! Setup Wizard and CLI now auto-generate 32-char Hex API keys for 9Router, zero manual config needed.
-- 🪄 **Clean 3-Section UI**: Step 3 is redesigned into distinct sections (AI Provider, Channel, Skills) with an iOS-style toggle for enhanced clarity.
-- ⚡ **One-Command Install (`npx create-openclaw-bot`)**: Extremely convenient for VPS/SSH users — the script automatically asks for your Bot Persona, User Identity, and triggers `docker compose up -d` instantly.
-- 🌐 **Cross-Platform Browser Automation**: Generates both `.bat` (Windows) and `.sh` (macOS/Linux) Chrome Debug boot scripts right out of the box!
+## 🆕 What's new in OpenClaw v4
+
+> **A massive leap in automation, stability, and provider connectivity!**
+
+- 🚀 **Zero-Config `npx` Deployment**: Say goodbye to manually extracting `.zip` files and confusing `.env` configurations. We've introduced a fully interactive CLI `npx create-openclaw-bot` and Web Wizard that builds the entire Docker workspace dynamically!
+- 🔀 **Simplified 9Router Smart Routing**: We've optimized the AI routing to default to a single `smart-route` option. OpenClaw now flawlessly load-balances across top-tier models from Anthropic, OpenAI Codex, Gemini, and Qwen, managing fallback automatically without needing you to input individual API keys.
+- 🌐 **Instant Browser Automation**: Deploying Web Search and automated Browser skills is now fully handled during setup. We added built-in support for both Windows (`.bat` files) and macOS/Linux (`.sh` files) to instantly attach your local Chrome instances.
+- 🧹 **Zero-Clutter Repository**: Eliminated dummy `.env.example` templates and static docker-compose files. The setup now generates precisely what you need, minimizing security risks and permission errors on native OS setups.
+
 
 ---
 

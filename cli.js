@@ -109,20 +109,7 @@ async function main() {
   // 5b. User Info
   const userInfo = await input({ message: isVi ? '👤 Thông tin về bạn (ngôn ngữ, múi giờ, sở thích...) — bỏ trống OK:' : '👤 About you (language, timezone, interests...) — leave empty OK:', default: '' });
 
-  // 5c. 9Router Security (optional — auto-generate key)
-  let routerApiKey = '';
-  if (providerKey === '9router') {
-    const wantSecurity = await confirm({
-      message: isVi ? '🔐 Bảo mật 9Router? (tự tạo API Key, khuyên dùng khi chạy trên VPS)' : '🔐 Secure 9Router? (auto-generates API Key, recommended for VPS)',
-      default: false
-    });
-    if (wantSecurity) {
-      const { randomUUID } = await import('crypto');
-      routerApiKey = 'oc9r-' + randomUUID().replace(/-/g, '');
-      console.log(chalk.magenta(`  🎲 ${isVi ? 'API Key đã tạo:' : 'Generated API Key:'} ${routerApiKey}`));
-      console.log(chalk.gray(`     ${isVi ? '(Lưu lại nếu cần — key này được cấu hình tự động)' : '(Save if needed — this key is auto-configured)'}`));
-    }
-  }
+  // 5c. 9Router info (API keys are managed via dashboard after Docker starts)
 
   // 6. Project Dir
   let defaultDir = process.cwd();
@@ -146,9 +133,6 @@ async function main() {
     envContent += 'OLLAMA_HOST=http://host.docker.internal:11434\n';
   } else if (!provider.isProxy) {
     envContent += `${provider.envKey}=${providerKeyVal}\n`;
-  }
-  if (providerKey === '9router' && routerApiKey) {
-    envContent += `\n# 9Router API Key\nROUTER_API_KEY=${routerApiKey}\n`;
   }
   
   if (channelKey === 'telegram') {
@@ -203,16 +187,14 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
 
   9router:
     image: node:22-slim
-    container_name: 9router-\${agentId}
+    container_name: 9router-${agentId}
     restart: always
     entrypoint: >
-      /bin/sh -c "npm install -g 9router && [ ! -f /root/.9router/db.json ] && echo '{\\"combos\\":[{\\"id\\":\\"smart-route\\",\\"name\\":\\"smart-route\\",\\"alias\\":\\"smart-route\\",\\"models\\":[\\"if/qwen3-coder-plus\\",\\"if/kimi-k2\\",\\"if/glm-4.7\\",\\"if/deepseek-r1\\",\\"qw/qwen3-coder-plus\\",\\"kr/claude-sonnet-4.5\\",\\"gc/gemini-3-flash-preview\\",\\"cc/claude-opus-4-6\\",\\"cx/gpt-5.3-codex\\",\\"gh/gpt-5.4\\"]}]}' > /root/.9router/db.json; 9router"
+      /bin/sh -c "npm install -g 9router && [ ! -f /root/.9router/db.json ] && echo '{\\"combos\\":[{\\"id\\":\\"smart-route\\",\\"name\\":\\"smart-route\\",\\"alias\\":\\"smart-route\\",\\"models\\":[\\"cc/claude-opus-4-6\\",\\"cc/claude-sonnet-4-6\\",\\"cc/claude-opus-4-5-20251101\\",\\"cc/claude-sonnet-4-5-20250929\\",\\"cc/claude-haiku-4-5-20251001\\",\\"cx/gpt-5.4\\",\\"cx/gpt-5.3-codex\\",\\"cx/gpt-5.3-codex-xhigh\\",\\"cx/gpt-5.3-codex-high\\",\\"cx/gpt-5.3-codex-low\\",\\"cx/gpt-5.3-codex-none\\",\\"cx/gpt-5.3-codex-spark\\",\\"cx/gpt-5.1-codex-mini\\",\\"cx/gpt-5.1-codex-mini-high\\",\\"cx/gpt-5.2-codex\\",\\"cx/gpt-5.2\\",\\"cx/gpt-5.1-codex-max\\",\\"cx/gpt-5.1-codex\\",\\"cx/gpt-5.1\\",\\"cx/gpt-5-codex\\",\\"cx/gpt-5-codex-mini\\",\\"gc/gemini-3-flash-preview\\",\\"gc/gemini-3-pro-preview\\",\\"gh/gpt-5.4\\",\\"gh/gpt-5.3-codex\\",\\"gh/gpt-5.2-codex\\",\\"gh/gpt-5.2\\",\\"gh/gpt-5.1-codex-max\\",\\"gh/gpt-5.1-codex\\",\\"gh/gpt-5.1-codex-mini\\",\\"gh/gpt-5.1\\",\\"gh/gpt-5\\",\\"gh/gpt-5-mini\\",\\"gh/gpt-5-codex\\",\\"gh/gpt-4.1\\",\\"gh/gpt-4o\\",\\"gh/gpt-4o-mini\\",\\"gh/gpt-4\\",\\"gh/gpt-3.5-turbo\\",\\"gh/claude-opus-4.6\\",\\"gh/claude-sonnet-4.6\\",\\"gh/claude-sonnet-4.5\\",\\"gh/claude-opus-4.5\\",\\"gh/claude-opus-4.1\\",\\"gh/claude-sonnet-4\\",\\"gh/claude-haiku-4.5\\",\\"gh/gemini-3-pro-preview\\",\\"gh/gemini-3-flash-preview\\",\\"gh/gemini-2.5-pro\\",\\"gh/grok-code-fast-1\\",\\"gh/oswe-vscode-prime\\",\\"cu/default\\",\\"cu/claude-4.6-opus-max\\",\\"cu/claude-4.6-sonnet-medium-thinking\\",\\"cu/claude-4.5-opus-high-thinking\\",\\"cu/claude-4.5-opus-high\\",\\"cu/claude-4.5-sonnet-thinking\\",\\"cu/claude-4.5-sonnet\\",\\"cu/claude-4.5-haiku\\",\\"cu/claude-4.5-opus\\",\\"cu/gpt-5.3-codex\\",\\"cu/gpt-5.2-codex\\",\\"cu/gpt-5.2\\",\\"cu/kimi-k2.5\\",\\"cu/gemini-3-flash-preview\\",\\"kc/anthropic/claude-sonnet-4-20250514\\",\\"kc/anthropic/claude-opus-4-20250514\\",\\"kc/google/gemini-2.5-pro\\",\\"kc/google/gemini-2.5-flash\\",\\"kc/openai/gpt-4.1\\",\\"kc/openai/o3\\",\\"kc/deepseek/deepseek-chat\\",\\"kc/deepseek/deepseek-reasoner\\",\\"cl/anthropic/claude-sonnet-4.6\\",\\"cl/anthropic/claude-opus-4.6\\",\\"cl/openai/gpt-5.3-codex\\",\\"cl/openai/gpt-5.4\\",\\"cl/google/gemini-3.1-pro-preview\\",\\"cl/google/gemini-3.1-flash-lite-preview\\",\\"cl/kwaipilot/kat-coder-pro\\",\\"if/qwen3-coder-plus\\",\\"if/kimi-k2\\",\\"if/glm-4.7\\",\\"if/deepseek-r1\\",\\"if/deepseek-v3.2\\",\\"if/deepseek-v3.1\\",\\"if/deepseek-v3\\",\\"if/qwen3-max\\",\\"if/qwen3-235b\\",\\"if/qwen3-32b\\",\\"if/iflow-rome-30ba3b\\",\\"qw/qwen3-coder-plus\\",\\"qw/qwen3-coder-flash\\",\\"qw/vision-model\\",\\"qw/coder-model\\",\\"kr/claude-sonnet-4.5\\",\\"kr/claude-haiku-4.5\\",\\"kr/deepseek-3.2\\",\\"kr/deepseek-3.1\\",\\"kr/qwen3-coder-next\\",\\"kmc/kimi-k2.5\\",\\"kmc/kimi-k2.5-thinking\\",\\"kmc/kimi-latest\\",\\"glm/glm-5.1\\",\\"glm/glm-5\\",\\"glm/glm-4.7\\",\\"minimax/MiniMax-M2.7\\",\\"minimax/MiniMax-M2.5\\",\\"minimax/MiniMax-M2.1\\",\\"kimi/kimi-k2.5\\",\\"kimi/kimi-k2.5-thinking\\",\\"kimi/kimi-latest\\",\\"deepseek/deepseek-chat\\",\\"deepseek/deepseek-reasoner\\",\\"xai/grok-4\\",\\"xai/grok-4-fast-reasoning\\",\\"xai/grok-code-fast-1\\",\\"mistral/mistral-large-latest\\",\\"mistral/codestral-latest\\",\\"groq/llama-3.3-70b-versatile\\",\\"groq/openai/gpt-oss-120b\\",\\"cerebras/gpt-oss-120b\\",\\"alicode/qwen3.5-plus\\",\\"alicode/qwen3-coder-plus\\"]}]}' > /root/.9router/db.json; 9router"
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0
-      - CI=true${routerApiKey ? `\n      - API_KEY=\${ROUTER_API_KEY}` : ''}
-    env_file:
-      - .env
+      - CI=true
     volumes:
       - 9router-data:/root/.9router
     ports:
@@ -238,9 +220,9 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
 
   let authProfilesJson = {};
   if (providerKey && !provider.isLocal) {
-    const authProviderName = providerKey === '9router' ? '9router' : 'openai'; // fallback to openai format for standard providers initially
+    const authProviderName = providerKey === '9router' ? '9router' : 'openai';
     const authProfileId = providerKey === '9router' ? '9router-proxy' : `${authProviderName}:default`;
-    const authKeyValue = providerKey === '9router' ? (routerApiKey || 'sk-no-key') : providerKeyVal;
+    const authKeyValue = providerKey === '9router' ? 'sk-no-key' : providerKeyVal;
 
     authProfilesJson = {
       version: 1,
@@ -287,10 +269,11 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
         providers: {
           '9router': {
             baseUrl: 'http://9router:20128/v1',
-            apiKey: routerApiKey || 'sk-no-key',
+            apiKey: 'sk-no-key',
             api: 'openai-completions',
             models: [
               { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 },
+              // OAuth Providers
               { id: 'cc/claude-opus-4-6', name: 'Claude Opus 4.6', contextWindow: 200000, maxTokens: 8192 },
               { id: 'cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6', contextWindow: 200000, maxTokens: 8192 },
               { id: 'cx/gpt-5.4', name: 'GPT 5.4 (Codex)', contextWindow: 128000, maxTokens: 8192 },
@@ -298,14 +281,28 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
               { id: 'gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'gh/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', contextWindow: 200000, maxTokens: 8192 },
               { id: 'gc/gemini-3-flash-preview', name: 'Gemini 3 Flash (FREE)', contextWindow: 1000000, maxTokens: 8192 },
-              { id: 'if/qwen3-coder-plus', name: 'Qwen3 Coder Plus (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
+              // Free Tier Providers
+              { id: 'if/qwen3-coder-plus', name: 'Qwen3 Coder+ (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'if/kimi-k2', name: 'Kimi K2 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'if/kimi-k2-thinking', name: 'Kimi K2 Thinking (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'if/glm-4.7', name: 'GLM 4.7 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'if/minimax-m2', name: 'MiniMax M2 (iFlow FREE)', contextWindow: 1000000, maxTokens: 8192 },
               { id: 'if/deepseek-r1', name: 'DeepSeek R1 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'qw/qwen3-coder-plus', name: 'Qwen3 Coder Plus (Qwen FREE)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'qw/qwen3-coder-plus', name: 'Qwen3 Coder+ (Qwen FREE)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'qw/qwen3-coder-flash', name: 'Qwen3 Coder Flash (Qwen FREE)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'kr/claude-sonnet-4.5', name: 'Claude Sonnet 4.5 (Kiro FREE)', contextWindow: 200000, maxTokens: 8192 },
+              { id: 'kr/claude-haiku-4.5', name: 'Claude Haiku 4.5 (Kiro FREE)', contextWindow: 200000, maxTokens: 8192 },
+              // Ollama Cloud
+              { id: 'ollama/qwen3.5', name: 'Qwen 3.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ollama/kimi-k2.5', name: 'Kimi K2.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ollama/glm-5', name: 'GLM 5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ollama/glm-4.7-flash', name: 'GLM 4.7 Flash (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ollama/minimax-m2.5', name: 'MiniMax M2.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ollama/gpt-oss:120b', name: 'GPT-OSS 120B (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              // API Key Providers
               { id: 'glm/glm-4.7', name: 'GLM 4.7 ($0.6/1M)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'minimax/MiniMax-M2.1', name: 'MiniMax M2.1 ($0.20/1M)', contextWindow: 1000000, maxTokens: 8192 },
+              { id: 'kimi/kimi-latest', name: 'Kimi Latest ($0.90/1M)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3.2 Chat', contextWindow: 128000, maxTokens: 8192 },
             ]
           }
@@ -424,6 +421,18 @@ fi
     child.on('close', (code) => {
       if (code === 0) {
         console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoàn tất! Bot đang chạy.' : 'Setup complete! Bot is running.'}`));
+        
+        if (providerKey === '9router') {
+          console.log(chalk.yellow(`\n🔀 ${isVi
+            ? '9Router Dashboard: http://localhost:20128/dashboard'
+            : '9Router Dashboard: http://localhost:20128/dashboard'}`));
+          console.log(chalk.gray(isVi
+            ? '   → Mở dashboard → đăng nhập OAuth để kết nối các Provider (iFlow, Gemini CLI, Claude Code...)'
+            : '   → Open dashboard → OAuth login to connect Providers (iFlow, Gemini CLI, Claude Code...)'));
+          console.log(chalk.gray(isVi
+            ? '   → Sau khi kết nối provider, bot sẽ tự động hoạt động qua combo "smart-route"'
+            : '   → After connecting providers, bot works automatically via "smart-route" combo'));
+        }
         
         if (channelKey === 'telegram') {
           console.log(chalk.cyan(`\n💬 ${isVi

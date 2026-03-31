@@ -129,172 +129,7 @@
       free: true,
       isProxy: true,
       models: [
-        // ── Smart Route (Combo) ──
-        { id: '9router/smart-route', name: 'Smart Proxy (Auto Route)', descVi: 'Tự động luân chuyển FREE models — không tốn xu', descEn: 'Auto-routing across FREE providers — zero cost', badgeVi: '🌟 Khuyên dùng', badgeEn: '🌟 Recommended' },
-
-        // ── OAuth: Claude Code (cc/) ──
-        { id: '9router/cc/claude-opus-4-6', name: 'Claude Opus 4.6', descVi: 'Mạnh nhất Anthropic', descEn: 'Strongest Anthropic', badge: '✨ Claude Code' },
-        { id: '9router/cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6', descVi: 'Nhanh, thông minh', descEn: 'Fast & smart', badge: '✨ Claude Code' },
-        { id: '9router/cc/claude-opus-4-5-20251101', name: 'Claude 4.5 Opus', descVi: 'Phiên bản 4.5 ổn định', descEn: 'Stable 4.5 version', badge: '✨ Claude Code' },
-        { id: '9router/cc/claude-sonnet-4-5-20250929', name: 'Claude 4.5 Sonnet', descVi: 'Cân bằng tốc độ-chất lượng', descEn: 'Speed-quality balance', badge: '✨ Claude Code' },
-        { id: '9router/cc/claude-haiku-4-5-20251001', name: 'Claude 4.5 Haiku', descVi: 'Siêu nhanh, nhẹ', descEn: 'Ultra fast & light', badge: '✨ Claude Code' },
-
-        // ── OAuth: OpenAI Codex (cx/) ──
-        { id: '9router/cx/gpt-5.4', name: 'GPT 5.4', descVi: 'Flagship mới nhất OpenAI', descEn: 'Latest OpenAI flagship', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.3-codex', name: 'GPT 5.3 Codex', descVi: 'Tối ưu code generation', descEn: 'Code generation optimized', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.3-codex-xhigh', name: 'GPT 5.3 Codex (xHigh)', descVi: 'Suy luận tối đa', descEn: 'Maximum reasoning', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.3-codex-high', name: 'GPT 5.3 Codex (High)', descVi: 'Suy luận cao', descEn: 'High reasoning', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.3-codex-low', name: 'GPT 5.3 Codex (Low)', descVi: 'Nhanh, tiết kiệm', descEn: 'Fast & economical', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.3-codex-none', name: 'GPT 5.3 Codex (None)', descVi: 'Không thinking, nhanh nhất', descEn: 'No thinking, fastest', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.3-codex-spark', name: 'GPT 5.3 Codex Spark', descVi: 'Phiên bản Spark', descEn: 'Spark edition', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.1-codex-mini', name: 'GPT 5.1 Codex Mini', descVi: 'Mini, siêu nhanh', descEn: 'Mini, ultra fast', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.1-codex-mini-high', name: 'GPT 5.1 Codex Mini (High)', descVi: 'Mini + suy luận cao', descEn: 'Mini + high reasoning', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.2-codex', name: 'GPT 5.2 Codex', descVi: 'Ổn định, code tốt', descEn: 'Stable, great coding', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.2', name: 'GPT 5.2', descVi: 'Đa năng', descEn: 'Versatile', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.1-codex-max', name: 'GPT 5.1 Codex Max', descVi: 'Sức mạnh tối đa 5.1', descEn: 'Max power 5.1', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.1-codex', name: 'GPT 5.1 Codex', descVi: 'Codex 5.1', descEn: 'Codex 5.1', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5.1', name: 'GPT 5.1', descVi: 'GPT 5.1 base', descEn: 'GPT 5.1 base', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5-codex', name: 'GPT 5 Codex', descVi: 'GPT 5 Codex', descEn: 'GPT 5 Codex', badge: '🤖 Codex' },
-        { id: '9router/cx/gpt-5-codex-mini', name: 'GPT 5 Codex Mini', descVi: 'GPT 5 Mini', descEn: 'GPT 5 Mini', badge: '🤖 Codex' },
-
-        // ── OAuth: Gemini CLI (gc/) — FREE 180K/month ──
-        { id: '9router/gc/gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', descVi: 'Google miễn phí 180K/tháng', descEn: 'Google free 180K/month', badge: '🆓 Gemini CLI' },
-        { id: '9router/gc/gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', descVi: 'Gemini Pro miễn phí', descEn: 'Gemini Pro free', badge: '🆓 Gemini CLI' },
-
-        // ── OAuth: GitHub Copilot (gh/) ──
-        { id: '9router/gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', descVi: 'Flagship qua Copilot', descEn: 'Flagship via Copilot', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-5.3-codex', name: 'GPT 5.3 Codex (Copilot)', descVi: 'Codex qua Copilot', descEn: 'Codex via Copilot', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-5.2-codex', name: 'GPT 5.2 Codex (Copilot)', descVi: 'GPT 5.2 Codex', descEn: 'GPT 5.2 Codex', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-5.2', name: 'GPT 5.2 (Copilot)', descVi: 'GPT 5.2', descEn: 'GPT 5.2', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-5.1-codex-max', name: 'GPT 5.1 Codex Max (Copilot)', descVi: 'Max thinking', descEn: 'Max thinking', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-5.1-codex', name: 'GPT 5.1 Codex (Copilot)', descVi: 'Codex 5.1', descEn: 'Codex 5.1', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-5.1-codex-mini', name: 'GPT 5.1 Codex Mini (Copilot)', descVi: 'Mini 5.1', descEn: 'Mini 5.1', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-5.1', name: 'GPT 5.1 (Copilot)', descVi: 'GPT 5.1', descEn: 'GPT 5.1', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-5', name: 'GPT 5 (Copilot)', descVi: 'GPT 5', descEn: 'GPT 5', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-5-mini', name: 'GPT 5 Mini (Copilot)', descVi: 'GPT 5 Mini', descEn: 'GPT 5 Mini', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-5-codex', name: 'GPT 5 Codex (Copilot)', descVi: 'GPT 5 Codex', descEn: 'GPT 5 Codex', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-4.1', name: 'GPT 4.1 (Copilot)', descVi: 'GPT 4.1', descEn: 'GPT 4.1', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-4o', name: 'GPT 4o (Copilot)', descVi: 'GPT 4o', descEn: 'GPT 4o', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-4o-mini', name: 'GPT 4o Mini (Copilot)', descVi: 'GPT 4o Mini', descEn: 'GPT 4o Mini', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-4', name: 'GPT 4 (Copilot)', descVi: 'GPT 4', descEn: 'GPT 4', badge: '💻 Copilot' },
-        { id: '9router/gh/gpt-3.5-turbo', name: 'GPT 3.5 Turbo (Copilot)', descVi: 'GPT 3.5 Turbo', descEn: 'GPT 3.5 Turbo', badge: '💻 Copilot' },
-        { id: '9router/gh/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', descVi: 'Claude Opus qua Copilot', descEn: 'Claude Opus via Copilot', badge: '💻 Copilot' },
-        { id: '9router/gh/claude-sonnet-4.6', name: 'Claude Sonnet 4.6 (Copilot)', descVi: 'Claude Sonnet qua Copilot', descEn: 'Claude Sonnet via Copilot', badge: '💻 Copilot' },
-        { id: '9router/gh/claude-sonnet-4.5', name: 'Claude Sonnet 4.5 (Copilot)', descVi: 'Claude 4.5 Sonnet', descEn: 'Claude 4.5 Sonnet', badge: '💻 Copilot' },
-        { id: '9router/gh/claude-opus-4.5', name: 'Claude Opus 4.5 (Copilot)', descVi: 'Claude 4.5 Opus', descEn: 'Claude 4.5 Opus', badge: '💻 Copilot' },
-        { id: '9router/gh/claude-opus-4.1', name: 'Claude Opus 4.1 (Copilot)', descVi: 'Claude 4.1 Opus', descEn: 'Claude 4.1 Opus', badge: '💻 Copilot' },
-        { id: '9router/gh/claude-sonnet-4', name: 'Claude Sonnet 4 (Copilot)', descVi: 'Claude 4 Sonnet', descEn: 'Claude 4 Sonnet', badge: '💻 Copilot' },
-        { id: '9router/gh/claude-haiku-4.5', name: 'Claude Haiku 4.5 (Copilot)', descVi: 'Claude 4.5 Haiku', descEn: 'Claude 4.5 Haiku', badge: '💻 Copilot' },
-        { id: '9router/gh/gemini-3-pro-preview', name: 'Gemini 3 Pro (Copilot)', descVi: 'Gemini Pro qua Copilot', descEn: 'Gemini Pro via Copilot', badge: '💻 Copilot' },
-        { id: '9router/gh/gemini-3-flash-preview', name: 'Gemini 3 Flash (Copilot)', descVi: 'Gemini Flash qua Copilot', descEn: 'Gemini Flash via Copilot', badge: '💻 Copilot' },
-        { id: '9router/gh/gemini-2.5-pro', name: 'Gemini 2.5 Pro (Copilot)', descVi: 'Gemini 2.5 Pro', descEn: 'Gemini 2.5 Pro', badge: '💻 Copilot' },
-        { id: '9router/gh/grok-code-fast-1', name: 'Grok Code Fast (Copilot)', descVi: 'xAI Grok qua Copilot', descEn: 'xAI Grok via Copilot', badge: '💻 Copilot' },
-        { id: '9router/gh/oswe-vscode-prime', name: 'Raptor Mini (Copilot)', descVi: 'Raptor Mini', descEn: 'Raptor Mini', badge: '💻 Copilot' },
-
-        // ── OAuth: Cursor IDE (cu/) ──
-        { id: '9router/cu/default', name: 'Cursor Auto', descVi: 'Server tự chọn model', descEn: 'Server picks model', badge: '🎯 Cursor' },
-        { id: '9router/cu/claude-4.6-opus-max', name: 'Claude 4.6 Opus Max (Cursor)', descVi: 'Opus Max, mạnh nhất', descEn: 'Opus Max, strongest', badge: '🎯 Cursor' },
-        { id: '9router/cu/claude-4.6-sonnet-medium-thinking', name: 'Claude 4.6 Sonnet Thinking (Cursor)', descVi: 'Sonnet + thinking', descEn: 'Sonnet + thinking', badge: '🎯 Cursor' },
-        { id: '9router/cu/claude-4.5-opus-high-thinking', name: 'Claude 4.5 Opus High Thinking (Cursor)', descVi: 'Opus 4.5 + thinking', descEn: 'Opus 4.5 + thinking', badge: '🎯 Cursor' },
-        { id: '9router/cu/claude-4.5-opus-high', name: 'Claude 4.5 Opus High (Cursor)', descVi: 'Opus 4.5 High', descEn: 'Opus 4.5 High', badge: '🎯 Cursor' },
-        { id: '9router/cu/claude-4.5-sonnet-thinking', name: 'Claude 4.5 Sonnet Thinking (Cursor)', descVi: 'Sonnet 4.5 + thinking', descEn: 'Sonnet 4.5 + thinking', badge: '🎯 Cursor' },
-        { id: '9router/cu/claude-4.5-sonnet', name: 'Claude 4.5 Sonnet (Cursor)', descVi: 'Sonnet 4.5', descEn: 'Sonnet 4.5', badge: '🎯 Cursor' },
-        { id: '9router/cu/claude-4.5-haiku', name: 'Claude 4.5 Haiku (Cursor)', descVi: 'Haiku 4.5', descEn: 'Haiku 4.5', badge: '🎯 Cursor' },
-        { id: '9router/cu/claude-4.5-opus', name: 'Claude 4.5 Opus (Cursor)', descVi: 'Opus 4.5', descEn: 'Opus 4.5', badge: '🎯 Cursor' },
-        { id: '9router/cu/gpt-5.3-codex', name: 'GPT 5.3 Codex (Cursor)', descVi: 'GPT 5.3 Codex', descEn: 'GPT 5.3 Codex', badge: '🎯 Cursor' },
-        { id: '9router/cu/gpt-5.2-codex', name: 'GPT 5.2 Codex (Cursor)', descVi: 'GPT 5.2 Codex', descEn: 'GPT 5.2 Codex', badge: '🎯 Cursor' },
-        { id: '9router/cu/gpt-5.2', name: 'GPT 5.2 (Cursor)', descVi: 'GPT 5.2', descEn: 'GPT 5.2', badge: '🎯 Cursor' },
-        { id: '9router/cu/kimi-k2.5', name: 'Kimi K2.5 (Cursor)', descVi: 'Kimi K2.5', descEn: 'Kimi K2.5', badge: '🎯 Cursor' },
-        { id: '9router/cu/gemini-3-flash-preview', name: 'Gemini 3 Flash (Cursor)', descVi: 'Gemini Flash', descEn: 'Gemini Flash', badge: '🎯 Cursor' },
-
-        // ── OAuth: KiloCode (kc/) ──
-        { id: '9router/kc/anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4 (KiloCode)', descVi: 'Claude Sonnet 4', descEn: 'Claude Sonnet 4', badge: '🔷 KiloCode' },
-        { id: '9router/kc/anthropic/claude-opus-4-20250514', name: 'Claude Opus 4 (KiloCode)', descVi: 'Claude Opus 4', descEn: 'Claude Opus 4', badge: '🔷 KiloCode' },
-        { id: '9router/kc/google/gemini-2.5-pro', name: 'Gemini 2.5 Pro (KiloCode)', descVi: 'Gemini 2.5 Pro', descEn: 'Gemini 2.5 Pro', badge: '🔷 KiloCode' },
-        { id: '9router/kc/google/gemini-2.5-flash', name: 'Gemini 2.5 Flash (KiloCode)', descVi: 'Gemini 2.5 Flash', descEn: 'Gemini 2.5 Flash', badge: '🔷 KiloCode' },
-        { id: '9router/kc/openai/gpt-4.1', name: 'GPT 4.1 (KiloCode)', descVi: 'GPT 4.1', descEn: 'GPT 4.1', badge: '🔷 KiloCode' },
-        { id: '9router/kc/openai/o3', name: 'O3 (KiloCode)', descVi: 'O3 Reasoning', descEn: 'O3 Reasoning', badge: '🔷 KiloCode' },
-        { id: '9router/kc/deepseek/deepseek-chat', name: 'DeepSeek Chat (KiloCode)', descVi: 'DeepSeek V3.2', descEn: 'DeepSeek V3.2', badge: '🔷 KiloCode' },
-        { id: '9router/kc/deepseek/deepseek-reasoner', name: 'DeepSeek Reasoner (KiloCode)', descVi: 'DeepSeek Reasoner', descEn: 'DeepSeek Reasoner', badge: '🔷 KiloCode' },
-
-        // ── OAuth: Cline (cl/) ──
-        { id: '9router/cl/anthropic/claude-sonnet-4.6', name: 'Claude Sonnet 4.6 (Cline)', descVi: 'Sonnet 4.6 qua Cline', descEn: 'Sonnet 4.6 via Cline', badge: '🔶 Cline' },
-        { id: '9router/cl/anthropic/claude-opus-4.6', name: 'Claude Opus 4.6 (Cline)', descVi: 'Opus 4.6 qua Cline', descEn: 'Opus 4.6 via Cline', badge: '🔶 Cline' },
-        { id: '9router/cl/openai/gpt-5.3-codex', name: 'GPT 5.3 Codex (Cline)', descVi: 'GPT 5.3 qua Cline', descEn: 'GPT 5.3 via Cline', badge: '🔶 Cline' },
-        { id: '9router/cl/openai/gpt-5.4', name: 'GPT 5.4 (Cline)', descVi: 'GPT 5.4 qua Cline', descEn: 'GPT 5.4 via Cline', badge: '🔶 Cline' },
-        { id: '9router/cl/google/gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Cline)', descVi: 'Gemini 3.1 Pro', descEn: 'Gemini 3.1 Pro', badge: '🔶 Cline' },
-        { id: '9router/cl/google/gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite (Cline)', descVi: 'Gemini 3.1 Flash Lite', descEn: 'Gemini 3.1 Flash Lite', badge: '🔶 Cline' },
-        { id: '9router/cl/kwaipilot/kat-coder-pro', name: 'KAT Coder Pro (Cline)', descVi: 'KAT Coder Pro', descEn: 'KAT Coder Pro', badge: '🔶 Cline' },
-
-        // ── OAuth FREE: iFlow (if/) — Unlimited ──
-        { id: '9router/if/qwen3-coder-plus', name: 'Qwen3 Coder Plus (iFlow)', descVi: 'Miễn phí không giới hạn', descEn: 'Free unlimited', badge: '🆓 iFlow' },
-        { id: '9router/if/kimi-k2', name: 'Kimi K2 (iFlow)', descVi: 'Kimi K2 miễn phí', descEn: 'Kimi K2 free', badge: '🆓 iFlow' },
-        { id: '9router/if/glm-4.7', name: 'GLM 4.7 (iFlow)', descVi: 'GLM miễn phí', descEn: 'GLM free', badge: '🆓 iFlow' },
-        { id: '9router/if/deepseek-r1', name: 'DeepSeek R1 (iFlow)', descVi: 'DeepSeek R1 miễn phí', descEn: 'DeepSeek R1 free', badge: '🆓 iFlow' },
-        { id: '9router/if/deepseek-v3.2', name: 'DeepSeek V3.2 (iFlow)', descVi: 'V3.2 miễn phí', descEn: 'V3.2 free', badge: '🆓 iFlow' },
-        { id: '9router/if/deepseek-v3.1', name: 'DeepSeek V3.1 (iFlow)', descVi: 'V3.1 miễn phí', descEn: 'V3.1 free', badge: '🆓 iFlow' },
-        { id: '9router/if/deepseek-v3', name: 'DeepSeek V3 (iFlow)', descVi: 'V3 miễn phí', descEn: 'V3 free', badge: '🆓 iFlow' },
-        { id: '9router/if/qwen3-max', name: 'Qwen3 Max (iFlow)', descVi: 'Qwen3 Max free', descEn: 'Qwen3 Max free', badge: '🆓 iFlow' },
-        { id: '9router/if/qwen3-235b', name: 'Qwen3 235B (iFlow)', descVi: '235B params free', descEn: '235B params free', badge: '🆓 iFlow' },
-        { id: '9router/if/qwen3-32b', name: 'Qwen3 32B (iFlow)', descVi: 'Qwen3 32B free', descEn: 'Qwen3 32B free', badge: '🆓 iFlow' },
-        { id: '9router/if/iflow-rome-30ba3b', name: 'iFlow ROME (iFlow)', descVi: 'Agentic model', descEn: 'Agentic model', badge: '🆓 iFlow' },
-
-        // ── OAuth FREE: Qwen Code (qw/) — Unlimited ──
-        { id: '9router/qw/qwen3-coder-plus', name: 'Qwen3 Coder Plus', descVi: 'Alibaba miễn phí', descEn: 'Alibaba free', badge: '🆓 Qwen' },
-        { id: '9router/qw/qwen3-coder-flash', name: 'Qwen3 Coder Flash', descVi: 'Nhanh, miễn phí', descEn: 'Fast, free', badge: '🆓 Qwen' },
-        { id: '9router/qw/vision-model', name: 'Qwen3 Vision', descVi: 'Vision model', descEn: 'Vision model', badge: '🆓 Qwen' },
-        { id: '9router/qw/coder-model', name: 'Qwen3.5 Coder', descVi: 'Qwen3.5 Coder', descEn: 'Qwen3.5 Coder', badge: '🆓 Qwen' },
-
-        // ── OAuth FREE: Kiro (kr/) — Unlimited ──
-        { id: '9router/kr/claude-sonnet-4.5', name: 'Claude Sonnet 4.5 (Kiro)', descVi: 'Claude miễn phí qua AWS', descEn: 'Free Claude via AWS', badge: '🆓 Kiro' },
-        { id: '9router/kr/claude-haiku-4.5', name: 'Claude Haiku 4.5 (Kiro)', descVi: 'Haiku miễn phí', descEn: 'Haiku free', badge: '🆓 Kiro' },
-        { id: '9router/kr/deepseek-3.2', name: 'DeepSeek 3.2 (Kiro)', descVi: 'DeepSeek via Kiro', descEn: 'DeepSeek via Kiro', badge: '🆓 Kiro' },
-        { id: '9router/kr/deepseek-3.1', name: 'DeepSeek 3.1 (Kiro)', descVi: 'DeepSeek via Kiro', descEn: 'DeepSeek via Kiro', badge: '🆓 Kiro' },
-        { id: '9router/kr/qwen3-coder-next', name: 'Qwen3 Coder Next (Kiro)', descVi: 'Qwen Next via Kiro', descEn: 'Qwen Next via Kiro', badge: '🆓 Kiro' },
-
-        // ── OAuth FREE: Kimi Coding (kmc/) ──
-        { id: '9router/kmc/kimi-k2.5', name: 'Kimi K2.5 (Kimi Coding)', descVi: 'K2.5 miễn phí', descEn: 'K2.5 free', badge: '🆓 Kimi' },
-        { id: '9router/kmc/kimi-k2.5-thinking', name: 'Kimi K2.5 Thinking', descVi: 'K2.5 + suy luận', descEn: 'K2.5 + thinking', badge: '🆓 Kimi' },
-        { id: '9router/kmc/kimi-latest', name: 'Kimi Latest', descVi: 'Phiên bản mới nhất', descEn: 'Latest version', badge: '🆓 Kimi' },
-
-        // ── API Key: GLM (glm/) — Cheap ──
-        { id: '9router/glm/glm-5.1', name: 'GLM 5.1', descVi: 'Zhipu AI mới nhất', descEn: 'Zhipu AI latest', badge: '💰 GLM' },
-        { id: '9router/glm/glm-5', name: 'GLM 5', descVi: 'GLM 5', descEn: 'GLM 5', badge: '💰 GLM' },
-        { id: '9router/glm/glm-4.7', name: 'GLM 4.7', descVi: '$0.6/1M tokens', descEn: '$0.6/1M tokens', badge: '💰 GLM' },
-
-        // ── API Key: MiniMax (minimax/) — Cheap ──
-        { id: '9router/minimax/MiniMax-M2.7', name: 'MiniMax M2.7', descVi: 'Mới nhất MiniMax', descEn: 'Latest MiniMax', badge: '💰 MiniMax' },
-        { id: '9router/minimax/MiniMax-M2.5', name: 'MiniMax M2.5', descVi: 'MiniMax M2.5', descEn: 'MiniMax M2.5', badge: '💰 MiniMax' },
-        { id: '9router/minimax/MiniMax-M2.1', name: 'MiniMax M2.1', descVi: '$0.20/1M tokens', descEn: '$0.20/1M tokens', badge: '💰 MiniMax' },
-
-        // ── API Key: Kimi (kimi/) ──
-        { id: '9router/kimi/kimi-k2.5', name: 'Kimi K2.5', descVi: 'Kimi K2.5 API', descEn: 'Kimi K2.5 API', badge: '💰 Kimi' },
-        { id: '9router/kimi/kimi-k2.5-thinking', name: 'Kimi K2.5 Thinking', descVi: 'K2.5 + suy luận', descEn: 'K2.5 + thinking', badge: '💰 Kimi' },
-        { id: '9router/kimi/kimi-latest', name: 'Kimi Latest', descVi: 'Phiên bản mới nhất', descEn: 'Latest version', badge: '💰 Kimi' },
-
-        // ── API Key: DeepSeek (deepseek/) ──
-        { id: '9router/deepseek/deepseek-chat', name: 'DeepSeek V3.2 Chat', descVi: 'DeepSeek Chat', descEn: 'DeepSeek Chat', badge: '💰 DeepSeek' },
-        { id: '9router/deepseek/deepseek-reasoner', name: 'DeepSeek V3.2 Reasoner', descVi: 'DeepSeek Reasoner', descEn: 'DeepSeek Reasoner', badge: '💰 DeepSeek' },
-
-        // ── API Key: xAI (xai/) ──
-        { id: '9router/xai/grok-4', name: 'Grok 4', descVi: 'xAI flagship', descEn: 'xAI flagship', badge: '💰 xAI' },
-        { id: '9router/xai/grok-4-fast-reasoning', name: 'Grok 4 Fast Reasoning', descVi: 'Suy luận nhanh', descEn: 'Fast reasoning', badge: '💰 xAI' },
-        { id: '9router/xai/grok-code-fast-1', name: 'Grok Code Fast', descVi: 'Code nhanh', descEn: 'Fast coding', badge: '💰 xAI' },
-
-        // ── API Key: Mistral (mistral/) ──
-        { id: '9router/mistral/mistral-large-latest', name: 'Mistral Large 3', descVi: 'Mistral flagship', descEn: 'Mistral flagship', badge: '💰 Mistral' },
-        { id: '9router/mistral/codestral-latest', name: 'Codestral', descVi: 'Code-optimized', descEn: 'Code-optimized', badge: '💰 Mistral' },
-
-        // ── API Key: Groq (groq/) ──
-        { id: '9router/groq/llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Groq)', descVi: 'Siêu nhanh qua Groq', descEn: 'Ultra fast via Groq', badge: '⚡ Groq' },
-        { id: '9router/groq/openai/gpt-oss-120b', name: 'GPT OSS 120B (Groq)', descVi: 'GPT OSS qua Groq', descEn: 'GPT OSS via Groq', badge: '⚡ Groq' },
-
-        // ── API Key: Cerebras (cerebras/) ──
-        { id: '9router/cerebras/gpt-oss-120b', name: 'GPT OSS 120B (Cerebras)', descVi: 'Siêu nhanh Cerebras', descEn: 'Ultra fast Cerebras', badge: '⚡ Cerebras' },
-
-        // ── API Key: AliCode (alicode/) ──
-        { id: '9router/alicode/qwen3.5-plus', name: 'Qwen3.5 Plus (AliCode)', descVi: 'Alibaba Cloud mới nhất', descEn: 'Alibaba Cloud latest', badge: '💰 AliCode' },
-        { id: '9router/alicode/qwen3-coder-plus', name: 'Qwen3 Coder Plus (AliCode)', descVi: 'Coder Plus', descEn: 'Coder Plus', badge: '💰 AliCode' },
+        { id: '9router/smart-route', name: 'Smart Proxy (Auto Route)', descVi: 'Tự động luân chuyển FREE models — không tốn xu', descEn: 'Auto-routing across FREE providers — zero cost', badgeVi: '🌟 Khuyên dùng', badgeEn: '🌟 Recommended' }
       ],
     },
   };
@@ -924,30 +759,17 @@
       pHtml += `<h3 style="margin: 0 0 12px; font-size: 15px; font-weight: 700; color: var(--text-primary);">${providerIcon} ${isVi ? 'AI Provider' : 'AI Provider'} — ${providerName}</h3>`;
 
       if (provider.isProxy) {
-        // 9Router: simple message + toggle switch
-        pHtml += `<p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 14px;">
+        // 9Router: simple message (no API key needed - managed via dashboard)
+        pHtml += `<p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 8px;">
           ${isVi
             ? 'Sau khi Docker khởi động xong, mở <a href="http://localhost:20128/dashboard" target="_blank" style="color: var(--accent);">localhost:20128/dashboard</a> để đăng nhập OAuth và kết nối các Provider.'
             : 'After Docker starts, open <a href="http://localhost:20128/dashboard" target="_blank" style="color: var(--accent);">localhost:20128/dashboard</a> to OAuth login and connect Providers.'}
         </p>`;
-        pHtml += `<div style="padding: 12px 16px; border-radius: 10px; background: rgba(139,92,246,0.04); border: 1px solid rgba(139,92,246,0.15);">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-            <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">🔐 ${isVi ? 'Bảo mật 9Router' : 'Secure 9Router'}</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="key-9router-secure" onchange="window.__toggle9RouterSecurity(this.checked)">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <p style="font-size: 11px; color: var(--text-muted); margin: 6px 0 0;">
-            ${isVi ? 'Khuyên dùng khi chạy trên VPS/mạng chung — tự tạo API Key để bảo vệ proxy.' : 'Recommended for VPS/shared networks — auto-generates API Key to protect your proxy.'}
-          </p>
-          <div id="9router-key-display" style="display: none; margin-top: 10px;">
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="text" class="form-input" id="key-9router-apikey" readonly style="font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.2); flex: 1; padding: 8px 12px;" value="">
-              <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('key-9router-apikey').value);this.textContent='✅';setTimeout(()=>this.textContent='📋',1500)" style="padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(139,92,246,0.3); background: rgba(139,92,246,0.1); cursor: pointer; font-size: 13px;">📋</button>
-            </div>
-          </div>
-        </div>`;
+        pHtml += `<p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+          ${isVi
+            ? '💡 Bot và 9Router cùng Docker network — không cần API Key. Nếu muốn bảo mật proxy (VPS), tạo API Key trên Dashboard sau khi Docker chạy.'
+            : '💡 Bot and 9Router share Docker network — no API Key needed. To secure proxy (VPS), create API Key on Dashboard after Docker starts.'}
+        </p>`;
       } else if (provider.isLocal) {
         // Ollama
         pHtml += `<p style="font-size: 13px; color: var(--text-secondary); margin: 0;">
@@ -1025,22 +847,7 @@
     }
   }
   window.__validateKeys = function() { updateNavButtons(); };
-  window.__toggle9RouterSecurity = function(checked) {
-    const display = document.getElementById('9router-key-display');
-    const keyInput = document.getElementById('key-9router-apikey');
-    if (!display || !keyInput) return;
-    if (checked) {
-      // Auto-generate a random 32-char hex key
-      const key = (typeof crypto !== 'undefined' && crypto.randomUUID)
-        ? crypto.randomUUID().replace(/-/g, '')
-        : Array.from({length: 32}, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      keyInput.value = 'oc9r-' + key;
-      display.style.display = 'block';
-    } else {
-      keyInput.value = '';
-      display.style.display = 'none';
-    }
-  };
+  // 9Router API keys are managed via its dashboard — no client-side generation needed
 
   // ========== Build .env content from key inputs ==========
   function populateEnvContent() {
@@ -1057,11 +864,6 @@
 
     if (provider.isProxy) {
       lines.push('# Không cần AI API key — 9Router xử lý qua dashboard');
-      const routerApiKey = document.getElementById('key-9router-apikey')?.value?.trim() || '';
-      if (routerApiKey) {
-        lines.push(`\n# 9Router API Key (bảo mật proxy)`);
-        lines.push(`ROUTER_API_KEY=${routerApiKey}`);
-      }
     } else if (provider.isLocal) {
       lines.push('OLLAMA_HOST=http://host.docker.internal:11434');
     } else {
@@ -1227,36 +1029,38 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
     };
 
     // 9Router: add proxy endpoint config under models.providers
-    // Per official 9Router docs: use custom provider name '9router', models use cx/ prefix
-    const routerKeyForConfig = document.getElementById('key-9router-apikey')?.value?.trim() || '';
+    // Bot and 9Router share Docker network — no API key needed
     if (is9Router) {
       clawConfig.models = {
         mode: 'merge',
         providers: {
           '9router': {
             baseUrl: 'http://9router:20128/v1',
-            apiKey: routerKeyForConfig || 'sk-no-key',
+            apiKey: 'sk-no-key',
             api: 'openai-completions',
             models: [
-              { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 },
-              // OAuth Subscription
-              { id: 'cc/claude-opus-4-6', name: 'Claude Opus 4.6', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'cx/gpt-5.4', name: 'GPT 5.4 (Codex)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'cx/gpt-5.3-codex', name: 'GPT 5.3 Codex', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'gh/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'gc/gemini-3-flash-preview', name: 'Gemini 3 Flash (FREE)', contextWindow: 1000000, maxTokens: 8192 },
-              // OAuth FREE
-              { id: 'if/qwen3-coder-plus', name: 'Qwen3 Coder Plus (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
+              // Free Tier Providers
+              { id: 'if/qwen3-coder-plus', name: 'Qwen3 Coder+ (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'if/kimi-k2', name: 'Kimi K2 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'if/kimi-k2-thinking', name: 'Kimi K2 Thinking (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'if/glm-4.7', name: 'GLM 4.7 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'if/minimax-m2', name: 'MiniMax M2 (iFlow FREE)', contextWindow: 1000000, maxTokens: 8192 },
               { id: 'if/deepseek-r1', name: 'DeepSeek R1 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'qw/qwen3-coder-plus', name: 'Qwen3 Coder Plus (Qwen FREE)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'qw/qwen3-coder-plus', name: 'Qwen3 Coder+ (Qwen FREE)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'qw/qwen3-coder-flash', name: 'Qwen3 Coder Flash (Qwen FREE)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'kr/claude-sonnet-4.5', name: 'Claude Sonnet 4.5 (Kiro FREE)', contextWindow: 200000, maxTokens: 8192 },
-              // API Key
+              { id: 'kr/claude-haiku-4.5', name: 'Claude Haiku 4.5 (Kiro FREE)', contextWindow: 200000, maxTokens: 8192 },
+              // Ollama Cloud
+              { id: 'ollama/qwen3.5', name: 'Qwen 3.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ollama/kimi-k2.5', name: 'Kimi K2.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ollama/glm-5', name: 'GLM 5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ollama/glm-4.7-flash', name: 'GLM 4.7 Flash (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ollama/minimax-m2.5', name: 'MiniMax M2.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'ollama/gpt-oss:120b', name: 'GPT-OSS 120B (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
+              // API Key Providers
               { id: 'glm/glm-4.7', name: 'GLM 4.7 ($0.6/1M)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'minimax/MiniMax-M2.1', name: 'MiniMax M2.1 ($0.20/1M)', contextWindow: 1000000, maxTokens: 8192 },
+              { id: 'kimi/kimi-latest', name: 'Kimi Latest ($0.90/1M)', contextWindow: 128000, maxTokens: 8192 },
               { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3.2 Chat', contextWindow: 128000, maxTokens: 8192 },
             ],
           },
@@ -1399,13 +1203,11 @@ ${extraHostsBlock}
     container_name: 9router
     restart: always
     entrypoint: >
-      /bin/sh -c "npm install -g 9router && [ ! -f /root/.9router/db.json ] && echo '{\\"combos\\":[{\\"id\\":\\"smart-route\\",\\"name\\":\\"smart-route\\",\\"alias\\":\\"smart-route\\",\\"models\\":[\\"if/qwen3-coder-plus\\",\\"if/kimi-k2\\",\\"if/glm-4.7\\",\\"if/deepseek-r1\\",\\"qw/qwen3-coder-plus\\",\\"kr/claude-sonnet-4.5\\",\\"gc/gemini-3-flash-preview\\",\\"cc/claude-opus-4-6\\",\\"cx/gpt-5.3-codex\\",\\"gh/gpt-5.4\\"]}]}' > /root/.9router/db.json; 9router"
+      /bin/sh -c "npm install -g 9router && [ ! -f /root/.9router/db.json ] && echo '{\\"combos\\":[{\\"id\\":\\"smart-route\\",\\"name\\":\\"smart-route\\",\\"alias\\":\\"smart-route\\",\\"models\\":[\\"cc/claude-opus-4-6\\",\\"cc/claude-sonnet-4-6\\",\\"cc/claude-opus-4-5-20251101\\",\\"cc/claude-sonnet-4-5-20250929\\",\\"cc/claude-haiku-4-5-20251001\\",\\"cx/gpt-5.4\\",\\"cx/gpt-5.3-codex\\",\\"cx/gpt-5.3-codex-xhigh\\",\\"cx/gpt-5.3-codex-high\\",\\"cx/gpt-5.3-codex-low\\",\\"cx/gpt-5.3-codex-none\\",\\"cx/gpt-5.3-codex-spark\\",\\"cx/gpt-5.1-codex-mini\\",\\"cx/gpt-5.1-codex-mini-high\\",\\"cx/gpt-5.2-codex\\",\\"cx/gpt-5.2\\",\\"cx/gpt-5.1-codex-max\\",\\"cx/gpt-5.1-codex\\",\\"cx/gpt-5.1\\",\\"cx/gpt-5-codex\\",\\"cx/gpt-5-codex-mini\\",\\"gc/gemini-3-flash-preview\\",\\"gc/gemini-3-pro-preview\\",\\"gh/gpt-5.4\\",\\"gh/gpt-5.3-codex\\",\\"gh/gpt-5.2-codex\\",\\"gh/gpt-5.2\\",\\"gh/gpt-5.1-codex-max\\",\\"gh/gpt-5.1-codex\\",\\"gh/gpt-5.1-codex-mini\\",\\"gh/gpt-5.1\\",\\"gh/gpt-5\\",\\"gh/gpt-5-mini\\",\\"gh/gpt-5-codex\\",\\"gh/gpt-4.1\\",\\"gh/gpt-4o\\",\\"gh/gpt-4o-mini\\",\\"gh/gpt-4\\",\\"gh/gpt-3.5-turbo\\",\\"gh/claude-opus-4.6\\",\\"gh/claude-sonnet-4.6\\",\\"gh/claude-sonnet-4.5\\",\\"gh/claude-opus-4.5\\",\\"gh/claude-opus-4.1\\",\\"gh/claude-sonnet-4\\",\\"gh/claude-haiku-4.5\\",\\"gh/gemini-3-pro-preview\\",\\"gh/gemini-3-flash-preview\\",\\"gh/gemini-2.5-pro\\",\\"gh/grok-code-fast-1\\",\\"gh/oswe-vscode-prime\\",\\"cu/default\\",\\"cu/claude-4.6-opus-max\\",\\"cu/claude-4.6-sonnet-medium-thinking\\",\\"cu/claude-4.5-opus-high-thinking\\",\\"cu/claude-4.5-opus-high\\",\\"cu/claude-4.5-sonnet-thinking\\",\\"cu/claude-4.5-sonnet\\",\\"cu/claude-4.5-haiku\\",\\"cu/claude-4.5-opus\\",\\"cu/gpt-5.3-codex\\",\\"cu/gpt-5.2-codex\\",\\"cu/gpt-5.2\\",\\"cu/kimi-k2.5\\",\\"cu/gemini-3-flash-preview\\",\\"kc/anthropic/claude-sonnet-4-20250514\\",\\"kc/anthropic/claude-opus-4-20250514\\",\\"kc/google/gemini-2.5-pro\\",\\"kc/google/gemini-2.5-flash\\",\\"kc/openai/gpt-4.1\\",\\"kc/openai/o3\\",\\"kc/deepseek/deepseek-chat\\",\\"kc/deepseek/deepseek-reasoner\\",\\"cl/anthropic/claude-sonnet-4.6\\",\\"cl/anthropic/claude-opus-4.6\\",\\"cl/openai/gpt-5.3-codex\\",\\"cl/openai/gpt-5.4\\",\\"cl/google/gemini-3.1-pro-preview\\",\\"cl/google/gemini-3.1-flash-lite-preview\\",\\"cl/kwaipilot/kat-coder-pro\\",\\"if/qwen3-coder-plus\\",\\"if/kimi-k2\\",\\"if/glm-4.7\\",\\"if/deepseek-r1\\",\\"if/deepseek-v3.2\\",\\"if/deepseek-v3.1\\",\\"if/deepseek-v3\\",\\"if/qwen3-max\\",\\"if/qwen3-235b\\",\\"if/qwen3-32b\\",\\"if/iflow-rome-30ba3b\\",\\"qw/qwen3-coder-plus\\",\\"qw/qwen3-coder-flash\\",\\"qw/vision-model\\",\\"qw/coder-model\\",\\"kr/claude-sonnet-4.5\\",\\"kr/claude-haiku-4.5\\",\\"kr/deepseek-3.2\\",\\"kr/deepseek-3.1\\",\\"kr/qwen3-coder-next\\",\\"kmc/kimi-k2.5\\",\\"kmc/kimi-k2.5-thinking\\",\\"kmc/kimi-latest\\",\\"glm/glm-5.1\\",\\"glm/glm-5\\",\\"glm/glm-4.7\\",\\"minimax/MiniMax-M2.7\\",\\"minimax/MiniMax-M2.5\\",\\"minimax/MiniMax-M2.1\\",\\"kimi/kimi-k2.5\\",\\"kimi/kimi-k2.5-thinking\\",\\"kimi/kimi-latest\\",\\"deepseek/deepseek-chat\\",\\"deepseek/deepseek-reasoner\\",\\"xai/grok-4\\",\\"xai/grok-4-fast-reasoning\\",\\"xai/grok-code-fast-1\\",\\"mistral/mistral-large-latest\\",\\"mistral/codestral-latest\\",\\"groq/llama-3.3-70b-versatile\\",\\"groq/openai/gpt-oss-120b\\",\\"cerebras/gpt-oss-120b\\",\\"alicode/qwen3.5-plus\\",\\"alicode/qwen3-coder-plus\\"]}]}' > /root/.9router/db.json; 9router"
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0
-      - CI=true${routerKeyForConfig ? `\n      - API_KEY=\${ROUTER_API_KEY}` : ''}
-    env_file:
-      - .env
+      - CI=true
     volumes:
       - 9router-data:/root/.9router
     ports:
@@ -1453,13 +1255,11 @@ docker logs -f openclaw-bot${approveNote}`);
 
 
     // 6. Generate auth-profiles.json (root + agent level)
-    // OpenClaw v1 format requires: type="api_key", field="key", and "order" block
-    // For 9Router: if user set API key → use it (enables Bearer auth); otherwise 'sk-no-key' (open access)
+    // Bot and 9Router share Docker network — always use 'sk-no-key'
     const authProviderName = is9Router ? '9router' : state.config.provider;
     const authProfileId = is9Router ? '9router-proxy' : `${authProviderName}:default`;
-    const router9ApiKey = document.getElementById('key-9router-apikey')?.value?.trim() || '';
     const authKeyValue = is9Router
-      ? (router9ApiKey || 'sk-no-key')
+      ? 'sk-no-key'
       : `<your_${(provider.envKey || 'API_KEY').toLowerCase()}>`;
 
     const authProfilesJson = {
