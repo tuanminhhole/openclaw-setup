@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.7] — 2026-03-31
+
+### ✨ Setup UI/UX Redesign
+- **Clean 3-Section UI**: Step 3 credentials section is now redesigned into three distinct categories: AI Provider, Chat Channel, and Skills, providing a cleaner, more intuitive workflow.
+- **9Router Auto Security**: Replaced manual API key inputs with an iOS-style toggle. When enabled, it auto-generates a secure 32-character hex key for your 9Router proxy, zero config required.
+- **Cross-Platform Auto Browser**: Generates a Linux/macOS `.sh` script in addition to the Windows `.bat` script for easy, out-of-the-box Chrome Debug automation on all operating systems.
+- **CLI Parity**: The `npx create-openclaw-bot` command now prompts for User Identity and Bot Persona, bringing the CLI to full feature parity with the GUI Wizard while keeping the setup zero-restart.
+
 ## [4.0.1] — 2026-03-31
 
 ### ✨ Automation (Auto-create install dir) & NPM CLI

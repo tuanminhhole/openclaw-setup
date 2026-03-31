@@ -2,6 +2,14 @@
 
 Tất cả những thay đổi nổi bật của dự án sẽ được ghi chép trong file này.
 
+## [4.0.7] — 2026-03-31
+
+### ✨ Nâng cấp Trải nghiệm Setup (UI/UX)
+- **Giao diện làm mới với 3 phần Trực quan**: Ở Bước 3 nhập API của Setup Wizard đã được thiết kế lại thành 3 khu vực độc lập cực kì gọn gàng: AI Provider, Kênh chat, và Skills.
+- **Bảo mật 9Router Tự động**: Gạt bỏ việc copy mã API thủ công. Thay vào đó bạn chỉ cần nhấn 1 Nút gạt bảo mật. Khi gạt bật, hệ thống tự động sinh ngẫu nhiên một khóa API siêu bảo mật dài 32 ký tự Hex cho proxy 9Router của bạn. 
+- **Auto Browser Đa nền tảng**: Tool đã hỗ trợ việc chạy Chrome Debug Mode đa dụng tốt nhất từ trước đến nay, khi giờ đây script `npx` hiện đã tự động sinh thêm file `.sh` cho Linux/macOS song song với file `.bat` trên Windows, việc cắm auto Browser mở app Zalo Mini chưa bao giờ dễ dàng như bây giờ.
+- **Auto Prompt CLI (`create-openclaw-bot`)**: Tính tương đương hoàn hảo với bản Web UI! Cập nhật `npx` có thể hỏi thông tin mô tả Identity và Persona của người dùng, giúp bản Terminal Command mang đầy đủ tính năng hoàn chỉnh 100%.
+
 ## [4.0.1] — 2026-03-31
 
 ### ✨ Tự Động Hoá (Tự tạo thư mục cài đặt gốc) & NPM CLI

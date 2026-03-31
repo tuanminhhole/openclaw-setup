@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.0.1-0EA5E9?style=for-the-badge" alt="Version 4.0.1" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.0.7-0EA5E9?style=for-the-badge" alt="Version 4.0.7" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/dm/create-openclaw-bot?style=for-the-badge&color=22c55e" alt="NPM Downloads" /></a>
@@ -25,11 +25,11 @@ An interactive <strong>CLI tool</strong> and <strong>Setup Wizard</strong> to de
 
 ---
 
-## 🆕 What's new in v4.0.1
-- 🪄 **Fully Automated Setup**: Say goodbye to downloading ZIP files and manually copying configs. Everything is now fully automated with a single action.
-- ⚡ **One-Command Install (`npx create-openclaw-bot`)**: Extremely convenient for VPS/SSH users — the script automatically creates the project directory, sets up the environment, and triggers `docker compose up -d` instantly.
-- 🚀 **Zero-Restart Deployment**: Details like API Keys and Bot Tokens (which you input during setup) are automatically injected into `.env` before the bot boots for the first time. No restarts required!
-- 🌐 **Browser Automation Setup**: Updated Windows Task Scheduler and Debug Mode scripts for smoother interaction with Web Apps.
+## 🆕 What's new in v4.0.7
+- 🔐 **9Router Auto-Security**: Secure your proxy with 1-click! Setup Wizard and CLI now auto-generate 32-char Hex API keys for 9Router, zero manual config needed.
+- 🪄 **Clean 3-Section UI**: Step 3 is redesigned into distinct sections (AI Provider, Channel, Skills) with an iOS-style toggle for enhanced clarity.
+- ⚡ **One-Command Install (`npx create-openclaw-bot`)**: Extremely convenient for VPS/SSH users — the script automatically asks for your Bot Persona, User Identity, and triggers `docker compose up -d` instantly.
+- 🌐 **Cross-Platform Browser Automation**: Generates both `.bat` (Windows) and `.sh` (macOS/Linux) Chrome Debug boot scripts right out of the box!
 
 ---
 
@@ -51,24 +51,20 @@ An interactive <strong>CLI tool</strong> and <strong>Setup Wizard</strong> to de
 
 You need **3 things** (all free):
 
-| # | What | How to get |
-|---|------|------------|
-| 1 | **Docker Desktop** | Download → [docker.com](https://www.docker.com/products/docker-desktop/) |
-| 2 | **AI API Key** | See [Supported Providers](#-supported-providers) — Gemini is free! |
-| 3 | **Bot Token** | See [Supported Channels](#-supported-channels) below |
+1. **Docker Desktop** — [Download here](https://www.docker.com/products/docker-desktop/)
+2. **AI API Key** — See [Supported Providers](#-supported-providers) (Gemini is free!)
+3. **Bot Token** — See [Supported Channels](#-supported-channels)
 
 ---
 
 ## 🧠 Supported Providers
 
-| Provider | Models | Price | Get API Key |
-|----------|--------|-------|-------------|
-| **Google Gemini** | Gemini 2.5 Flash/Pro, 3.0 Flash | 🆓 Free | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| **Anthropic Claude** | Claude Sonnet 4, Opus 4, Haiku 3.5 | 💰 Paid | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
-| **OpenAI / Codex** | GPT-4o, o3, Codex Mini | 💰 Paid | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
-| **OpenRouter** | Many free & paid models | 🆓/💰 | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| **Ollama** | Qwen 3, DeepSeek, Llama, Gemma... | 🏠 Local | Install [ollama.com](https://ollama.com) |
-| **9Router** | Auto-route to best provider | 🔀 Proxy | No API key — [github.com/decolua/9router](https://github.com/decolua/9router) |
+- **Google Gemini** (Gemini 2.5 Flash/Pro, 3.0 Flash) — 🆓 Free — [Get Key](https://aistudio.google.com/apikey)
+- **Anthropic Claude** (Sonnet 4, Opus 4, Haiku 3.5) — 💰 Paid — [Get Key](https://console.anthropic.com/settings/keys)
+- **OpenAI / Codex** (GPT-4o, o3, Codex Mini) — 💰 Paid — [Get Key](https://platform.openai.com/api-keys)
+- **OpenRouter** (Many free & paid models) — 🆓/💰 — [Get Key](https://openrouter.ai/keys)
+- **Ollama** (Qwen 3, DeepSeek, Llama...) — 🏠 Local — [Install](https://ollama.com)
+- **9Router** (Auto-routes to best provider) — 🔀 Proxy — [Docs](https://github.com/decolua/9router)
 
 > 🔀 **9Router** runs alongside OpenClaw in Docker. After `docker compose up`, open `localhost:20128/dashboard` to login via OAuth. No API keys needed!
 
@@ -76,11 +72,9 @@ You need **3 things** (all free):
 
 ## 🔌 Supported Channels
 
-| Channel | Type | How to get token |
-|---------|------|-----------------|
-| **Telegram** | ✅ Official Bot API | Open Telegram → Search **@BotFather** → `/newbot` → Copy token |
-| **Zalo Bot API** | ✅ Official Bot API | Go to [developers.zalo.me](https://developers.zalo.me) → Create bot → Copy token |
-| **Zalo Personal** | ⚠️ Unofficial | Login via QR code after setup (no token needed) |
+- **Telegram** (✅ Official) — Search **@BotFather** on Telegram → `/newbot` → Copy token.
+- **Zalo Bot API** (✅ Official) — Go to [developers.zalo.me](https://developers.zalo.me) → Create bot → Copy token.
+- **Zalo Personal** (⚠️ Unofficial) — Scan QR code after Docker setup (no token needed).
 
 > ⚠️ **Zalo Personal** uses an unofficial API. Your account may be restricted. Use a secondary account.
 
@@ -120,11 +114,10 @@ The fastest way to install OpenClaw is using the interactive NPM package.
 
 1. Open [Antigravity IDE](https://antigravity.dev/)
 2. Open this repo as workspace
-3. Create `docker/openclaw/.env` with your keys
-4. Paste into chat:
-   ```
-   Read SETUP.md in this repo and set up OpenClaw for me.
-   I already created the .env file with my API key and Bot token.
+3. Paste into chat:
+   ```text
+   Read SETUP.md and set up OpenClaw v4.0.7 for me.
+   My bot token is X, my 9Router proxy doesn't need a key.
    My project folder: <YOUR_PATH>
    ```
 

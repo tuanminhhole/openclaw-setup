@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.0.1-0EA5E9?style=for-the-badge" alt="Version 4.0.1" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.0.7-0EA5E9?style=for-the-badge" alt="Version 4.0.7" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/dm/create-openclaw-bot?style=for-the-badge&color=22c55e" alt="NPM Downloads" /></a>
@@ -25,12 +25,11 @@ Một công cụ trực quan <strong>Setup Wizard (UI)</strong> & <strong>CLI</s
 
 ---
 
-## 🆕 Có gì mới ở bản 4.0.1
-- 🪄 **Tự động hóa hoàn toàn**: Tạm biệt việc tải file ZIP và copy config thủ công! Giờ đây mọi thứ diễn ra tự động chỉ với 1 lượt click.
-- ⚡ **Chỉ 1 lệnh duy nhất (`npx create-openclaw-bot`)**: Cực kỳ tiện lợi cho ae cài qua VPS/SSH — script sẽ tự động tạo thư mục, khởi tạo môi trường và tự động kích hoạt `docker compose up -d` ngay sau khi nhập xong.
-- 🚀 **Zero-Restart Deployment**: API Keys và config được inject trực tiếp vào thư mục (bạn vẫn cần nhập từ Terminal, máy sẽ tự sinh vào file `.env` trước khi bot chạy lần đầu). Không cần phải restart lại container mất thời gian nữa.
-- 🌐 **Browser Automation Setup**: Cập nhật tự động sinh file chạy Windows Task Scheduler và bật file thiết lập Debug mode tự động. Mở Zalo Mini app ngon lành.
-
+## 🆕 Có gì mới ở bản 4.0.7
+- 🔐 **Bảo mật 9Router Tự động**: Tích hợp nút gạt tạo API Key Hex 32-ký tự tự động cho proxy 9Router. Không lo lộ port trên VPS!
+- 🪄 **Giao diện 3 Phần Trực quan**: Bước 3 trên Web UI được thiết kế lại thành 3 khu vực rõ rệt (AI Provider, Kênh chat, Skills) kèm nút gạt iOS-style cực đẹp.
+- ⚡ **Cài đặt 1 lệnh (`npx create-openclaw-bot`)**: Cực kỳ tiện lợi cho ae cài qua VPS/SSH — script sẽ tự hỏi Persona, Identity của người dùng và kích hoạt `docker compose up -d` ngay lập tức.
+- 🌐 **Hỗ trợ Đa nền tảng Auto Browser**: Tự động sinh cả file `.bat` (cho Windows) và `.sh` (cho macOS/Linux) để bật Chrome Debug Mode mượt mà.
 ---
 
 ## ✨ Tính năng
@@ -51,24 +50,20 @@ Một công cụ trực quan <strong>Setup Wizard (UI)</strong> & <strong>CLI</s
 
 Bạn cần **3 thứ** (miễn phí hết):
 
-| # | Cần gì | Cách lấy |
-|---|--------|----------|
-| 1 | **Docker Desktop** | Tải tại [docker.com](https://www.docker.com/products/docker-desktop/) |
-| 2 | **API Key AI** | Tùy model — xem [Nhà cung cấp AI](#-nhà-cung-cấp-ai) bên dưới |
-| 3 | **Bot Token** | Xem [Kênh hỗ trợ](#-kênh-hỗ-trợ) bên dưới |
+1. **Docker Desktop** — [Tải tại đây](https://www.docker.com/products/docker-desktop/)
+2. **API Key AI** — Tùy model, xem [Nhà cung cấp AI](#-nhà-cung-cấp-ai) (Gemini miễn phí!)
+3. **Bot Token** — Xem [Kênh hỗ trợ](#-kênh-hỗ-trợ) bên dưới
 
 ---
 
 ## 🧠 Nhà cung cấp AI
 
-| Nhà cung cấp | Models | Giá | Cách lấy API Key |
-|--------------|--------|-----|-------------------|
-| **Google Gemini** | Gemini 2.5 Flash/Pro, 3.0 Flash | 🆓 Miễn phí | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| **Anthropic Claude** | Claude Sonnet 4, Opus 4, Haiku 3.5 | 💰 Trả phí | [console.anthropic.com](https://console.anthropic.com/settings/keys) |
-| **OpenAI / Codex** | GPT-4o, o3, Codex Mini | 💰 Trả phí (cần Plus/Pro) | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
-| **OpenRouter** | Rất nhiều model miễn phí & trả phí | 🆓/💰 | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| **Ollama** | Qwen 3, DeepSeek, Llama, Gemma... | 🏠 Local (miễn phí) | Cài [ollama.com](https://ollama.com) |
-| **9Router** | Tự động route tới provider tốt nhất | 🔀 Proxy | Không cần API key — [github.com/decolua/9router](https://github.com/decolua/9router) |
+- **Google Gemini** (Gemini 2.5 Flash/Pro, 3.0 Flash) — 🆓 Miễn phí — [Lấy Key](https://aistudio.google.com/apikey)
+- **Anthropic Claude** (Sonnet 4, Opus 4, Haiku 3.5) — 💰 Trả phí — [Lấy Key](https://console.anthropic.com/settings/keys)
+- **OpenAI / Codex** (GPT-4o, o3, Codex Mini) — 💰 Trả phí — [Lấy Key](https://platform.openai.com/api-keys)
+- **OpenRouter** (Nhiều model free & paid) — 🆓/💰 — [Lấy Key](https://openrouter.ai/keys)
+- **Ollama** (Qwen 3, DeepSeek, Llama...) — 🏠 Local (Free) — [Cài đặt](https://ollama.com)
+- **9Router** (Tự động Proxy) — 🔀 Proxy — [Hướng dẫn](https://github.com/decolua/9router)
 
 > 🔀 **9Router** chạy cùng OpenClaw trong Docker. Sau khi `docker compose up`, mở `localhost:20128/dashboard` để đăng nhập OAuth. Không cần API key!
 
@@ -76,11 +71,9 @@ Bạn cần **3 thứ** (miễn phí hết):
 
 ## 🔌 Kênh hỗ trợ
 
-| Kênh | Loại | Cách lấy token |
-|------|------|----------------|
-| **Telegram** | ✅ Bot API chính thức | Mở Telegram → Tìm **@BotFather** → `/newbot` → Copy token |
-| **Zalo Bot API** | ✅ Bot API chính thức | Vào [developers.zalo.me](https://developers.zalo.me) → Tạo bot → Copy token |
-| **Zalo Cá nhân** | ⚠️ Unofficial | Login bằng QR code sau khi setup (không cần token) |
+- **Telegram** (✅ Bot API chính thức) — Mở Telegram $\rightarrow$ Tìm **@BotFather** $\rightarrow$ `/newbot` $\rightarrow$ Copy token.
+- **Zalo Bot API** (✅ Bot API chính thức) — Vào [developers.zalo.me](https://developers.zalo.me) $\rightarrow$ Tạo bot $\rightarrow$ Copy token.
+- **Zalo Cá nhân** (⚠️ Unofficial) — Login bằng QR code sau khi setup Docker (không cần token).
 
 > ⚠️ **Zalo Cá nhân** dùng unofficial API. Tài khoản Zalo có thể bị hạn chế. Chỉ nên dùng tài khoản phụ.
 
@@ -122,11 +115,10 @@ Dùng NPX là cách cài chuẩn nhất:
 
 1. Mở [Antigravity IDE](https://antigravity.dev/)
 2. Mở repo này làm workspace
-3. Tạo `docker/openclaw/.env` với API key của bạn
-4. Paste vào chat:
-   ```
-   Read SETUP.md in this repo and set up OpenClaw for me.
-   I already created the .env file with my API key and Bot token.
+3. Paste vào chat:
+   ```text
+   Read SETUP.md and install OpenClaw 4.0.7 for me.
+   My bot token is X, my 9Router proxy doesn't need a key.
    My project folder: <THƯ_MỤC_CỦA_BẠN>
    ```
 

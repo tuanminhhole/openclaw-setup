@@ -203,13 +203,14 @@
       <h2 class="step__title" data-vi="Nhập API Keys & Thư mục" data-en="Enter API Keys & Folder">Nhập API Keys & Thư mục</h2>
       <p class="step__description" data-vi="Nhập key trực tiếp + chọn nơi lưu project — wizard lo phần còn lại." data-en="Enter keys + choose project folder — the wizard handles the rest.">Nhập key trực tiếp + chọn nơi lưu project — wizard lo phần còn lại.</p>
 
-      <div class="cred-section">
-        <h3 class="cred-section__title" data-vi="📋 Hướng dẫn lấy credentials" data-en="📋 How to get credentials">📋 Hướng dẫn lấy credentials</h3>
-        <div id="cred-steps"></div>
-      </div>
+      <!-- Section 1: AI Provider (9Router / Direct API / Ollama) -->
+      <div id="key-section-provider" style="margin-bottom: 20px;"></div>
 
-      <!-- Dynamic key inputs (rendered by JS based on channel + provider) -->
-      <div id="key-inputs" style="margin-top: 20px;"></div>
+      <!-- Section 2: Channel (Telegram / Zalo) -->
+      <div id="key-section-channel" style="margin-bottom: 20px;"></div>
+
+      <!-- Section 3: Skill env vars -->
+      <div id="key-section-skills"></div>
 
       <!-- Project Path Input -->
       <div class="form-group" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.06);">
@@ -224,11 +225,6 @@
 
       <!-- Hidden .env content for internal use -->
       <pre id="env-content" style="display:none;"></pre>
-
-      <div class="warning-box" id="zalo-warning" style="display: none;">
-        <span class="warning-box__icon">⚠️</span>
-        <span class="warning-box__text" data-vi="<strong>Zalo Personal</strong> sử dụng unofficial API (zca-js). Tài khoản Zalo của bạn có thể bị hạn chế hoặc khóa. Chỉ nên dùng với tài khoản phụ." data-en="<strong>Zalo Personal</strong> uses an unofficial API (zca-js). Your account may be restricted or blocked. Always use an alternate account."><strong>Zalo Personal</strong> sử dụng unofficial API (zca-js). Tài khoản Zalo của bạn có thể bị hạn chế hoặc khóa. Chỉ nên dùng với tài khoản phụ.</span>
-      </div>
     </section>
 
     <!-- ===== Step 4: Generated Output ===== -->
@@ -256,10 +252,10 @@
       <!-- Option 2: Linux/macOS Terminal -->
       <div class="output-section" style="padding: 24px; border: 2px solid rgba(255, 107, 53, 0.3); border-radius: 12px; background: linear-gradient(135deg, rgba(255,107,53,0.04), rgba(139,92,246,0.03)); margin-bottom: 20px;">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-          <span style="font-size: 28px;">🐧</span>
+          <span style="font-size: 28px;">💻</span>
           <div>
-            <h3 class="output-section__title" style="margin: 0;" data-vi="Cách 2: Linux / macOS / Terminal" data-en="Option 2: Linux / macOS / Terminal">Cách 2: Linux / macOS / Terminal</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;" data-vi="Chạy lệnh bên dưới trong Terminal để bắt đầu interactive setup." data-en="Run the command below in Terminal to start interactive setup.">Chạy lệnh bên dưới trong Terminal để bắt đầu interactive setup.</p>
+            <h3 class="output-section__title" style="margin: 0;" data-vi="Cách 2: NPX (Windows / macOS / Linux)" data-en="Option 2: NPX (Windows / macOS / Linux)">Cách 2: NPX (Windows / macOS / Linux)</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;" data-vi="Chạy lệnh bên dưới trong Terminal / PowerShell để bắt đầu setup." data-en="Run the command below in Terminal / PowerShell to start setup.">Chạy lệnh bên dưới trong Terminal / PowerShell để bắt đầu setup.</p>
           </div>
         </div>
         <div class="code-block">
@@ -269,14 +265,14 @@
           </div>
           <pre class="code-block__content" id="out-setup-npx" style="font-size: 15px; text-align: center; padding: 16px;">npx create-openclaw-bot</pre>
         </div>
-        <p style="font-size: 12px; color: var(--text-muted); margin: 12px 0 0; text-align: center;" data-vi="Yêu cầu: Node.js 18+ và Docker Compose v2" data-en="Requires: Node.js 18+ and Docker Compose v2">Yêu cầu: Node.js 18+ và Docker Compose v2</p>
+        <p style="font-size: 12px; color: var(--text-muted); margin: 12px 0 0; text-align: center;" data-vi="Yêu cầu: Node.js 18+ và Docker Compose v2 — Hoạt động trên mọi hệ điều hành" data-en="Requires: Node.js 18+ and Docker Compose v2 — Works on all OS">Yêu cầu: Node.js 18+ và Docker Compose v2 — Hoạt động trên mọi hệ điều hành</p>
       </div>
 
       <!-- ===== Post-setup notices (conditional) ===== -->
 
       <!-- Zalo Personal: Post-setup Docker Onboard Guide -->
       <div id="zalo-onboard-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(255, 193, 7, 0.3);">
-        <h3 class="cred-section__title" data-vi="📱 Sau khi bot chạy — Login Zalo QR (1 Lần)" data-en="📱 After bot starts — Login Zalo QR (1 Lần)">📱 Sau khi bot chạy — Login Zalo QR (1 Lần)</h3>
+        <h3 class="cred-section__title" data-vi="📱 Login Zalo QR (1 Lần)" data-en="📱 Login Zalo QR (1 Lần)">📱 Login Zalo QR (1 Lần)</h3>
         <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;" data-vi="Chạy lệnh bên dưới để mở quét mã QR cho Zalo:" data-en="Run this command to scan QR code for Zalo:">Chạy lệnh bên dưới để mở quét mã QR cho Zalo:</p>
         <div class="code-block" style="margin-bottom: 12px;">
           <div class="code-block__header">
@@ -295,7 +291,7 @@
 
       <!-- 9Router post-setup -->
       <div id="9router-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(0, 200, 150, 0.3);">
-        <h3 class="cred-section__title"><span data-vi="🔀 Sau khi bot chạy — Setup 9Router" data-en="🔀 After bot starts — Setup 9Router">🔀 Sau khi bot chạy — Setup 9Router</span></h3>
+        <h3 class="cred-section__title"><span data-vi="🔀 Setup 9Router" data-en="🔀 Setup 9Router">🔀 Setup 9Router</span></h3>
         <div style="font-size: 14px; color: var(--text-secondary);">
           <div class="cred-step" style="margin-bottom: 8px;">
             <span class="cred-step__number">1</span>
@@ -311,9 +307,16 @@
       <!-- Browser notice -->
       <div id="browser-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(66, 133, 244, 0.3);">
         <h3 class="cred-section__title"><span data-vi="🌐 Browser Automation — Bật Chrome Debug" data-en="🌐 Browser Automation — Enable Chrome Debug">🌐 Browser Automation — Bật Chrome Debug</span></h3>
-        <p style="font-size: 13px; color: var(--text-secondary);">
-          <span data-vi="File <code>start-chrome-debug.bat</code> đã được tạo trong project. <b>Double-click</b> nó trên máy tính của bạn trước khi nhờ bot làm gì liên quan tới web." data-en="The file <code>start-chrome-debug.bat</code> was created in your project. <b>Double-click</b> it on your PC before asking bot to do web tasks.">File <code>start-chrome-debug.bat</code> đã được tạo trong project. <b>Double-click</b> nó trên máy tính của bạn trước khi nhờ bot làm gì liên quan tới web.</span>
-        </p>
+        <div style="font-size: 13px; color: var(--text-secondary);">
+          <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(66,133,244,0.06); border: 1px solid rgba(66,133,244,0.15); border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><span style="font-size: 18px;">🪟</span><strong data-vi="Windows" data-en="Windows">Windows</strong></div>
+            <span data-vi="Double-click file <code>start-chrome-debug.bat</code> trong thư mục project trước khi nhờ bot làm gì liên quan tới web." data-en="Double-click <code>start-chrome-debug.bat</code> in your project folder before asking bot to do web tasks.">Double-click file <code>start-chrome-debug.bat</code> trong thư mục project trước khi nhờ bot làm gì liên quan tới web.</span>
+          </div>
+          <div style="padding: 10px 14px; background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.15); border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;"><span style="font-size: 18px;">🐧</span><strong data-vi="macOS / Linux" data-en="macOS / Linux">macOS / Linux</strong></div>
+            <span data-vi="Chạy <code>chmod +x start-chrome-debug.sh && ./start-chrome-debug.sh</code> trong terminal. Script tự detect Chrome trên macOS/Linux." data-en="Run <code>chmod +x start-chrome-debug.sh && ./start-chrome-debug.sh</code> in terminal. Script auto-detects Chrome on macOS/Linux.">Chạy <code>chmod +x start-chrome-debug.sh && ./start-chrome-debug.sh</code> trong terminal. Script tự detect Chrome trên macOS/Linux.</span>
+          </div>
+        </div>
       </div>
     </section>
     
