@@ -7,10 +7,12 @@ import chalk from 'chalk';
 import { spawn } from 'child_process';
 
 const LOGO = `
-      \\/      
-  /\\O _ O/\\   
-  // /_\\ \\\\   
-\\//  / \\  \\\\/ 
+████████╗██╗   ██╗ █████╗ ███╗   ██╗███╗   ███╗██╗███╗   ██╗██╗  ██╗██╗  ██╗ ██████╗ ██╗     ███████╗
+╚══██╔══╝██║   ██║██╔══██╗████╗  ██║████╗ ████║██║████╗  ██║██║  ██║██║  ██║██╔═══██╗██║     ██╔════╝
+   ██║   ██║   ██║███████║██╔██╗ ██║██╔████╔██║██║██╔██╗ ██║███████║███████║██║   ██║██║     █████╗  
+   ██║   ██║   ██║██╔══██║██║╚██╗██║██║╚██╔╝██║██║██║╚██╗██║██╔══██║██╔══██║██║   ██║██║     ██╔══╝  
+   ██║   ╚██████╔╝██║  ██║██║ ╚████║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║██║  ██║╚██████╔╝███████╗███████╗
+   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝
 `;
 
 const CHANNELS = {
@@ -20,7 +22,7 @@ const CHANNELS = {
 };
 
 const PROVIDERS = {
-  'proxy': { name: '9Router Proxy (Khuyên dùng)', icon: '🔀', isProxy: true },
+  '9router': { name: '9Router Proxy (Khuyên dùng)', icon: '🔀', isProxy: true },
   'openai': { name: 'OpenAI (ChatGPT)', icon: '🧠', envKey: 'OPENAI_API_KEY' },
   'ollama': { name: 'Local Ollama', icon: '🏠', isLocal: true },
   'google': { name: 'Google (Gemini)', icon: '⚡', envKey: 'GEMINI_API_KEY' },
@@ -156,12 +158,15 @@ CMD sh -c "node -e \\\\"const fs=require('fs'),p='/root/.openclaw/openclaw.json'
   
   await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', 'Dockerfile'), dockerfile);
 
+  const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
+  
   let compose = '';
   if (providerKey === '9router') {
-    compose = `services:
+    compose = `name: oc-\${agentId}
+services:
   ai-bot:
     build: .
-    container_name: openclaw-bot
+    container_name: openclaw-\${agentId}
     restart: always
     env_file:
       - .env
@@ -171,8 +176,6 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
       - "host.docker.internal:host-gateway"
 ` : ''}    volumes:
       - ../../.openclaw:/root/.openclaw
-    ports:
-      - "18789:18789"
 
   9router:
     image: node:22-slim
@@ -181,15 +184,22 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
     entrypoint: >
       /bin/sh -c "npm install -g 9router && [ ! -f /root/.9router/db.json ] && echo '{\\"combos\\":[{\\"id\\":\\"smart-route\\",\\"name\\":\\"smart-route\\",\\"alias\\":\\"smart-route\\",\\"models\\":[\\"cx/gpt-5.4\\",\\"ag/claude-opus-4-6-thinking\\",\\"cc/claude-opus-4-6\\",\\"gh/gpt-5.4\\",\\"ag/gemini-3.1-pro-high\\",\\"cc/claude-sonnet-4-6\\",\\"gh/claude-opus-4.6\\"]}]}' > /root/.9router/db.json; 9router"
     environment:
-      - NINEROUTER_PORT=18789
-      - NINEROUTER_SECURE=false
+      - PORT=20128
+      - HOSTNAME=0.0.0.0
+      - CI=true
     volumes:
-      - ../../.9router:/root/.9router`;
+      - 9router-data:/root/.9router
+    ports:
+      - "20128:20128"
+
+volumes:
+  9router-data:`;
   } else {
-    compose = `services:
+    compose = `name: oc-\${agentId}
+services:
   ai-bot:
     build: .
-    container_name: openclaw-bot
+    container_name: openclaw-\${agentId}
     restart: always
     env_file: .env
 ${selectedSkills.includes('browser') ? `    extra_hosts:
@@ -214,7 +224,6 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
     }
   }
 
-  const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
   const modelsPrimary = providerKey === '9router' ? '9router/smart-route' : (providerKey === 'google' ? 'google/gemini-2.5-flash' : 'openai/gpt-4o');
 
   await fs.ensureDir(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent'));
