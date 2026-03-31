@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [4.0.7] — 2026-03-31
+## [4.0.8] — 2026-03-31
 
 ### ✨ 9Router Stability & Ollama Cloud
 - **Stable 9Router Integration (Zero Config)**: The 9Router proxy is now fully stabilized and runs securely within the Docker network via `sk-no-key`. External configuration (API keys, manual routing) is removed from `.env` and elegantly managed via the [9Router Dashboard](http://localhost:20128/dashboard).

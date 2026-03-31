@@ -2,7 +2,7 @@
 
 Tất cả những thay đổi nổi bật của dự án sẽ được ghi chép trong file này.
 
-## [4.0.7] — 2026-03-31
+## [4.0.8] — 2026-03-31
 
 ### ✨ Tối ưu 9Router & Mở rộng Ollama Cloud
 - **Tích hợp 9Router cực kỳ Ổn định (Zero Config)**: Proxy 9Router hiện được tự động kích hoạt bảo mật bên trong mạng Docker network qua cổng `sk-no-key`. Toàn bộ thiết đặt API keys thủ công và định tuyến models được gỡ bỏ khỏi `.env` để nhường chỗ cho hệ thống quản lý tập trung và thông minh hơn qua [9Router Dashboard](http://localhost:20128/dashboard).
