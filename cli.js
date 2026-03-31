@@ -142,47 +142,115 @@ async function main() {
   }
   await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', '.env'), envContent);
   
-  const dockerfile = `FROM ghcr.io/williamskyze/openclaw:latest
-${selectedSkills.includes('browser') ? 'RUN apt-get update && apt-get install -y chromium xvfb dbus socat' : '# (No browser config needed)'}`;
+  const dockerfile = `FROM node:22-slim
+
+RUN apt-get update && apt-get install -y git curl${selectedSkills.includes('browser') ? ' socat' : ''} && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g openclaw@latest
+${selectedSkills.includes('browser') ? 'RUN npm install -g agent-browser playwright && npx playwright install chromium --with-deps && ln -f -s /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /usr/bin/google-chrome\\n' : ''}
+WORKDIR /root/.openclaw
+
+EXPOSE 18791
+
+CMD sh -c "node -e \\\\"const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full'});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\\\" && ${selectedSkills.includes('browser') ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & ' : ''}(sleep 5 && openclaw devices approve --latest 2>/dev/null || true) & openclaw gateway run"`;
+  
   await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', 'Dockerfile'), dockerfile);
 
-  const compose = `services:
-  openclaw:
+  let compose = '';
+  if (providerKey === '9router') {
+    compose = `services:
+  ai-bot:
     build: .
+    container_name: openclaw-bot
     restart: always
-    env_file: .env
-    volumes:
-      - ../../.openclaw:/app/.openclaw
-      - ../../auth-profiles.json:/app/auth-profiles.json
+    env_file:
+      - .env
+    depends_on:
+      - 9router
 ${selectedSkills.includes('browser') ? `    extra_hosts:
       - "host.docker.internal:host-gateway"
-` : ''}`;
+` : ''}    volumes:
+      - ../../.openclaw:/root/.openclaw
+    ports:
+      - "18789:18789"
+
+  9router:
+    image: node:22-slim
+    container_name: 9router
+    restart: always
+    entrypoint: >
+      /bin/sh -c "npm install -g 9router && [ ! -f /root/.9router/db.json ] && echo '{\\"combos\\":[{\\"id\\":\\"smart-route\\",\\"name\\":\\"smart-route\\",\\"alias\\":\\"smart-route\\",\\"models\\":[\\"cx/gpt-5.4\\",\\"ag/claude-opus-4-6-thinking\\",\\"cc/claude-opus-4-6\\",\\"gh/gpt-5.4\\",\\"ag/gemini-3.1-pro-high\\",\\"cc/claude-sonnet-4-6\\",\\"gh/claude-opus-4.6\\"]}]}' > /root/.9router/db.json; 9router"
+    environment:
+      - NINEROUTER_PORT=18789
+      - NINEROUTER_SECURE=false
+    volumes:
+      - ../../.9router:/root/.9router`;
+  } else {
+    compose = `services:
+  ai-bot:
+    build: .
+    container_name: openclaw-bot
+    restart: always
+    env_file: .env
+${selectedSkills.includes('browser') ? `    extra_hosts:
+      - "host.docker.internal:host-gateway"
+` : ''}    volumes:
+      - ../../.openclaw:/root/.openclaw`;
+  }
+  
   await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'), compose);
 
-  await fs.writeFile(path.join(projectDir, 'auth-profiles.json'), '{}');
+  const authProfileObj = {};
+  if (providerKey && !provider.isLocal) {
+    const authProviderName = providerKey === '9router' ? '9router' : 'openai';
+    authProfileObj[authProviderName] = [{
+      type: "api_key",
+      field: "key",
+      order: 1,
+      value: providerKey === '9router' ? "9r-dummy" : providerKeyVal
+    }];
+    if (providerKey !== '9router' && providerKey !== 'openai' && provider.baseURL) {
+      authProfileObj[authProviderName][0].url = provider.baseURL;
+    }
+  }
+
+  const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
+  const modelsPrimary = providerKey === '9router' ? '9router/smart-route' : (providerKey === 'google' ? 'google/gemini-2.5-flash' : 'openai/gpt-4o');
+
+  await fs.ensureDir(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent'));
+  await fs.writeJson(path.join(projectDir, '.openclaw', 'auth-profiles.json'), authProfileObj, { spaces: 2 });
+  await fs.writeJson(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent', 'auth-profiles.json'), authProfileObj, { spaces: 2 });
 
   const botConfig = {
-    meta: { version: '1.0' },
+    meta: { lastTouchedVersion: '2026.3.24' },
     agents: {
       defaults: {
-        model: { primary: providerKey === 'openai' ? 'gpt-4o' : (providerKey === 'google' ? 'google/gemini-2.5-flash' : 'smart-route'), fallbacks: [] },
-        identity: {
-          name: botName,
-          description: botDesc,
-          system_prompt: isVi ? "Bạn là một trợ lý AI hữu ích." : "You are a helpful AI assistant."
-        },
-        skills: selectedSkills
-      }
+        model: { primary: modelsPrimary, fallbacks: [] },
+        compaction: { mode: 'safeguard' }
+      },
+      list: [{
+        id: agentId,
+        model: { primary: modelsPrimary, fallbacks: [] }
+      }]
     },
-    channels: {}
+    commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
+    channels: {},
+    tools: { profile: 'full' },
+    gateway: {
+      port: 18791, mode: 'local', bind: '0.0.0.0',
+      auth: { mode: 'token', token: 'cli-dummy-token-xyz123' }
+    }
   };
+
+  const identityContent = `# ${botName}\n\n${botDesc}\n\n${isVi ? 'Bạn là một trợ lý AI phân tích và tự động hóa do Kent đào tạo và cấu hình.' : 'You are an AI assistant configured by Kent.'}`;
+  await fs.writeFile(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent', 'IDENTITY.md'), identityContent);
   
   if (channelKey === 'telegram') {
-    botConfig.channels['telegram'] = { enabled: true };
+    botConfig.channels['telegram'] = { enabled: true, mode: 'polling' };
   } else if (channelKey === 'zalo-personal') {
-    botConfig.channels['zalo-personal'] = { enabled: true, autoReply: true };
+    botConfig.channels['zalo'] = { enabled: true, provider: 'client', autoReply: true };
   } else if (channelKey === 'zalo-bot') {
-    botConfig.channels['zalo-bot'] = { enabled: true };
+    botConfig.channels['zalo'] = { enabled: true, provider: 'official_account' };
   }
 
   await fs.writeJson(path.join(projectDir, '.openclaw', 'openclaw.json'), botConfig, { spaces: 2 });
