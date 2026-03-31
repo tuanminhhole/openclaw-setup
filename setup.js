@@ -125,14 +125,12 @@
       envKey: null,
       envLabel: null,
       envLink: 'https://github.com/decolua/9router',
-      envInstructionsVi: '9Router chạy cùng Docker — <strong>không cần API key</strong>. Sau khi <code>docker compose up</code>, mở <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> → đăng nhập OAuth.', envInstructionsEn: '9Router runs with Docker — <strong>no API key needed</strong>. After <code>docker compose up</code>, open <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> and OAuth login.',
+      envInstructionsVi: '9Router chạy cùng Docker — <strong>không cần API key</strong>. Sau khi <code>docker compose up</code>, mở <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> → đăng nhập OAuth.<br><span style="color:var(--danger)">⚠️ <b>CẢNH BÁO:</b> TUYỆT ĐỐI KHÔNG dùng OAuth Provider là Antigravity (nguy cơ bị ban Google Account vì lạm dụng AI Ultra vĩnh viễn).</span>', envInstructionsEn: '9Router runs with Docker — <strong>no API key needed</strong>. After <code>docker compose up</code>, open <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> and OAuth login.<br><span style="color:var(--danger)">⚠️ <b>WARNING:</b> DO NOT use Antigravity as an OAuth Provider (high risk of permanent Google Account ban for AI Ultra abuse).</span>',
       free: true,
       isProxy: true,
       models: [
         { id: '9router/smart-route', name: 'Smart Proxy (Auto Route)', descVi: 'Tự động luân chuyển vương bài mọi Provider', descEn: 'Smart auto-routing across top providers', badgeVi: '🌟 Khuyên dùng', badgeEn: '🌟 Recommended' },
         { id: '9router/cx/gpt-5.4', name: 'GPT 5.4 (Codex)', descVi: 'Sức mạnh code tối đa từ OpenAI Codex', descEn: 'Max coding power from OpenAI Codex', badge: '🤖 Codex' },
-        { id: '9router/ag/claude-opus-4-6-thinking', name: 'Claude Opus 4.6 Thinking (AG)', descVi: 'Cỗ máy suy luận từ Antigravity', descEn: 'Reasoning engine from Antigravity', badge: '🚀 AG' },
-        { id: '9router/ag/gemini-3.1-pro-high', name: 'Gemini 3.1 Pro High (AG)', descVi: 'Ngữ cảnh khổng lồ từ Antigravity', descEn: 'Huge context from Antigravity', badge: '🚀 AG' },
         { id: '9router/cc/claude-opus-4-6', name: 'Claude Opus 4.6 (Claude Code)', descVi: 'Thuần tuý Anthropic', descEn: 'Pure Anthropic engine', badge: '✨ Claude' },
         { id: '9router/cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Claude Code)', descVi: 'Nhanh, thông minh', descEn: 'Fast & smart', badge: '✨ Claude' },
         { id: '9router/gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', descVi: 'Cân bằng, tốc độ từ GitHub Copilot', descEn: 'Balanced & fast from GitHub Copilot', badge: '💻 Copilot' },
@@ -545,7 +543,29 @@
     } else {
       const lang = document.getElementById('cfg-language')?.value || 'vi';
       btnNext.style.display = '';
-      btnNext.disabled = state.currentStep === 1 && !state.channel;
+      
+      let isDisabled = false;
+      if (state.currentStep === 1 && !state.channel) isDisabled = true;
+      if (state.currentStep === 2) {
+        const nameVal = document.getElementById('cfg-name')?.value?.trim();
+        if (!nameVal) isDisabled = true;
+      }
+      if (state.currentStep === 3) {
+        const botTokenEl = document.getElementById('key-bot-token');
+        const apiKeyEl = document.getElementById('key-api-key');
+        
+        const provider = PROVIDERS[state.config.provider];
+        
+        if ((state.channel === 'telegram' || state.channel === 'zalo-bot') && botTokenEl) {
+          if (!botTokenEl.value.trim()) isDisabled = true;
+        }
+        
+        if (provider && !provider.isProxy && !provider.isLocal && provider.envKey && apiKeyEl) {
+          if (!apiKeyEl.value.trim()) isDisabled = true;
+        }
+      }
+
+      btnNext.disabled = isDisabled;
       btnNextLabel.textContent = state.currentStep === 3 
         ? (lang === 'vi' ? 'Generate Configs' : 'Generate Configs') 
         : (lang === 'vi' ? 'Tiếp theo' : 'Next');
@@ -753,59 +773,149 @@
       `).join('');
     }
 
-    // Build .env preview
-    const envContent = document.getElementById('env-content');
-    if (envContent) {
-      const lines = [];
-      if (provider.isProxy) {
-        // 9Router: no AI API key needed, only channel token
-        lines.push('# Không cần AI API key — 9Router xử lý qua dashboard');
-      } else if (provider.isLocal) {
-        lines.push(`OLLAMA_HOST=http://host.docker.internal:11434`);
-      } else {
-        lines.push(`${provider.envKey}=<your_${provider.envKey.toLowerCase()}>`);
-      }
-      if (ch.envExtra) {
-        lines.push(ch.envExtra);
-      }
-
-      // Skill-specific env vars
-      const selectedSkillEnvVars = [];
-      state.config.skills.forEach((sid) => {
-        const skill = SKILLS.find((s) => s.id === sid);
-        if (skill && skill.envVars && skill.envVars.length > 0) {
-          selectedSkillEnvVars.push(`# --- ${skill.name} ---`);
-          skill.envVars.forEach((v) => selectedSkillEnvVars.push(v));
-        }
-      });
-      if (selectedSkillEnvVars.length > 0) {
-        lines.push('');
-        lines.push('# ====== Skill env vars ======');
-        selectedSkillEnvVars.forEach((v) => lines.push(v));
-      }
-
-      envContent.innerHTML = lines.map((line) => {
-        if (!line || line.trim() === '') return '';
-        if (line.startsWith('#')) return `<span class="env-comment">${line}</span>`;
-        const eq = line.indexOf('=');
-        if (eq === -1) return line;
-        const key = line.substring(0, eq);
-        const val = line.substring(eq + 1);
-        return `<span class="env-key">${key}</span>=<span class="env-val">${val}</span>`;
-      }).join('\n');
-    }
+    // Build .env (now handled by populateEnvContent called from generateOutput)
 
     // Zalo Personal warning
     const warningBox = document.getElementById('zalo-warning');
     if (warningBox) {
       warningBox.style.display = state.channel === 'zalo-personal' ? 'flex' : 'none';
     }
+
+    // Render key input fields
+    renderKeyInputs();
+  }
+
+
+  // ========== Render Key Input Fields (Step 3) ==========
+  function renderKeyInputs() {
+    const container = document.getElementById('key-inputs');
+    if (!container) return;
+
+    const ch = CHANNELS[state.channel];
+    const provider = PROVIDERS[state.config.provider];
+    if (!ch || !provider) return;
+
+    const lang = document.getElementById('cfg-language')?.value || 'vi';
+    const isVi = lang === 'vi';
+    let html = '';
+
+    // Channel token input
+    if (state.channel === 'telegram') {
+      html += `<div class="form-group" style="margin-bottom: 16px;">
+        <label class="form-group__label" for="key-bot-token">🤖 Telegram Bot Token</label>
+        <input type="text" class="form-input" id="key-bot-token" placeholder="VD: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz" style="font-family: monospace; font-size: 13px;" oninput="window.__validateKeys()">
+        <p class="form-group__hint">${isVi ? 'Lấy từ <a href="https://t.me/BotFather" target="_blank">@BotFather</a> trên Telegram' : 'Get from <a href="https://t.me/BotFather" target="_blank">@BotFather</a> on Telegram'}</p>
+      </div>`;
+    } else if (state.channel === 'zalo-bot') {
+      html += `<div class="form-group" style="margin-bottom: 16px;">
+        <label class="form-group__label" for="key-bot-token">🔑 Zalo Bot Token</label>
+        <input type="text" class="form-input" id="key-bot-token" placeholder="Zalo Bot Token" style="font-family: monospace; font-size: 13px;" oninput="window.__validateKeys()">
+        <p class="form-group__hint">${isVi ? 'Lấy từ <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a>' : 'Get from <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a>'}</p>
+      </div>`;
+    } else if (state.channel === 'zalo-personal') {
+      html += `<div style="padding: 12px 16px; background: rgba(255,193,7,0.06); border: 1px solid rgba(255,193,7,0.2); border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: var(--text-secondary);">
+        ℹ️ ${isVi ? 'Zalo Personal không cần nhập key — bạn sẽ quét QR code sau khi Docker chạy.' : 'Zalo Personal needs no key — you will scan QR code after Docker starts.'}
+      </div>`;
+    }
+
+    // Provider API key input
+    if (!provider.isProxy && !provider.isLocal && provider.envKey) {
+      html += `<div class="form-group" style="margin-bottom: 16px;">
+        <label class="form-group__label" for="key-api-key">🔑 ${provider.envLabel}</label>
+        <input type="text" class="form-input" id="key-api-key" placeholder="${provider.envKey}=..." style="font-family: monospace; font-size: 13px;" oninput="window.__validateKeys()">
+        <p class="form-group__hint">${isVi ? 'Lấy từ' : 'Get from'} <a href="${provider.envLink}" target="_blank">${provider.envLink.replace('https://', '')}</a></p>
+      </div>`;
+    } else if (provider.isProxy) {
+      html += `<div style="padding: 12px 16px; background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: var(--text-secondary);">
+        ✅ ${isVi ? '9Router không cần API key — sau khi Docker chạy, mở dashboard để login OAuth.' : '9Router needs no API key — after Docker starts, open dashboard to login OAuth.'}
+      </div>`;
+    } else if (provider.isLocal) {
+      html += `<div style="padding: 12px 16px; background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.2); border-radius: 8px; margin-bottom: 16px; font-size: 13px; color: var(--text-secondary);">
+        🏠 ${isVi ? 'Ollama chạy local — đảm bảo <code>ollama serve</code> đang chạy trên máy.' : 'Ollama runs locally — make sure <code>ollama serve</code> is running.'}
+      </div>`;
+    }
+
+    // Skill env vars
+    state.config.skills.forEach(sid => {
+      const skill = SKILLS.find(s => s.id === sid);
+      if (skill && skill.envVars && skill.envVars.length > 0) {
+        skill.envVars.forEach(envLine => {
+          const eq = envLine.indexOf('=');
+          if (eq > 0 && !envLine.startsWith('#')) {
+            const envKey = envLine.substring(0, eq);
+            html += `<div class="form-group" style="margin-bottom: 16px;">
+              <label class="form-group__label" for="key-${envKey.toLowerCase()}">${skill.icon} ${envKey}</label>
+              <input type="text" class="form-input" id="key-${envKey.toLowerCase()}" placeholder="${envLine}" style="font-family: monospace; font-size: 13px;">
+              <p class="form-group__hint">${skill.noteVi || skill.noteEn || ''}</p>
+            </div>`;
+          }
+        });
+      }
+    });
+
+    container.innerHTML = html;
+  }
+  window.__validateKeys = function() { updateNavButtons(); };
+
+  // ========== Build .env content from key inputs ==========
+  function populateEnvContent() {
+    const ch = CHANNELS[state.channel];
+    const provider = PROVIDERS[state.config.provider];
+    if (!ch || !provider) return;
+
+    const envContent = document.getElementById('env-content');
+    if (!envContent) return;
+
+    const lines = [];
+    const apiKeyVal = document.getElementById('key-api-key')?.value?.trim() || '';
+    const botTokenVal = document.getElementById('key-bot-token')?.value?.trim() || '';
+
+    if (provider.isProxy) {
+      lines.push('# Không cần AI API key — 9Router xử lý qua dashboard');
+    } else if (provider.isLocal) {
+      lines.push('OLLAMA_HOST=http://host.docker.internal:11434');
+    } else {
+      lines.push(`${provider.envKey}=${apiKeyVal || '<your_' + provider.envKey.toLowerCase() + '>'}`);
+    }
+    if (ch.envExtra) {
+      if (botTokenVal) {
+        lines.push(ch.envExtra.replace(/=<[^>]+>$/, '=' + botTokenVal));
+      } else {
+        lines.push(ch.envExtra);
+      }
+    }
+
+    // Skill env vars with actual values from inputs
+    state.config.skills.forEach(sid => {
+      const skill = SKILLS.find(s => s.id === sid);
+      if (skill && skill.envVars && skill.envVars.length > 0) {
+        lines.push('');
+        lines.push(`# --- ${skill.name} ---`);
+        skill.envVars.forEach(v => {
+          const eq = v.indexOf('=');
+          if (eq > 0 && !v.startsWith('#')) {
+            const envKey = v.substring(0, eq);
+            const inputEl = document.getElementById('key-' + envKey.toLowerCase());
+            const inputVal = inputEl?.value?.trim() || '';
+            lines.push(`${envKey}=${inputVal || v.substring(eq + 1)}`);
+          } else {
+            lines.push(v);
+          }
+        });
+      }
+    });
+
+    // Store as plain text (for _generatedFiles)
+    envContent.textContent = lines.join('\n');
   }
 
   // ========== Step 4: Generate Output ==========
   function generateOutput() {
     const ch = CHANNELS[state.channel];
     if (!ch) return;
+
+    // Re-populate .env content with actual key values from Step 3
+    populateEnvContent();
 
 
 
@@ -882,9 +992,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
 
     // Show Docker output
     const dockerOut = document.getElementById('docker-output');
-    const aiShortcut = document.getElementById('ai-agent-shortcut');
     if (dockerOut) dockerOut.style.display = '';
-    if (aiShortcut) aiShortcut.style.display = '';
 
     // Show/hide Zalo Personal onboard notice
     const zaloNotice = document.getElementById('zalo-onboard-notice');
@@ -898,7 +1006,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
     const title = document.getElementById('step4-title');
     const desc = document.getElementById('step4-desc');
     if (title) title.textContent = (document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '🎉 Config đã sẵn sàng!' : '🎉 Config is Ready!';
-    if (desc) desc.textContent = (document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? 'Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup.' : 'Copy the files below to your project folder, or use an AI Agent (Antigravity) to auto-setup.';
+    if (desc) desc.textContent = (document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? 'Copy script bên dưới → paste vào terminal trong thư mục project → config được tạo tự động.' : 'Copy the script below → paste into terminal in your project folder → configs created automatically.';
 
     const agentId = state.config.botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
 
@@ -1079,7 +1187,7 @@ ${finalCmd}`;
       - 9router
 ${extraHostsBlock}
     volumes:
-      - <PROJECT_DIR>/.openclaw:/root/.openclaw
+      - ../../.openclaw:/root/.openclaw
     ports:
       - "18789:18789"
 
@@ -1110,7 +1218,7 @@ volumes:
       - .env
 ${extraHostsBlock}
     volumes:
-      - <PROJECT_DIR>/.openclaw:/root/.openclaw
+      - ../../.openclaw:/root/.openclaw
     ports:
       - "18789:18789"`;
     }
@@ -1122,7 +1230,7 @@ ${extraHostsBlock}
       ? `\n# ⚠️ Nếu bot không tạo được cron job (lỗi pairing):\n# docker exec -i openclaw-bot openclaw devices approve --latest`
       : `\n# ⚠️ If bot can't create cron jobs (pairing error):\n# docker exec -i openclaw-bot openclaw devices approve --latest`;
     if (is9Router) {
-      setOutput('out-commands', `cd <PROJECT_DIR>/docker/openclaw
+      setOutput('out-commands', `cd docker/openclaw
 docker compose build
 docker compose up -d
 
@@ -1131,25 +1239,13 @@ ${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 1. Mở
 ${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 2. Login OAuth vào AI providers (Google, Claude...)' : '# 2. Login via OAuth to AI providers (Google, Claude...)'}
 ${(document.getElementById('cfg-language')?.value || 'vi') === 'vi' ? '# 3. Test bot trên ' + (state.channel === 'telegram' ? 'Telegram' : 'Zalo') + '! 🎉' : '# 3. Test bot on ' + (state.channel === 'telegram' ? 'Telegram' : 'Zalo') + '! 🎉'}${approveNote}`);
     } else {
-      setOutput('out-commands', `cd <PROJECT_DIR>/docker/openclaw
+      setOutput('out-commands', `cd docker/openclaw
 docker compose build
 docker compose up -d
 docker logs -f openclaw-bot${approveNote}`);
     }
 
-    // Update agent filename
-    const afEl = document.getElementById('agent-filename');
-    if (afEl) afEl.textContent = `.openclaw/agents/${agentId}.yaml`;
 
-    // Update .env filename in tree
-    const envInfo = document.getElementById('env-info-tree');
-    if (envInfo) {
-      const keys = [];
-      if (provider.envKey) keys.push(`${provider.envKey}=<your-key>`);
-      if (!is9Router) ch.envKeys.forEach(k => keys.push(`${k.key}=<your-value>`));
-      if (is9Router) keys.push('# AI key: config qua 9Router dashboard');
-      envInfo.textContent = keys.join('\n');
-    }
 
     // 6. Generate auth-profiles.json (root + agent level)
     // OpenClaw v1 format requires: type="api_key", field="key", and "order" block
@@ -1588,6 +1684,181 @@ pause
         'start-chrome-debug.bat': chromeBatContent,
       } : {}),
     };
+
+    // Generate setup bash script
+    const setupScript = generateSetupScript(state._generatedFiles);
+    setOutput('out-setup-script', setupScript);
+
+    // Populate .env preview in Step 4
+    const envFinal = document.getElementById('out-env-final');
+    const envContent = document.getElementById('env-content');
+    if (envFinal && envContent) envFinal.textContent = envContent.textContent;
+  }
+
+
+
+  // ========== Generate Windows Auto Setup .bat ==========
+  function generateAutoSetupBat() {
+    const files = state._generatedFiles;
+    if (!files) return '';
+    const projectDir = document.getElementById('cfg-project-path')?.value?.trim() || 'D:\\openclaw-setup';
+    const lang = document.getElementById('cfg-language')?.value || 'vi';
+    const isVi = lang === 'vi';
+
+    // Build PowerShell script content
+    let ps = `$ErrorActionPreference = "Stop"
+$projectDir = "${projectDir.replace(/\\/g, '\\\\')}"
+$utf8 = [System.Text.UTF8Encoding]::new($false)
+
+Write-Host ""
+Write-Host "  🦞 OpenClaw Auto Setup" -ForegroundColor Cyan
+Write-Host "  Project: $projectDir" -ForegroundColor White
+Write-Host ""
+
+# [1/4] Create directories
+Write-Host "[1/4] ${isVi ? 'Tạo thư mục...' : 'Creating directories...'}" -ForegroundColor Yellow
+`;
+
+    // Collect unique directories
+    const dirs = new Set();
+    Object.keys(files).forEach(path => {
+      const dir = path.substring(0, path.lastIndexOf('/'));
+      if (dir) dirs.add(dir);
+    });
+    Array.from(dirs).sort().forEach(dir => {
+      const winDir = dir.replace(/\//g, '\\');
+      ps += `New-Item -ItemType Directory -Force -Path "$projectDir\\${winDir}" | Out-Null\n`;
+    });
+    ps += `Write-Host "  ✅ ${isVi ? 'Thư mục đã tạo' : 'Directories created'}" -ForegroundColor Green\n\n`;
+
+    // [2/4] Write config files
+    ps += `# [2/4] ${isVi ? 'Ghi config files...' : 'Writing config files...'}\nWrite-Host "[2/4] ${isVi ? 'Ghi config files...' : 'Writing config files...'}" -ForegroundColor Yellow\n`;
+
+    Object.entries(files).forEach(([path, content]) => {
+      const winPath = path.replace(/\//g, '\\');
+      // Escape content for PowerShell here-string (only issue: content containing "'@" on own line)
+      const safeContent = content.replace(/\r\n/g, '\n');
+      ps += `\n[IO.File]::WriteAllText("$projectDir\\${winPath}", @'\n${safeContent}\n'@, $utf8)\n`;
+    });
+
+    ps += `\nWrite-Host "  ✅ ${isVi ? 'Config files đã ghi' : 'Config files written'}" -ForegroundColor Green\n\n`;
+
+    // [3/4] Docker build
+    ps += `# [3/4] Docker build
+Write-Host "[3/4] ${isVi ? 'Build Docker image (có thể mất vài phút)...' : 'Building Docker image (may take a few minutes)...'}" -ForegroundColor Yellow
+Set-Location "$projectDir\\docker\\openclaw"
+docker compose build
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  ❌ ${isVi ? 'Docker build thất bại. Docker Desktop đã chạy chưa?' : 'Docker build failed. Is Docker Desktop running?'}" -ForegroundColor Red
+    Read-Host "${isVi ? 'Nhấn Enter để thoát' : 'Press Enter to exit'}"
+    exit 1
+}
+Write-Host "  ✅ ${isVi ? 'Docker image đã build' : 'Docker image built'}" -ForegroundColor Green
+
+`;
+
+    // [4/4] Docker up
+    ps += `# [4/4] Start bot
+Write-Host "[4/4] ${isVi ? 'Khởi động bot...' : 'Starting bot...'}" -ForegroundColor Yellow
+docker compose up -d
+Write-Host "  ✅ ${isVi ? 'Bot đang chạy!' : 'Bot is running!'}" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "  🎉 ${isVi ? 'Setup hoàn tất!' : 'Setup complete!'}" -ForegroundColor Cyan
+`;
+
+    // Post-setup notes
+    const is9Router = state.config.provider === '9router';
+    if (is9Router) {
+      ps += `Write-Host "  ${isVi ? 'Mở http://localhost:20128/dashboard để login OAuth' : 'Open http://localhost:20128/dashboard to login OAuth'}" -ForegroundColor White\n`;
+    }
+    if (state.channel === 'zalo-personal') {
+      ps += `Write-Host "  ${isVi ? 'Chạy: docker exec -it openclaw-bot openclaw onboard (quét QR)' : 'Run: docker exec -it openclaw-bot openclaw onboard (scan QR)'}" -ForegroundColor White\n`;
+    }
+
+    ps += `Write-Host ""
+Read-Host "${isVi ? 'Nhấn Enter để thoát' : 'Press Enter to exit'}"
+`;
+
+    // Wrap in polyglot .bat/.ps1
+    const bat = `<# : batch wrapper
+@echo off & chcp 65001>nul
+powershell -ExecutionPolicy Bypass -NoProfile -File "%~f0" %*
+exit /b
+#>
+${ps}`;
+
+    return bat;
+  }
+
+  // Download .bat file
+  function downloadAutoSetupBat() {
+    // Regenerate output first to ensure state._generatedFiles is current
+    generateOutput();
+    const content = generateAutoSetupBat();
+    const blob = new Blob([content], { type: 'application/bat' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'setup-openclaw.bat';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  window.downloadAutoSetupBat = downloadAutoSetupBat;
+
+  // ========== Generate Setup Bash Script ==========
+  function generateSetupScript(files) {
+    if (!files) return '# No files generated';
+    const projectDir = document.getElementById('cfg-project-path')?.value?.trim() || '.';
+    const lang = document.getElementById('cfg-language')?.value || 'vi';
+    const isVi = lang === 'vi';
+
+    let script = `#!/bin/bash
+# 🦞 OpenClaw Setup Script
+# ${isVi ? 'Tạo bởi OpenClaw Wizard — paste vào terminal trong thư mục project' : 'Generated by OpenClaw Wizard — paste into terminal in your project folder'}
+set -e
+echo "🦞 OpenClaw Setup..."
+echo ""
+`;
+
+    // Collect directories
+    const dirs = new Set();
+    Object.keys(files).forEach(path => {
+      const dir = path.substring(0, path.lastIndexOf('/'));
+      if (dir) dirs.add(dir);
+    });
+
+    // Create directories
+    script += `# ${isVi ? 'Tạo thư mục' : 'Create directories'}\n`;
+    Array.from(dirs).sort().forEach(dir => {
+      script += `mkdir -p "${dir}"\n`;
+    });
+    script += '\n';
+
+    // Write each file using heredoc
+    Object.entries(files).forEach(([path, content]) => {
+      script += `# ${path}\n`;
+      script += `cat > "${path}" << 'CLAWEOF'\n`;
+      script += content;
+      if (!content.endsWith('\n')) script += '\n';
+      script += `CLAWEOF\n\n`;
+    });
+
+    // Success message
+    script += `echo ""\n`;
+    script += `echo "${isVi ? '✅ Tạo xong! Các file đã được tạo:' : '✅ Done! Files created:'}"\n`;
+    script += `echo "   .openclaw/          — ${isVi ? 'Config bot' : 'Bot config'}"\n`;
+    script += `echo "   docker/openclaw/    — Docker files"\n`;
+    script += `echo ""\n`;
+    script += `echo "${isVi ? '📝 Bước tiếp theo:' : '📝 Next steps:'}"\n`;
+    script += `echo "${isVi ? '   1. Sửa docker/openclaw/.env → paste API keys thật' : '   1. Edit docker/openclaw/.env → paste real API keys'}"\n`;
+    script += `echo "${isVi ? '   2. cd docker/openclaw && docker compose build && docker compose up -d' : '   2. cd docker/openclaw && docker compose build && docker compose up -d'}"\n`;
+    script += `echo ""\n`;
+    script += `echo "🦞 Happy botting!"\n`;
+
+    return script;
   }
 
   // ========== Zalo Personal Onboard Guide (post-Docker-setup) ==========

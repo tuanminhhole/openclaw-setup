@@ -1,0 +1,28 @@
+{
+  "name": "create-openclaw-bot",
+  "version": "4.0.1",
+  "description": "Interactive CLI for setting up OpenClaw bot autonomously",
+  "main": "cli.js",
+  "bin": {
+    "create-openclaw-bot": "./cli.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "openclaw",
+    "cli",
+    "bot",
+    "zalo",
+    "telegram",
+    "ai"
+  ],
+  "author": "OpenClaw Team",
+  "license": "MIT",
+  "dependencies": {
+    "@inquirer/prompts": "^4.3.1",
+    "chalk": "^5.3.0",
+    "fs-extra": "^11.2.0"
+  },
+  "type": "module"
+}

@@ -2,6 +2,14 @@
 
 Tất cả những thay đổi nổi bật của dự án sẽ được ghi chép trong file này.
 
+## [4.0.1] — 2026-03-31
+
+### ✨ Tự Động Hoá (Tự tạo thư mục cài đặt gốc) & NPM CLI
+- **One-Command Install (npx)**: Gói CLI `create-openclaw-bot` được tải lên NPM. Người dùng Windows, Linux, Mac chỉ cần mở Terminal gõ lệnh `npx create-openclaw-bot` để setup tự động từ A-Z qua giao diện tương tác.
+- **Tự động Setup & Khởi động Docker**: Quy trình tạo `.bat`/CLI được viết lại, thiết lập xong sẽ mở Docker compose tự động tải và kích hoạt Bot ngay.
+- **Improved UI Setup**: Gọn gàng hoá file preview, đổi layout UI cho Zalo Bot API để dùng official vector SVG, nổi màu xanh chủ đạo Zalo thay vì logo trong suốt.
+- **Safety First**: Lược bỏ tuỳ chọn mô hình Antigravity (AG) khỏi 9router Proxy Models và thêm cảnh báo đỏ trên UI để tránh rủi ro người dùng bị khoá account Google AI Ultra do lạm dụng quá mức. Cập nhật icon credit cho thesvg.org.
+
 ## [4.0.0] — 2026-03-30
 
 ### ✨ New Features & Updates

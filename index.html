@@ -71,14 +71,14 @@
         </div>
 
         <div class="channel-card" data-channel="zalo-bot" id="card-zalo-bot">
-          <div class="channel-card__icon"><img src="https://thesvg.org/icons/zalo/default.svg" alt="Zalo" width="32" height="32"></div>
+          <div class="channel-card__icon"><img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" alt="Zalo" width="32" height="32"></div>
           <h3 class="channel-card__name">Zalo Bot API</h3>
           <p class="channel-card__desc" data-vi="Bot API chính thức Zalo. Chat 1:1. Phù hợp hỗ trợ khách hàng." data-en="Official Zalo Bot API. 1:1 Chat. Good for customer support.">Bot API chính thức Zalo. Chat 1:1. Phù hợp hỗ trợ khách hàng.</p>
           <span class="channel-card__badge badge--official">✅ Official</span>
         </div>
 
         <div class="channel-card" data-channel="zalo-personal" id="card-zalo-personal">
-          <div class="channel-card__icon"><img src="https://thesvg.org/icons/zalo/default.svg" alt="Zalo" width="32" height="32" style="opacity: 0.7;"></div>
+          <div class="channel-card__icon"><img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Icon_of_Zalo.svg" alt="Zalo" width="32" height="32" style="opacity: 0.9;"></div>
           <h3 class="channel-card__name">Zalo Personal</h3>
           <p class="channel-card__desc" data-vi="Dùng tài khoản Zalo cá nhân. Login bằng QR code." data-en="Use personal Zalo account. Login via QR code.">Dùng tài khoản Zalo cá nhân. Login bằng QR code.</p>
           <span class="channel-card__badge badge--warning">⚠️ Unofficial</span>
@@ -120,11 +120,11 @@
       <div class="identity-grid">
         <div class="form-group">
           <label class="form-group__label" for="cfg-name" data-vi="Tên Bot" data-en="Bot Name">Tên Bot</label>
-          <input type="text" class="form-input" id="cfg-name" placeholder="VD: Williams, Jarvis, Luna...">
+          <input type="text" class="form-input" id="cfg-name" placeholder="VD: Williams, Jarvis, Luna..." oninput="window.__validateKeys()">
         </div>
         <div class="form-group">
           <label class="form-group__label" for="cfg-desc" data-vi="Vai trò / Mô tả" data-en="Role / Description">Vai trò / Mô tả</label>
-          <input type="text" class="form-input" id="cfg-desc" placeholder="VD: Trợ lý AI cá nhân">
+          <input type="text" class="form-input" id="cfg-desc" placeholder="VD: Trợ lý AI cá nhân" value="Trợ lý">
         </div>
         <div class="form-group">
           <label class="form-group__label" for="cfg-emoji">Emoji</label>
@@ -198,23 +198,32 @@
       </div>
     </section>
 
-    <!-- ===== Step 3: Credentials ===== -->
+    <!-- ===== Step 3: API Keys & Thư Mục ===== -->
     <section class="step" data-step="3">
-      <h2 class="step__title" data-vi="Chuẩn bị API Keys" data-en="Prepare API Keys">Chuẩn bị API Keys</h2>
-      <p class="step__description" data-vi="Tạo file <code>.env</code> với các key cần thiết. <strong>Không paste key vào chat!</strong>" data-en="Create an <code>.env</code> file. <strong>Never paste keys into the chat!</strong>">Tạo file <code>.env</code> với các key cần thiết. <strong>Không paste key vào chat!</strong></p>
+      <h2 class="step__title" data-vi="Nhập API Keys & Thư mục" data-en="Enter API Keys & Folder">Nhập API Keys & Thư mục</h2>
+      <p class="step__description" data-vi="Nhập key trực tiếp + chọn nơi lưu project — wizard lo phần còn lại." data-en="Enter keys + choose project folder — the wizard handles the rest.">Nhập key trực tiếp + chọn nơi lưu project — wizard lo phần còn lại.</p>
 
       <div class="cred-section">
-        <h3 class="cred-section__title" data-vi="📋 Các bước lấy credentials" data-en="📋 Steps to get credentials">📋 Các bước lấy credentials</h3>
+        <h3 class="cred-section__title" data-vi="📋 Hướng dẫn lấy credentials" data-en="📋 How to get credentials">📋 Hướng dẫn lấy credentials</h3>
         <div id="cred-steps"></div>
       </div>
 
-      <div class="env-preview">
-        <div class="env-preview__header">
-          <span class="env-preview__filename">📄 docker/openclaw/.env</span>
-          <button class="btn-copy" onclick="copyToClipboard(this, 'env-content')"><span data-vi="📋 Copy" data-en="📋 Copy">📋 Copy</span></button>
-        </div>
-        <pre id="env-content"></pre>
+      <!-- Dynamic key inputs (rendered by JS based on channel + provider) -->
+      <div id="key-inputs" style="margin-top: 20px;"></div>
+
+      <!-- Project Path Input -->
+      <div class="form-group" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.06);">
+        <label class="form-group__label" data-vi="Thư mục lưu trữ Bot (Trên máy chứa Docker)" data-en="Bot Directory (On Docker host)">Thư mục lưu trữ Bot (Trên máy chứa Docker)</label>
+        <input type="text" class="form-input" id="cfg-project-path" value="D:\openclaw-setup" placeholder="VD: D:\openclaw-setup hoặc /home/user/openclaw-setup" style="font-family: monospace;">
+        <p class="form-group__hint" data-vi="Script sẽ tự động tạo thư mục này và sinh các file config bên trong." data-en="The script will auto-create this folder and generate config files inside.">Script sẽ tự động tạo thư mục này và sinh các file config bên trong.</p>
       </div>
+
+      <div style="margin-top: 16px; padding: 10px 14px; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+        🔒 <span data-vi="Keys chỉ lưu trên máy bạn — không gửi đi đâu. Wizard chạy 100% client-side." data-en="Keys stay on your machine — never sent anywhere. Wizard runs 100% client-side.">Keys chỉ lưu trên máy bạn — không gửi đi đâu. Wizard chạy 100% client-side.</span>
+      </div>
+
+      <!-- Hidden .env content for internal use -->
+      <pre id="env-content" style="display:none;"></pre>
 
       <div class="warning-box" id="zalo-warning" style="display: none;">
         <span class="warning-box__icon">⚠️</span>
@@ -224,162 +233,69 @@
 
     <!-- ===== Step 4: Generated Output ===== -->
     <section class="step" data-step="4">
-      <h2 id="step4-title" class="step__title" data-vi="🎉 Config đã sẵn sàng!" data-en="🎉 Config is Ready!">🎉 Config đã sẵn sàng!</h2>
-      <p id="step4-desc" class="step__description" data-vi="Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup." data-en="Copy the files below to your project folder, or use an AI Agent (Antigravity) to auto-setup.">Copy các file bên dưới vào thư mục project, hoặc dùng AI Agent (Antigravity) để tự động setup.</p>
+      <h2 id="step4-title" class="step__title" data-vi="🎉 Sẵn sàng! Chọn cách cài đặt" data-en="🎉 Ready! Choose install method">🎉 Sẵn sàng! Chọn cách cài đặt</h2>
+      <p id="step4-desc" class="step__description" data-vi="Chọn 1 trong 2 cách bên dưới để setup bot tự động." data-en="Choose one of the two methods below to auto-setup your bot.">Chọn 1 trong 2 cách bên dưới để setup bot tự động.</p>
 
-      <!-- Download CTA + File Tree -->
-      <div class="output-section" style="text-align: center; padding: 28px 24px; border: 1px solid rgba(255, 107, 53, 0.15); border-radius: 12px; background: linear-gradient(135deg, rgba(255,107,53,0.03), rgba(139,92,246,0.03));">
-        <button class="btn btn--primary" onclick="downloadAllConfigs(this)" style="font-size: 15px; padding: 14px 36px; margin-bottom: 12px;">
-          <span data-vi="📥 Download tất cả configs (.zip)" data-en="📥 Download all configs (.zip)">📥 Download tất cả configs (.zip)</span>
-        </button>
-        <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 20px;">
-          <span data-vi="Giải nén vào thư mục project → sửa <code>.env</code> → <code>docker compose build && docker compose up -d</code>" data-en="Extract to project folder → edit <code>.env</code> → <code>docker compose build && docker compose up -d</code>">Giải nén vào thư mục project → sửa <code>.env</code> → <code>docker compose build && docker compose up -d</code></span>
-        </p>
-
-        <div class="file-tree" style="text-align: left; margin: 0 auto; max-width: 520px;"><span class="dir">&lt;PROJECT_DIR&gt;/</span>
-├── <span class="dir">.openclaw/</span>                    <span class="comment">← <span data-vi="Config chính" data-en="Main config">Config chính</span></span>
-│   ├── <span class="file">openclaw.json</span>
-│   ├── <span class="file">auth-profiles.json</span>
-│   ├── <span class="dir">workspace/</span>                <span class="comment">← <span data-vi="Tính cách bot" data-en="Bot persona">Tính cách bot</span></span>
-│   │   ├── <span class="file">IDENTITY.md</span>           <span class="comment">← <span data-vi="Tên, emoji, vibe" data-en="Name, emoji, vibe">Tên, emoji, vibe</span></span>
-│   │   └── <span class="file">SOUL.md</span>               <span class="comment">← <span data-vi="Tính cách, quy tắc" data-en="Personality, rules">Tính cách, quy tắc</span></span>
-│   ├── <span class="dir">credentials/</span>
-│   ├── <span class="dir">agents/</span>
-│   │   └── <span class="file" id="agent-filename-tree">&lt;bot&gt;.yaml</span>
-│   └── <span class="dir">...</span>
-├── <span class="dir">docker/openclaw/</span>
-│   ├── <span class="file">Dockerfile</span>
-│   ├── <span class="file">docker-compose.yml</span>
-│   └── <span class="file">.env</span>                      <span class="comment">← <span id="env-info-tree">API keys</span></span>
-└── <span class="file">.gitignore</span></div>
-      </div>
-
-      <!-- openclaw.json -->
-      <div class="output-section collapsible collapsible--open">
-        <button class="collapsible__toggle" onclick="this.parentElement.classList.toggle('collapsible--open')">
-          <span>📄 .openclaw/openclaw.json</span>
-          <span class="collapsible__arrow">▼</span>
-        </button>
-        <div class="collapsible__content">
-          <div class="collapsible__inner">
-            <div class="code-block">
-              <div class="code-block__header">
-                <span class="code-block__filename">openclaw.json</span>
-                <button class="btn-copy" onclick="copyToClipboard(this, 'out-openclaw-json')">📋 Copy</button>
-              </div>
-              <pre class="code-block__content" id="out-openclaw-json"></pre>
-            </div>
+      <!-- Option 1: Windows .bat -->
+      <div class="output-section" style="padding: 24px; border: 2px solid rgba(16, 185, 129, 0.3); border-radius: 12px; background: linear-gradient(135deg, rgba(16,185,129,0.04), rgba(139,92,246,0.03)); margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <span style="font-size: 28px;">🪟</span>
+          <div>
+            <h3 class="output-section__title" style="margin: 0;" data-vi="Cách 1: Windows — Download & Double-click" data-en="Option 1: Windows — Download & Double-click">Cách 1: Windows — Download & Double-click</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;" data-vi="Tải file .bat → double-click → tạo project + build Docker + chạy bot. Xong!" data-en="Download .bat → double-click → creates project + builds Docker + starts bot. Done!">Tải file .bat → double-click → tạo project + build Docker + chạy bot. Xong!</p>
           </div>
         </div>
-      </div>
-
-      <!-- Agent YAML -->
-      <div class="output-section collapsible collapsible--open">
-        <button class="collapsible__toggle" onclick="this.parentElement.classList.toggle('collapsible--open')">
-          <span>🤖 <span id="agent-filename">.openclaw/agents/chat.yaml</span></span>
-          <span class="collapsible__arrow">▼</span>
-        </button>
-        <div class="collapsible__content">
-          <div class="collapsible__inner">
-            <div class="code-block">
-              <div class="code-block__header">
-                <span class="code-block__filename">agent.yaml</span>
-                <button class="btn-copy" onclick="copyToClipboard(this, 'out-agent-yaml')">📋 Copy</button>
-              </div>
-              <pre class="code-block__content" id="out-agent-yaml"></pre>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== Docker Deploy (Telegram, Zalo OA) ===== -->
-      <div id="docker-output">
-        <!-- Dockerfile -->
-        <div class="output-section collapsible">
-          <button class="collapsible__toggle" onclick="this.parentElement.classList.toggle('collapsible--open')">
-            <span>🐳 docker/openclaw/Dockerfile</span>
-            <span class="collapsible__arrow">▼</span>
+        <div style="display: flex; justify-content: center; margin: 20px 0 8px;">
+          <button class="btn btn--primary" onclick="downloadAutoSetupBat()" style="font-size: 15px; padding: 14px 40px; border-radius: 8px;">
+            <span data-vi="📥 Download setup-openclaw.bat" data-en="📥 Download setup-openclaw.bat">📥 Download setup-openclaw.bat</span>
           </button>
-          <div class="collapsible__content">
-            <div class="collapsible__inner">
-              <div class="code-block">
-                <div class="code-block__header">
-                  <span class="code-block__filename">Dockerfile</span>
-                  <button class="btn-copy" onclick="copyToClipboard(this, 'out-dockerfile')">📋 Copy</button>
-                </div>
-                <pre class="code-block__content" id="out-dockerfile"></pre>
-              </div>
-            </div>
-          </div>
         </div>
-
-        <!-- docker-compose.yml -->
-        <div class="output-section collapsible">
-          <button class="collapsible__toggle" onclick="this.parentElement.classList.toggle('collapsible--open')">
-            <span>🐳 docker/openclaw/docker-compose.yml</span>
-            <span class="collapsible__arrow">▼</span>
-          </button>
-          <div class="collapsible__content">
-            <div class="collapsible__inner">
-              <div class="code-block">
-                <div class="code-block__header">
-                  <span class="code-block__filename">docker-compose.yml</span>
-                  <button class="btn-copy" onclick="copyToClipboard(this, 'out-compose')">📋 Copy</button>
-                </div>
-                <pre class="code-block__content" id="out-compose"></pre>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Docker Commands -->
-        <div class="output-section">
-          <h3 class="output-section__title" data-vi="🚀 Build & Chạy" data-en="🚀 Build & Run">🚀 Build & Chạy</h3>
-          <div class="code-block">
-            <div class="code-block__header">
-              <span class="code-block__filename">Terminal</span>
-              <button class="btn-copy" onclick="copyToClipboard(this, 'out-commands')">📋 Copy</button>
-            </div>
-            <pre class="code-block__content" id="out-commands"></pre>
-          </div>
-        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin: 0; text-align: center;" data-vi="Yêu cầu: Docker Desktop đã cài và đang chạy" data-en="Requires: Docker Desktop installed and running">Yêu cầu: Docker Desktop đã cài và đang chạy</p>
       </div>
 
-      <!-- ===== Zalo Personal: Post-setup Docker Onboard Guide ===== -->
-      <div id="zalo-onboard-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(255, 193, 7, 0.3);">
-        <h3 class="cred-section__title" data-vi="📱 Zalo Personal — Login QR Code (chỉ 1 lần)" data-en="📱 Zalo Personal — Login QR Code (1-time)">📱 Zalo Personal — Login QR Code (chỉ 1 lần)</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;" data-vi="Sau khi <code>docker compose up -d</code>, chạy lệnh bên dưới để mở wizard login Zalo trong container:" data-en="After <code>docker compose up -d</code>, run this to open the Zalo login wizard inside the container:">Sau khi <code>docker compose up -d</code>, chạy lệnh bên dưới để mở wizard login Zalo trong container:</p>
-
-        <!-- Lệnh docker exec -->
-        <div class="code-block" style="margin-bottom: 16px;">
+      <!-- Option 2: Linux/macOS Terminal -->
+      <div class="output-section" style="padding: 24px; border: 2px solid rgba(255, 107, 53, 0.3); border-radius: 12px; background: linear-gradient(135deg, rgba(255,107,53,0.04), rgba(139,92,246,0.03)); margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <span style="font-size: 28px;">🐧</span>
+          <div>
+            <h3 class="output-section__title" style="margin: 0;" data-vi="Cách 2: Linux / macOS / Terminal" data-en="Option 2: Linux / macOS / Terminal">Cách 2: Linux / macOS / Terminal</h3>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;" data-vi="Chạy lệnh bên dưới trong Terminal để bắt đầu interactive setup." data-en="Run the command below in Terminal to start interactive setup.">Chạy lệnh bên dưới trong Terminal để bắt đầu interactive setup.</p>
+          </div>
+        </div>
+        <div class="code-block">
           <div class="code-block__header">
-            <span class="code-block__filename" data-vi="Terminal — Chạy 1 lần" data-en="Terminal — Run once">Terminal — Chạy 1 lần</span>
+            <span class="code-block__filename">Terminal</span>
+            <button class="btn-copy" onclick="copyToClipboard(this, 'out-setup-npx')">📋 Copy</button>
+          </div>
+          <pre class="code-block__content" id="out-setup-npx" style="font-size: 15px; text-align: center; padding: 16px;">npx create-openclaw-bot</pre>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin: 12px 0 0; text-align: center;" data-vi="Yêu cầu: Node.js 18+ và Docker Compose v2" data-en="Requires: Node.js 18+ and Docker Compose v2">Yêu cầu: Node.js 18+ và Docker Compose v2</p>
+      </div>
+
+      <!-- ===== Post-setup notices (conditional) ===== -->
+
+      <!-- Zalo Personal: Post-setup Docker Onboard Guide -->
+      <div id="zalo-onboard-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(255, 193, 7, 0.3);">
+        <h3 class="cred-section__title" data-vi="📱 Sau khi bot chạy — Login Zalo QR (1 Lần)" data-en="📱 After bot starts — Login Zalo QR (1 Lần)">📱 Sau khi bot chạy — Login Zalo QR (1 Lần)</h3>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;" data-vi="Chạy lệnh bên dưới để mở quét mã QR cho Zalo:" data-en="Run this command to scan QR code for Zalo:">Chạy lệnh bên dưới để mở quét mã QR cho Zalo:</p>
+        <div class="code-block" style="margin-bottom: 12px;">
+          <div class="code-block__header">
+            <span class="code-block__filename" data-vi="Terminal" data-en="Terminal">Terminal</span>
             <button class="btn-copy" onclick="copyToClipboard(this, 'out-zalo-onboard-cmd')">📋 Copy</button>
           </div>
           <pre class="code-block__content" id="out-zalo-onboard-cmd"></pre>
         </div>
-
-        <!-- Cheat sheet -->
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;" data-vi="Wizard sẽ hỏi lần lượt. <strong>Chọn đúng như bảng bên dưới:</strong>" data-en="The wizard will ask prompts. <strong>Choose exactly as below:</strong>">Wizard sẽ hỏi lần lượt. <strong>Chọn đúng như bảng bên dưới:</strong></p>
         <div class="code-block" style="font-size: 13px; margin-bottom: 12px;">
           <div class="code-block__header">
-            <span class="code-block__filename" data-vi="Cheat Sheet — Chọn gì ở mỗi bước" data-en="Cheat Sheet — What to choose">Cheat Sheet — Chọn gì ở mỗi bước</span>
+            <span class="code-block__filename" data-vi="Cheat Sheet — Chọn các tùy chọn này" data-en="Cheat Sheet — Select these options">Cheat Sheet — Chọn các tùy chọn này</span>
           </div>
           <pre class="code-block__content" id="out-zalo-onboard-guide"></pre>
         </div>
-
-        <div style="padding: 10px 14px; background: rgba(255, 193, 7, 0.06); border: 1px solid rgba(255, 193, 7, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
-          <ul style="margin: 0; padding: 0 0 0 16px; line-height: 1.7;">
-            <li><span data-vi="Session Zalo được <strong>lưu trong volume</strong> — restart container không cần login lại" data-en="Zalo session is <strong>saved in volume</strong> — no need to re-login on restart">Session Zalo được <strong>lưu trong volume</strong> — restart container không cần login lại</span></li>
-            <li><span data-vi="Chỉ cần chạy <code>openclaw onboard</code> lại nếu session hết hạn (thường vài tuần)" data-en="Run <code>openclaw onboard</code> again only if session expires (usually weeks)">Chỉ cần chạy <code>openclaw onboard</code> lại nếu session hết hạn (thường vài tuần)</span></li>
-            <li><span data-vi="⚠️ Zalo Personal dùng <strong>unofficial API</strong> — chỉ nên dùng tài khoản phụ" data-en="⚠️ Zalo Personal uses <strong>unofficial API</strong> — use alternate account only">⚠️ Zalo Personal dùng <strong>unofficial API</strong> — chỉ nên dùng tài khoản phụ</span></li>
-          </ul>
-        </div>
       </div>
 
-      <!-- 9Router post-setup notice (shown only when 9Router selected) -->
+      <!-- 9Router post-setup -->
       <div id="9router-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(0, 200, 150, 0.3);">
-        <h3 class="cred-section__title"><span data-vi="🔀 Sau khi Docker chạy — Setup 9Router" data-en="🔀 After Docker runs — Setup 9Router">🔀 Sau khi Docker chạy — Setup 9Router</span></h3>
+        <h3 class="cred-section__title"><span data-vi="🔀 Sau khi bot chạy — Setup 9Router" data-en="🔀 After bot starts — Setup 9Router">🔀 Sau khi bot chạy — Setup 9Router</span></h3>
         <div style="font-size: 14px; color: var(--text-secondary);">
           <div class="cred-step" style="margin-bottom: 8px;">
             <span class="cred-step__number">1</span>
@@ -387,91 +303,21 @@
           </div>
           <div class="cred-step" style="margin-bottom: 8px;">
             <span class="cred-step__number">2</span>
-            <span class="cred-step__text" data-vi="Đăng nhập OAuth vào các AI provider bạn muốn dùng (Google, Claude, Qwen...)" data-en="OAuth login to the AI providers you want to use (Google, Claude, Qwen...)">Đăng nhập OAuth vào các AI provider bạn muốn dùng (Google, Claude, Qwen...)</span>
+            <span class="cred-step__text" data-vi="Đăng nhập OAuth vào các AI provider (Google, Claude...)" data-en="OAuth login to AI providers (Google, Claude...)">Đăng nhập OAuth vào các AI provider (Google, Claude...)</span>
           </div>
-          <div class="cred-step" style="margin-bottom: 8px;">
-            <span class="cred-step__number">3</span>
-            <span class="cred-step__text"><span data-vi="9Router tự động route request từ OpenClaw → AI provider tối ưu nhất." data-en="9Router auto-routes requests from OpenClaw → optimal AI provider.">9Router tự động route request từ OpenClaw → AI provider tối ưu nhất.</span> <strong>Done!</strong> 🎉</span>
-          </div>
-        </div>
-        <div style="margin-top: 12px; padding: 10px 14px; background: rgba(255, 193, 7, 0.06); border: 1px solid rgba(255, 193, 7, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
-          ⚠️ <strong data-vi="Lưu ý:" data-en="Note:">Lưu ý:</strong> <span data-vi="9Router là tool cộng đồng (open-source). Kiểm tra Terms of Service của từng AI provider trước khi dùng." data-en="9Router is a community open-source tool. Check the Terms of Service for each AI provider before using.">9Router là tool cộng đồng (open-source). Kiểm tra Terms of Service của từng AI provider trước khi dùng.</span>
         </div>
       </div>
 
-      <!-- Browser Automation post-setup notice (shown only when browser skill selected) -->
+      <!-- Browser notice -->
       <div id="browser-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(66, 133, 244, 0.3);">
-        <h3 class="cred-section__title"><span data-vi="🌐 Trình Duyệt — Mở Chrome Debug Mode" data-en="🌐 Browser — Enable Chrome Debug Mode">🌐 Trình Duyệt — Mở Chrome Debug Mode</span></h3>
-        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
-          <span data-vi="File <code>start-chrome-debug.bat</code> đã có trong gói ZIP bạn vừa tải. Mỗi khi cần bot duyệt web:" data-en="The file <code>start-chrome-debug.bat</code> is included in your downloaded ZIP. Whenever you need the bot to browse the web:">File <code>start-chrome-debug.bat</code> đã có trong gói ZIP bạn vừa tải. Mỗi khi cần bot duyệt web:</span>
+        <h3 class="cred-section__title"><span data-vi="🌐 Browser Automation — Bật Chrome Debug" data-en="🌐 Browser Automation — Enable Chrome Debug">🌐 Browser Automation — Bật Chrome Debug</span></h3>
+        <p style="font-size: 13px; color: var(--text-secondary);">
+          <span data-vi="File <code>start-chrome-debug.bat</code> đã được tạo trong project. <b>Double-click</b> nó trên máy tính của bạn trước khi nhờ bot làm gì liên quan tới web." data-en="The file <code>start-chrome-debug.bat</code> was created in your project. <b>Double-click</b> it on your PC before asking bot to do web tasks.">File <code>start-chrome-debug.bat</code> đã được tạo trong project. <b>Double-click</b> nó trên máy tính của bạn trước khi nhờ bot làm gì liên quan tới web.</span>
         </p>
-        <ol style="font-size: 14px; color: var(--text-secondary); padding-left: 20px; line-height: 1.9; margin-bottom: 16px;">
-          <li><span data-vi="Giải nén gói ZIP vào thư mục dự án" data-en="Extract the ZIP into your project folder">Giải nén gói ZIP vào thư mục dự án</span></li>
-          <li><strong><span data-vi="Click đúp vào <code>start-chrome-debug.bat</code>" data-en="Double-click <code>start-chrome-debug.bat</code>">Click đúp vào <code>start-chrome-debug.bat</code></span></strong></li>
-          <li><span data-vi="Chạy Docker xong rồi bảo bot “dùng browser mở...”" data-en="Start Docker, then tell the bot “open browser and...”">Chạy Docker xong rồi bảo bot “dùng browser mở...”</span></li>
-          <li><span data-vi="Bot thiết lập xong rồi — bạn sẽ thấy Chrome di chuyển trực tiếp trên màn hình!" data-en="Watch Chrome move in real-time on your screen — the bot is driving it!">Bot thiết lập xong rồi — bạn sẽ thấy Chrome di chuyển trực tiếp trên màn hình!</span></li>
-        </ol>
-
-        <div style="padding: 10px 14px; background: rgba(66, 133, 244, 0.06); border: 1px solid rgba(66, 133, 244, 0.15); border-radius: 8px; font-size: 13px; color: var(--text-secondary);">
-          <ul style="margin: 0; padding: 0 0 0 16px; line-height: 1.8;">
-            <li><span data-vi="Phải mở <code>start-chrome-debug.bat</code> <strong>trước</strong> khi Docker chạy" data-en="Open <code>start-chrome-debug.bat</code> <strong>before</strong> starting Docker">Phải mở <code>start-chrome-debug.bat</code> <strong>trước</strong> khi Docker chạy</span></li>
-            <li><span data-vi="Chrome dùng <strong>profile riêng</strong> — cần login Gmail/Facebook 1 lần trong Chrome debug" data-en="Chrome uses a <strong>separate profile</strong> — log into Gmail/Facebook once in the debug window">Chrome dùng <strong>profile riêng</strong> — cần login Gmail/Facebook 1 lần trong Chrome debug</span></li>
-            <li><span data-vi="Port 9222 chỉ bind localhost — <strong>an toàn</strong>" data-en="Port 9222 binds localhost only — <strong>safe</strong> on your network">Port 9222 chỉ bind localhost — <strong>an toàn</strong></span></li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Post-setup management guide -->
-      <div id="management-guide" class="cred-section" style="margin-top: 24px; border-color: rgba(139, 92, 246, 0.3);">
-        <h3 class="cred-section__title" data-vi="🔧 Thêm / bỏ Skills & Plugins sau khi setup" data-en="🔧 Add / Remove Skills & Plugins later">🔧 Thêm / bỏ Skills & Plugins sau khi setup</h3>
-        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;" data-vi="Không cần chạy lại wizard. Dùng lệnh bên dưới trực tiếp trong Docker container:" data-en="No need to run wizard again. Use the commands below directly inside the Docker container:">Không cần chạy lại wizard. Dùng lệnh bên dưới trực tiếp trong Docker container:</p>
-        <div class="code-block" style="margin-bottom: 12px;">
-          <div class="code-block__header">
-            <span class="code-block__filename">Terminal</span>
-            <button class="btn-copy" onclick="copyToClipboard(this, 'out-manage-cmds')">📋 Copy</button>
-          </div>
-          <pre class="code-block__content" id="out-manage-cmds"><span data-vi="# Vào container" data-en="# Enter container"># Vào container</span>
-docker exec -it openclaw-bot sh
-
-<span data-vi="# Thêm skill mới" data-en="# Add new skill"># Thêm skill mới</span>
-openclaw skills install web-search
-openclaw skills install memory
-
-<span data-vi="# Xóa skill" data-en="# Remove skill"># Xóa skill</span>
-openclaw skills uninstall web-search
-
-<span data-vi="# Thêm plugin mới" data-en="# Add new plugin"># Thêm plugin mới</span>
-openclaw plugins install @openclaw/voice-call
-
-<span data-vi="# Xóa plugin" data-en="# Remove plugin"># Xóa plugin</span>
-openclaw plugins uninstall @openclaw/voice-call
-
-<span data-vi="# Restart để áp dụng" data-en="# Restart to apply"># Restart để áp dụng</span>
-exit
-docker restart openclaw-bot</pre>
-        </div>
-        <div style="font-size: 12px; color: var(--text-muted); line-height: 1.6;">
-          💡 <strong data-vi="Tip:" data-en="Tip:">Tip:</strong> <span data-vi="Nếu muốn thay đổi lâu dài (persist qua Docker rebuild), hãy sửa <code>Dockerfile</code> rồi <code>docker compose build &amp;&amp; docker compose up -d</code>." data-en="For permanent changes (persist across Docker rebuilds), edit the <code>Dockerfile</code> then run <code>docker compose build &amp;&amp; docker compose up -d</code>.">Nếu muốn thay đổi lâu dài (persist qua Docker rebuild), hãy sửa <code>Dockerfile</code> rồi <code>docker compose build &amp;&amp; docker compose up -d</code>.</span>
-        </div>
-      </div>
-
-      <!-- AI Agent shortcut -->
-      <div id="ai-agent-shortcut" class="cred-section" style="margin-top: 24px; border-color: rgba(255, 107, 53, 0.2);">
-        <h3 class="cred-section__title" data-vi="🤖 Hoặc dùng AI Agent (nhanh hơn)" data-en="🤖 Or use AI Agent (faster)">🤖 Hoặc dùng AI Agent (nhanh hơn)</h3>
-        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px;" data-vi="Mở Antigravity IDE → paste lệnh bên dưới → AI sẽ tự tạo tất cả files và chạy Docker cho bạn:" data-en="Open Antigravity IDE → paste the prompt below → AI will create all files and run Docker for you:">Mở Antigravity IDE → paste lệnh bên dưới → AI sẽ tự tạo tất cả files và chạy Docker cho bạn:</p>
-        <div class="code-block">
-          <div class="code-block__header">
-            <span class="code-block__filename">Paste vào Antigravity Chat</span>
-            <button class="btn-copy" onclick="copyToClipboard(this, 'out-ai-prompt')">📋 Copy</button>
-          </div>
-          <pre class="code-block__content" id="out-ai-prompt">Read SETUP.md in this repo and set up OpenClaw for me.
-I already created the .env file with my API key and Bot token.
-My project folder: &lt;YOUR_PATH — e.g. D:\MyAIBot&gt;</pre>
-        </div>
       </div>
     </section>
-
-  </main>
+    
+    </main>
 
   <!-- ========== Navigation ========== -->
   <div class="nav-buttons">

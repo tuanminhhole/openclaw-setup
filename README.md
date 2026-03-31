@@ -2,17 +2,34 @@
 
 # 🦞 OpenClaw Setup
 
-**Create your own free AI Bot on Telegram or Zalo in minutes.**
+<p align="center">
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.0.1-0EA5E9?style=for-the-badge" alt="Version 4.0.1" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
+  <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
+  <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/dm/create-openclaw-bot?style=for-the-badge&color=22c55e" alt="NPM Downloads" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
+</p>
 
-[![Version](https://img.shields.io/badge/Version-4.0.0-FF6B35?style=for-the-badge)](CHANGELOG.md)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Gateway-FF6B35?style=for-the-badge&logo=npm)](https://openclaw.ai)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/BotFather)
-[![Zalo](https://img.shields.io/badge/Zalo-Bot-0068FF?style=for-the-badge)](#supported-channels)
+An interactive <strong>CLI tool</strong> and <strong>Setup Wizard</strong> to deploy your own free AI Bot on Telegram or Zalo in minutes.
 
-<img src="https://flagcdn.com/24x18/gb.png" alt="English" width="24" height="18"> **English** · <img src="https://flagcdn.com/24x18/vn.png" alt="Tiếng Việt" width="24" height="18"> [Tiếng Việt](README.vi.md)
+<a href="https://github.com/tuanminhhole/openclaw-setup">
+  <img src="docs/preview.png" alt="OpenClaw Setup Hero Image" width="100%" style="border-radius: 8px; margin: 16px 0; border: 1px solid #333;" />
+</a>
+
+<p style="margin-top: 16px;">
+  <img src="https://flagcdn.com/24x18/gb.png" alt="English" width="24" height="18" style="vertical-align: sub;"> <strong>English</strong> · 
+  <img src="https://flagcdn.com/24x18/vn.png" alt="Tiếng Việt" width="24" height="18" style="vertical-align: sub;"> <a href="README.vi.md">Tiếng Việt</a>
+</p>
 
 </div>
+
+---
+
+## 🆕 What's new in v4.0.1
+- 🪄 **Fully Automated Setup**: Say goodbye to downloading ZIP files and manually copying configs. Everything is now fully automated with a single action.
+- ⚡ **One-Command Install (`npx create-openclaw-bot`)**: Extremely convenient for VPS/SSH users — the script automatically creates the project directory, sets up the environment, and triggers `docker compose up -d` instantly.
+- 🚀 **Zero-Restart Deployment**: Details like API Keys and Bot Tokens (which you input during setup) are automatically injected into `.env` before the bot boots for the first time. No restarts required!
+- 🌐 **Browser Automation Setup**: Updated Windows Task Scheduler and Debug Mode scripts for smoother interaction with Web Apps.
 
 ---
 
@@ -22,8 +39,8 @@
 - 🧠 **Multi-provider AI** — Google Gemini, Claude, GPT-4o/Codex, OpenRouter, Ollama, 9Router
 - 🧩 **Skills** — Web Search, Browser Automation, Memory, RAG, Code Interpreter, Image Gen...
 - 🔌 **Plugins** — Voice Call, Matrix, MS Teams, Nostr
-- 🔀 **9Router Proxy** — No API key needed! OAuth login via dashboard
-- 🧙 **Setup Wizard** — Beautiful dark-themed web UI with SVG brand logos
+- 🔀 **9Router Proxy** — Auto-route your bot's traffic effectively!
+- 🧙 **Setup Wizard** — Beautiful interactive shell (CLI) or dark-themed Web UI
 - 🆓 **100% Free** — Google Gemini API free tier + Docker
 - 🔒 **Secure** — API keys stay on your machine, never exposed
 - ⚡ **3 minutes** — From zero to working AI bot
@@ -71,7 +88,20 @@ You need **3 things** (all free):
 
 ## 🚀 Quick Start
 
-### Option A — Setup Wizard (Recommended)
+### 1️⃣ Option A — Interactive CLI (`npx`) [Recommended]
+
+The fastest way to install OpenClaw is using the interactive NPM package.
+
+1. **Open your Terminal (or Command Prompt).**
+2. **Run the command:**
+   ```bash
+   npx create-openclaw-bot
+   ```
+3. **Follow the interactive prompts** to configure your bot, keys, and paths!
+
+<details>
+<summary><b>2️⃣ Option B — GUI Setup Wizard (Web UI)</b></summary>
+<br>
 
 1. **Clone this repo:**
    ```bash
@@ -82,21 +112,11 @@ You need **3 things** (all free):
 2. **Open `index.html`** in your browser — the Setup Wizard will guide you through:
    - Choose your channel (Telegram / Zalo)
    - Configure bot name, personality, AI model
-   - Get credential instructions
-   - Generate all config files
+   - Generate all config files and `setup-openclaw.bat`
 
-3. **Create your `.env` file** (as instructed by the wizard)
+</details>
 
-4. **Build & Run:**
-   ```bash
-   cd docker/openclaw
-   docker compose build
-   docker compose up -d
-   ```
-
-5. **Test your bot** — send a message on Telegram or Zalo! 🎉
-
-### Option B — AI Agent (Antigravity)
+### 3️⃣ Option C — AI Agent (Antigravity)
 
 1. Open [Antigravity IDE](https://antigravity.dev/)
 2. Open this repo as workspace
@@ -200,6 +220,7 @@ Yes! Re-run the Setup Wizard or manually edit <code>.openclaw/openclaw.json</cod
 - [9Router](https://github.com/decolua/9router) — Open-source AI proxy (OAuth-based, no API keys)
 - [Playwright](https://playwright.dev) — Browser automation engine
 - [ClawHub](https://clawhub.com) — Skills registry
+- [TheSVG](https://thesvg.org) — High-quality SVG brand icons
 
 ---
 

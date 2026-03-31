@@ -2,17 +2,34 @@
 
 # 🦞 OpenClaw Setup
 
-**Tạo AI Bot miễn phí trên Telegram hoặc Zalo chỉ trong vài phút.**
+<p align="center">
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.0.1-0EA5E9?style=for-the-badge" alt="Version 4.0.1" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
+  <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
+  <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/dm/create-openclaw-bot?style=for-the-badge&color=22c55e" alt="NPM Downloads" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
+</p>
 
-[![Version](https://img.shields.io/badge/Phi%C3%AAn%20b%E1%BA%A3n-4.0.0-FF6B35?style=for-the-badge)](CHANGELOG.vi.md)
-[![OpenClaw](https://img.shields.io/badge/OpenClaw-Gateway-FF6B35?style=for-the-badge&logo=npm)](https://openclaw.ai)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/BotFather)
-[![Zalo](https://img.shields.io/badge/Zalo-Bot-0068FF?style=for-the-badge)](#kênh-hỗ-trợ)
+Một công cụ trực quan <strong>Setup Wizard (UI)</strong> & <strong>CLI</strong> để tự tay build Bot AI trên Telegram và Zalo chỉ trong vài phút.
 
-<img src="https://flagcdn.com/24x18/vn.png" alt="Tiếng Việt" width="24" height="18"> **Tiếng Việt** · <img src="https://flagcdn.com/24x18/gb.png" alt="English" width="24" height="18"> [English](README.md)
+<a href="https://github.com/tuanminhhole/openclaw-setup">
+  <img src="docs/preview.png" alt="OpenClaw Setup Hero Image" width="100%" style="border-radius: 8px; margin: 16px 0; border: 1px solid #333;" />
+</a>
+
+<p style="margin-top: 16px;">
+  <img src="https://flagcdn.com/24x18/vn.png" alt="Tiếng Việt" width="24" height="18" style="vertical-align: sub;"> <strong>Tiếng Việt</strong> · 
+  <img src="https://flagcdn.com/24x18/gb.png" alt="English" width="24" height="18" style="vertical-align: sub;"> <a href="README.md">English</a>
+</p>
 
 </div>
+
+---
+
+## 🆕 Có gì mới ở bản 4.0.1
+- 🪄 **Tự động hóa hoàn toàn**: Tạm biệt việc tải file ZIP và copy config thủ công! Giờ đây mọi thứ diễn ra tự động chỉ với 1 lượt click.
+- ⚡ **Chỉ 1 lệnh duy nhất (`npx create-openclaw-bot`)**: Cực kỳ tiện lợi cho ae cài qua VPS/SSH — script sẽ tự động tạo thư mục, khởi tạo môi trường và tự động kích hoạt `docker compose up -d` ngay sau khi nhập xong.
+- 🚀 **Zero-Restart Deployment**: API Keys và config được inject trực tiếp vào thư mục (bạn vẫn cần nhập từ Terminal, máy sẽ tự sinh vào file `.env` trước khi bot chạy lần đầu). Không cần phải restart lại container mất thời gian nữa.
+- 🌐 **Browser Automation Setup**: Cập nhật tự động sinh file chạy Windows Task Scheduler và bật file thiết lập Debug mode tự động. Mở Zalo Mini app ngon lành.
 
 ---
 
@@ -22,10 +39,11 @@
 - 🧠 **Đa model AI** — Google Gemini, Claude, GPT-4o, Ollama, OpenRouter, 9Router
 - 🧩 **Skills** — Web Search, Browser Automation, Memory, RAG, Code Interpreter, Image Gen...
 - 🔌 **Plugins** — Voice Call, Matrix, MS Teams, Nostr
-- 🔀 **9Router Proxy** — Không cần API key! Đăng nhập OAuth qua dashboard
-- 🧙 **Setup Wizard** — Giao diện web đẹp, cấu hình mọi thứ trong 4 bước
+- 🔀 **9Router Proxy** — Hệ thống Auto-route điều phối Bot tuyệt vời.
+- 🧙 **Setup Wizard** — Chạy thẳng qua Terminal CLI hoặc giao diện web Web UI 4 bước
 - 🆓 **100% Miễn phí** — Google Gemini API free tier + Docker
-- 🔒 **An toàn** — API key lưu trên máy bạn, không bao giờ bị lộ
+- 🔒 **An toàn** — API key không bao giờ bị lộ ra ngoài
+- ⚡ **Siêu tốc** — Build thành công trong 3 phút
 
 ---
 
@@ -70,7 +88,20 @@ Bạn cần **3 thứ** (miễn phí hết):
 
 ## 🚀 Bắt đầu nhanh
 
-### Cách A — Setup Wizard (Khuyến nghị)
+### 1️⃣ Cách A — Cài đặt bằng Terminal CLI (`npx`) [Tốt nhất]
+
+Dùng NPX là cách cài chuẩn nhất:
+
+1. **Mở Terminal (hoặc Command Prompt).**
+2. **Gõ lệnh sau:**
+   ```bash
+   npx create-openclaw-bot
+   ```
+3. **Làm theo các bước gợi ý trên Terminal** để đặt tên cho bot, setup tokens và nơi chứa file thư mục của bot.
+
+<details>
+<summary><b>2️⃣ Cách B — Cài đặt bằng Giao diện Setup Web (Web UI)</b></summary>
+<br>
 
 1. **Clone repo:**
    ```bash
@@ -82,21 +113,12 @@ Bạn cần **3 thứ** (miễn phí hết):
    - Chọn kênh (Telegram / Zalo)
    - Chọn AI model và plugins
    - Cấu hình tên bot, tính cách
-   - Lấy hướng dẫn tạo API key
-   - Tự động generate tất cả config files
+   - Tự động generate tất cả config files về file `setup-openclaw.bat`
 
-3. **Tạo file `.env`** (làm theo hướng dẫn trong wizard)
+</details>
 
-4. **Build & Chạy:**
-   ```bash
-   cd docker/openclaw
-   docker compose build
-   docker compose up -d
-   ```
 
-5. **Test bot** — gửi tin nhắn trên Telegram hoặc Zalo! 🎉
-
-### Cách B — Dùng AI Agent (Antigravity)
+### 3️⃣ Cách C — Dùng AI Agent (Antigravity)
 
 1. Mở [Antigravity IDE](https://antigravity.dev/)
 2. Mở repo này làm workspace
@@ -204,6 +226,7 @@ API key chỉ lưu trên máy bạn. SETUP.md có các quy tắc bảo mật ngh
 - [9Router](https://github.com/decolua/9router) — AI proxy mã nguồn mở (OAuth, không cần API key)
 - [Playwright](https://playwright.dev) — Engine trình duyệt tự động
 - [ClawHub](https://clawhub.com) — Skills registry
+- [TheSVG](https://thesvg.org) — Bộ icon SVG vector chất lượng cao (miễn phí)
 
 ---
 

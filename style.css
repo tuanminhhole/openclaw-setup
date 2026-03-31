@@ -752,6 +752,15 @@ body::after {
   white-space: nowrap;
 }
 
+.cred-step a, .prompt-notice a, .form-group__hint a, .form-group__label a {
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.cred-step a:hover, .prompt-notice a:hover, .form-group__hint a:hover, .form-group__label a:hover {
+  color: var(--claw-coral);
+}
+
 .provider-card__badge {
   display: inline-block;
   padding: 2px 8px;
