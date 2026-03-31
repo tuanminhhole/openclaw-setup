@@ -68,6 +68,7 @@ async function main() {
     });
   }
 
+
   // 3. Provider
   const providerKey = await select({
     message: isVi ? 'Chọn AI Provider:' : 'Select AI Provider:',
@@ -144,17 +145,18 @@ async function main() {
   }
   await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', '.env'), envContent);
   
+  const patchScript = `const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full'});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+  const b64Patch = Buffer.from(patchScript).toString('base64');
   const dockerfile = `FROM node:22-slim
 
 RUN apt-get update && apt-get install -y git curl${selectedSkills.includes('browser') ? ' socat' : ''} && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g openclaw@latest
-${selectedSkills.includes('browser') ? 'RUN npm install -g agent-browser playwright && npx playwright install chromium --with-deps && ln -f -s /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /usr/bin/google-chrome\\n' : ''}
-WORKDIR /root/.openclaw
+${selectedSkills.includes('browser') ? 'RUN npm install -g agent-browser playwright && npx playwright install chromium --with-deps && ln -f -s /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /usr/bin/google-chrome\\n' : ''}WORKDIR /root/.openclaw
 
 EXPOSE 18791
 
-CMD sh -c "node -e \\\\"const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full'});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\\\" && ${selectedSkills.includes('browser') ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & ' : ''}(sleep 5 && openclaw devices approve --latest 2>/dev/null || true) & openclaw gateway run"`;
+CMD sh -c "node -e \\"eval(Buffer.from('${b64Patch}','base64').toString())\\" && ${selectedSkills.includes('browser') ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & ' : ''}(sleep 5 && openclaw devices approve --latest 2>/dev/null || true) & openclaw gateway run"`;
   
   await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', 'Dockerfile'), dockerfile);
 
@@ -162,11 +164,11 @@ CMD sh -c "node -e \\\\"const fs=require('fs'),p='/root/.openclaw/openclaw.json'
   
   let compose = '';
   if (providerKey === '9router') {
-    compose = `name: oc-\${agentId}
+    compose = `name: oc-${agentId}
 services:
   ai-bot:
     build: .
-    container_name: openclaw-\${agentId}
+    container_name: openclaw-${agentId}
     restart: always
     env_file:
       - .env
@@ -195,11 +197,11 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
 volumes:
   9router-data:`;
   } else {
-    compose = `name: oc-\${agentId}
+    compose = `name: oc-${agentId}
 services:
   ai-bot:
     build: .
-    container_name: openclaw-\${agentId}
+    container_name: openclaw-${agentId}
     restart: always
     env_file: .env
 ${selectedSkills.includes('browser') ? `    extra_hosts:
@@ -210,25 +212,38 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
   
   await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'), compose);
 
-  const authProfileObj = {};
+  let authProfilesJson = {};
   if (providerKey && !provider.isLocal) {
-    const authProviderName = providerKey === '9router' ? '9router' : 'openai';
-    authProfileObj[authProviderName] = [{
-      type: "api_key",
-      field: "key",
-      order: 1,
-      value: providerKey === '9router' ? "9r-dummy" : providerKeyVal
-    }];
+    const authProviderName = providerKey === '9router' ? '9router' : 'openai'; // fallback to openai format for standard providers initially
+    const authProfileId = providerKey === '9router' ? '9router-proxy' : `${authProviderName}:default`;
+    const authKeyValue = providerKey === '9router' ? 'sk-no-key' : providerKeyVal;
+
+    authProfilesJson = {
+      version: 1,
+      profiles: {
+        [authProfileId]: {
+          provider: authProviderName,
+          type: 'api_key',
+          key: authKeyValue,
+        },
+      },
+      order: {
+        [authProviderName]: [authProfileId],
+      },
+    };
+
     if (providerKey !== '9router' && providerKey !== 'openai' && provider.baseURL) {
-      authProfileObj[authProviderName][0].url = provider.baseURL;
+      authProfilesJson.profiles[authProfileId].url = provider.baseURL;
     }
   }
 
   const modelsPrimary = providerKey === '9router' ? '9router/smart-route' : (providerKey === 'google' ? 'google/gemini-2.5-flash' : 'openai/gpt-4o');
 
   await fs.ensureDir(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent'));
-  await fs.writeJson(path.join(projectDir, '.openclaw', 'auth-profiles.json'), authProfileObj, { spaces: 2 });
-  await fs.writeJson(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent', 'auth-profiles.json'), authProfileObj, { spaces: 2 });
+  if (Object.keys(authProfilesJson).length > 0) {
+    await fs.writeJson(path.join(projectDir, '.openclaw', 'auth-profiles.json'), authProfilesJson, { spaces: 2 });
+    await fs.writeJson(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent', 'auth-profiles.json'), authProfilesJson, { spaces: 2 });
+  }
 
   const botConfig = {
     meta: { lastTouchedVersion: '2026.3.24' },
@@ -242,11 +257,26 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
         model: { primary: modelsPrimary, fallbacks: [] }
       }]
     },
+    ...(providerKey === '9router' ? {
+      models: {
+        mode: 'merge',
+        providers: {
+          '9router': {
+            baseUrl: 'http://9router:20128/v1',
+            apiKey: 'sk-no-key',
+            api: 'openai-completions',
+            models: [
+              { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 }
+            ]
+          }
+        }
+      }
+    } : {}),
     commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
     channels: {},
     tools: { profile: 'full' },
     gateway: {
-      port: 18791, mode: 'local', bind: '0.0.0.0',
+      port: 18791, mode: 'local', bind: 'custom', customBindHost: '0.0.0.0',
       auth: { mode: 'token', token: 'cli-dummy-token-xyz123' }
     }
   };
@@ -255,7 +285,8 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
   await fs.writeFile(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent', 'IDENTITY.md'), identityContent);
   
   if (channelKey === 'telegram') {
-    botConfig.channels['telegram'] = { enabled: true, mode: 'polling' };
+    // dmPolicy:'open' = skip pairing step entirely (standard for personal bots)
+    botConfig.channels['telegram'] = { enabled: true, dmPolicy: 'open', allowFrom: ['*'] };
   } else if (channelKey === 'zalo-personal') {
     botConfig.channels['zalo'] = { enabled: true, provider: 'client', autoReply: true };
   } else if (channelKey === 'zalo-bot') {
@@ -289,7 +320,12 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
     child.on('close', (code) => {
       if (code === 0) {
         console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoàn tất! Bot đang chạy.' : 'Setup complete! Bot is running.'}`));
-        if (channelKey === 'zalo-personal') {
+        
+        if (channelKey === 'telegram') {
+          console.log(chalk.cyan(`\n💬 ${isVi
+            ? 'Nhắn tin cho bot trên Telegram là dùng được ngay!'
+            : 'Just message your bot on Telegram to start chatting!'}`));
+        } else if (channelKey === 'zalo-personal') {
           console.log(chalk.yellow(`\n📱 ${isVi ? 'Vui lòng chạy lệnh sau để đăng nhập Zalo Personal (1 lần duy nhất):' : 'Please run this command to login to Zalo Personal (once):'}`));
           console.log(`cd ${projectDir} && docker compose exec -it openclaw bun run core:onboard`);
         }
@@ -297,6 +333,7 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
         console.log(chalk.red(`\n❌ Docker exited with code ${code}`));
       }
     });
+
   } else {
     console.log(chalk.cyan(`\n👉 ${isVi ? 'Tiếp theo, hãy chạy:' : 'Next, run:'}\n  cd ${projectDir}/docker/openclaw\n  docker compose build\n  docker compose up -d`));
   }
