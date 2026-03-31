@@ -1,6 +1,6 @@
 {
   "name": "create-openclaw-bot",
-  "version": "4.0.4",
+  "version": "4.0.5",
   "description": "Interactive CLI installer for OpenClaw Bot",
   "main": "cli.js",
   "bin": {
@@ -17,7 +17,7 @@
     "telegram",
     "ai"
   ],
-  "author": "OpenClaw Team",
+  "author": "tuanminhhole",
   "license": "MIT",
   "dependencies": {
     "@inquirer/prompts": "^4.3.1",
