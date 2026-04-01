@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.1.1] — 2026-04-01
+
+### Fixed
+
+- **CLI setup**: Fixed `docker-compose.yml` generation syntax error for 9Router (`yaml: while scanning a simple key` issue) by using bash heredoc block scalars instead of single-line escaping for the `syncComboScript`.
+
 ## [4.1.0] — 2026-04-01
 
 ### 🚀 Stable 9Router Smart Routing

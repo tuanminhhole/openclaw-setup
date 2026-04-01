@@ -258,6 +258,7 @@
       envKeys: [],
       envExtra: 'ZALO_BOT_TOKEN=<your_zalo_bot_token>',
       credSteps: [
+        { textVi: '<span style="color: #fbbf24; font-weight: 500;">⚠️ LƯU Ý: Bot OA Zalo đòi hỏi bạn phải thiết lập Webhook Public (qua VPS/ngrok có HTTPS). Hãy cân nhắc dùng Zalo Personal nếu bạn chưa có Webhook.</span>', textEn: '<span style="color: #fbbf24; font-weight: 500;">⚠️ NOTE: Zalo OA Bot requires setting up a Public Webhook (using VPS/ngrok with HTTPS). Consider using Zalo Personal if you do not have a webhook.</span>' },
         { textVi: 'Vào <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a> → Tạo bot mới → copy Bot Token', textEn: 'Go to <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a> → Create new bot → copy Bot Token' },
       ],
       channelConfig: {
@@ -1019,7 +1020,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       },
       commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
       channels: ch.channelConfig,
-      tools: { profile: 'full' },
+      tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
       gateway: {
         port: 18791,
         mode: 'local',
@@ -1090,6 +1091,21 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
 
     setOutput('out-openclaw-json', JSON.stringify(clawConfig, null, 2));
 
+    // exec-approvals.json — 2-layer fix for OpenClaw exec approval gate
+    const execApprovalsConfig = {
+      version: 1,
+      defaults: {
+        security: 'full',
+        ask: 'off',
+        askFallback: 'full'
+      },
+      agents: {
+        main: { security: 'full', ask: 'off', askFallback: 'full', autoAllowSkills: true },
+        [agentId]: { security: 'full', ask: 'off', askFallback: 'full', autoAllowSkills: true }
+      }
+    };
+    setOutput('out-exec-approvals-json', JSON.stringify(execApprovalsConfig, null, 2));
+
     // 2. Agent YAML (no system_prompt — OpenClaw reads from workspace/*.md files)
     const agentYaml = `name: ${agentId}
 description: "${state.config.description}"
@@ -1124,7 +1140,7 @@ model:
     // Browser Automation: extra Docker deps
     const browserAptExtra = hasBrowser ? ' socat' : '';
     const browserInstallLines = hasBrowser
-      ? `\n# Browser Automation: Playwright engine (needed for native CDP)\nRUN npm install -g agent-browser playwright && npx playwright install chromium --with-deps && ln -f -s /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /usr/bin/google-chrome\n`
+      ? `\n# Browser Automation: Playwright engine (needed for native CDP)\nRUN npm install -g agent-browser playwright && \\\n    npx playwright install chromium --with-deps && \\\n    ln -f -s /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /usr/bin/google-chrome\n\n`
       : '';
 
     // Plugins install at runtime (avoids ClawHub rate limit during build)
@@ -1136,7 +1152,7 @@ model:
       ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & '
       : '';
     // Patch config on every startup to survive openclaw onboard overwrites
-    const patchCmd = `node -e \\"const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full'});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
+    const patchCmd = `node -e \\"const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
     // Auto-approve device pairing after gateway starts (required since v2026.3.x)
     const autoApproveCmd = '(sleep 5 && openclaw devices approve --latest 2>/dev/null || true) & ';
     const finalCmd = `CMD sh -c "${pluginInstallCmd}${patchCmd}${browserPrefix}${autoApproveCmd}${gatewayCmd}"`;
@@ -1530,6 +1546,11 @@ ${selectedSkillNames.length > 0 ? selectedSkillNames.join('\n') : '- _(Chưa có
 - Browser: chỉ mở trang khi user yêu cầu cụ thể
 - Memory: tự ghi nhớ thông tin quan trọng, không cần user nhắc
 
+## ⏰ Cron / Lên lịch nhắc nhở
+- OpenClaw CÓ hỗ trợ tool hệ thống để chạy Cron Job.
+- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool hệ thống để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.
+- Ghi chú lỗi: Không điền "current" vào thư mục Session khi thao tác tool. Bỏ qua việc tra cứu file docs nội bộ ('cron-jobs.mdx') — hãy tin tưởng khả năng sử dụng tool của bạn.
+
 ---
 
 _Thêm ghi chú về cách dùng tool cụ thể tại đây._
@@ -1549,6 +1570,11 @@ ${selectedSkillNames.length > 0 ? selectedSkillNames.join('\n') : '- _(No skills
 - Web Search: only use when needing real-time info or user explicitly asks
 - Browser: only open pages when user specifically requests
 - Memory: proactively remember important info without user prompting
+
+## ⏰ Cron / Scheduled Tasks
+- OpenClaw natively supports system tools for Cron Jobs.
+- When the user asks to schedule tasks or reminders, use your built-in tools to create them automatically. Do NOT ask the user to run manual crontab tasks on their host.
+- Error "sessionKey: current": Do NOT use "current" as a sessionKey for session tools. Ignore old internal docs ('cron-jobs.mdx') and rely on your native tool skills.
 
 ---
 
@@ -1742,6 +1768,7 @@ fi
     // Store generated files for download
     state._generatedFiles = {
       '.openclaw/openclaw.json': JSON.stringify(clawConfig, null, 2),
+      '.openclaw/exec-approvals.json': JSON.stringify(execApprovalsConfig, null, 2),
       '.openclaw/auth-profiles.json': authProfilesStr,
       [`.openclaw/agents/${agentId}.yaml`]: agentYaml,
       [`.openclaw/agents/${agentId}/agent/auth-profiles.json`]: authProfilesStr,

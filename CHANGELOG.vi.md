@@ -2,6 +2,12 @@
 
 Tất cả những thay đổi nổi bật của dự án sẽ được ghi chép trong file này.
 
+## [4.1.1] — 2026-04-01
+
+### Khắc phục
+
+- **CLI setup**: Khắc phục lỗi sinh file `docker-compose.yml` định dạng sai khi dùng 9Router (lỗi báo `yaml: while scanning a simple key`) bằng cách đổi cách escape string `syncComboScript` sang kiểu heredoc block scalars của bash để tránh xung đột nháy kép/nháy đơn trong YAML.
+
 ## [4.1.0] — 2026-04-01
 
 ### 🚀 Stable 9Router Smart Routing
