@@ -225,82 +225,43 @@ CMD sh -c "node -e \\"eval(Buffer.from('${b64Patch}','base64').toString())\\" &&
   // This script runs inside the 9Router container as a background loop.
   // Every 30s it queries /api/providers, filters for active+enabled providers,
   // and updates the smart-route combo to ONLY include models from those providers.
-  const syncComboScript = `
-#!/bin/sh
-# sync-combo: dynamically builds smart-route combo from connected providers
-ROUTER=http://localhost:20128
-INTERVAL=30
+  const syncComboScript = `const fs=require('fs');const ROUTER='http://localhost:20128';const INTERVAL=30000;const p='/root/.9router/db.json';
+const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
+console.log('[sync-combo] 9Router sync loop started...');
+const sync = async () => {
+  try {
+    const res = await fetch(ROUTER + '/api/providers');
+    const d = await res.json();
+    const a = (d.connections || []).filter(c=>(c.isActive !== false && !c.disabled) && (c.isActive || c.connected > 0 || c.tokens?.length > 0)).map(c=>c.provider);
+    if (!a.length) return;
+    
+    const PREF = ['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];
+    a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
+    
+    const m = a.flatMap(p => PM[p] || []);
+    if (!m.length) return;
 
-# Wait for 9router to be ready
-echo "[sync-combo] Waiting for 9Router to start..."
-while ! wget -qO- \$ROUTER/api/version >/dev/null 2>&1; do sleep 2; done
-echo "[sync-combo] 9Router is ready. Starting sync loop (every \${INTERVAL}s)..."
+    let db = {};
+    try { db = JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e){}
+    if (!db.combos) db.combos = [];
 
-while true; do
-  PROVIDERS_JSON=\$(wget -qO- \$ROUTER/api/providers 2>/dev/null || echo '{}')
-  COMBO_JSON=\$(node -e "
-const PROVIDER_MODELS = {
-  codex:     ['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex','cx/gpt-5-codex-mini'],
-  'claude-code': ['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],
-  github:    ['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-5-mini','gh/gpt-5-codex','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],
-  cursor:    ['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],
-  kilo:      ['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/openai/o3','kc/deepseek/deepseek-chat'],
-  cline:     ['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],
-  'gemini-cli': ['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],
-  iflow:     ['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],
-  qwen:      ['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],
-  kiro:      ['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],
-  ollama:    ['ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],
-  'kimi-coding': ['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],
-  glm:       ['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],
-  'glm-cn':  ['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],
-  minimax:   ['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],
-  kimi:      ['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],
-  deepseek:  ['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],
-  xai:       ['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],
-  mistral:   ['mistral/mistral-large-latest','mistral/codestral-latest'],
-  groq:      ['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],
-  cerebras:  ['cerebras/gpt-oss-120b'],
-  alicode:   ['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],
-  openai:    ['openai/gpt-4o','openai/gpt-4.1','openai/o3-mini'],
-  anthropic: ['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],
-  gemini:    ['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro'],
+    const c = { id: 'smart-route', name: 'smart-route', alias: 'smart-route', models: m };
+    const i = db.combos.findIndex(x => x.id === 'smart-route');
+    if (i >= 0) {
+      if (JSON.stringify(db.combos[i].models) !== JSON.stringify(c.models)) {
+        db.combos[i] = c;
+        fs.writeFileSync(p, JSON.stringify(db, null, 2));
+        console.log('[sync-combo] Updated smart-route: ' + c.models.length + ' models');
+      }
+    } else {
+      db.combos.push(c);
+      fs.writeFileSync(p, JSON.stringify(db, null, 2));
+      console.log('[sync-combo] Created smart-route: ' + c.models.length + ' models');
+    }
+  } catch (e) { }
 };
-try {
-  const data = \$PROVIDERS_JSON;
-  const active = (data.connections||[]).filter(c => c.isActive).map(c => c.provider);
-  if (active.length === 0) { process.exit(1); }
-  const models = active.flatMap(p => PROVIDER_MODELS[p]||[]);
-  if (models.length === 0) { process.exit(1); }
-  console.log(JSON.stringify({id:'smart-route',name:'smart-route',alias:'smart-route',models:models}));
-} catch(e) { process.exit(1); }
-  " 2>/dev/null)
-  if [ -n "\$COMBO_JSON" ]; then
-    # Read existing db.json, update/add the smart-route combo, write back
-    node -e "
-const fs = require('fs');
-const dbPath = '/root/.9router/db.json';
-let db = {};
-try { db = JSON.parse(fs.readFileSync(dbPath,'utf8')); } catch(e) {}
-const newCombo = \$COMBO_JSON;
-if (!db.combos) db.combos = [];
-const idx = db.combos.findIndex(c => c.id === 'smart-route');
-if (idx >= 0) {
-  if (JSON.stringify(db.combos[idx].models) !== JSON.stringify(newCombo.models)) {
-    db.combos[idx] = newCombo;
-    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
-    console.log('[sync-combo] Updated smart-route: ' + newCombo.models.length + ' models from ' + new Set(newCombo.models.map(m=>m.split('/')[0])).size + ' providers');
-  }
-} else {
-  db.combos.push(newCombo);
-  fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
-  console.log('[sync-combo] Created smart-route: ' + newCombo.models.length + ' models');
-}
-    " 2>/dev/null
-  fi
-  sleep \$INTERVAL
-done
-`.trim().replace(/\n/g, '\\n');
+sync();
+setInterval(sync, INTERVAL);`;
 
   let compose = '';
   if (providerKey === '9router') {
@@ -324,7 +285,7 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
     container_name: 9router-${agentId}
     restart: always
     entrypoint: >
-      /bin/sh -c "npm install -g 9router && (echo '${syncComboScript}' > /tmp/sync-combo.sh && chmod +x /tmp/sync-combo.sh && /bin/sh /tmp/sync-combo.sh &) && 9router"
+      /bin/sh -c "npm install -g 9router && echo '${syncComboScript}' > /tmp/sync.js && (node /tmp/sync.js &) && exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update"
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0
@@ -406,38 +367,7 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
             apiKey: 'sk-no-key',
             api: 'openai-completions',
             models: [
-              { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 },
-              // OAuth Providers
-              { id: 'cc/claude-opus-4-6', name: 'Claude Opus 4.6', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'cc/claude-sonnet-4-6', name: 'Claude Sonnet 4.6', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'cx/gpt-5.4', name: 'GPT 5.4 (Codex)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'cx/gpt-5.3-codex', name: 'GPT 5.3 Codex', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'gh/gpt-5.4', name: 'GPT 5.4 (Copilot)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'gh/claude-opus-4.6', name: 'Claude Opus 4.6 (Copilot)', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'gc/gemini-3-flash-preview', name: 'Gemini 3 Flash (FREE)', contextWindow: 1000000, maxTokens: 8192 },
-              // Free Tier Providers
-              { id: 'if/qwen3-coder-plus', name: 'Qwen3 Coder+ (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'if/kimi-k2', name: 'Kimi K2 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'if/kimi-k2-thinking', name: 'Kimi K2 Thinking (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'if/glm-4.7', name: 'GLM 4.7 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'if/minimax-m2', name: 'MiniMax M2 (iFlow FREE)', contextWindow: 1000000, maxTokens: 8192 },
-              { id: 'if/deepseek-r1', name: 'DeepSeek R1 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'qw/qwen3-coder-plus', name: 'Qwen3 Coder+ (Qwen FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'qw/qwen3-coder-flash', name: 'Qwen3 Coder Flash (Qwen FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'kr/claude-sonnet-4.5', name: 'Claude Sonnet 4.5 (Kiro FREE)', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'kr/claude-haiku-4.5', name: 'Claude Haiku 4.5 (Kiro FREE)', contextWindow: 200000, maxTokens: 8192 },
-              // Ollama Cloud
-              { id: 'ollama/qwen3.5', name: 'Qwen 3.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'ollama/kimi-k2.5', name: 'Kimi K2.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'ollama/glm-5', name: 'GLM 5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'ollama/glm-4.7-flash', name: 'GLM 4.7 Flash (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'ollama/minimax-m2.5', name: 'MiniMax M2.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'ollama/gpt-oss:120b', name: 'GPT-OSS 120B (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              // API Key Providers
-              { id: 'glm/glm-4.7', name: 'GLM 4.7 ($0.6/1M)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'minimax/MiniMax-M2.1', name: 'MiniMax M2.1 ($0.20/1M)', contextWindow: 1000000, maxTokens: 8192 },
-              { id: 'kimi/kimi-latest', name: 'Kimi Latest ($0.90/1M)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3.2 Chat', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 }
             ]
           }
         }
