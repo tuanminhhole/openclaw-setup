@@ -345,7 +345,7 @@
 - ✅ Chỉ mount đúng thư mục cần thiết (config + workspace)
 - ❌ KHÔNG mount nguyên ổ đĩa (C:/ hoặc D:/)
 - ❌ KHÔNG chạy container với --privileged
-- ✅ Giới hạn port expose (chỉ 18789)`,
+- ✅ Giới hạn port expose (chỉ 38789)`,
     en: `## 🔐 Security Rules — MANDATORY
 
 ### System files & directories
@@ -372,7 +372,7 @@
 - ✅ Only mount required directories (config + workspace)
 - ❌ DO NOT mount entire drives (C:/ or D:/)
 - ❌ DO NOT run containers with --privileged
-- ✅ Limit exposed ports (only 18789)`,
+- ✅ Limit exposed ports (only 38789)`,
   };
 
   // ========== DOM Ready ==========
@@ -762,8 +762,8 @@
         // 9Router: simple message (no API key needed - managed via dashboard)
         pHtml += `<p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 8px;">
           ${isVi
-            ? 'Sau khi Docker khởi động xong, mở <a href="http://localhost:20128/dashboard" target="_blank" style="color: var(--accent);">localhost:20128/dashboard</a> để đăng nhập OAuth và kết nối các Provider.'
-            : 'After Docker starts, open <a href="http://localhost:20128/dashboard" target="_blank" style="color: var(--accent);">localhost:20128/dashboard</a> to OAuth login and connect Providers.'}
+            ? 'Sau khi Docker khởi động xong, mở <a href="http://localhost:30128/dashboard" target="_blank" style="color: var(--accent);">localhost:30128/dashboard</a> để đăng nhập OAuth và kết nối các Provider.'
+            : 'After Docker starts, open <a href="http://localhost:30128/dashboard" target="_blank" style="color: var(--accent);">localhost:30128/dashboard</a> to OAuth login and connect Providers.'}
         </p>`;
         pHtml += `<p style="font-size: 12px; color: var(--text-muted); margin: 0;">
           ${isVi
@@ -1039,29 +1039,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
             apiKey: 'sk-no-key',
             api: 'openai-completions',
             models: [
-              // Free Tier Providers
-              { id: 'if/qwen3-coder-plus', name: 'Qwen3 Coder+ (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'if/kimi-k2', name: 'Kimi K2 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'if/kimi-k2-thinking', name: 'Kimi K2 Thinking (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'if/glm-4.7', name: 'GLM 4.7 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'if/minimax-m2', name: 'MiniMax M2 (iFlow FREE)', contextWindow: 1000000, maxTokens: 8192 },
-              { id: 'if/deepseek-r1', name: 'DeepSeek R1 (iFlow FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'qw/qwen3-coder-plus', name: 'Qwen3 Coder+ (Qwen FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'qw/qwen3-coder-flash', name: 'Qwen3 Coder Flash (Qwen FREE)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'kr/claude-sonnet-4.5', name: 'Claude Sonnet 4.5 (Kiro FREE)', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'kr/claude-haiku-4.5', name: 'Claude Haiku 4.5 (Kiro FREE)', contextWindow: 200000, maxTokens: 8192 },
-              // Ollama Cloud
-              { id: 'ollama/qwen3.5', name: 'Qwen 3.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'ollama/kimi-k2.5', name: 'Kimi K2.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'ollama/glm-5', name: 'GLM 5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'ollama/glm-4.7-flash', name: 'GLM 4.7 Flash (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'ollama/minimax-m2.5', name: 'MiniMax M2.5 (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'ollama/gpt-oss:120b', name: 'GPT-OSS 120B (Ollama Cloud)', contextWindow: 128000, maxTokens: 8192 },
-              // API Key Providers
-              { id: 'glm/glm-4.7', name: 'GLM 4.7 ($0.6/1M)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'minimax/MiniMax-M2.1', name: 'MiniMax M2.1 ($0.20/1M)', contextWindow: 1000000, maxTokens: 8192 },
-              { id: 'kimi/kimi-latest', name: 'Kimi Latest ($0.90/1M)', contextWindow: 128000, maxTokens: 8192 },
-              { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3.2 Chat', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 }
             ],
           },
         },
@@ -1184,7 +1162,42 @@ ${finalCmd}`;
     // ─── Dynamic Smart Route Sync Script ────────────────────────────────────────
     // Background loop inside 9Router container every 30s.
     // Queries /api/providers → filters connected+enabled → updates smart-route combo.
-    const syncScript = `#!/bin/sh\nROUTER=http://localhost:20128\nINTERVAL=30\necho "[sync-combo] Waiting for 9Router..."\nwhile ! wget -qO- $ROUTER/api/version >/dev/null 2>&1; do sleep 2; done\necho "[sync-combo] 9Router ready. Syncing every \${INTERVAL}s..."\nwhile true; do\n  PJ=$(wget -qO- $ROUTER/api/providers 2>/dev/null || echo '{}')\n  CJ=$(node -e "\nconst PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};\ntry{const d=$PJ;const a=(d.connections||[]).filter(c=>c.isActive).map(c=>c.provider);if(!a.length)process.exit(1);const m=a.flatMap(p=>PM[p]||[]);if(!m.length)process.exit(1);console.log(JSON.stringify({id:'smart-route',name:'smart-route',alias:'smart-route',models:m}))}catch(e){process.exit(1)}\n  " 2>/dev/null)\n  if [ -n "$CJ" ]; then\n    node -e "\nconst fs=require('fs'),p='/root/.9router/db.json';let d={};try{d=JSON.parse(fs.readFileSync(p,'utf8'))}catch(e){}const c=$CJ;if(!d.combos)d.combos=[];const i=d.combos.findIndex(x=>x.id==='smart-route');if(i>=0){if(JSON.stringify(d.combos[i].models)!==JSON.stringify(c.models)){d.combos[i]=c;fs.writeFileSync(p,JSON.stringify(d,null,2));console.log('[sync-combo] Updated: '+c.models.length+' models')}}else{d.combos.push(c);fs.writeFileSync(p,JSON.stringify(d,null,2));console.log('[sync-combo] Created: '+c.models.length+' models')}\n    " 2>/dev/null\n  fi\n  sleep $INTERVAL\ndone`;
+    const syncScript = `const fs=require('fs');const ROUTER='http://localhost:20128';const INTERVAL=30000;const p='/root/.9router/db.json';
+const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
+console.log('[sync-combo] 9Router sync loop started...');
+const sync = async () => {
+  try {
+    const res = await fetch(ROUTER + '/api/providers');
+    const d = await res.json();
+    const a = (d.connections || []).filter(c=>(c.isActive !== false && !c.disabled) && (c.isActive || c.connected > 0 || c.tokens?.length > 0)).map(c=>c.provider);
+    if (!a.length) return;
+    
+    const PREF = ['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];
+    a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
+    
+    const m = a.flatMap(p => PM[p] || []);
+    if (!m.length) return;
+    let db = {};
+    try { db = JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e){}
+    if (!db.combos) db.combos = [];
+
+    const c = { id: 'smart-route', name: 'smart-route', alias: 'smart-route', models: m };
+    const i = db.combos.findIndex(x => x.id === 'smart-route');
+    if (i >= 0) {
+      if (JSON.stringify(db.combos[i].models) !== JSON.stringify(c.models)) {
+        db.combos[i] = c;
+        fs.writeFileSync(p, JSON.stringify(db, null, 2));
+        console.log('[sync-combo] Updated smart-route: ' + c.models.length + ' models');
+      }
+    } else {
+      db.combos.push(c);
+      fs.writeFileSync(p, JSON.stringify(db, null, 2));
+      console.log('[sync-combo] Created smart-route: ' + c.models.length + ' models');
+    }
+  } catch (e) { }
+};
+sync();
+setInterval(sync, INTERVAL);`;
 
     let compose;
     if (is9Router) {
@@ -1201,14 +1214,22 @@ ${extraHostsBlock}
     volumes:
       - ../../.openclaw:/root/.openclaw
     ports:
-      - "18789:18789"
+      - "38789:38789"
 
   9router:
     image: node:22-slim
     container_name: 9router
     restart: always
-    entrypoint: >
-      /bin/sh -c "npm install -g 9router && (echo '${syncScript}' > /tmp/sync.sh && sh /tmp/sync.sh &) && 9router"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        npm install -g 9router
+        cat << 'CLAWEOF' > /tmp/sync.js
+        ${syncScript.replace(/\$/g, '$$$$').replace(/\n/g, '\n        ')}
+        CLAWEOF
+        node /tmp/sync.js > /tmp/sync.log 2>&1 &
+        exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0
@@ -1232,7 +1253,7 @@ ${extraHostsBlock}
     volumes:
       - ../../.openclaw:/root/.openclaw
     ports:
-      - "18789:18789"`;
+      - "38789:38789"`;
     }
 
     setOutput('out-compose', compose);
@@ -1797,8 +1818,10 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
 
     Object.entries(files).forEach(([path, content]) => {
       const winPath = path.replace(/\//g, '\\');
-      // Escape content for PowerShell here-string (only issue: content containing "'@" on own line)
-      const safeContent = content.replace(/\r\n/g, '\n');
+      // Fix: escape any "'@" at start of line — would prematurely terminate PowerShell here-string
+      const safeContent = content
+        .replace(/\r\n/g, '\n')
+        .replace(/^'@/mg, "'`@"); // escape with backtick so PS here-string doesn't terminate early
       ps += `\n[IO.File]::WriteAllText("$projectDir\\${winPath}", @'\n${safeContent}\n'@, $utf8)\n`;
     });
 
@@ -1831,7 +1854,7 @@ Write-Host "  🎉 ${isVi ? 'Setup hoàn tất!' : 'Setup complete!'}" -Foregrou
     // Post-setup notes
     const is9Router = state.config.provider === '9router';
     if (is9Router) {
-      ps += `Write-Host "  ${isVi ? 'Mở http://localhost:20128/dashboard để login OAuth' : 'Open http://localhost:20128/dashboard to login OAuth'}" -ForegroundColor White\n`;
+      ps += `Write-Host "  ${isVi ? 'Mở http://localhost:30128/dashboard để login OAuth' : 'Open http://localhost:30128/dashboard to login OAuth'}" -ForegroundColor White\n`;
     }
     if (state.channel === 'zalo-personal') {
       ps += `Write-Host "  ${isVi ? 'Chạy: docker exec -it openclaw-bot openclaw onboard (quét QR)' : 'Run: docker exec -it openclaw-bot openclaw onboard (scan QR)'}" -ForegroundColor White\n`;
@@ -1846,13 +1869,22 @@ Write-Host "  🎉 ${isVi ? 'Setup hoàn tất!' : 'Setup complete!'}" -Foregrou
 Read-Host "${isVi ? 'Nhấn Enter để thoát' : 'Press Enter to exit'}"
 `;
 
-    // Wrap in polyglot .bat/.ps1
-    const bat = `<# : batch wrapper
-@echo off & chcp 65001>nul
-powershell -ExecutionPolicy Bypass -NoProfile -File "%~f0" %*
+    // Wrap in a .bat that extracts the PS section to a temp .ps1 then runs it.
+    // This avoids 2 issues:
+    //   1. powershell -File refuses .bat extension (hard error, immediate exit)
+    //   2. Zone.Identifier security block on downloaded files affects -File but not -Command
+    // The extraction command uses NO pipes (CMD treats | as special inside ""), and uses
+    // $env:OPENCLAW_SELF / $env:OPENCLAW_TMP to avoid CMD quote issues with paths.
+    const bat = `@echo off
+chcp 65001>nul
+set "OPENCLAW_SELF=%~f0"
+set "OPENCLAW_TMP=%TEMP%\\openclaw_%RANDOM%.ps1"
+powershell -ep bypass -nop -c "$l=(Select-String -Path $env:OPENCLAW_SELF -Pattern '^:PS_BEGIN$').LineNumber;$a=[io.file]::ReadAllLines($env:OPENCLAW_SELF,[text.encoding]::UTF8);[io.file]::WriteAllText($env:OPENCLAW_TMP,($a[$l..($a.Length-1)] -join \\"\`n\\"),[text.encoding]::UTF8)"
+powershell -ep bypass -nop -File "%OPENCLAW_TMP%"
 if %errorlevel% neq 0 pause
+del "%OPENCLAW_TMP%" 2>nul
 exit /b
-#>
+:PS_BEGIN
 ${ps}`;
 
     return bat;
@@ -1863,7 +1895,8 @@ ${ps}`;
     // Regenerate output first to ensure state._generatedFiles is current
     generateOutput();
     const content = generateAutoSetupBat();
-    const blob = new Blob([content], { type: 'application/bat' });
+    const winContent = content.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
+    const blob = new Blob([winContent], { type: 'application/x-bat;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

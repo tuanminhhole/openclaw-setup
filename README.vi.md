@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.0.9-0EA5E9?style=for-the-badge" alt="Version 4.0.9" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.1.0-0EA5E9?style=for-the-badge" alt="Version 4.1.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -118,7 +118,7 @@ Dùng NPX là cách cài chuẩn nhất:
 2. Mở repo này làm workspace
 3. Paste vào chat:
    ```text
-   Read SETUP.md and install OpenClaw 4.0.9 for me.
+   Read SETUP.md and install OpenClaw 4.1.0 for me.
    My bot token is X, my 9Router proxy doesn't need a key.
    My project folder: <THƯ_MỤC_CỦA_BẠN>
    ```
@@ -208,7 +208,7 @@ API key chỉ lưu trên máy bạn. SETUP.md có các quy tắc bảo mật ngh
 
 <div align="center">
 
-[![Star History Chart](https://api.star-history.com/svg?repos=tuanminhhole/openclaw-setup&type=Date)](https://star-history.com/#tuanminhhole/openclaw-setup&Date)
+[![Star History Chart](https://starchart.cc/tuanminhhole/openclaw-setup.svg?variant=adaptive)](https://starchart.cc/tuanminhhole/openclaw-setup)
 
 </div>
 
