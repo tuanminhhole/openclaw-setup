@@ -778,7 +778,7 @@
       } else {
         // Direct API provider: show key input
         pHtml += `<div class="form-group" style="margin: 0;">
-          <label class="form-group__label" for="key-api-key">🔑 ${provider.envLabel}</label>
+          <label class="form-group__label" for="key-api-key">🔑 ${provider.envLabel} <span style="color: var(--danger, #ef4444);">*</span></label>
           <input type="text" class="form-input" id="key-api-key" placeholder="${provider.envKey}=..." style="font-family: monospace; font-size: 13px;" oninput="window.__validateKeys()">
           <p class="form-group__hint">${isVi ? 'Lấy từ' : 'Get from'} <a href="${provider.envLink}" target="_blank">${provider.envLink.replace('https://', '')}</a></p>
         </div>`;
@@ -800,13 +800,13 @@
 
       if (state.channel === 'telegram') {
         cHtml += `<div class="form-group" style="margin: 0;">
-          <label class="form-group__label" for="key-bot-token">🤖 Telegram Bot Token</label>
+          <label class="form-group__label" for="key-bot-token">🤖 Telegram Bot Token <span style="color: var(--danger, #ef4444);">*</span></label>
           <input type="text" class="form-input" id="key-bot-token" placeholder="VD: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz" style="font-family: monospace; font-size: 13px;" oninput="window.__validateKeys()">
           <p class="form-group__hint">${isVi ? 'Lấy từ <a href="https://t.me/BotFather" target="_blank">@BotFather</a> trên Telegram' : 'Get from <a href="https://t.me/BotFather" target="_blank">@BotFather</a> on Telegram'}</p>
         </div>`;
       } else if (state.channel === 'zalo-bot') {
         cHtml += `<div class="form-group" style="margin: 0;">
-          <label class="form-group__label" for="key-bot-token">🔑 Zalo Bot Token</label>
+          <label class="form-group__label" for="key-bot-token">🔑 Zalo Bot Token <span style="color: var(--danger, #ef4444);">*</span></label>
           <input type="text" class="form-input" id="key-bot-token" placeholder="Zalo Bot Token" style="font-family: monospace; font-size: 13px;" oninput="window.__validateKeys()">
           <p class="form-group__hint">${isVi ? 'Lấy từ <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a>' : 'Get from <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a>'}</p>
         </div>`;
@@ -1181,6 +1181,11 @@ ${finalCmd}`;
     // extra_hosts always needed for browser (socat → host Chrome)
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
+    // ─── Dynamic Smart Route Sync Script ────────────────────────────────────────
+    // Background loop inside 9Router container every 30s.
+    // Queries /api/providers → filters connected+enabled → updates smart-route combo.
+    const syncScript = `#!/bin/sh\nROUTER=http://localhost:20128\nINTERVAL=30\necho "[sync-combo] Waiting for 9Router..."\nwhile ! wget -qO- $ROUTER/api/version >/dev/null 2>&1; do sleep 2; done\necho "[sync-combo] 9Router ready. Syncing every \${INTERVAL}s..."\nwhile true; do\n  PJ=$(wget -qO- $ROUTER/api/providers 2>/dev/null || echo '{}')\n  CJ=$(node -e "\nconst PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};\ntry{const d=$PJ;const a=(d.connections||[]).filter(c=>c.isActive).map(c=>c.provider);if(!a.length)process.exit(1);const m=a.flatMap(p=>PM[p]||[]);if(!m.length)process.exit(1);console.log(JSON.stringify({id:'smart-route',name:'smart-route',alias:'smart-route',models:m}))}catch(e){process.exit(1)}\n  " 2>/dev/null)\n  if [ -n "$CJ" ]; then\n    node -e "\nconst fs=require('fs'),p='/root/.9router/db.json';let d={};try{d=JSON.parse(fs.readFileSync(p,'utf8'))}catch(e){}const c=$CJ;if(!d.combos)d.combos=[];const i=d.combos.findIndex(x=>x.id==='smart-route');if(i>=0){if(JSON.stringify(d.combos[i].models)!==JSON.stringify(c.models)){d.combos[i]=c;fs.writeFileSync(p,JSON.stringify(d,null,2));console.log('[sync-combo] Updated: '+c.models.length+' models')}}else{d.combos.push(c);fs.writeFileSync(p,JSON.stringify(d,null,2));console.log('[sync-combo] Created: '+c.models.length+' models')}\n    " 2>/dev/null\n  fi\n  sleep $INTERVAL\ndone`;
+
     let compose;
     if (is9Router) {
       compose = `services:
@@ -1203,7 +1208,7 @@ ${extraHostsBlock}
     container_name: 9router
     restart: always
     entrypoint: >
-      /bin/sh -c "npm install -g 9router && [ ! -f /root/.9router/db.json ] && echo '{\\"combos\\":[{\\"id\\":\\"smart-route\\",\\"name\\":\\"smart-route\\",\\"alias\\":\\"smart-route\\",\\"models\\":[\\"cc/claude-opus-4-6\\",\\"cc/claude-sonnet-4-6\\",\\"cc/claude-opus-4-5-20251101\\",\\"cc/claude-sonnet-4-5-20250929\\",\\"cc/claude-haiku-4-5-20251001\\",\\"cx/gpt-5.4\\",\\"cx/gpt-5.3-codex\\",\\"cx/gpt-5.3-codex-xhigh\\",\\"cx/gpt-5.3-codex-high\\",\\"cx/gpt-5.3-codex-low\\",\\"cx/gpt-5.3-codex-none\\",\\"cx/gpt-5.3-codex-spark\\",\\"cx/gpt-5.1-codex-mini\\",\\"cx/gpt-5.1-codex-mini-high\\",\\"cx/gpt-5.2-codex\\",\\"cx/gpt-5.2\\",\\"cx/gpt-5.1-codex-max\\",\\"cx/gpt-5.1-codex\\",\\"cx/gpt-5.1\\",\\"cx/gpt-5-codex\\",\\"cx/gpt-5-codex-mini\\",\\"gc/gemini-3-flash-preview\\",\\"gc/gemini-3-pro-preview\\",\\"gh/gpt-5.4\\",\\"gh/gpt-5.3-codex\\",\\"gh/gpt-5.2-codex\\",\\"gh/gpt-5.2\\",\\"gh/gpt-5.1-codex-max\\",\\"gh/gpt-5.1-codex\\",\\"gh/gpt-5.1-codex-mini\\",\\"gh/gpt-5.1\\",\\"gh/gpt-5\\",\\"gh/gpt-5-mini\\",\\"gh/gpt-5-codex\\",\\"gh/gpt-4.1\\",\\"gh/gpt-4o\\",\\"gh/gpt-4o-mini\\",\\"gh/gpt-4\\",\\"gh/gpt-3.5-turbo\\",\\"gh/claude-opus-4.6\\",\\"gh/claude-sonnet-4.6\\",\\"gh/claude-sonnet-4.5\\",\\"gh/claude-opus-4.5\\",\\"gh/claude-opus-4.1\\",\\"gh/claude-sonnet-4\\",\\"gh/claude-haiku-4.5\\",\\"gh/gemini-3-pro-preview\\",\\"gh/gemini-3-flash-preview\\",\\"gh/gemini-2.5-pro\\",\\"gh/grok-code-fast-1\\",\\"gh/oswe-vscode-prime\\",\\"cu/default\\",\\"cu/claude-4.6-opus-max\\",\\"cu/claude-4.6-sonnet-medium-thinking\\",\\"cu/claude-4.5-opus-high-thinking\\",\\"cu/claude-4.5-opus-high\\",\\"cu/claude-4.5-sonnet-thinking\\",\\"cu/claude-4.5-sonnet\\",\\"cu/claude-4.5-haiku\\",\\"cu/claude-4.5-opus\\",\\"cu/gpt-5.3-codex\\",\\"cu/gpt-5.2-codex\\",\\"cu/gpt-5.2\\",\\"cu/kimi-k2.5\\",\\"cu/gemini-3-flash-preview\\",\\"kc/anthropic/claude-sonnet-4-20250514\\",\\"kc/anthropic/claude-opus-4-20250514\\",\\"kc/google/gemini-2.5-pro\\",\\"kc/google/gemini-2.5-flash\\",\\"kc/openai/gpt-4.1\\",\\"kc/openai/o3\\",\\"kc/deepseek/deepseek-chat\\",\\"kc/deepseek/deepseek-reasoner\\",\\"cl/anthropic/claude-sonnet-4.6\\",\\"cl/anthropic/claude-opus-4.6\\",\\"cl/openai/gpt-5.3-codex\\",\\"cl/openai/gpt-5.4\\",\\"cl/google/gemini-3.1-pro-preview\\",\\"cl/google/gemini-3.1-flash-lite-preview\\",\\"cl/kwaipilot/kat-coder-pro\\",\\"if/qwen3-coder-plus\\",\\"if/kimi-k2\\",\\"if/glm-4.7\\",\\"if/deepseek-r1\\",\\"if/deepseek-v3.2\\",\\"if/deepseek-v3.1\\",\\"if/deepseek-v3\\",\\"if/qwen3-max\\",\\"if/qwen3-235b\\",\\"if/qwen3-32b\\",\\"if/iflow-rome-30ba3b\\",\\"qw/qwen3-coder-plus\\",\\"qw/qwen3-coder-flash\\",\\"qw/vision-model\\",\\"qw/coder-model\\",\\"kr/claude-sonnet-4.5\\",\\"kr/claude-haiku-4.5\\",\\"kr/deepseek-3.2\\",\\"kr/deepseek-3.1\\",\\"kr/qwen3-coder-next\\",\\"kmc/kimi-k2.5\\",\\"kmc/kimi-k2.5-thinking\\",\\"kmc/kimi-latest\\",\\"glm/glm-5.1\\",\\"glm/glm-5\\",\\"glm/glm-4.7\\",\\"minimax/MiniMax-M2.7\\",\\"minimax/MiniMax-M2.5\\",\\"minimax/MiniMax-M2.1\\",\\"kimi/kimi-k2.5\\",\\"kimi/kimi-k2.5-thinking\\",\\"kimi/kimi-latest\\",\\"deepseek/deepseek-chat\\",\\"deepseek/deepseek-reasoner\\",\\"xai/grok-4\\",\\"xai/grok-4-fast-reasoning\\",\\"xai/grok-code-fast-1\\",\\"mistral/mistral-large-latest\\",\\"mistral/codestral-latest\\",\\"groq/llama-3.3-70b-versatile\\",\\"groq/openai/gpt-oss-120b\\",\\"cerebras/gpt-oss-120b\\",\\"alicode/qwen3.5-plus\\",\\"alicode/qwen3-coder-plus\\"]}]}' > /root/.9router/db.json; 9router"
+      /bin/sh -c "npm install -g 9router && (echo '${syncScript}' > /tmp/sync.sh && sh /tmp/sync.sh &) && 9router"
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0
@@ -1767,8 +1772,12 @@ Write-Host "  🦞 OpenClaw Auto Setup" -ForegroundColor Cyan
 Write-Host "  Project: $projectDir" -ForegroundColor White
 Write-Host ""
 
+try {
 # [1/4] Create directories
 Write-Host "[1/4] ${isVi ? 'Tạo thư mục...' : 'Creating directories...'}" -ForegroundColor Yellow
+
+# Ensure root directory exists first
+New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
 `;
 
     // Collect unique directories
@@ -1829,6 +1838,11 @@ Write-Host "  🎉 ${isVi ? 'Setup hoàn tất!' : 'Setup complete!'}" -Foregrou
     }
 
     ps += `Write-Host ""
+} catch {
+    Write-Host ""
+    Write-Host "  ❌ LỖI / ERROR: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+}
 Read-Host "${isVi ? 'Nhấn Enter để thoát' : 'Press Enter to exit'}"
 `;
 
@@ -1836,6 +1850,7 @@ Read-Host "${isVi ? 'Nhấn Enter để thoát' : 'Press Enter to exit'}"
     const bat = `<# : batch wrapper
 @echo off & chcp 65001>nul
 powershell -ExecutionPolicy Bypass -NoProfile -File "%~f0" %*
+if %errorlevel% neq 0 pause
 exit /b
 #>
 ${ps}`;

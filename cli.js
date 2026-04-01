@@ -4,7 +4,57 @@ import { input, select, checkbox, confirm } from '@inquirer/prompts';
 import fs from 'fs-extra';
 import path from 'path';
 import chalk from 'chalk';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
+
+// ─── Docker Auto-Detection ───────────────────────────────────────────────────
+function isDockerInstalled() {
+  try {
+    execSync('docker --version', { stdio: 'ignore' });
+    return true;
+  } catch { return false; }
+}
+
+async function ensureDocker(isVi) {
+  if (isDockerInstalled()) return true;
+
+  console.log(chalk.yellow(`\n⚠️  ${isVi ? 'Docker chưa được cài đặt trên máy!' : 'Docker is not installed on this machine!'}`));
+
+  const shouldInstall = await confirm({
+    message: isVi ? 'Bạn có muốn tự động cài Docker không?' : 'Do you want to install Docker automatically?',
+    default: true
+  });
+
+  if (!shouldInstall) {
+    console.log(chalk.cyan(isVi
+      ? '👉 Tải Docker Desktop tại: https://www.docker.com/products/docker-desktop/'
+      : '👉 Download Docker Desktop at: https://www.docker.com/products/docker-desktop/'));
+    process.exit(0);
+  }
+
+  const platform = process.platform;
+  try {
+    if (platform === 'win32') {
+      console.log(chalk.cyan(isVi ? '🐳 Đang tải Docker Desktop cho Windows (qua winget)...' : '🐳 Downloading Docker Desktop for Windows (via winget)...'));
+      execSync('winget install -e --id Docker.DockerDesktop --accept-source-agreements --accept-package-agreements', { stdio: 'inherit' });
+    } else if (platform === 'darwin') {
+      console.log(chalk.cyan(isVi ? '🐳 Đang tải Docker Desktop cho macOS (qua Homebrew)...' : '🐳 Downloading Docker Desktop for macOS (via Homebrew)...'));
+      execSync('brew install --cask docker', { stdio: 'inherit' });
+    } else {
+      console.log(chalk.cyan(isVi ? '🐳 Đang cài Docker cho Linux...' : '🐳 Installing Docker for Linux...'));
+      execSync('curl -fsSL https://get.docker.com | sh', { stdio: 'inherit' });
+    }
+    console.log(chalk.green(isVi ? '✅ Docker đã cài xong! Vui lòng khởi động Docker Desktop rồi chạy lại lệnh này.' : '✅ Docker installed! Please start Docker Desktop and re-run this command.'));
+    if (platform === 'win32' || platform === 'darwin') {
+      console.log(chalk.yellow(isVi ? '⚠️  Bạn cần mở Docker Desktop và đợi nó khởi động xong trước khi tiếp tục.' : '⚠️  Please open Docker Desktop and wait for it to finish starting.'));
+      process.exit(0);
+    }
+    return true;
+  } catch (e) {
+    console.log(chalk.red(isVi ? '❌ Không thể tự cài Docker. Vui lòng tải thủ công:' : '❌ Could not install Docker automatically. Please download manually:'));
+    console.log(chalk.cyan('   https://www.docker.com/products/docker-desktop/'));
+    process.exit(1);
+  }
+}
 
 const LOGO = `
 ████████╗██╗   ██╗ █████╗ ███╗   ██╗███╗   ███╗██╗███╗   ██╗██╗  ██╗██╗  ██╗ ██████╗ ██╗     ███████╗
@@ -52,6 +102,9 @@ async function main() {
     ]
   });
   const isVi = lang === 'vi';
+
+  // 1b. Docker check
+  await ensureDocker(isVi);
 
   // 2. Channel
   const channelKey = await select({
@@ -168,6 +221,87 @@ CMD sh -c "node -e \\"eval(Buffer.from('${b64Patch}','base64').toString())\\" &&
 
   const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
   
+  // ─── Dynamic Smart Route Sync Script ────────────────────────────────────────
+  // This script runs inside the 9Router container as a background loop.
+  // Every 30s it queries /api/providers, filters for active+enabled providers,
+  // and updates the smart-route combo to ONLY include models from those providers.
+  const syncComboScript = `
+#!/bin/sh
+# sync-combo: dynamically builds smart-route combo from connected providers
+ROUTER=http://localhost:20128
+INTERVAL=30
+
+# Wait for 9router to be ready
+echo "[sync-combo] Waiting for 9Router to start..."
+while ! wget -qO- \$ROUTER/api/version >/dev/null 2>&1; do sleep 2; done
+echo "[sync-combo] 9Router is ready. Starting sync loop (every \${INTERVAL}s)..."
+
+while true; do
+  PROVIDERS_JSON=\$(wget -qO- \$ROUTER/api/providers 2>/dev/null || echo '{}')
+  COMBO_JSON=\$(node -e "
+const PROVIDER_MODELS = {
+  codex:     ['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex','cx/gpt-5-codex-mini'],
+  'claude-code': ['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],
+  github:    ['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-5-mini','gh/gpt-5-codex','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],
+  cursor:    ['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],
+  kilo:      ['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/openai/o3','kc/deepseek/deepseek-chat'],
+  cline:     ['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],
+  'gemini-cli': ['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],
+  iflow:     ['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],
+  qwen:      ['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],
+  kiro:      ['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],
+  ollama:    ['ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],
+  'kimi-coding': ['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],
+  glm:       ['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],
+  'glm-cn':  ['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],
+  minimax:   ['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],
+  kimi:      ['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],
+  deepseek:  ['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],
+  xai:       ['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],
+  mistral:   ['mistral/mistral-large-latest','mistral/codestral-latest'],
+  groq:      ['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],
+  cerebras:  ['cerebras/gpt-oss-120b'],
+  alicode:   ['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],
+  openai:    ['openai/gpt-4o','openai/gpt-4.1','openai/o3-mini'],
+  anthropic: ['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],
+  gemini:    ['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro'],
+};
+try {
+  const data = \$PROVIDERS_JSON;
+  const active = (data.connections||[]).filter(c => c.isActive).map(c => c.provider);
+  if (active.length === 0) { process.exit(1); }
+  const models = active.flatMap(p => PROVIDER_MODELS[p]||[]);
+  if (models.length === 0) { process.exit(1); }
+  console.log(JSON.stringify({id:'smart-route',name:'smart-route',alias:'smart-route',models:models}));
+} catch(e) { process.exit(1); }
+  " 2>/dev/null)
+  if [ -n "\$COMBO_JSON" ]; then
+    # Read existing db.json, update/add the smart-route combo, write back
+    node -e "
+const fs = require('fs');
+const dbPath = '/root/.9router/db.json';
+let db = {};
+try { db = JSON.parse(fs.readFileSync(dbPath,'utf8')); } catch(e) {}
+const newCombo = \$COMBO_JSON;
+if (!db.combos) db.combos = [];
+const idx = db.combos.findIndex(c => c.id === 'smart-route');
+if (idx >= 0) {
+  if (JSON.stringify(db.combos[idx].models) !== JSON.stringify(newCombo.models)) {
+    db.combos[idx] = newCombo;
+    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+    console.log('[sync-combo] Updated smart-route: ' + newCombo.models.length + ' models from ' + new Set(newCombo.models.map(m=>m.split('/')[0])).size + ' providers');
+  }
+} else {
+  db.combos.push(newCombo);
+  fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+  console.log('[sync-combo] Created smart-route: ' + newCombo.models.length + ' models');
+}
+    " 2>/dev/null
+  fi
+  sleep \$INTERVAL
+done
+`.trim().replace(/\n/g, '\\n');
+
   let compose = '';
   if (providerKey === '9router') {
     compose = `name: oc-${agentId}
@@ -190,7 +324,7 @@ ${selectedSkills.includes('browser') ? `    extra_hosts:
     container_name: 9router-${agentId}
     restart: always
     entrypoint: >
-      /bin/sh -c "npm install -g 9router && [ ! -f /root/.9router/db.json ] && echo '{\\"combos\\":[{\\"id\\":\\"smart-route\\",\\"name\\":\\"smart-route\\",\\"alias\\":\\"smart-route\\",\\"models\\":[\\"cc/claude-opus-4-6\\",\\"cc/claude-sonnet-4-6\\",\\"cc/claude-opus-4-5-20251101\\",\\"cc/claude-sonnet-4-5-20250929\\",\\"cc/claude-haiku-4-5-20251001\\",\\"cx/gpt-5.4\\",\\"cx/gpt-5.3-codex\\",\\"cx/gpt-5.3-codex-xhigh\\",\\"cx/gpt-5.3-codex-high\\",\\"cx/gpt-5.3-codex-low\\",\\"cx/gpt-5.3-codex-none\\",\\"cx/gpt-5.3-codex-spark\\",\\"cx/gpt-5.1-codex-mini\\",\\"cx/gpt-5.1-codex-mini-high\\",\\"cx/gpt-5.2-codex\\",\\"cx/gpt-5.2\\",\\"cx/gpt-5.1-codex-max\\",\\"cx/gpt-5.1-codex\\",\\"cx/gpt-5.1\\",\\"cx/gpt-5-codex\\",\\"cx/gpt-5-codex-mini\\",\\"gc/gemini-3-flash-preview\\",\\"gc/gemini-3-pro-preview\\",\\"gh/gpt-5.4\\",\\"gh/gpt-5.3-codex\\",\\"gh/gpt-5.2-codex\\",\\"gh/gpt-5.2\\",\\"gh/gpt-5.1-codex-max\\",\\"gh/gpt-5.1-codex\\",\\"gh/gpt-5.1-codex-mini\\",\\"gh/gpt-5.1\\",\\"gh/gpt-5\\",\\"gh/gpt-5-mini\\",\\"gh/gpt-5-codex\\",\\"gh/gpt-4.1\\",\\"gh/gpt-4o\\",\\"gh/gpt-4o-mini\\",\\"gh/gpt-4\\",\\"gh/gpt-3.5-turbo\\",\\"gh/claude-opus-4.6\\",\\"gh/claude-sonnet-4.6\\",\\"gh/claude-sonnet-4.5\\",\\"gh/claude-opus-4.5\\",\\"gh/claude-opus-4.1\\",\\"gh/claude-sonnet-4\\",\\"gh/claude-haiku-4.5\\",\\"gh/gemini-3-pro-preview\\",\\"gh/gemini-3-flash-preview\\",\\"gh/gemini-2.5-pro\\",\\"gh/grok-code-fast-1\\",\\"gh/oswe-vscode-prime\\",\\"cu/default\\",\\"cu/claude-4.6-opus-max\\",\\"cu/claude-4.6-sonnet-medium-thinking\\",\\"cu/claude-4.5-opus-high-thinking\\",\\"cu/claude-4.5-opus-high\\",\\"cu/claude-4.5-sonnet-thinking\\",\\"cu/claude-4.5-sonnet\\",\\"cu/claude-4.5-haiku\\",\\"cu/claude-4.5-opus\\",\\"cu/gpt-5.3-codex\\",\\"cu/gpt-5.2-codex\\",\\"cu/gpt-5.2\\",\\"cu/kimi-k2.5\\",\\"cu/gemini-3-flash-preview\\",\\"kc/anthropic/claude-sonnet-4-20250514\\",\\"kc/anthropic/claude-opus-4-20250514\\",\\"kc/google/gemini-2.5-pro\\",\\"kc/google/gemini-2.5-flash\\",\\"kc/openai/gpt-4.1\\",\\"kc/openai/o3\\",\\"kc/deepseek/deepseek-chat\\",\\"kc/deepseek/deepseek-reasoner\\",\\"cl/anthropic/claude-sonnet-4.6\\",\\"cl/anthropic/claude-opus-4.6\\",\\"cl/openai/gpt-5.3-codex\\",\\"cl/openai/gpt-5.4\\",\\"cl/google/gemini-3.1-pro-preview\\",\\"cl/google/gemini-3.1-flash-lite-preview\\",\\"cl/kwaipilot/kat-coder-pro\\",\\"if/qwen3-coder-plus\\",\\"if/kimi-k2\\",\\"if/glm-4.7\\",\\"if/deepseek-r1\\",\\"if/deepseek-v3.2\\",\\"if/deepseek-v3.1\\",\\"if/deepseek-v3\\",\\"if/qwen3-max\\",\\"if/qwen3-235b\\",\\"if/qwen3-32b\\",\\"if/iflow-rome-30ba3b\\",\\"qw/qwen3-coder-plus\\",\\"qw/qwen3-coder-flash\\",\\"qw/vision-model\\",\\"qw/coder-model\\",\\"kr/claude-sonnet-4.5\\",\\"kr/claude-haiku-4.5\\",\\"kr/deepseek-3.2\\",\\"kr/deepseek-3.1\\",\\"kr/qwen3-coder-next\\",\\"kmc/kimi-k2.5\\",\\"kmc/kimi-k2.5-thinking\\",\\"kmc/kimi-latest\\",\\"glm/glm-5.1\\",\\"glm/glm-5\\",\\"glm/glm-4.7\\",\\"minimax/MiniMax-M2.7\\",\\"minimax/MiniMax-M2.5\\",\\"minimax/MiniMax-M2.1\\",\\"kimi/kimi-k2.5\\",\\"kimi/kimi-k2.5-thinking\\",\\"kimi/kimi-latest\\",\\"deepseek/deepseek-chat\\",\\"deepseek/deepseek-reasoner\\",\\"xai/grok-4\\",\\"xai/grok-4-fast-reasoning\\",\\"xai/grok-code-fast-1\\",\\"mistral/mistral-large-latest\\",\\"mistral/codestral-latest\\",\\"groq/llama-3.3-70b-versatile\\",\\"groq/openai/gpt-oss-120b\\",\\"cerebras/gpt-oss-120b\\",\\"alicode/qwen3.5-plus\\",\\"alicode/qwen3-coder-plus\\"]}]}' > /root/.9router/db.json; 9router"
+      /bin/sh -c "npm install -g 9router && (echo '${syncComboScript}' > /tmp/sync-combo.sh && chmod +x /tmp/sync-combo.sh && /bin/sh /tmp/sync-combo.sh &) && 9router"
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0

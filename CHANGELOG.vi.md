@@ -2,6 +2,17 @@
 
 Tất cả những thay đổi nổi bật của dự án sẽ được ghi chép trong file này.
 
+## [4.0.9] — 2026-04-01
+
+### 🔄 Dynamic Smart Route (Đồng bộ Provider Realtime)
+- **Routing Thông Minh**: Combo `smart-route` không còn là danh sách cứng 100+ model. Script đồng bộ chạy ngầm mỗi 30 giây sẽ tự động quét `/api/providers` của 9Router và chỉ đưa vào combo **những provider đã kết nối VÀ đang bật**. Triệt tiêu hoàn toàn lỗi `404 No active credentials`.
+- **Bật/Tắt Tức Thì**: Bật hoặc tắt provider trên Dashboard 9Router — combo tự cập nhật trong vòng 30 giây, không cần restart container.
+- **Mapping Đầy Đủ**: Hỗ trợ 25+ provider (Codex, Claude Code, GitHub Copilot, Cursor, Kilo, Cline, Gemini CLI, iFlow, Qwen, Kiro, Ollama, GLM, MiniMax, DeepSeek, xAI, Mistral, Groq...).
+
+### 🐳 Tự Động Cài Docker
+- **Zero-Prerequisite**: `npx create-openclaw-bot` tự phát hiện Docker chưa cài → tự tải + cài qua `winget` (Windows), `brew` (macOS), hoặc script chính thức Docker (Linux).
+- **Hướng Dẫn Rõ Ràng**: Nếu cài tự động thất bại, hiển thị link tải trực tiếp kèm hướng dẫn chi tiết.
+
 ## [4.0.8] — 2026-03-31
 
 ### ✨ Tối ưu 9Router & Mở rộng Ollama Cloud

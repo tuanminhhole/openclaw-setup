@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.9] — 2026-04-01
+
+### 🔄 Dynamic Smart Route (Real-time Provider Sync)
+- **Zero-Waste Routing**: The `smart-route` combo is no longer a static list of 100+ models. A background sync loop now queries 9Router's `/api/providers` every 30 seconds and dynamically builds the combo from **only connected + enabled providers**. This eliminates `404 No active credentials` errors entirely.
+- **Instant Provider Toggle**: Toggle providers on/off in the 9Router Dashboard — the combo updates automatically within 30s. No restart required.
+- **Smart Mapping**: Full provider-to-model mapping covering 25+ providers (Codex, Claude Code, GitHub Copilot, Cursor, Kilo, Cline, Gemini CLI, iFlow, Qwen, Kiro, Ollama, GLM, MiniMax, DeepSeek, xAI, Mistral, Groq, etc.).
+
+### 🐳 Docker Auto-Install
+- **Zero-Prerequisite Setup**: `npx create-openclaw-bot` now detects if Docker is installed. If missing, it offers to install automatically via `winget` (Windows), `brew` (macOS), or the official Docker install script (Linux).
+- **Guided Recovery**: Clear instructions and download links if automatic installation fails.
+
 ## [4.0.8] — 2026-03-31
 
 ### ✨ 9Router Stability & Ollama Cloud

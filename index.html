@@ -119,7 +119,7 @@
       <!-- ─── 3. Bot Identity (Name, Role, Emoji, Vibe) ─── -->
       <div class="identity-grid">
         <div class="form-group">
-          <label class="form-group__label" for="cfg-name" data-vi="Tên Bot" data-en="Bot Name">Tên Bot</label>
+          <label class="form-group__label" for="cfg-name" data-vi="Tên Bot" data-en="Bot Name">Tên Bot <span style="color: var(--danger, #ef4444);">*</span></label>
           <input type="text" class="form-input" id="cfg-name" placeholder="VD: Williams, Jarvis, Luna..." oninput="window.__validateKeys()">
         </div>
         <div class="form-group">
@@ -145,7 +145,7 @@
 
       <!-- ─── 4b. User Info (→ USER.md) ─── -->
       <div class="form-group">
-        <label class="form-group__label" for="cfg-user-info" data-vi="👤 Thông tin về bạn (để bot hiểu bạn hơn)" data-en="👤 About You (so the bot replies better)">👤 Thông tin về bạn (để bot hiểu bạn hơn)</label>
+        <label class="form-group__label" for="cfg-user-info" data-vi="👤 Thông tin về bạn (để bot hiểu bạn hơn)" data-en="👤 About You (so the bot replies better)">👤 Thông tin về bạn (để bot hiểu bạn hơn) <span style="color: var(--danger, #ef4444);">*</span></label>
         <textarea class="form-textarea" id="cfg-user-info" placeholder="VD: Mình là dev, thích code Python, múi giờ UTC+7. Thích câu trả lời đi thẳng vào vấn đề, không rào trước đón sau..." style="min-height: 100px;"></textarea>
         <div class="prompt-notice">
           <span class="prompt-notice__icon">👤</span>
@@ -201,7 +201,8 @@
     <!-- ===== Step 3: API Keys & Thư Mục ===== -->
     <section class="step" data-step="3">
       <h2 class="step__title" data-vi="Nhập API Keys & Thư mục" data-en="Enter API Keys & Folder">Nhập API Keys & Thư mục</h2>
-      <p class="step__description" data-vi="Nhập key trực tiếp + chọn nơi lưu project — wizard lo phần còn lại." data-en="Enter keys + choose project folder — the wizard handles the rest.">Nhập key trực tiếp + chọn nơi lưu project — wizard lo phần còn lại.</p>
+      <p class="step__description" style="margin-bottom: 4px;" data-vi="Nhập key trực tiếp + chọn nơi lưu project — wizard lo phần còn lại." data-en="Enter keys + choose project folder — the wizard handles the rest.">Nhập key trực tiếp + chọn nơi lưu project — wizard lo phần còn lại.</p>
+      <p style="font-size: 13px; color: var(--danger, #ef4444); margin-top: 0; margin-bottom: 20px;" data-vi="Các trường có dấu <span style='color:var(--danger,#ef4444)'>*</span> là bắt buộc điền." data-en="Fields marked with <span style='color:var(--danger,#ef4444)'>*</span> are required.">Các trường có dấu <span style="color:var(--danger,#ef4444)">*</span> là bắt buộc điền.</p>
 
       <!-- Section 1: AI Provider (9Router / Direct API / Ollama) -->
       <div id="key-section-provider" style="margin-bottom: 20px;"></div>
@@ -214,7 +215,7 @@
 
       <!-- Project Path Input -->
       <div class="form-group" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.06);">
-        <label class="form-group__label" data-vi="Thư mục lưu trữ Bot (Trên máy chứa Docker)" data-en="Bot Directory (On Docker host)">Thư mục lưu trữ Bot (Trên máy chứa Docker)</label>
+        <label class="form-group__label" data-vi="Thư mục lưu trữ Bot (Trên máy chứa Docker) <span style='color:var(--danger,#ef4444)'>*</span>" data-en="Bot Directory (On Docker host) <span style='color:var(--danger,#ef4444)'>*</span>">Thư mục lưu trữ Bot (Trên máy chứa Docker) <span style='color:var(--danger,#ef4444)'>*</span></label>
         <input type="text" class="form-input" id="cfg-project-path" value="D:\openclaw-setup" placeholder="VD: D:\openclaw-setup hoặc /home/user/openclaw-setup" style="font-family: monospace;">
         <p class="form-group__hint" data-vi="Script sẽ tự động tạo thư mục này và sinh các file config bên trong." data-en="The script will auto-create this folder and generate config files inside.">Script sẽ tự động tạo thư mục này và sinh các file config bên trong.</p>
       </div>
@@ -245,6 +246,10 @@
           <button class="btn btn--primary" onclick="downloadAutoSetupBat()" style="font-size: 15px; padding: 14px 40px; border-radius: 8px;">
             <span data-vi="📥 Download setup-openclaw.bat" data-en="📥 Download setup-openclaw.bat">📥 Download setup-openclaw.bat</span>
           </button>
+        </div>
+        <div style="font-size: 12.5px; color: var(--warning, #ffc107); margin: 10px 0 8px; text-align: center; padding: 6px; background: rgba(255, 193, 7, 0.08); border-radius: 6px; border: 1px solid rgba(255, 193, 7, 0.2);">
+          ⚠️ <strong data-vi="Lưu ý quan trọng:" data-en="Important notice:">Lưu ý quan trọng:</strong> 
+          <span data-vi="Click chuột phải vào file .bat → Properties (Thuộc tính) → tick Unblock (Mở khóa) trước khi chạy!" data-en="Right-click the .bat file → Properties → check Unblock before running!">Click chuột phải vào file .bat → Properties (Thuộc tính) → tick Unblock (Mở khóa) trước khi chạy!</span>
         </div>
         <p style="font-size: 12px; color: var(--text-muted); margin: 0; text-align: center;" data-vi="Yêu cầu: Docker Desktop đã cài và đang chạy" data-en="Requires: Docker Desktop installed and running">Yêu cầu: Docker Desktop đã cài và đang chạy</p>
       </div>
