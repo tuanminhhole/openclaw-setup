@@ -2,7 +2,7 @@
 
 Tất cả những thay đổi nổi bật của dự án sẽ được ghi chép trong file này.
 
-## [4.1.1] — 2026-04-01
+## [4.1.2] — 2026-04-01
 
 ### Khắc phục
 

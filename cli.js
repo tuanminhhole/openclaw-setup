@@ -208,7 +208,7 @@ async function main() {
   }
   await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', '.env'), envContent);
   
-  const patchScript = `const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full'});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+  const patchScript = `const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
   const b64Patch = Buffer.from(patchScript).toString('base64');
   const dockerfile = `FROM node:22-slim
 
