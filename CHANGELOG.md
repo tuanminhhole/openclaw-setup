@@ -1,5 +1,17 @@
 # Changelog (English)
 
+## [4.1.3] — 2026-04-02
+
+### ✨ Improvements
+
+- CLI/Wizard parity: synchronized all skills (Browser Automation, Memory, RAG, Code Interpreter, etc.)
+- Browser Automation: added Desktop (Host Chrome) vs Server (Headless Chromium) mode selection
+- Fixed Dockerfile WORKDIR issue on Linux builds
+- Dynamic TOOLS.md: auto-generated based on selected skills
+- Added browser-tool.js for Desktop mode, BROWSER.md for both modes
+- Skills registration in `openclaw.json → skills.entries` at setup time
+- Email SMTP config prompts and env var injection
+
 All notable changes to this project will be documented in this file.
 
 ## [4.1.2] — 2026-04-01

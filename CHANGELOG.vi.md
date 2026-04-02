@@ -1,5 +1,17 @@
 # Changelog (Tiếng Việt)
 
+## [4.1.3] — 2026-04-02
+
+### ✨ Cải tiến
+
+- CLI/Wizard đồng bộ đầy đủ skills (Browser Automation, Memory, RAG, Code Interpreter, v.v.)
+- Browser Automation: chọn chế độ Desktop (Host Chrome) hoặc Server (Headless Chromium)
+- Sửa lỗi Dockerfile WORKDIR trên Linux
+- TOOLS.md động: tự sinh theo skills đã chọn
+- Tự tạo browser-tool.js (Desktop mode) và BROWSER.md
+- Tự đăng ký skills vào `openclaw.json → skills.entries`
+- Bổ sung prompt cấu hình Email SMTP
+
 Tất cả những thay đổi nổi bật của dự án sẽ được ghi chép trong file này.
 
 ## [4.1.2] — 2026-04-01

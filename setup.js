@@ -1140,7 +1140,15 @@ model:
     // Browser Automation: extra Docker deps
     const browserAptExtra = hasBrowser ? ' socat' : '';
     const browserInstallLines = hasBrowser
-      ? `\n# Browser Automation: Playwright engine (needed for native CDP)\nRUN npm install -g agent-browser playwright && \\\n    npx playwright install chromium --with-deps && \\\n    ln -f -s /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /usr/bin/google-chrome\n\n`
+      ? [
+          '',
+          '# Browser Automation: Playwright engine (needed for native CDP)',
+          'RUN npm install -g agent-browser playwright \\',
+          '    && npx playwright install chromium --with-deps \\',
+          '    && ln -f -s /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /usr/bin/google-chrome',
+          '',
+          ''
+        ].join('\n')
       : '';
 
     // Plugins install at runtime (avoids ClawHub rate limit during build)
@@ -1152,17 +1160,18 @@ model:
       ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & '
       : '';
     // Patch config on every startup to survive openclaw onboard overwrites
-    const patchCmd = `node -e \\"const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
+    const patchCmd = `node -e \\"const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
     // Auto-approve device pairing after gateway starts (required since v2026.3.x)
-    const autoApproveCmd = '(sleep 5 && openclaw devices approve --latest 2>/dev/null || true) & ';
+    const autoApproveCmd = '(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) & ';
     const finalCmd = `CMD sh -c "${pluginInstallCmd}${patchCmd}${browserPrefix}${autoApproveCmd}${gatewayCmd}"`;
 
     const dockerfile = `FROM node:22-slim
 
 RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g openclaw@latest
-${skillLines}${browserInstallLines}
+
+ARG CACHEBUST=${Date.now()}
+RUN npm install -g openclaw@latest${skillLines}${browserInstallLines}
 WORKDIR /root/.openclaw
 
 EXPOSE 18791
@@ -1217,7 +1226,8 @@ setInterval(sync, INTERVAL);`;
 
     let compose;
     if (is9Router) {
-      compose = `services:
+      compose = `name: oc-bot
+services:
   ai-bot:
     build: .
     container_name: openclaw-bot
@@ -1230,7 +1240,7 @@ ${extraHostsBlock}
     volumes:
       - ../../.openclaw:/root/.openclaw
     ports:
-      - "38789:38789"
+      - "18791:18791"
 
   9router:
     image: node:22-slim
@@ -1258,7 +1268,8 @@ ${extraHostsBlock}
 volumes:
   9router-data:`;
     } else {
-      compose = `services:
+      compose = `name: oc-bot
+services:
   ai-bot:
     build: .
     container_name: openclaw-bot
@@ -1269,7 +1280,7 @@ ${extraHostsBlock}
     volumes:
       - ../../.openclaw:/root/.openclaw
     ports:
-      - "38789:38789"`;
+      - "18791:18791"`;
     }
 
     setOutput('out-compose', compose);

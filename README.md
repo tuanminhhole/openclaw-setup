@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.1.2-0EA5E9?style=for-the-badge" alt="Version 4.1.2" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.1.3-0EA5E9?style=for-the-badge" alt="Version 4.1.3" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -119,7 +119,7 @@ The fastest way to install OpenClaw is using the interactive NPM package.
 2. Open this repo as workspace
 3. Paste into chat:
    ```text
-   Read SETUP.md and set up OpenClaw v4.1.2 for me.
+   Read SETUP.md and set up OpenClaw v4.1.3 for me.
    My bot token is X, my 9Router proxy doesn't need a key.
    My project folder: <YOUR_PATH>
    ```

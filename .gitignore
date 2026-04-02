@@ -52,3 +52,9 @@ node_modules/
 # ===== OS =====
 .DS_Store
 Thumbs.db
+
+# ===== Developer-only scripts (local use, not for repo) =====
+bump-version.mjs
+test-cli-output.mjs
+patch_cli.py
+*.test.mjs
