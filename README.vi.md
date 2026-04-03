@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.1.4-0EA5E9?style=for-the-badge" alt="Version 4.1.4" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.0.0-0EA5E9?style=for-the-badge" alt="Version 5.0.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,14 +24,23 @@ Một công cụ trực quan <strong>Setup Wizard (UI)</strong> & <strong>CLI</s
 
 ---
 
-## 🆕 Có gì mới ở bản OpenClaw Setup v4
+## 🆕 Có gì mới ở v5.0.0 — Gemma 4 ra mắt, OpenClaw Setup nâng cấp ngay lập tức!
 
-> **Bản cập nhật lớn nhất về Tự động hóa, Ổn định và Định tuyến AI!**
+> **Google vừa ra mắt Gemma 4 ngày 02/04/2026. OpenClaw Setup nâng cấp hỗ trợ ngay lập tức.**
 
-- 🚀 **Cài đặt Tự động với `npx`**: Tạm biệt việc tải file `.zip` thủ công hay cấu hình `.env` phức tạp. Giờ đây bạn chỉ cần chạy lệnh CLI `npx create-openclaw-bot` hoặc dùng Web Wizard để hệ thống tự động sinh ra toàn bộ file cần thiết!
-- 🔀 **Đơn giản hóa 9Router Smart Routing**: Hệ thống định tuyến AI giờ đây mặc định trỏ về `smart-route`. Nền tảng tự động luân chuyển và dự phòng (fallback) qua các model flagship (Anthropic, OpenAI Codex, Gemini, Qwen) mà không cần cấu hình thêm API key rườm rà.
-- 🌐 **Browser Automation Đa nền tảng**: Tích hợp sẵn tính năng Web Search và Tự động hóa trình duyệt ngay lúc cài đặt. Không chỉ hỗ trợ Windows (file `.bat`), mà còn bổ sung file `.sh` giúp Mac/Linux chạy mượt mà.
-- 🧹 **Tối ưu triệt để Workspace**: Xoá hoàn toàn các file "rác" như `.env.example` hay docker template dư thừa. Setup Wizard chỉ giữ lại những gì thực sự hoạt động, tối ưu bảo mật và triệt tiêu mọi lỗi khi chạy.
+- 🧠 **Gemma 4 (Google, Open-weights)** — Model mới nhất của Google DeepMind. Miễn phí, mạnh mẽ, giấy phép Apache 2.0. Có sẵn 3 kích thước: `gemma4:4b` (6 GB), `gemma4` (10 GB), `gemma4:27b` (18 GB).
+- 🐳 **Ollama Sidecar tự động** — Không cần cài Ollama thủ công. Khi chọn Local Ollama, setup tự sinh `docker-compose.yml` có **Ollama container** tự tải model về khi chạy lần đầu.
+- 🆓 **Hoàn toàn miễn phí, không API key** — Gemma 4 chạy 100% local trong Docker. Phù hợp cho setup bảo mật tuyệt đối.
+
+<details>
+<summary><b>Trước đó: Có gì mới ở OpenClaw v4</b></summary>
+
+- 🚀 **Cài đặt Tự động với `npx`**: CLI `npx create-openclaw-bot` và Web Wizard tự sinh toàn bộ file cần thiết.
+- 🔀 **9Router Smart Routing**: Tự động luân chuyển qua Anthropic, Codex, Gemini, Qwen. Không cần API key.
+- 🌐 **Browser Automation Đa nền tảng**: Hỗ trợ cả `.bat` (Windows) và `.sh` (Mac/Linux).
+- 🧹 **Workspace gọn gàng**: Tự sinh đúng file cần thiết, không thừa template rác.
+
+</details>
 
 ## ✨ Tính năng
 
@@ -63,7 +72,7 @@ Bạn cần **3 thứ** (miễn phí hết):
 - **Anthropic Claude** (Sonnet 4, Opus 4, Haiku 3.5) — 💰 Trả phí — [Lấy Key](https://console.anthropic.com/settings/keys)
 - **OpenAI / Codex** (GPT-4o, o3, Codex Mini) — 💰 Trả phí — [Lấy Key](https://platform.openai.com/api-keys)
 - **OpenRouter** (Nhiều model free & paid) — 🆓/💰 — [Lấy Key](https://openrouter.ai/keys)
-- **Ollama** (Qwen 3, DeepSeek, Llama...) — 🏠 Local (Free) — [Cài đặt](https://ollama.com)
+- **Ollama / Gemma 4** (model local, không cần API key) — 🏠 Local — **Tự chạy trong Docker, không cần cài Ollama thủ công**
 - **9Router** (Tự động Proxy) — 🔀 Proxy — [Hướng dẫn](https://github.com/decolua/9router)
 
 > 🔀 **9Router** chạy cùng OpenClaw trong Docker. Sau khi `docker compose up`, mở `localhost:20128/dashboard` để đăng nhập OAuth. Không cần API key!
@@ -118,7 +127,7 @@ Dùng NPX là cách cài chuẩn nhất:
 2. Mở repo này làm workspace
 3. Paste vào chat:
    ```text
-   Read SETUP.md and install OpenClaw 4.1.4 for me.
+   Read SETUP.md and install OpenClaw 5.0.0 for me.
    My bot token is X, my 9Router proxy doesn't need a key.
    My project folder: <THƯ_MỤC_CỦA_BẠN>
    ```

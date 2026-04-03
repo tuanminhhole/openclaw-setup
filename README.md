@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v4.1.4-0EA5E9?style=for-the-badge" alt="Version 4.1.4" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.0.0-0EA5E9?style=for-the-badge" alt="Version 5.0.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,14 +24,23 @@ An interactive <strong>CLI tool</strong> and <strong>Setup Wizard</strong> to de
 
 ---
 
-## 🆕 What's new in OpenClaw v4
+## 🆕 What's new in v5.0.0 — Gemma 4 Support
 
-> **A massive leap in automation, stability, and provider connectivity!**
+> **Google just dropped Gemma 4 on April 2, 2026. OpenClaw ships support immediately.**
 
-- 🚀 **Zero-Config `npx` Deployment**: Say goodbye to manually extracting `.zip` files and confusing `.env` configurations. We've introduced a fully interactive CLI `npx create-openclaw-bot` and Web Wizard that builds the entire Docker workspace dynamically!
-- 🔀 **Simplified 9Router Smart Routing**: We've optimized the AI routing to default to a single `smart-route` option. OpenClaw now flawlessly load-balances across top-tier models from Anthropic, OpenAI Codex, Gemini, and Qwen, managing fallback automatically without needing you to input individual API keys.
-- 🌐 **Instant Browser Automation**: Deploying Web Search and automated Browser skills is now fully handled during setup. We added built-in support for both Windows (`.bat` files) and macOS/Linux (`.sh` files) to instantly attach your local Chrome instances.
-- 🧹 **Zero-Clutter Repository**: Eliminated dummy `.env.example` templates and static docker-compose files. The setup now generates precisely what you need, minimizing security risks and permission errors on native OS setups.
+- 🧠 **Gemma 4 (Google, Open-weights)** — The newest open model from Google DeepMind. Free, powerful, Apache 2.0. Available in 3 sizes: `gemma4:4b` (6 GB), `gemma4` (10 GB), `gemma4:27b` (18 GB).
+- 🐳 **Auto Ollama Sidecar** — No need to install Ollama separately. When you pick Local Ollama, the setup generates a full `docker-compose.yml` with an **Ollama container** that auto-downloads your chosen model on first launch.
+- 🆓 **Zero cost, zero API key** — Gemma 4 runs 100% locally in Docker. Perfect for privacy-first setups.
+
+<details>
+<summary><b>Previous: What's new in OpenClaw v4</b></summary>
+
+- 🚀 **Zero-Config `npx` Deployment**: Interactive CLI `npx create-openclaw-bot` and Web Wizard builds the entire Docker workspace dynamically.
+- 🔀 **Simplified 9Router Smart Routing**: Auto load-balances across Anthropic, Codex, Gemini, Qwen. No API keys needed.
+- 🌐 **Instant Browser Automation**: Built-in `.bat` and `.sh` scripts for Chrome Debug Mode on Windows/macOS/Linux.
+- 🧹 **Zero-Clutter Repository**: Generates exactly what you need, nothing more.
+
+</details>
 
 ---
 
@@ -65,7 +74,7 @@ You need **3 things** (all free):
 - **Anthropic Claude** (Sonnet 4, Opus 4, Haiku 3.5) — 💰 Paid — [Get Key](https://console.anthropic.com/settings/keys)
 - **OpenAI / Codex** (GPT-4o, o3, Codex Mini) — 💰 Paid — [Get Key](https://platform.openai.com/api-keys)
 - **OpenRouter** (Many free & paid models) — 🆓/💰 — [Get Key](https://openrouter.ai/keys)
-- **Ollama** (Qwen 3, DeepSeek, Llama...) — 🏠 Local — [Install](https://ollama.com)
+- **Ollama / Gemma 4** (local models, no API key) — 🏠 Local — **Auto-runs in Docker, no manual install**
 - **9Router** (Auto-routes to best provider) — 🔀 Proxy — [Docs](https://github.com/decolua/9router)
 
 > 🔀 **9Router** runs alongside OpenClaw in Docker. After `docker compose up`, open `localhost:20128/dashboard` to login via OAuth. No API keys needed!
@@ -119,7 +128,7 @@ The fastest way to install OpenClaw is using the interactive NPM package.
 2. Open this repo as workspace
 3. Paste into chat:
    ```text
-   Read SETUP.md and set up OpenClaw v4.1.4 for me.
+   Read SETUP.md and set up OpenClaw v5.0.0 for me.
    My bot token is X, my 9Router proxy doesn't need a key.
    My project folder: <YOUR_PATH>
    ```

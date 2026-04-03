@@ -82,12 +82,12 @@ const PROVIDERS = {
 };
 
 const SKILLS = [
-  { value: 'web-search', name: '🔍 Web Search (Tavily)', checked: false, slug: 'web-search' },
-  { value: 'browser', name: '🌐 Browser Automation (Playwright)', checked: false, slug: null },
-  { value: 'memory', name: '🧠 Long-term Memory', checked: false, slug: 'memory' },
+  // Web Search removed — OpenClaw has native search built-in
+  { value: 'browser', name: '🌐 Browser Automation (Playwright) (⭐Khuyên dùng)', checked: false, slug: null },
+  { value: 'memory', name: '🧠 Long-term Memory (⭐Khuyên dùng)', checked: false, slug: 'memory' },
+  { value: 'scheduler', name: '⏰ Native Cron Scheduler (⭐Khuyên dùng)', checked: false, slug: null },
   { value: 'rag', name: '📚 RAG / Knowledge Base', checked: false, slug: 'rag' },
   { value: 'image-gen', name: '🎨 Image Generation (DALL·E / Flux)', checked: false, slug: 'image-gen' },
-  { value: 'scheduler', name: '⏰ Native Cron Scheduler', checked: false, slug: null },
   { value: 'code-interpreter', name: '💻 Code Interpreter (Python/JS)', checked: false, slug: 'code-interpreter' },
   { value: 'email', name: '📧 Email Assistant', checked: false, slug: 'email-assistant' },
   { value: 'tts', name: '🔊 Text-To-Speech (OpenAI/ElevenLabs)', checked: false, slug: 'tts' },
@@ -148,6 +148,44 @@ async function main() {
     });
   }
 
+  // 3b. Ollama model — help user pick the right size for their hardware
+  let selectedOllamaModel = 'gemma4:e2b';
+  if (providerKey === 'ollama') {
+    console.log(chalk.yellow(isVi
+      ? '\n💡 Gemma 4 (02/04/2026) — chọn kích thước phù hợp với RAM máy bạn:'
+      : '\n💡 Gemma 4 (April 2, 2026) — pick a size that fits your RAM:'));
+    selectedOllamaModel = await select({
+      message: isVi ? 'Chọn model Ollama:' : 'Select Ollama model:',
+      choices: [
+        {
+          name: isVi
+            ? '🟢 gemma4:e2b  — Nhẹ nhất (~4-6 GB RAM) — Laptop / test nhanh ★ Khuyên dùng'
+            : '🟢 gemma4:e2b  — Lightest (~4-6 GB RAM) — Laptop / fastest test ★ Recommended',
+          value: 'gemma4:e2b'
+        },
+        {
+          name: isVi
+            ? '🟡 gemma4:e4b  — Cân bằng (~8-10 GB RAM) — Dùng hằng ngày'
+            : '🟡 gemma4:e4b  — Balanced (~8-10 GB RAM) — Daily use',
+          value: 'gemma4:e4b'
+        },
+        {
+          name: isVi
+            ? '🟠 gemma4:26b  — Mạnh (~18-24 GB RAM/VRAM) — Máy mạnh'
+            : '🟠 gemma4:26b  — Powerful (~18-24 GB RAM/VRAM) — High-end machine',
+          value: 'gemma4:26b'
+        },
+        {
+          name: isVi
+            ? '🔴 gemma4:31b  — Mạnh nhất (~24+ GB RAM/VRAM) — GPU workstation'
+            : '🔴 gemma4:31b  — Most powerful (~24+ GB RAM/VRAM) — GPU workstation',
+          value: 'gemma4:31b'
+        },
+      ],
+      default: 'gemma4:e2b'
+    });
+  }
+
   // 4. Skills
   const selectedSkills = await checkbox({
     message: isVi ? 'Bật tính năng bổ sung (Space để chọn):' : 'Enable extra skills (Space to select):',
@@ -155,9 +193,7 @@ async function main() {
   });
 
   let tavilyKey = '';
-  if (selectedSkills.includes('web-search')) {
-    tavilyKey = await input({ message: isVi ? 'Nhập TAVILY_API_KEY:' : 'Enter TAVILY_API_KEY:' });
-  }
+  // (web-search removed — native search built-in)
 
   // Browser mode: Desktop (host Chrome via CDP) vs Server (headless Chromium inside Docker)
   let browserMode = 'server';
@@ -230,7 +266,8 @@ async function main() {
   // ================= GENERATE FILES =================
   let envContent = '';
   if (provider.isLocal) {
-    envContent += 'OLLAMA_HOST=http://host.docker.internal:11434\n';
+    envContent += 'OLLAMA_HOST=http://ollama:11434\n';
+    envContent += 'OLLAMA_API_KEY=ollama-local\n'; // Required by OpenClaw to register Ollama provider (any value works)
   } else if (!provider.isProxy) {
     envContent += `${provider.envKey}=${providerKeyVal}\n`;
   }
@@ -242,7 +279,7 @@ async function main() {
   }
   
   if (selectedSkills.includes('web-search') && tavilyKey) {
-    envContent += `\n# --- Web Search ---\nTAVILY_API_KEY=${tavilyKey}\n`;
+    // web-search removed — no-op
   }
   if (selectedSkills.includes('tts')) {
     envContent += `\n# --- Text-To-Speech ---\n`;
@@ -291,6 +328,11 @@ async function main() {
     `ARG CACHEBUST=${Date.now()}`,
     'RUN npm install -g openclaw@latest',
     '',
+    '# Fix chat.send dropping resolved agent timeout into reply pipeline.',
+    '# Without this, Telegram/WebChat paths fall back to an internal 300s default even when',
+    '# agents.defaults.timeoutSeconds is higher in config.',
+    `RUN node -e "const fs=require('fs');const p='/usr/local/lib/node_modules/openclaw/dist/gateway-cli-CWpalJNJ.js';let s=fs.readFileSync(p,'utf8');const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';if(!s.includes(to)){if(!s.includes(from)) throw new Error('chat.send patch anchor not found');s=s.replace(from,to);fs.writeFileSync(p,s);}"`,
+    '',
     'WORKDIR /root/.openclaw',
     '',
     'EXPOSE 18791',
@@ -308,7 +350,7 @@ async function main() {
   // Every 30s it queries /api/providers, filters for active+enabled providers,
   // and updates the smart-route combo to ONLY include models from those providers.
   const syncComboScript = `const fs=require('fs');const ROUTER='http://localhost:20128';const INTERVAL=30000;const p='/root/.9router/db.json';
-const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4','ollama/gemma4:27b','ollama/gemma4:4b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
+const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
 console.log('[sync-combo] 9Router sync loop started...');
 const sync = async () => {
   try {
@@ -344,6 +386,19 @@ const sync = async () => {
 };
 sync();
 setInterval(sync, INTERVAL);`;
+
+  // ─── Resolve primary model ───────────────────────────────────────────────────
+  let modelsPrimary;
+  if (providerKey === '9router') {
+    modelsPrimary = '9router/smart-route';
+  } else if (providerKey === 'ollama') {
+    // Use the model selected by the user in step 3b
+    modelsPrimary = `ollama/${selectedOllamaModel}`;
+  } else if (providerKey === 'google') {
+    modelsPrimary = 'google/gemini-2.5-flash';
+  } else {
+    modelsPrimary = 'openai/gpt-4o';
+  }
 
   let compose = '';
   if (providerKey === '9router') {
@@ -389,6 +444,65 @@ ${hasBrowserDesktop ? `    extra_hosts:
 
 volumes:
   9router-data:`;
+  } else if (providerKey === 'ollama') {
+    // Auto-run Ollama as a sidecar service — user doesn't need to install Ollama manually
+    const ollamaModel = modelsPrimary.replace('ollama/', '');
+    compose = `name: oc-${agentId}
+services:
+  ai-bot:
+    build: .
+    container_name: openclaw-${agentId}
+    restart: always
+    env_file: .env
+    depends_on:
+      ollama:
+        condition: service_healthy
+${hasBrowserDesktop ? `    extra_hosts:
+      - "host.docker.internal:host-gateway"
+` : ''}    ports:
+      - "18791:18791"
+    volumes:
+      - ../../.openclaw:/root/.openclaw
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-${agentId}
+    restart: always
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h      # Keep model loaded — prevents cold-start timeout on each request
+      - OLLAMA_NUM_PARALLEL=1      # Single conversation at a time, reduces memory pressure
+    # Port NOT exposed to host. Bot connects via Docker network (http://ollama:11434).
+    # Safe even if user already has Ollama installed on this machine.
+    # Uncomment to expose Ollama externally:
+    # ports:
+    #   - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    # NVIDIA GPU (optional). Needs nvidia-container-toolkit on host:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        ollama serve &
+        until ollama list > /dev/null 2>&1; do sleep 1; done
+        ollama pull ${ollamaModel}
+        wait
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  ollama-data:`;
   } else {
     compose = `name: oc-${agentId}
 services:
@@ -408,10 +522,24 @@ ${hasBrowserDesktop ? `    extra_hosts:
   await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'), compose);
 
   let authProfilesJson = {};
-  if (providerKey && !provider.isLocal) {
-    const authProviderName = providerKey === '9router' ? '9router' : 'openai';
-    const authProfileId = providerKey === '9router' ? '9router-proxy' : `${authProviderName}:default`;
-    const authKeyValue = providerKey === '9router' ? 'sk-no-key' : providerKeyVal;
+  if (provider.isLocal) {
+    // Ollama: must register provider with any non-empty API key
+    authProfilesJson = {
+      version: 1,
+      profiles: {
+        'ollama:default': {
+          provider: 'ollama',
+          type: 'api_key',
+          key: 'ollama-local',
+          url: 'http://ollama:11434',
+        },
+      },
+      order: { ollama: ['ollama:default'] },
+    };
+  } else if (providerKey && providerKey !== '9router') {
+    const authProviderName = 'openai';
+    const authProfileId = `${authProviderName}:default`;
+    const authKeyValue = providerKeyVal;
 
     authProfilesJson = {
       version: 1,
@@ -422,17 +550,27 @@ ${hasBrowserDesktop ? `    extra_hosts:
           key: authKeyValue,
         },
       },
-      order: {
-        [authProviderName]: [authProfileId],
-      },
+      order: { [authProviderName]: [authProfileId] },
     };
 
-    if (providerKey !== '9router' && providerKey !== 'openai' && provider.baseURL) {
+    if (providerKey !== 'openai' && provider.baseURL) {
       authProfilesJson.profiles[authProfileId].url = provider.baseURL;
     }
+  } else if (providerKey === '9router') {
+    authProfilesJson = {
+      version: 1,
+      profiles: {
+        '9router-proxy': {
+          provider: '9router',
+          type: 'api_key',
+          key: 'sk-no-key',
+        },
+      },
+      order: { '9router': ['9router-proxy'] },
+    };
   }
 
-  const modelsPrimary = providerKey === '9router' ? '9router/smart-route' : (providerKey === 'google' ? 'google/gemini-2.5-flash' : 'openai/gpt-4o');
+  // modelsPrimary already declared above
 
   await fs.ensureDir(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent'));
   if (Object.keys(authProfilesJson).length > 0) {
@@ -440,12 +578,39 @@ ${hasBrowserDesktop ? `    extra_hosts:
     await fs.writeJson(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent', 'auth-profiles.json'), authProfilesJson, { spaces: 2 });
   }
 
+  // Ollama: write agent-level models.json (openclaw doctor --fix format)
+  if (provider.isLocal) {
+    const ollamaModelsJson = {
+      providers: {
+        ollama: {
+          baseUrl: 'http://ollama:11434',
+          apiKey: 'OLLAMA_API_KEY',
+          models: [
+            { id: 'gemma4:e2b',      name: 'Gemma 4 E2B',    reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+            { id: 'gemma4:e4b',      name: 'Gemma 4 E4B',    reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+            { id: 'gemma4:26b',      name: 'Gemma 4 26B',    reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+            { id: 'gemma4:31b',      name: 'Gemma 4 31B',    reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+            { id: 'qwen3:8b',        name: 'Qwen 3 8B',      reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+            { id: 'deepseek-r1:8b',  name: 'DeepSeek R1 8B', reasoning: true,  input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 64000,  maxTokens: 8192 },
+            { id: 'llama3.3:8b',     name: 'Llama 3.3 8B',   reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+            { id: 'gemma3:12b',      name: 'Gemma 3 12B',    reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+          ],
+          api: 'ollama',
+        }
+      }
+    };
+    await fs.writeJson(path.join(projectDir, '.openclaw', 'agents', agentId, 'agent', 'models.json'), ollamaModelsJson, { spaces: 2 });
+  }
+
   const botConfig = {
     meta: { lastTouchedVersion: '2026.3.24' },
     agents: {
       defaults: {
         model: { primary: modelsPrimary, fallbacks: [] },
-        compaction: { mode: 'safeguard' }
+        compaction: { mode: 'safeguard' },
+        // Local LLM on CPU can take 1-3 min — set generous timeout
+        timeoutSeconds: provider.isLocal ? 900 : 120,
+        ...(provider.isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
       },
       list: [{
         id: agentId,
@@ -462,6 +627,27 @@ ${hasBrowserDesktop ? `    extra_hosts:
             api: 'openai-completions',
             models: [
               { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 }
+            ]
+          }
+        }
+      }
+    } : provider.isLocal ? {
+      models: {
+        mode: 'merge',
+        providers: {
+          ollama: {
+            baseUrl: 'http://ollama:11434',
+            api: 'ollama',
+            apiKey: 'ollama-local',
+            models: [
+              { id: 'gemma4:e2b',      name: 'Gemma 4 E2B',    reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+              { id: 'gemma4:e4b',      name: 'Gemma 4 E4B',    reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+              { id: 'gemma4:26b',      name: 'Gemma 4 26B',    reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+              { id: 'gemma4:31b',      name: 'Gemma 4 31B',    reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+              { id: 'qwen3:8b',        name: 'Qwen 3 8B',      reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+              { id: 'deepseek-r1:8b',  name: 'DeepSeek R1 8B', reasoning: true,  input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 64000,  maxTokens: 8192 },
+              { id: 'llama3.3:8b',     name: 'Llama 3.3 8B',   reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
+              { id: 'gemma3:12b',      name: 'Gemma 3 12B',    reasoning: false, input: ['text'], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128000, maxTokens: 8192 },
             ]
           }
         }
@@ -484,7 +670,8 @@ ${hasBrowserDesktop ? `    extra_hosts:
       profiles: { 'host-chrome': { cdpUrl: 'http://127.0.0.1:9222', color: '#4285F4' } }
     };
   } else if (hasBrowserServer) {
-    botConfig.browser = { enabled: true, defaultProfile: 'headless', profiles: { headless: { headless: true } } };
+    // Server/Docker mode: Playwright runs headless by default — no profile key needed
+    botConfig.browser = { enabled: true };
   }
 
   // Skills: register slugs in openclaw.json → skills.entries

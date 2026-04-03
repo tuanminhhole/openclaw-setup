@@ -1,5 +1,25 @@
 # Changelog (English)
 
+## [5.0.0] — 2026-04-04
+
+### 🚀 Gemma 4 Support — Google's Newest Open Model
+
+OpenClaw v5.0.0 adds **support for Gemma 4**, Google DeepMind's brand-new open-weights model family released April 2, 2026.
+
+- **Gemma 4 available in 3 sizes via Ollama** — `gemma4:4b` (~6 GB RAM), `gemma4` default (~10 GB), `gemma4:27b` (~18 GB)
+- **Zero manual install** — When you select Local Ollama + a Gemma 4 model, the setup now **auto-generates an `ollama` sidecar service** in `docker-compose.yml`. Docker pulls the model automatically on first `docker compose up`. No separate Ollama installation needed.
+- **OLLAMA_HOST auto-configured** — Points to the Docker sidecar (`http://ollama:11434`) instead of the host machine.
+- **Full model list updated** — Added `gemma4`, `gemma4:27b`, `gemma4:4b` to the Ollama provider in both CLI and Web Wizard.
+
+### 📋 Hardware Requirements for Gemma 4
+
+| Model              | Min RAM/VRAM (4-bit) | Recommended                   |
+| ------------------ | -------------------- | ----------------------------- |
+| `gemma4:4b`        | ~6 GB                | Laptop, Mac M1/M2             |
+| `gemma4` (default) | ~10 GB               | PC 16 GB RAM                  |
+| `gemma4:27b`       | ~18 GB               | Workstation 32 GB / GPU 24 GB |
+
+> Gemma 4 is **free, open-weights, Apache 2.0**. No API key required — runs 100% locally via Docker.
 
 ## [4.1.4] — 2026-04-03
 

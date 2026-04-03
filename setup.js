@@ -112,6 +112,10 @@
       free: true,
       isLocal: true,
       models: [
+        { id: 'ollama/gemma4:e2b', name: 'Gemma 4 E2B',   descVi: '🟢 Nhẹ nhất (~4-6 GB RAM) — Edge, laptop, test nhanh', descEn: '🟢 Lightest (~4-6 GB RAM) — Edge, laptop, fastest startup', badge: '🆕 Apr 2 2026' },
+        { id: 'ollama/gemma4:e4b', name: 'Gemma 4 E4B',   descVi: '🟡 Cân bằng (~8-10 GB RAM) — Khuyên dùng', descEn: '🟡 Balanced (~8-10 GB RAM) — Recommended', badge: '🆕 Apr 2 2026' },
+        { id: 'ollama/gemma4:26b', name: 'Gemma 4 26B',   descVi: '🟠 Mạnh (~18-24 GB RAM/VRAM) — Máy mạnh', descEn: '🟠 Powerful (~18-24 GB RAM/VRAM) — High-end machine', badge: '🆕 Apr 2 2026' },
+        { id: 'ollama/gemma4:31b', name: 'Gemma 4 31B',   descVi: '🔴 Mạnh nhất (~24+ GB RAM/VRAM) — Workstation/GPU', descEn: '🔴 Most powerful (~24+ GB RAM/VRAM) — Workstation/GPU', badge: '🆕 Apr 2 2026' },
         { id: 'ollama/qwen3:8b', name: 'Qwen 3 8B', descVi: 'Đa ngôn ngữ, nhẹ', descEn: 'Multi-lingual, lightweight', badge: '🏠 Local' },
         { id: 'ollama/deepseek-r1:8b', name: 'DeepSeek R1 8B', descVi: 'Suy luận, code', descEn: 'Reasoning, code', badge: '🏠 Local' },
         { id: 'ollama/llama3.3:8b', name: 'Llama 3.3 8B', descVi: 'Meta, đa năng', descEn: 'Meta, versatile', badge: '🏠 Local' },
@@ -168,18 +172,10 @@
 
   // ========== Available Skills (ClawHub registry — agent capabilities) ==========
   const SKILLS = [
-    {
-      id: 'web-search',
-      name: 'Web Search',
-      icon: '🔍',
-      descVi: 'Tìm kiếm web, trả về kết quả realtime', descEn: 'Web search, returns realtime results',
-      slug: 'web-search',
-      noteVi: 'Cần API key (Tavily/SerpApi) trong .env', noteEn: 'Requires API key (Tavily/SerpApi) in .env',
-      envVars: ['TAVILY_API_KEY=<your_tavily_key>'],
-    },
+    // Web Search removed — OpenClaw has native search built-in (no Tavily key needed)
     {
       id: 'browser',
-      name: 'Browser Automation',
+      name: 'Browser Automation ⭐(Khuyên dùng)',
       icon: '🌐',
       descVi: 'Tự động thao tác trình duyệt (Playwright)', descEn: 'Automated browser control (Playwright)',
       slug: 'browser-automation',
@@ -187,10 +183,16 @@
     },
     {
       id: 'memory',
-      name: 'Long-term Memory',
+      name: 'Long-term Memory ⭐(Khuyên dùng)',
       icon: '🧠',
       descVi: 'Nhớ hội thoại xuyên phiên, context dài hạn', descEn: 'Cross-session memory, long-term context',
       slug: 'memory',
+    },
+    {
+      id: 'scheduler',
+      name: 'Native Cron Scheduler ⭐(Khuyên dùng)',
+      icon: '⏰',
+      descVi: 'Gọi Cron gốc trên nền tảng (không tải qua HUB)', descEn: 'Native Cron background jobs (No skill download)',
     },
     {
       id: 'rag',
@@ -208,12 +210,6 @@
       slug: 'image-gen',
       noteVi: 'Dùng chung OPENAI_API_KEY (DALL-E) hoặc thêm FLUX_API_KEY', noteEn: 'Uses OPENAI_API_KEY (DALL-E) or FLUX_API_KEY',
       envVars: ['# FLUX_API_KEY=<your_flux_key>  # chỉ cần nếu dùng Flux'],
-    },
-    {
-      id: 'scheduler',
-      name: 'Native Cron Scheduler',
-      icon: '⏰',
-      descVi: 'Gọi Cron gốc trên nền tảng (không tải qua HUB)', descEn: 'Native Cron background jobs (No skill download)',
     },
     {
       id: 'code-interpreter',
@@ -773,8 +769,15 @@
         </p>`;
       } else if (provider.isLocal) {
         // Ollama
-        pHtml += `<p style="font-size: 13px; color: var(--text-secondary); margin: 0;">
-          ${isVi ? 'Đảm bảo <code>ollama serve</code> đang chạy trên máy trước khi start Docker.' : 'Make sure <code>ollama serve</code> is running before starting Docker.'}
+        pHtml += `<p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 8px;">
+          ${isVi
+            ? '🐳 Ollama sẽ tự chạy trong Docker cùng bot. Model được tải tự động khi <code>docker compose up</code>.'
+            : '🐳 Ollama runs automatically as a Docker sidecar. Model is pulled automatically on first <code>docker compose up</code>.'}
+        </p>`;
+        pHtml += `<p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0;">
+          ${isVi
+            ? '💡 <b>Chọn model phù hợp với RAM:</b> gemma4:e2b (~4-6 GB), gemma4:e4b (~8-10 GB), gemma4:26b (~18-24 GB), gemma4:31b (~24+ GB). macOS M-chip: GPU không dùng được trong Docker, chạy CPU-only.'
+            : '💡 <b>Pick model by RAM:</b> gemma4:e2b (~4-6 GB), gemma4:e4b (~8-10 GB), gemma4:26b (~18-24 GB), gemma4:31b (~24+ GB). macOS Apple Silicon: GPU unavailable in Docker, CPU-only mode.'}
         </p>`;
       } else {
         // Direct API provider: show key input
@@ -866,7 +869,8 @@
     if (provider.isProxy) {
       lines.push('# Không cần AI API key — 9Router xử lý qua dashboard');
     } else if (provider.isLocal) {
-      lines.push('OLLAMA_HOST=http://host.docker.internal:11434');
+      lines.push('OLLAMA_HOST=http://ollama:11434');
+      lines.push('OLLAMA_API_KEY=ollama-local'); // Required by OpenClaw to register Ollama as provider (any value works)
     } else {
       lines.push(`${provider.envKey}=${apiKeyVal || '<your_' + provider.envKey.toLowerCase() + '>'}`);
     }
@@ -916,6 +920,7 @@
     if (!provider) return;
 
     const is9Router = provider.isProxy;
+    const isLocal = provider.isLocal;
 
     // Show/hide 9Router post-setup notice
     const routerNotice = document.getElementById('9router-notice');
@@ -1012,6 +1017,8 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         defaults: {
           model: { primary: state.config.model, fallbacks: [] },
           compaction: { mode: 'safeguard' },
+          timeoutSeconds: isLocal ? 900 : 120,
+          ...(isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
         },
         list: [{
           id: agentId,
@@ -1041,6 +1048,30 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
             api: 'openai-completions',
             models: [
               { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 }
+            ],
+          },
+        },
+      };
+    }
+
+    // Ollama: register provider endpoint so OpenClaw routes ollama/* models correctly
+    if (isLocal) {
+      const selectedModel = (state.config.model || 'ollama/gemma4:e2b').replace('ollama/', '');
+      clawConfig.models = {
+        mode: 'merge',
+        providers: {
+          ollama: {
+            baseUrl: 'http://ollama:11434',
+            apiKey: 'ollama-local',
+            models: [
+              { id: 'gemma4:e2b', name: 'Gemma 4 E2B', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'gemma4:e4b', name: 'Gemma 4 E4B', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'gemma4:26b', name: 'Gemma 4 26B', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'gemma4:31b', name: 'Gemma 4 31B', contextWindow: 128000, maxTokens: 8192 },
+              { id: 'qwen3:8b',       name: 'Qwen 3 8B',       contextWindow: 128000, maxTokens: 8192 },
+              { id: 'deepseek-r1:8b', name: 'DeepSeek R1 8B',  contextWindow: 64000,  maxTokens: 8192 },
+              { id: 'llama3.3:8b',    name: 'Llama 3.3 8B',    contextWindow: 128000, maxTokens: 8192 },
+              { id: 'gemma3:12b',     name: 'Gemma 3 12B',     contextWindow: 128000, maxTokens: 8192 },
             ],
           },
         },
@@ -1172,6 +1203,7 @@ RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /v
 
 ARG CACHEBUST=${Date.now()}
 RUN npm install -g openclaw@latest${skillLines}${browserInstallLines}
+RUN node -e "const fs=require('fs');const p='/usr/local/lib/node_modules/openclaw/dist/gateway-cli-CWpalJNJ.js';let s=fs.readFileSync(p,'utf8');const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';if(!s.includes(to)){if(!s.includes(from)) throw new Error('chat.send patch anchor not found');s=s.replace(from,to);fs.writeFileSync(p,s);}"
 WORKDIR /root/.openclaw
 
 EXPOSE 18791
@@ -1188,7 +1220,7 @@ ${finalCmd}`;
     // Background loop inside 9Router container every 30s.
     // Queries /api/providers → filters connected+enabled → updates smart-route combo.
     const syncScript = `const fs=require('fs');const ROUTER='http://localhost:20128';const INTERVAL=30000;const p='/root/.9router/db.json';
-const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4','ollama/gemma4:27b','ollama/gemma4:4b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
+const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
 console.log('[sync-combo] 9Router sync loop started...');
 const sync = async () => {
   try {
@@ -1267,6 +1299,53 @@ ${extraHostsBlock}
 
 volumes:
   9router-data:`;
+    } else if (isLocal) {
+      // Ollama sidecar — model is pulled automatically on first run
+      const selectedModelId = state.config.model || 'ollama/gemma4:e2b';
+      const ollamaModelTag = selectedModelId.replace('ollama/', '');
+      compose = `name: oc-bot
+services:
+  ai-bot:
+    build: .
+    container_name: openclaw-bot
+    restart: always
+    env_file: .env
+    depends_on:
+      ollama:
+        condition: service_healthy
+${hasBrowser ? extraHostsBlock + '\n' : ''}    ports:
+      - "18791:18791"
+    volumes:
+      - ../../.openclaw:/root/.openclaw
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: always
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_NUM_PARALLEL=1
+    # Port NOT exposed to host. Bot connects via Docker network (http://ollama:11434).
+    # Safe even if you already have Ollama installed on this machine.
+    volumes:
+      - ollama-data:/root/.ollama
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        ollama serve &
+        until ollama list > /dev/null 2>&1; do sleep 1; done
+        ollama pull ${ollamaModelTag}
+        wait
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  ollama-data:`;
     } else {
       compose = `name: oc-bot
 services:
@@ -1308,26 +1387,42 @@ docker logs -f openclaw-bot${approveNote}`);
 
 
     // 6. Generate auth-profiles.json (root + agent level)
-    // Bot and 9Router share Docker network — always use 'sk-no-key'
-    const authProviderName = is9Router ? '9router' : state.config.provider;
-    const authProfileId = is9Router ? '9router-proxy' : `${authProviderName}:default`;
-    const authKeyValue = is9Router
-      ? 'sk-no-key'
-      : `<your_${(provider.envKey || 'API_KEY').toLowerCase()}>`;
-
-    const authProfilesJson = {
-      version: 1,
-      profiles: {
-        [authProfileId]: {
-          provider: authProviderName,
-          type: 'api_key',
-          key: authKeyValue,
+    let authProfilesJson;
+    if (isLocal) {
+      // Ollama: register provider with sidecar URL + any non-empty key
+      authProfilesJson = {
+        version: 1,
+        profiles: {
+          'ollama:default': {
+            provider: 'ollama',
+            type: 'api_key',
+            key: 'ollama-local',
+            url: 'http://ollama:11434',
+          },
         },
-      },
-      order: {
-        [authProviderName]: [authProfileId],
-      },
-    };
+        order: { ollama: ['ollama:default'] },
+      };
+    } else {
+      const authProviderName = is9Router ? '9router' : state.config.provider;
+      const authProfileId = is9Router ? '9router-proxy' : `${authProviderName}:default`;
+      const authKeyValue = is9Router
+        ? 'sk-no-key'
+        : `<your_${(provider.envKey || 'API_KEY').toLowerCase()}>`;
+
+      authProfilesJson = {
+        version: 1,
+        profiles: {
+          [authProfileId]: {
+            provider: authProviderName,
+            type: 'api_key',
+            key: authKeyValue,
+          },
+        },
+        order: {
+          [authProviderName]: [authProfileId],
+        },
+      };
+    }
     const authProfilesStr = JSON.stringify(authProfilesJson, null, 2);
 
     // 7. Generate ALL workspace Markdown files

@@ -1,5 +1,25 @@
 # Changelog (Tiếng Việt)
 
+## [5.0.0] — 2026-04-04
+
+### 🚀 Hỗ trợ Gemma 4 — Model mới nhất của Google
+
+OpenClaw v5.0.0 cập nhật **Gemma 4** — dòng model open-weights mới của Google DeepMind, ra mắt 02/04/2026.
+
+- **Gemma 4 có sẵn 3 size qua Ollama** — `gemma4:4b` (~6 GB RAM), `gemma4` mặc định (~10 GB), `gemma4:27b` (~18 GB)
+- **Không cần cài Ollama thủ công** — Khi chọn Local Ollama + Gemma 4, setup tự động sinh **service `ollama` sát cạnh trong `docker-compose.yml`**. Docker tự pull model khi `docker compose up`. Không cần cài Ollama trước.
+- **OLLAMA_HOST tự cấu hình** — Trỏ thẳng vào sidecar container (`http://ollama:11434`).
+- **Cập nhật danh sách model** — Thêm `gemma4`, `gemma4:27b`, `gemma4:4b` vào Ollama provider trên cả CLI và Web Wizard.
+
+### 💻 Yêu cầu phần cứng cho Gemma 4
+
+| Model               | RAM/VRAM tối thiểu (4-bit) | Phù hợp                        |
+| ------------------- | -------------------------- | ------------------------------ |
+| `gemma4:4b`         | ~6 GB                      | Laptop thông thường, Mac M1/M2 |
+| `gemma4` (mặc định) | ~10 GB                     | PC 16 GB RAM                   |
+| `gemma4:27b`        | ~18 GB                     | Workstation 32 GB / GPU 24 GB  |
+
+> Gemma 4 **miễn phí, open-weights, giấy phép Apache 2.0**. Không cần API key — chạy 100% local qua Docker.
 
 ## [4.1.4] — 2026-04-03
 
