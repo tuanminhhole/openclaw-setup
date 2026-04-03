@@ -1,5 +1,20 @@
 # Changelog (Tiếng Việt)
 
+
+## [4.1.4] — 2026-04-03
+
+### ✨ Cải tiến
+
+- CLI/Wizard đồng bộ đầy đủ skills (Browser Automation, Memory, RAG, Code Interpreter, v.v.)
+- Browser Automation: chọn chế độ Desktop (Host Chrome) hoặc Server (Headless Chromium) cho Linux/Ubuntu
+- Sửa lỗi Dockerfile WORKDIR gây lỗi build trên Linux
+- Skills install tại **runtime** container (không phải lúc build) để tránh lỗi ClawHub auth
+- TOOLS.md động: tự sinh theo danh sách skills đã chọn
+- Tự tạo `browser-tool.js` (Desktop mode) và `BROWSER.md`
+- Tự đăng ký skills vào `openclaw.json → skills.entries`
+- Bổ sung prompt cấu hình Email SMTP và inject vào `.env`
+- Single-source version qua `bump-version.mjs` — 1 lệnh cập nhật tất cả file
+
 ## [4.1.3] — 2026-04-02
 
 ### ✨ Cải tiến

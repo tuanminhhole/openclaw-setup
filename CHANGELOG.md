@@ -1,5 +1,20 @@
 # Changelog (English)
 
+
+## [4.1.4] — 2026-04-03
+
+### ✨ Improvements
+
+- CLI/Wizard parity: synchronized all skills (Browser Automation, Memory, RAG, Code Interpreter, etc.)
+- Browser Automation: added Desktop (Host Chrome) vs Server (Headless Chromium) mode selection for Linux/Ubuntu
+- Fixed Dockerfile WORKDIR issue causing build failures on Linux
+- Skills now install at container **runtime** (not build-time) to avoid ClawHub auth issues
+- Dynamic TOOLS.md: auto-generated listing all installed skills with hints
+- Added `browser-tool.js` (Desktop mode) and `BROWSER.md` for both modes
+- Skills registration in `openclaw.json → skills.entries` at setup time
+- Email SMTP config prompts and `.env` injection
+- Single-source versioning via `bump-version.mjs` — one command to update all files
+
 ## [4.1.3] — 2026-04-02
 
 ### ✨ Improvements
