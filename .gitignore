@@ -58,3 +58,7 @@ bump-version.mjs
 test-cli-output.mjs
 patch_cli.py
 *.test.mjs
+
+# ===== API Doc Scrapes =====
+*_doc*.md
+tele_docs*.md

@@ -41,7 +41,7 @@ async function ensureDocker(isVi) {
       execSync('brew install --cask docker', { stdio: 'inherit' });
     } else {
       console.log(chalk.cyan(isVi ? '🐳 Đang cài Docker cho Linux...' : '🐳 Installing Docker for Linux...'));
-      execSync('curl -fsSL https://get.docker.com | sh', { stdio: 'inherit' });
+      execSync('curl -fsSL https://get.docker.com | sh', { stdio: 'inherit', shell: true });
     }
     console.log(chalk.green(isVi ? '✅ Docker đã cài xong! Vui lòng khởi động Docker Desktop rồi chạy lại lệnh này.' : '✅ Docker installed! Please start Docker Desktop and re-run this command.'));
     if (platform === 'win32' || platform === 'darwin') {
@@ -706,7 +706,35 @@ fi
     console.log(chalk.yellow(`\n🐳 ${isVi ? 'Đang khởi động Docker (có thể mất vài phút)...' : 'Starting Docker (might take a few minutes)...'}`));
     const dockerPath = path.join(projectDir, 'docker', 'openclaw');
     
-    const child = spawn('docker', ['compose', 'up', '-d', '--build'], {
+    // Auto-detect Docker Compose V2 (plugin) vs V1 (standalone docker-compose).
+    // On Ubuntu 24.04 installed via `apt install docker.io`, the Compose V2 plugin
+    // is NOT included — `docker compose` subcommand may not exist or may be broken.
+    // We test both and use whichever actually works.
+    let composeCmd, composeArgs;
+    const detectCompose = () => {
+      // Test V2 plugin: 'docker compose up --help' exits 0 if plugin works
+      try {
+        execSync('docker compose up --help', { stdio: 'ignore' });
+        return { cmd: 'docker', args: ['compose', 'up', '--detach', '--build'] };
+      } catch { /* V2 not available or broken */ }
+      // Test V1 standalone: 'docker-compose up --help'
+      try {
+        execSync('docker-compose up --help', { stdio: 'ignore' });
+        return { cmd: 'docker-compose', args: ['up', '--detach', '--build'] };
+      } catch { /* V1 also not available */ }
+      return null;
+    };
+    const detected = detectCompose();
+    if (!detected) {
+      console.log(chalk.red(isVi
+        ? '\n\u274c Kh\u00f4ng t\u00ecm th\u1ea5y Docker Compose!\n   C\u00e0i b\u1eb1ng l\u1ec7nh: sudo apt-get install docker-compose-plugin'
+        : '\n\u274c Docker Compose not found!\n   Install: sudo apt-get install docker-compose-plugin'));
+      process.exit(1);
+    }
+    composeCmd = detected.cmd;
+    composeArgs = detected.args;
+
+    const child = spawn(composeCmd, composeArgs, {
       cwd: dockerPath,
       stdio: 'inherit'
     });
@@ -736,7 +764,10 @@ fi
           console.log(`cd ${projectDir} && docker compose exec -it openclaw bun run core:onboard`);
         }
       } else {
-        console.log(chalk.red(`\n❌ Docker exited with code ${code}`));
+        console.log(chalk.red(`\n\u274c Docker exited with code ${code}`));
+        console.log(chalk.yellow(isVi
+          ? `\n\ud83d\udca1 N\u1ebfu l\u1ed7i "unknown shorthand flag", ch\u1ea1y: sudo apt-get install docker-compose-plugin\n   R\u1ed3i th\u1eed l\u1ea1i: cd ${dockerPath} && docker compose up -d --build`
+          : `\n\ud83d\udca1 If "unknown shorthand flag" error, run: sudo apt-get install docker-compose-plugin\n   Then retry: cd ${dockerPath} && docker compose up -d --build`));
       }
     });
 

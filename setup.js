@@ -1984,16 +1984,29 @@ echo ""
       script += `CLAWEOF\n\n`;
     });
 
-    // Success message
+    // Files created — confirm then auto-run docker
     script += `echo ""\n`;
-    script += `echo "${isVi ? '✅ Tạo xong! Các file đã được tạo:' : '✅ Done! Files created:'}"\n`;
-    script += `echo "   .openclaw/          — ${isVi ? 'Config bot' : 'Bot config'}"\n`;
-    script += `echo "   docker/openclaw/    — Docker files"\n`;
+    script += `echo "${isVi ? '✅ Tạo file xong!' : '✅ Files created!'}"\n`;
     script += `echo ""\n`;
-    script += `echo "${isVi ? '📝 Bước tiếp theo:' : '📝 Next steps:'}"\n`;
-    script += `echo "${isVi ? '   1. Sửa docker/openclaw/.env → paste API keys thật' : '   1. Edit docker/openclaw/.env → paste real API keys'}"\n`;
-    script += `echo "${isVi ? '   2. cd docker/openclaw && docker compose build && docker compose up -d' : '   2. cd docker/openclaw && docker compose build && docker compose up -d'}"\n`;
-    script += `echo ""\n`;
+
+    // Auto-detect Compose V2 (plugin) vs V1 (standalone docker-compose)
+    // Ubuntu 24.04 with `apt install docker.io` does NOT include docker-compose-plugin.
+    script += `echo "${isVi ? '🐳 Đang khởi động Docker (có thể mất vài phút)...' : '🐳 Starting Docker (may take a few minutes)...'}"\n`;
+    script += `if docker compose version > /dev/null 2>&1; then\n`;
+    script += `  COMPOSE_CMD="docker compose"\n`;
+    script += `elif docker-compose version > /dev/null 2>&1; then\n`;
+    script += `  COMPOSE_CMD="docker-compose"\n`;
+    script += `else\n`;
+    script += `  echo "${isVi ? '❌ Không tìm thấy Docker Compose! Cài bằng: sudo apt-get install docker-compose-plugin' : '❌ Docker Compose not found! Install: sudo apt-get install docker-compose-plugin'}"\n`;
+    script += `  exit 1\n`;
+    script += `fi\n`;
+    script += `cd "docker/openclaw"\n`;
+    script += `$COMPOSE_CMD up --detach --build\n`;
+    script += `if [ $? -ne 0 ]; then\n`;
+    script += `  echo "${isVi ? '❌ Docker build thất bại. Docker đã chạy chưa?' : '❌ Docker build failed. Is Docker running?'}"\n`;
+    script += `  exit 1\n`;
+    script += `fi\n`;
+    script += `echo "${isVi ? '🎉 Setup hoàn tất! Bot đang chạy.' : '🎉 Setup complete! Bot is running.'}"\n`;
     script += `echo "🦞 Happy botting!"\n`;
 
     return script;
