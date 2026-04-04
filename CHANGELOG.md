@@ -1,5 +1,58 @@
 # Changelog (English)
 
+## [5.0.1] — 2026-04-04
+
+### 🚀 Native Install Mode — No Docker Required
+
+OpenClaw now supports **native (non-Docker) installation** on Windows, Linux, macOS, VPS, and shared hosting. Users who prefer not to use Docker can deploy the bot directly on their machine.
+
+- **CLI native mode** — new deployment mode selector: `docker` (default) or `native`
+- **OS-specific startup scripts** auto-generated:
+  - 🪟 **Windows** → `setup-openclaw-win.bat` (double-click install)
+  - 🐧 **Linux / macOS** → `setup-openclaw-linux.sh`
+  - 🖥️ **VPS / Ubuntu** → `setup-openclaw-vps.sh` (PM2 background process)
+  - 🏠 **Shared Hosting / cPanel** → `setup-openclaw-hosting.sh` + `ecosystem.config.cjs`
+- **Web Wizard updated** — Deploy Mode toggle (Docker / Native) with OS sub-selection cards
+- **Dynamic host URLs** — Ollama and 9Router URLs switch automatically:
+  - Docker mode: `http://ollama:11434` / `http://9router:20128/v1`
+  - Native mode: `http://localhost:11434` / `http://localhost:20128/v1`
+- **Node.js 18+ gate** — Native mode enforces minimum Node.js version at setup time
+- **Test scripts** — `test-native-install.bat` (Windows) and `test-native-install.sh` (Linux/macOS)
+
+### 🤖 Gemma 4 Model Updates
+
+- **4 Gemma 4 variants** available via Ollama: `gemma4:e2b` (~4-6 GB), `gemma4:e4b` (~8-10 GB), `gemma4:26b` (~18-24 GB), `gemma4:31b` (~24+ GB)
+- Auto-pull selected Gemma 4 variant on first `docker compose up` (container timeout extended to 15 min)
+- Raised Ollama timeout to **300 seconds** to handle large model inference
+- Added `OLLAMA_NUM_PARALLEL=1` and `OLLAMA_KEEP_ALIVE=24h` to Docker sidecar
+
+### 🤖 Multi-Bot Deployment (up to 5 Telegram bots per workspace)
+
+OpenClaw now supports deploying **multiple independent Telegram bots** from a single setup—each with its own identity, slash command, AI personality, and isolated workspace directory.
+
+- **Deploy 1–5 bots in one go** — Web Wizard and CLI both support multi-bot configuration
+- **Isolated workspaces** — each bot gets its own `botN/` directory with a separate `.env` and `.openclaw/` config, preventing any token or configuration collision
+- **Port auto-assignment** — ports start at `18791` and increment per bot (`18791`, `18792`, ...) to avoid host binding conflicts
+- **Multi-service Docker Compose** — automatically generates a `docker-compose.yml` with one service per bot, plus a shared provider container (9Router or Ollama)
+- **Department Room Model** — when bots share a Telegram group they operate like a professional team:
+  - 🤫 **Silent by default** — bots react with emoji (👍 ❤️) to casual messages but never spam replies
+  - 📣 **@mention or /slash triggers** — only the addressed bot responds, like calling a colleague by name in a meeting room
+  - 🗃️ **Shared workspace** — all bots read from a common workspace folder and can collaborate on tasks, files, and reports
+- **botGroup config** injected into each bot's `openclaw.json` so they are aware of each other's names and slash commands at runtime
+
+### 🔗 Telegram Group ID Helper
+
+Getting the Telegram Group ID is now frictionless:
+
+- **Web Wizard**: "Đã có group" card now shows an inline `Lấy Group ID` button that opens **@userinfobot** directly, with step-by-step instructions (forward a group message → bot replies with Chat ID)
+- **CLI**: selecting "existing group" prints an interactive guide with numbered steps and a direct link to `https://t.me/userinfobot`
+
+### 🎨 UI Refinements
+
+- **Group option selector** with **two interactive cards** with icon, description, hover glow, and animated selection checkmark
+- Card active state: green tint + border for "create later", indigo tint + border for "existing group"
+- Group ID input row includes inline helper button — no more hunting for documentation
+
 ## [5.0.0] — 2026-04-04
 
 ### 🚀 Gemma 4 Support — Google's Newest Open Model

@@ -1,5 +1,58 @@
 # Changelog (Tiếng Việt)
 
+## [5.0.1] — 2026-04-04
+
+### 🚀 Chế độ Native Install — Không cần Docker
+
+OpenClaw giờ hỗ trợ **cài đặt native (không dùng Docker)** trên Windows, Linux, macOS, VPS và shared hosting.
+
+- **CLI native mode** — thêm chọn chế độ: `docker` (mặc định) hoặc `native`
+- **Script khởi động sinh tự động theo OS:**
+  - 🪟 **Windows** → `setup-openclaw-win.bat` (double-click cài ngay)
+  - 🐧 **Linux / macOS** → `setup-openclaw-linux.sh`
+  - 🖥️ **VPS / Ubuntu** → `setup-openclaw-vps.sh` (PM2 chạy nền)
+  - 🏠 **Shared Hosting / cPanel** → `setup-openclaw-hosting.sh` + `ecosystem.config.cjs`
+- **Web Wizard cập nhật** — Thêm toggle Deploy Mode (Docker / Native) + chọn OS
+- **URL host động** — Ollama và 9Router URL tự chuyển:
+  - Docker: `http://ollama:11434` / `http://9router:20128/v1`
+  - Native: `http://localhost:11434` / `http://localhost:20128/v1`
+- **Kiểm tra Node.js 18+** — Native mode yêu cầu Node.js 18+ trước khi chạy
+- **Test scripts** — `test-native-install.bat` (Windows) và `test-native-install.sh` (Linux/macOS)
+
+### 🤖 Cập nhật Gemma 4
+
+- **4 biến thể Gemma 4** qua Ollama: `gemma4:e2b` (~4-6 GB), `gemma4:e4b` (~8-10 GB), `gemma4:26b` (~18-24 GB), `gemma4:31b` (~24+ GB)
+- Tự pull model Gemma 4 khi `docker compose up` lần đầu (timeout container tăng lên 15 phút)
+- Nâng timeout Ollama lên **300 giây** để xử lý model lớn
+- Thêm `OLLAMA_NUM_PARALLEL=1` và `OLLAMA_KEEP_ALIVE=24h` vào Docker sidecar
+
+### 🤖 Multi-Bot Deployment (tối đa 5 bot Telegram trên mỗi workspace)
+
+OpenClaw giờ hỗ trợ triển khai **nhiều bot Telegram độc lập** từ một setup duy nhất — mỗi bot có identity, slash command, AI personality và thư mục workspace riêng biệt.
+
+- **Triển khai 1–5 bot cùng lúc** — Web Wizard và CLI đều hỗ trợ cấu hình multi-bot
+- **Workspace riêng biệt** — mỗi bot có thư mục `botN/` riêng với `.env` và cấu hình `.openclaw/` riêng, không gây xung đột token hay cấu hình
+- **Tự động gán cổng** — cổng bắt đầu từ `18791` và tăng dần cho mỗi bot (`18791`, `18792`, ...) để tránh xung đột binding host
+- **Docker Compose đa-service** — tự động sinh `docker-compose.yml` với một service cho mỗi bot, cộng thêm một container provider chung (9Router hoặc Ollama)
+- **Department Room Model** — khi các bot chia sẻ chung một nhóm Telegram, chúng hoạt động như một đội ngũ chuyên nghiệp:
+  - 🤫 **Mặc định im lặng** — bot phản hồi bằng emoji (👍 ❤️) với tin nhắn thông thường nhưng không bao giờ spam reply
+  - 📣 **Trigger bằng @mention hoặc /slash** — chỉ bot được nhắc tên hoặc được gọi lệnh mới phản hồi, giống như gọi tên đồng nghiệp trong phòng họp
+  - 🗃️ **Workspace chung** — tất cả bot đọc từ một thư mục workspace chung và có thể cộng tác trên các tác vụ, tệp và báo cáo
+- **Cấu hình botGroup** được inject vào `openclaw.json` của mỗi bot để chúng biết tên và lệnh slash của nhau khi runtime
+
+### 🔗 Trợ giúp lấy Telegram Group ID
+
+Lấy Group ID giờ trở nên cực kỳ đơn giản:
+
+- **Web Wizard**: card "Đã có group" giờ hiển thị nút inline `Lấy Group ID` mở thẳng **@userinfobot**, kèm hướng dẫn từng bước (forward tin nhắn nhóm → bot trả về Chat ID)
+- **CLI**: chọn "existing group" sẽ in ra hướng dẫn tương tác với các bước đánh số và link trực tiếp đến `https://t.me/userinfobot`
+
+### 🎨 Tinh chỉnh UI
+
+- **Bộ chọn tùy chọn nhóm** được thiết kế dạng **hai thẻ tương tác** với icon, mô tả, hiệu ứng hover glow và dấu tick chọn động
+- Trạng thái active của thẻ: màu xanh lá + viền cho "tạo sau", màu xanh chàm + viền cho "nhóm đã có"
+- Hàng nhập Group ID bao gồm nút trợ giúp inline — không cần tìm kiếm tài liệu nữa
+
 ## [5.0.0] — 2026-04-04
 
 ### 🚀 Hỗ trợ Gemma 4 — Model mới nhất của Google

@@ -3,18 +3,18 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.0.0-0EA5E9?style=for-the-badge" alt="Version 5.0.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.0.1-0EA5E9?style=for-the-badge" alt="Version 5.0.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
 </p>
 
 <p style="margin-top: 16px;">
-  <img src="https://flagcdn.com/24x18/gb.png" alt="English" width="24" height="18" style="vertical-align: sub;"> <strong>English</strong> · 
+  <img src="https://flagcdn.com/24x18/gb.png" alt="English" width="24" height="18" style="vertical-align: sub;"> <strong>English</strong> ·
   <img src="https://flagcdn.com/24x18/vn.png" alt="Tiếng Việt" width="24" height="18" style="vertical-align: sub;"> <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-An interactive <strong>CLI tool</strong> and <strong>Setup Wizard</strong> to deploy your own free AI Bot on Telegram or Zalo in minutes.
+An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot on Telegram or Zalo in minutes — supports **Windows, macOS, Ubuntu, and VPS**.
 
 <a href="https://github.com/tuanminhhole/openclaw-setup">
   <img src="https://raw.githubusercontent.com/tuanminhhole/openclaw-setup/main/docs/preview.png" alt="OpenClaw Setup Hero Image" width="100%" style="border-radius: 8px; margin: 16px 0; border: 1px solid #333;" />
@@ -24,21 +24,22 @@ An interactive <strong>CLI tool</strong> and <strong>Setup Wizard</strong> to de
 
 ---
 
-## 🆕 What's new in v5.0.0 — Gemma 4 Support
+## 🆕 What's new in v5.0.1
 
-> **Google just dropped Gemma 4 on April 2, 2026. OpenClaw ships support immediately.**
-
-- 🧠 **Gemma 4 (Google, Open-weights)** — The newest open model from Google DeepMind. Free, powerful, Apache 2.0. Available in 3 sizes: `gemma4:4b` (6 GB), `gemma4` (10 GB), `gemma4:27b` (18 GB).
-- 🐳 **Auto Ollama Sidecar** — No need to install Ollama separately. When you pick Local Ollama, the setup generates a full `docker-compose.yml` with an **Ollama container** that auto-downloads your chosen model on first launch.
-- 🆓 **Zero cost, zero API key** — Gemma 4 runs 100% locally in Docker. Perfect for privacy-first setups.
+- 💻 **OS-First Setup** — Step 1 is now choosing your OS (Windows, macOS, Ubuntu, VPS). All scripts, configs, and instructions are generated to match.
+- 🧠 **Gemma 4 — 4 sizes** — `gemma4:e2b` (~4 GB), `gemma4:e4b` (~8 GB), `gemma4:26b` (~18 GB), `gemma4:31b` (~24 GB). Auto-pulled on first launch.
+- 📄 **Consistent script naming** — Scripts are generated per OS: `setup-openclaw-docker-win.bat`, `setup-openclaw-docker-macos.sh`, `setup-openclaw-vps.sh`... No more environment confusion.
+- 🌐 **Native Install for Ubuntu/VPS** — No Docker needed. Both CLI and Web Wizard support running directly with PM2 — less RAM overhead, stable 24/7.
+- 🤖 **Multi-Bot Deployment** — Deploy up to **5 independent Telegram bots** in one setup. Each bot runs in its own isolated workspace (`bot1/`, `bot2/`...) with its own token, name, slash command, and AI personality.
+- 💬 **Department Room Model** — Add all bots to one Telegram group and they behave like a professional team. Bots stay silent by default, only responding when @mentioned or their slash command is used — no spam, no chaos.
+- 🔗 **Group ID Helper** — "Get Group ID" button in Web Wizard + step-by-step guide in CLI. Opens @userinfobot directly — no documentation hunting needed.
 
 <details>
-<summary><b>Previous: What's new in OpenClaw v4</b></summary>
+<summary><b>Previous: What's new in v5.0.0</b></summary>
 
-- 🚀 **Zero-Config `npx` Deployment**: Interactive CLI `npx create-openclaw-bot` and Web Wizard builds the entire Docker workspace dynamically.
-- 🔀 **Simplified 9Router Smart Routing**: Auto load-balances across Anthropic, Codex, Gemini, Qwen. No API keys needed.
-- 🌐 **Instant Browser Automation**: Built-in `.bat` and `.sh` scripts for Chrome Debug Mode on Windows/macOS/Linux.
-- 🧹 **Zero-Clutter Repository**: Generates exactly what you need, nothing more.
+- 🤖 **Gemma 4 (Google, Open-weights)** — The newest model from Google DeepMind. Free, powerful, Apache 2.0.
+- 🐳 **Auto Ollama Sidecar** — No manual Ollama install needed. Setup generates a `docker-compose.yml` with an Ollama container that auto-downloads your model on first launch.
+- 🆓 **Zero cost, zero API key** — Gemma 4 runs 100% locally in Docker.
 
 </details>
 
@@ -46,107 +47,146 @@ An interactive <strong>CLI tool</strong> and <strong>Setup Wizard</strong> to de
 
 ## ✨ Features
 
-- 🤖 **Multi-channel** — Telegram, Zalo Bot API, or Zalo Personal
-- 🧠 **Multi-provider AI** — Google Gemini, Claude, GPT-4o/Codex, OpenRouter, Ollama, 9Router
-- 🧩 **Skills** — Web Search, Browser Automation, Memory, RAG, Code Interpreter, Image Gen...
+- 🤖 **Multi-channel** — Telegram (single or multi-bot), Zalo Bot API, or Zalo Personal
+- 🧑‍🤝‍🧑 **Multi-bot team** — Run up to 5 Telegram bots simultaneously. Bots share a workspace, collaborate on tasks, and coordinate in a group chat using the Department Room Model
+- 🧠 **Multi-provider AI** — Google Gemini, Claude, GPT-4o, OpenRouter, Ollama (local), 9Router
+- 🧩 **Skills** — Web Search, Browser Automation, Memory, RAG, Code Interpreter, Image Gen
 - 🔌 **Plugins** — Voice Call, Matrix, MS Teams, Nostr
-- 🔀 **9Router Proxy** — Auto-route your bot's traffic effectively!
-- 🧙 **Setup Wizard** — Beautiful interactive shell (CLI) or dark-themed Web UI
-- 🆓 **100% Free** — Google Gemini API free tier + Docker
-- 🔒 **Secure** — API keys stay on your machine, never exposed
-- ⚡ **3 minutes** — From zero to working AI bot
+- 🔀 **9Router** — Free AI proxy. OAuth login, no API keys. Supports Claude Code, Codex, Gemini CLI.
+- 🧙 **Setup Wizard** — 5-step visual web UI (`index.html`). No terminal required.
+- 💻 **Interactive CLI** — `npx create-openclaw-bot` — best for Ubuntu, VPS, engineers.
+- 🆓 **100% Free to start** — 9Router + Gemini free tier requires zero spending
+- 🔒 **Private** — API keys stay on your machine, never sent anywhere
+- ⚡ **Fast** — From zero to working bot in under 5 minutes
+
+---
+
+## 🗺️ Choose your path
+
+> **Not sure which method to use?** The table below has you covered:
+
+| Who you are                | Environment     | Recommended path                      |
+| -------------------------- | --------------- | ------------------------------------- |
+| Not familiar with terminal | Windows / macOS | **Web Wizard** (`index.html`)         |
+| Not familiar with terminal | Ubuntu Desktop  | **Web Wizard** → choose Native        |
+| Comfortable with terminal  | Ubuntu / VPS    | **CLI** (`npx create-openclaw-bot`)   |
+| Want full automation       | Anywhere        | **AI Agent** (Antigravity + SETUP.md) |
+
+### 1️⃣ Option A — Web Wizard (No terminal required)
+
+Best for **Windows and macOS**. No command line at all.
+
+1. [Download ZIP](https://github.com/tuanminhhole/openclaw-setup/archive/refs/heads/main.zip) or clone this repo.
+2. Open `index.html` in your browser.
+3. Follow the **5-step wizard**:
+   - **Step 1:** Choose your OS (Windows / macOS / Ubuntu / VPS)
+   - **Step 2:** Choose your bot channel (Telegram / Zalo)
+   - **Step 3:** Choose your AI provider and model
+   - **Step 4:** Enter bot token and configure settings
+   - **Step 5:** Download your script and run it — done!
+4. The downloaded script automatically installs everything needed (9Router, Ollama, Docker, etc.) based on your choices.
+
+> **Docker or no Docker?**
+>
+> - **Windows / macOS** → Use **Docker** (fully isolated, easy to manage)
+> - **Ubuntu / VPS** → Use **Native (no Docker)** (less RAM, more stable)
+
+### 2️⃣ Option B — Interactive CLI (`npx`)
+
+Best for **engineers, Ubuntu Desktop, VPS**. Fastest and most powerful.
+
+```bash
+npx create-openclaw-bot
+```
+
+Run in your terminal → follow the interactive prompts → startup script is generated automatically.
+
+> Requires: **Node.js 20 LTS** or newer. Check: `node -v`
+
+<details>
+<summary><b>3️⃣ Option C — AI Agent (Antigravity)</b></summary>
+<br>
+
+1. Open [Antigravity IDE](https://antigravity.dev/)
+2. Open this repo as your workspace
+3. Paste into chat:
+   ```
+   Read SETUP.md and set up OpenClaw v5.0.1 for me.
+   My bot token is X. Use 9Router (no API key).
+   My project folder: <YOUR_PATH>
+   ```
+
+</details>
 
 ---
 
 ## 📋 Prerequisites
 
-You need **3 things** (all free):
+### Without Docker (Native — recommended for Ubuntu/VPS)
 
-1. **Docker Desktop** — [Download here](https://www.docker.com/products/docker-desktop/)
-2. **AI API Key** — See [Supported Providers](#-supported-providers) (Gemini is free!)
-3. **Bot Token** — See [Supported Channels](#-supported-channels)
+| Requirement             | Notes                                                                     |
+| ----------------------- | ------------------------------------------------------------------------- |
+| **Node.js 20 LTS**      | [Download](https://nodejs.org/) · Check: `node -v`                        |
+| **An AI provider**      | 9Router (free) or Gemini/Claude/GPT-4o                                    |
+| **Bot Token**           | From Telegram BotFather or Zalo Developer                                 |
+| **Ollama** _(optional)_ | Only if you want to run Gemma 4 locally · [Download](https://ollama.com/) |
+
+### With Docker (recommended for Windows/macOS)
+
+| Requirement                     | Notes                                                                                         |
+| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Node.js 20 LTS**              | [Download](https://nodejs.org/) · Check: `node -v`                                            |
+| **Docker Desktop + Compose V2** | [Download](https://www.docker.com/products/docker-desktop/) · Check: `docker compose version` |
+| **An AI provider**              | 9Router runs as a sidecar container — no separate install needed                              |
+| **Bot Token**                   | From Telegram BotFather or Zalo Developer                                                     |
 
 ---
 
 ## 🧠 Supported Providers
 
-- **Google Gemini** (Gemini 2.5 Flash/Pro, 3.0 Flash) — 🆓 Free — [Get Key](https://aistudio.google.com/apikey)
-- **Anthropic Claude** (Sonnet 4, Opus 4, Haiku 3.5) — 💰 Paid — [Get Key](https://console.anthropic.com/settings/keys)
-- **OpenAI / Codex** (GPT-4o, o3, Codex Mini) — 💰 Paid — [Get Key](https://platform.openai.com/api-keys)
-- **OpenRouter** (Many free & paid models) — 🆓/💰 — [Get Key](https://openrouter.ai/keys)
-- **Ollama / Gemma 4** (local models, no API key) — 🏠 Local — **Auto-runs in Docker, no manual install**
-- **9Router** (Auto-routes to best provider) — 🔀 Proxy — [Docs](https://github.com/decolua/9router)
+| Provider             | Cost         | API Key  | Notes                                                                                     |
+| -------------------- | ------------ | -------- | ----------------------------------------------------------------------------------------- |
+| **9Router**          | 🆓 Free      | ❌ OAuth | Recommended for beginners. Auto-routes to best model. Supports Claude CLI, Codex, Gemini. |
+| **Google Gemini**    | 🆓 Free tier | ✅ Yes   | High quality. Very generous free tier.                                                    |
+| **Ollama / Gemma 4** | 🏠 Free      | ❌ No    | Runs 100% offline. Auto-pulls model on first start.                                       |
+| **Anthropic Claude** | 💰 Paid      | ✅ Yes   | Best reasoning and writing quality.                                                       |
+| **OpenAI / Codex**   | 💰 Paid      | ✅ Yes   | GPT-4o, Codex Mini.                                                                       |
+| **OpenRouter**       | 🆓/💰 Mixed  | ✅ Yes   | Many models under one key. Some are free.                                                 |
 
-> 🔀 **9Router** runs alongside OpenClaw in Docker. After `docker compose up`, open `localhost:20128/dashboard` to login via OAuth. No API keys needed!
+> 🔀 **9Router v0.3.75+** adds lossless passthrough for Claude Code, Codex, Gemini CLI, and Antigravity — meaning these AI tools can use 9Router as their endpoint without any data loss. See [docs/ai-providers.md](docs/ai-providers.md) for setup details.
 
 ---
 
 ## 🔌 Supported Channels
 
-- **Telegram** (✅ Official) — Search **@BotFather** on Telegram → `/newbot` → Copy token.
+- **Telegram** (✅ Official) — Search **@BotFather** → `/newbot` → Copy token.
 - **Zalo Bot API** (✅ Official) — Go to [developers.zalo.me](https://developers.zalo.me) → Create bot → Copy token.
-- **Zalo Personal** (⚠️ Unofficial) — Scan QR code after Docker setup (no token needed).
+- **Zalo Personal** (⚠️ Unofficial) — Scan QR after setup (no token needed). Use a secondary account.
 
-> ⚠️ **Zalo Personal** uses an unofficial API. Your account may be restricted. Use a secondary account.
-
----
-
-## 🚀 Quick Start
-
-### 1️⃣ Option A — Interactive CLI (`npx`) [Recommended]
-
-The fastest way to install OpenClaw is using the interactive NPM package.
-
-1. **Open your Terminal (or Command Prompt).**
-2. **Run the command:**
-   ```bash
-   npx create-openclaw-bot
-   ```
-3. **Follow the interactive prompts** to configure your bot, keys, and paths!
-
-<details>
-<summary><b>2️⃣ Option B — GUI Setup Wizard (Web UI)</b></summary>
-<br>
-
-1. **Clone this repo:**
-
-   ```bash
-   git clone https://github.com/tuanminhhole/openclaw-setup.git
-   cd openclaw-setup
-   ```
-
-2. **Open `index.html`** in your browser — the Setup Wizard will guide you through:
-   - Choose your channel (Telegram / Zalo)
-   - Configure bot name, personality, AI model
-   - Generate all config files and `setup-openclaw.bat`
-
-</details>
-
-### 3️⃣ Option C — AI Agent (Antigravity)
-
-1. Open [Antigravity IDE](https://antigravity.dev/)
-2. Open this repo as workspace
-3. Paste into chat:
-   ```text
-   Read SETUP.md and set up OpenClaw v5.0.0 for me.
-   My bot token is X, my 9Router proxy doesn't need a key.
-   My project folder: <YOUR_PATH>
-   ```
+> ⚠️ **Zalo Personal** uses an unofficial API. Your account may be restricted. Use a secondary account only.
 
 ---
 
 ## 📁 Repo Structure
 
 ```
-index.html       ← Setup Wizard UI
-style.css        ← Wizard styles
-setup.js         ← Wizard logic
-CHANGELOG.md     ← Version history
-README.md        ← You're here (English)
-README.vi.md     ← Hướng dẫn tiếng Việt
-SETUP.md         ← Technical guide for AI (English)
-SETUP.vi.md      ← Hướng dẫn kỹ thuật cho AI (Tiếng Việt)
+index.html           ← Setup Wizard UI (open in browser)
+style.css            ← Wizard styles
+setup.js             ← Wizard logic
+cli.js               ← Interactive CLI (npx create-openclaw-bot)
+CHANGELOG.md/.vi.md  ← Version history
+README.md            ← You're here (English)
+README.vi.md         ← Hướng dẫn tiếng Việt
+SETUP.md/.vi.md      ← Technical guide for AI Agent
+docs/
+  install-docker.md/.vi.md     ← Docker setup per OS
+  install-native.md/.vi.md     ← Native/PM2 install per OS
+  ai-providers.md/.vi.md       ← AI provider configuration
+  hardware-guide.md/.vi.md     ← RAM planning for Ollama/Gemma 4
+  faq.md/.vi.md                ← Frequently asked questions
 ```
+
+> **Note:** Startup scripts (`.bat`, `.sh`) are **not included** in the repo — they are generated by the Web Wizard or CLI based on your specific configuration.
 
 ---
 
@@ -154,48 +194,88 @@ SETUP.vi.md      ← Hướng dẫn kỹ thuật cho AI (Tiếng Việt)
 
 <details>
 <summary><b>Is it really free?</b></summary>
-Yes. Docker, Google Gemini API (free tier), and Telegram/Zalo bots are all free.
+
+Yes. Docker, Google Gemini API (free tier), and Telegram/Zalo bot tokens are all free. You only pay if you choose a paid AI provider like Claude or GPT-4o.
+
 </details>
 
 <details>
 <summary><b>Where does the bot run?</b></summary>
-On your computer inside a Docker container. When your PC is off, the bot is off.
+
+On your computer or server. With Docker it runs in a container; with Native mode it runs as a PM2-managed process. If the machine is off, the bot is off. Use a VPS for 24/7 uptime.
+
 </details>
 
 <details>
-<summary><b>How do I stop/restart?</b></summary>
+<summary><b>Do I need Docker?</b></summary>
+
+No. Docker is optional. Windows/macOS users should use Docker for clean isolation. Ubuntu/VPS users should install natively with PM2 — less overhead and OpenClaw is already secure by design.
+
+</details>
+
+<details>
+<summary><b>How do I stop/restart the bot?</b></summary>
+
+**Docker:**
 
 ```bash
 docker compose down      # Stop
 docker compose up -d     # Start
+docker compose restart   # Restart
+```
+
+**PM2 (native):**
+
+```bash
+pm2 stop openclaw-bot
+pm2 start openclaw-bot
+pm2 restart openclaw-bot
 ```
 
 </details>
 
 <details>
-<summary><b>Can I customize the bot?</b></summary>
-Yes! Use the Setup Wizard to configure name, personality, and language. Or edit the YAML files directly.
+<summary><b>Can I switch AI models later?</b></summary>
+
+Yes. Re-run `npx create-openclaw-bot` in your bot folder, or edit `.openclaw/openclaw.json` directly and restart the bot.
+
 </details>
 
 <details>
 <summary><b>Is it safe?</b></summary>
-Your API keys stay on your machine only. SETUP.md includes strict security rules that the AI must follow.
-</details>
 
-<details>
-<summary><b>Can I switch channels later?</b></summary>
-Yes! Re-run the Setup Wizard or manually edit <code>.openclaw/openclaw.json</code> to change the channel config.
+Your API keys are stored only on your machine in a local `.env` file. OpenClaw never transmits them anywhere. When using Ollama, all AI inference runs completely offline.
+
 </details>
 
 <details>
 <summary><b>What is 9Router?</b></summary>
-9Router is a community open-source AI proxy that runs in Docker alongside your bot. Instead of API keys, you login via OAuth on the 9Router dashboard (<code>localhost:20128</code>). It auto-routes requests to the best available AI provider.
+
+9Router is an open-source AI proxy. Instead of managing API keys from multiple providers, you log in once via OAuth at `localhost:20128/dashboard`. It auto-routes requests to the best available AI model. Starting v0.3.75, it also supports lossless passthrough for Claude Code, Codex, Gemini CLI, and Antigravity.
+
 </details>
 
 <details>
 <summary><b>What's the difference between Skills and Plugins?</b></summary>
-<strong>Skills</strong> add agent capabilities (Web Search, Browser, Memory, etc.) — installed via <code>openclaw skills install</code> from ClawHub.<br>
-<strong>Plugins</strong> add channels or runtime extensions (Voice Call, Matrix, etc.) — installed via <code>openclaw plugins install</code> from npm.
+
+**Skills** add agent capabilities (Web Search, Browser Automation, Memory, RAG, Code Interpreter...) — install via `openclaw skills install` from ClawHub.
+
+**Plugins** add channels or runtime extensions (Voice Call, Matrix, MS Teams...) — install via `openclaw plugins install` from npm.
+
+</details>
+
+<details>
+<summary><b>How much RAM do I need for Gemma 4?</b></summary>
+
+| Model        | Min RAM (Native) | Min RAM (Docker) |
+| ------------ | ---------------- | ---------------- |
+| `gemma4:e2b` | ~4 GB            | ~5 GB            |
+| `gemma4:e4b` | ~8 GB            | ~9 GB            |
+| `gemma4:26b` | ~18 GB           | ~20 GB           |
+| `gemma4:31b` | ~24 GB           | ~26 GB           |
+
+See [docs/hardware-guide.md](docs/hardware-guide.md) for full details including VPS swap setup.
+
 </details>
 
 ---
@@ -203,10 +283,14 @@ Yes! Re-run the Setup Wizard or manually edit <code>.openclaw/openclaw.json</cod
 ## 🔗 Links
 
 - [OpenClaw Docs](https://openclaw.ai/docs)
+- [9Router](https://github.com/decolua/9router)
 - [Google AI Studio](https://aistudio.google.com/)
 - [Telegram BotFather](https://t.me/BotFather)
-- [Zalo Bot Platform](https://developers.zalo.me)
+- [Zalo Developer Platform](https://developers.zalo.me)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [Ollama](https://ollama.com)
+- [OpenRouter](https://openrouter.ai)
+- [ClawHub (Skills)](https://clawhub.com)
 
 ---
 

@@ -22,21 +22,26 @@
   <nav class="progress-bar" aria-label="Setup progress">
     <div class="progress-step progress-step--active" data-pstep="1" onclick="window.__navToStep && window.__navToStep(1)" style="cursor:pointer" title="Bước 1">
       <span class="progress-step__circle">1</span>
-      <span class="progress-step__label" data-vi="Chọn kênh" data-en="Channel">Chọn kênh</span>
+      <span class="progress-step__label" data-vi="Môi trường" data-en="Environment">Môi trường</span>
     </div>
     <div class="progress-line" data-after="1"></div>
     <div class="progress-step" data-pstep="2" onclick="window.__navToStep && window.__navToStep(2)" style="cursor:pointer" title="Bước 2">
       <span class="progress-step__circle">2</span>
-      <span class="progress-step__label" data-vi="Cấu hình Bot" data-en="Configure Bot">Cấu hình Bot</span>
+      <span class="progress-step__label" data-vi="Chọn kênh" data-en="Channel">Chọn kênh</span>
     </div>
     <div class="progress-line" data-after="2"></div>
     <div class="progress-step" data-pstep="3" onclick="window.__navToStep && window.__navToStep(3)" style="cursor:pointer" title="Bước 3">
       <span class="progress-step__circle">3</span>
-      <span class="progress-step__label" data-vi="API Keys" data-en="API Keys">API Keys</span>
+      <span class="progress-step__label" data-vi="Cấu hình Bot" data-en="Configure Bot">Cấu hình Bot</span>
     </div>
     <div class="progress-line" data-after="3"></div>
     <div class="progress-step" data-pstep="4" onclick="window.__navToStep && window.__navToStep(4)" style="cursor:pointer" title="Bước 4">
       <span class="progress-step__circle">4</span>
+      <span class="progress-step__label" data-vi="API Keys" data-en="API Keys">API Keys</span>
+    </div>
+    <div class="progress-line" data-after="4"></div>
+    <div class="progress-step" data-pstep="5" onclick="window.__navToStep && window.__navToStep(5)" style="cursor:pointer" title="Bước 5">
+      <span class="progress-step__circle">5</span>
       <span class="progress-step__label" data-vi="Hoàn tất" data-en="Finish">Hoàn tất</span>
     </div>
   </nav>
@@ -44,12 +49,16 @@
   <!-- ========== Steps Container ========== -->
   <main class="steps-container">
 
-    <!-- ===== Step 1: Choose Channel ===== -->
+    <!-- ===== Step 1: Environment / Deploy Mode ===== -->
     <section class="step step--active" data-step="1">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-        <h2 class="step__title" data-vi="Chọn kênh chat cho Bot" data-en="Choose Chat Channel" style="margin-bottom: 0;">Chọn kênh chat cho Bot</h2>
+      <!-- Header row: title + lang toggle -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+        <div>
+          <h2 class="step__title" data-vi="Bạn đang dùng hệ điều hành nào?" data-en="What's your operating system?" style="margin-bottom: 4px;">Bạn đang dùng hệ điều hành nào?</h2>
+          <p class="step__description" style="margin: 0;" data-vi="Chọn môi trường để nhận script cài đặt phù hợp nhất." data-en="Choose your environment to get the most suitable setup script.">Chọn môi trường để nhận script cài đặt phù hợp nhất.</p>
+        </div>
         <input type="hidden" id="cfg-language" value="vi">
-        <div class="lang-toggle" id="lang-toggle">
+        <div class="lang-toggle" id="lang-toggle" style="flex-shrink: 0; margin-left: 16px;">
           <button type="button" class="lang-toggle__btn lang-toggle__btn--active" data-lang="vi" onclick="window.__selectLang('vi')">
             <span class="lang-toggle__flag" data-lang="vi"></span>
             <span>VI</span>
@@ -60,6 +69,98 @@
           </button>
         </div>
       </div>
+
+      <!-- OS Selection: 4 horizontal cards -->
+      <div id="native-os-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px;">
+
+        <!-- Windows -->
+        <div class="channel-card channel-card--selected env-os-card" data-os="win" id="card-os-win" onclick="window.__selectOs('win')" style="cursor:pointer; padding: 18px 14px; text-align: center; position: relative;">
+          <div style="font-size: 36px; margin-bottom: 10px; line-height: 1;">🪟</div>
+          <div style="font-weight: 700; font-size: 15px; margin-bottom: 6px;">Windows</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" data-vi="10 / 11" data-en="10 / 11">10 / 11</div>
+          <span class="env-deploy-badge badge--official" style="font-size: 10.5px; padding: 3px 8px; border-radius: 20px; display: inline-block;" data-vi="🐳 Docker + .bat" data-en="🐳 Docker + .bat">🐳 Docker + .bat</span>
+        </div>
+
+        <!-- macOS -->
+        <div class="channel-card env-os-card" data-os="linux" id="card-os-linux" onclick="window.__selectOs('linux')" style="cursor:pointer; padding: 18px 14px; text-align: center; position: relative;">
+          <div style="font-size: 36px; margin-bottom: 10px; line-height: 1;">🍎</div>
+          <div style="font-weight: 700; font-size: 15px; margin-bottom: 6px;">macOS</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" data-vi="Ventura trở lên" data-en="Ventura and above">Ventura trở lên</div>
+          <span class="env-deploy-badge badge--official" style="font-size: 10.5px; padding: 3px 8px; border-radius: 20px; display: inline-block;" data-vi="🐳 Docker + .sh" data-en="🐳 Docker + .sh">🐳 Docker + .sh</span>
+        </div>
+
+        <!-- Ubuntu / VPS -->
+        <div class="channel-card env-os-card" data-os="vps" id="card-os-vps" onclick="window.__selectOs('vps')" style="cursor:pointer; padding: 18px 14px; text-align: center; position: relative;">
+          <div style="font-size: 36px; margin-bottom: 10px; line-height: 1;">🐧</div>
+          <div style="font-weight: 700; font-size: 15px; margin-bottom: 6px;">Ubuntu / VPS</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" data-vi="Server, cloud VPS" data-en="Server, cloud VPS">Server, cloud VPS</div>
+          <span class="env-deploy-badge badge--warning" style="font-size: 10.5px; padding: 3px 8px; border-radius: 20px; display: inline-block;" data-vi="💻 Native + PM2" data-en="💻 Native + PM2">💻 Native + PM2</span>
+        </div>
+
+        <!-- Linux Desktop -->
+        <div class="channel-card env-os-card" data-os="linux-desktop" id="card-os-linux-desktop" onclick="window.__selectOs('linux-desktop')" style="cursor:pointer; padding: 18px 14px; text-align: center; position: relative;">
+          <div style="font-size: 36px; margin-bottom: 10px; line-height: 1;">🖥️</div>
+          <div style="font-weight: 700; font-size: 15px; margin-bottom: 6px;" data-vi="Linux Desktop" data-en="Linux Desktop">Linux Desktop</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;" data-vi="Ubuntu, Debian, Mint..." data-en="Ubuntu, Debian, Mint...">Ubuntu, Debian, Mint...</div>
+          <span class="env-deploy-badge badge--warning" style="font-size: 10.5px; padding: 3px 8px; border-radius: 20px; display: inline-block;" data-vi="💻 Native .sh" data-en="💻 Native .sh">💻 Native .sh</span>
+        </div>
+      </div>
+
+      <!-- Smart Advisory Panel (updates per OS selection) -->
+      <div id="env-advisory" style="margin-top: 16px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);">
+        <!-- Advisory content filled by JS -->
+        <div id="env-advisory-inner" style="padding: 14px 18px; display: flex; gap: 16px; align-items: flex-start;">
+          <div style="font-size: 28px; flex-shrink: 0; line-height: 1; margin-top: 2px;" id="env-adv-icon">🪟</div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px; color: var(--text-primary);" id="env-adv-title">Windows — Khuyên dùng Docker</div>
+            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;" id="env-adv-desc">Bot chạy trong container isolation. Script <code>.bat</code> tự động cài Docker Desktop, pull model, build &amp; start — không cần thao tác thủ công.</div>
+          </div>
+          <div id="env-adv-badge" style="flex-shrink: 0; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); white-space: nowrap;">🐳 Docker</div>
+        </div>
+
+        <!-- Advanced override toggle -->
+        <div style="border-top: 1px solid rgba(255,255,255,0.06); padding: 10px 18px; display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 12px; color: var(--text-muted);" data-vi="Muốn thay đổi chế độ deploy?" data-en="Want to override deploy mode?">Muốn thay đổi chế độ deploy?</span>
+          <button onclick="window.__toggleDeployOverride()" style="background: none; border: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 2px 0; font-weight: 500;" id="btn-deploy-toggle">
+            <span data-vi="Tuỳ chỉnh ▾" data-en="Customize ▾">Tuỳ chỉnh ▾</span>
+          </button>
+        </div>
+
+        <!-- Deploy override panel (hidden by default) -->
+        <div id="deploy-override-panel" style="display: none; border-top: 1px solid rgba(255,255,255,0.06); padding: 14px 18px;">
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" data-vi="Chọn chế độ deploy thủ công nếu bạn biết mình muốn gì:" data-en="Manually select deploy mode if you know what you want:">Chọn chế độ deploy thủ công nếu bạn biết mình muốn gì:</p>
+          <div id="deploy-mode-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="channel-card" data-deploy="docker" id="card-deploy-docker" style="padding: 12px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 22px;">🐳</span>
+              <div>
+                <div style="font-weight: 600; font-size: 13px;">Docker</div>
+                <div style="font-size: 11px; color: var(--text-muted);" data-vi="Container isolation" data-en="Container isolation">Container isolation</div>
+              </div>
+            </div>
+            <div class="channel-card" data-deploy="native" id="card-deploy-native" style="padding: 12px 14px; cursor: pointer; display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 22px;">💻</span>
+              <div>
+                <div style="font-weight: 600; font-size: 13px;" data-vi="Native" data-en="Native">Native</div>
+                <div style="font-size: 11px; color: var(--text-muted);" data-vi="Chạy thẳng trên máy" data-en="Run directly on machine">Chạy thẳng trên máy</div>
+              </div>
+            </div>
+          </div>
+          <!-- Docker notice -->
+          <div id="docker-install-notice" style="display: none; margin-top: 10px; padding: 10px 14px; background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            🐳 <span data-vi="Script tự cài Docker Engine + Compose V2 nếu chưa có." data-en="Script auto-installs Docker Engine + Compose V2 if missing.">Script tự cài Docker Engine + Compose V2 nếu chưa có.</span>
+            <div id="docker-win-notice" style="display:none; margin-top: 6px; color: #ffc107;">
+              ⚠️ <span data-vi="Windows: yêu cầu khởi động lại sau khi cài Docker Desktop." data-en="Windows: restart required after Docker Desktop install.">Windows: yêu cầu khởi động lại sau khi cài Docker Desktop.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ===== Step 2: Choose Channel ===== -->
+    <section class="step" data-step="2">
+      <h2 class="step__title" data-vi="Chọn kênh chat cho Bot" data-en="Choose Chat Channel">Chọn kênh chat cho Bot</h2>
       <p class="step__description" data-vi="Bot AI của bạn sẽ hoạt động trên nền tảng nào? Chọn 1 kênh bên dưới." data-en="Which platform will your AI Bot operate on? Choose a channel below.">Bot AI của bạn sẽ hoạt động trên nền tảng nào? Chọn 1 kênh bên dưới.</p>
 
       <div class="channel-grid">
@@ -84,14 +185,146 @@
           <span class="channel-card__badge badge--warning">⚠️ Unofficial</span>
         </div>
       </div>
+
+      <!-- Multi-bot selector (Telegram only) -->
+      <div id="multibot-panel" style="display:none; margin-top:24px; padding:20px 22px; border:1px solid rgba(99,102,241,0.3); border-radius:12px; background:linear-gradient(135deg,rgba(99,102,241,0.05),rgba(139,92,246,0.03));">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <span style="font-size:22px;">🤖</span>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:var(--text-primary);" data-vi="Muốn triển khai nhiều bot không?" data-en="Want to deploy multiple bots?">Muốn triển khai nhiều bot không?</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" data-vi="Các bot sẽ hoạt động như một phòng ban — mỗi bot có vai trò riêng." data-en="Bots work like a team department — each with a distinct role.">Các bot sẽ hoạt động như một phòng ban — mỗi bot có vai trò riêng.</div>
+          </div>
+        </div>
+
+        <!-- How it works -->
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+          <div style="flex:1;min-width:180px;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);">
+            <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">🔇 Không có mention</div>
+            <span data-vi="Bot sẽ react 👍❤️🔥 vào tin nhắn nhưng không reply để tránh spam" data-en="Bots react 👍❤️🔥 to messages but stay silent to avoid spam">Bot sẽ react 👍❤️🔥 vào tin nhắn nhưng không reply để tránh spam</span>
+          </div>
+          <div style="flex:1;min-width:180px;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);">
+            <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">📣 @mention / /slash</div>
+            <span data-vi="Chỉ bot được tag mới trả lời — như gọi đúng tên nhân viên trong phòng họp" data-en="Only the tagged bot responds — like calling an employee by name in a meeting">Chỉ bot được tag mới trả lời, như gọi đúng tên nhân viên trong phòng họp</span>
+          </div>
+          <div style="flex:1;min-width:180px;padding:8px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;font-size:12px;color:var(--text-secondary);">
+            <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">🗃️ Workspace chia sẻ</div>
+            <span data-vi="Các bot cùng chung thư mục workspace — có thể đọc file của nhau, phối hợp tác vụ" data-en="Bots share a workspace folder — can read each other's files, collaborate on tasks">Các bot cùng chung thư mục workspace, có thể đọc file của nhau, phối hợp tác vụ</span>
+          </div>
+        </div>
+
+        <!-- Bot count picker -->
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:10px;" data-vi="Số lượng bot:" data-en="Number of bots:">Số lượng bot:</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="botcount-grid">
+            <button class="botcount-btn botcount-btn--active" data-count="1" onclick="window.__selectBotCount(1)" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(99,102,241,0.5);background:rgba(99,102,241,0.15);color:var(--text-primary);font-weight:600;cursor:pointer;font-size:14px;">1 bot</button>
+            <button class="botcount-btn" data-count="2" onclick="window.__selectBotCount(2)" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:var(--text-secondary);font-weight:600;cursor:pointer;font-size:14px;">2 bot</button>
+            <button class="botcount-btn" data-count="3" onclick="window.__selectBotCount(3)" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:var(--text-secondary);font-weight:600;cursor:pointer;font-size:14px;">3 bot</button>
+            <button class="botcount-btn" data-count="4" onclick="window.__selectBotCount(4)" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:var(--text-secondary);font-weight:600;cursor:pointer;font-size:14px;">4 bot</button>
+            <button class="botcount-btn" data-count="5" onclick="window.__selectBotCount(5)" style="padding:8px 20px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:var(--text-secondary);font-weight:600;cursor:pointer;font-size:14px;">5 bot</button>
+          </div>
+        </div>
+
+        <!-- Multi-bot group option -->
+        <div id="multibot-group-option" style="display:none;margin-top:18px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">
+            📱 <span data-vi="Telegram Group cho các bot" data-en="Telegram Group for the bots">Telegram Group cho các bot</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <!-- Card: Create later -->
+            <label id="group-card-create" for="group-opt-create" style="cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:14px 16px;background:rgba(16,185,129,0.08);border:1.5px solid rgba(16,185,129,0.5);border-radius:12px;transition:all .18s;position:relative;">
+              <input type="radio" name="group-option" value="create" id="group-opt-create" checked style="position:absolute;opacity:0;pointer-events:none;" onchange="window.__onGroupOptionChange()">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:20px;">✨</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text-primary);" data-vi="Tôi sẽ tạo sau" data-en="I'll create later">Tôi sẽ tạo sau</span>
+              </div>
+              <p style="margin:0;font-size:11.5px;color:var(--text-secondary);line-height:1.5;" data-vi="Setup xong rồi tạo group, thêm từng bot vào là xong." data-en="Finish setup first, then create a group and add each bot.">Setup xong rồi tạo group, thêm từng bot vào là xong.</p>
+              <div id="group-card-create-check" style="position:absolute;top:10px;right:12px;width:16px;height:16px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;">
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </label>
+            <!-- Card: Already have group -->
+            <label id="group-card-existing" for="group-opt-existing" style="cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:14px 16px;background:rgba(255,255,255,0.03);border:1.5px solid rgba(255,255,255,0.1);border-radius:12px;transition:all .18s;position:relative;">
+              <input type="radio" name="group-option" value="existing" id="group-opt-existing" style="position:absolute;opacity:0;pointer-events:none;" onchange="window.__onGroupOptionChange()">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:20px;">🔗</span>
+                <span style="font-size:13px;font-weight:600;color:var(--text-primary);" data-vi="Đã có group" data-en="Already have a group">Đã có group</span>
+              </div>
+              <p style="margin:0;font-size:11.5px;color:var(--text-secondary);line-height:1.5;" data-vi="Nhập Group ID để bot tự join và nhận diện nhau." data-en="Enter the Group ID so bots can join and recognize each other.">Nhập Group ID để bot tự join và nhận diện nhau.</p>
+              <div id="group-card-existing-check" style="position:absolute;top:10px;right:12px;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;">
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/></svg>
+              </div>
+            </label>
+          </div>
+          <!-- Group ID input (shown when existing selected) -->
+          <div id="group-id-wrap" style="display:none;margin-top:12px;">
+            <div style="display:flex;gap:8px;align-items:stretch;">
+              <input type="text" id="cfg-group-id" class="form-input" placeholder="-1001234567890" style="font-family:monospace;font-size:13px;flex:1;" oninput="window.__saveGroupId(this.value)">
+              <a href="https://t.me/userinfobot" target="_blank" rel="noopener"
+                style="display:inline-flex;align-items:center;gap:6px;padding:0 14px;background:rgba(99,102,241,0.15);border:1.5px solid rgba(99,102,241,0.4);border-radius:8px;font-size:12px;font-weight:600;color:#a5b4fc;text-decoration:none;white-space:nowrap;transition:all .15s;"
+                onmouseover="this.style.background='rgba(99,102,241,0.28)';this.style.borderColor='rgba(99,102,241,0.7)'"
+                onmouseout="this.style.background='rgba(99,102,241,0.15)';this.style.borderColor='rgba(99,102,241,0.4)'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                <span data-vi="Lấy Group ID" data-en="Get Group ID">Lấy Group ID</span>
+              </a>
+            </div>
+            <p class="form-group__hint" style="margin-top:6px;" id="group-id-hint">
+              <span data-vi="Hướng dẫn lấy Group ID: Vào thanh tìm kiếm trên Telegram → nhập @userinfobot → bấm nút Start để bắt đầu → chọn nút Group trên màn hình chat → chọn Group bạn muốn thêm bot vào → bot trả về Group ID." data-en="Search @userinfobot on Telegram → click Start → click Group → select the group you want to add the bot to → the bot will reply with the Group ID.">Hướng dẫn lấy Group ID: Vào thanh tìm kiếm trên Telegram → nhập @userinfobot → bấm nút Start để bắt đầu → chọn nút Group trên màn hình chat → chọn Group bạn muốn thêm bot vào → bot trả về Group ID.</span>
+            </p>
+          </div>
+
+        </div>
+
+      </div>
+
     </section>
 
-    <!-- ===== Step 2: Bot Config ===== -->
-    <section class="step" data-step="2">
+    <!-- ===== Step 3: Bot Config ===== -->
+    <section class="step" data-step="3">
       <h2 class="step__title"><span data-vi="Cấu hình Bot — " data-en="Configure Bot — ">Cấu hình Bot — </span><span id="selected-channel-label"></span></h2>
       <p class="step__description" data-vi="Chọn AI model, đặt tên, tính cách và quy tắc cho Bot của bạn." data-en="Choose AI model, set name, persona and rules for your Bot.">Chọn AI model, đặt tên, tính cách và quy tắc cho Bot của bạn.</p>
 
-      <!-- ─── 1. AI Provider Selection (TOP) ─── -->
+      <!-- Multi-bot tab switcher (hidden for single bot) -->
+      <div id="bot-tab-bar" style="display:block; margin-bottom:20px;">
+        <div id="multibot-tab-label" style="display:none; font-size:12px;color:var(--text-muted);margin-bottom:8px;" data-vi="Cấu hình từng bot — click vào tab để chuyển đổi:" data-en="Configure each bot — click a tab to switch:">Cấu hình từng bot — click vào tab để chuyển đổi:</div>
+        <div id="bot-tabs" style="display:none;gap:6px;flex-wrap:wrap;"></div>
+        <!-- Per-bot quick config -->
+        <div id="bot-tab-meta" style="margin-top:14px;padding:14px 16px;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.2);border-radius:10px;">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <div class="form-group" style="flex:1;min-width:160px;margin:0;">
+              <label class="form-group__label" data-vi="Tên bot này" data-en="This bot's name">Tên bot này <span style="color: var(--danger, #ef4444);">*</span></label>
+              <input type="text" class="form-input" id="cfg-bot-tab-name" placeholder="VD: Williams, Luna..." oninput="window.__saveBotTabName(this.value)" style="font-size:13px;">
+            </div>
+            <div class="form-group" id="slash-cmd-group" style="flex:1;min-width:160px;margin:0;">
+              <label class="form-group__label" data-vi="Slash command riêng" data-en="Dedicated slash command">Slash command riêng</label>
+              <input type="text" class="form-input" id="cfg-bot-tab-slash" placeholder="/research" oninput="window.__saveBotTabSlash(this.value)" style="font-size:13px;font-family:monospace;">
+              <p class="form-group__hint" data-vi="Nhập /slash_name để bot react." data-en="Enter /slash_name for bot to react.">Nhập /slash_name để bot react.</p>
+            </div>
+            <div class="form-group" style="flex:2;min-width:200px;margin:0;">
+              <label class="form-group__label" data-vi="Vai trò / Mô tả bot này" data-en="This bot's role / desc">Vai trò / Mô tả bot này</label>
+              <input type="text" class="form-input" id="cfg-bot-tab-desc" placeholder="VD: Trợ lý AI cá nhân" oninput="window.__saveBotTabDesc(this.value)" style="font-size:13px;">
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+             <div class="form-group" style="margin:0;">
+                <label class="form-group__label" data-vi="Tính cách, Vibe & Quy tắc trả lời" data-en="Personality, Vibe & Rules">Tính cách, Vibe & Quy tắc trả lời</label>
+                <input type="text" class="form-input" id="cfg-bot-tab-persona" placeholder="VD: Gọn gàng, xưng hô lịch sự, thân thiện" oninput="window.__saveBotTabPersona(this.value)" style="font-size:13px;">
+                <p class="form-group__hint" data-vi="Quy định cách ứng xử của bot (lưu vào SOUL.md / AGENTS.md)." data-en="Defines how the bot behaves (saved to SOUL.md / AGENTS.md).">Quy định cách ứng xử của bot (lưu vào SOUL.md / AGENTS.md).</p>
+             </div>
+          </div>
+        </div>
+        <p class="form-group__hint" style="margin-top:8px;" data-vi="AI Provider, Model và cài đặt bên dưới được áp dụng cho toàn cục." data-en="AI Provider, Model and settings below apply system-wide.">AI Provider, Model và cài đặt bên dưới được áp dụng chung.</p>
+      </div>
+
+      <!-- ─── User Info (→ USER.md) ─── -->
+      <div class="form-group" style="margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.06);">
+        <label class="form-group__label" for="cfg-user-info" data-vi="👤 Thông tin về bạn và cách xưng hô với bạn (Vd: Tên bạn, sở thích, cách xưng hô)" data-en="👤 About You (so the bot replies better)">👤 Thông tin về bạn (Vd: Tên bạn, sở thích, cách xưng hô)</label>
+        <textarea class="form-textarea" id="cfg-user-info" placeholder="VD: Tuấn thích vọc code, múi giờ UTC+7. Xưng hô tui-bro, thích câu trả lời đi thẳng vào vấn đề, không thảo mai..." style="min-height: 90px;"></textarea>
+        <div class="prompt-notice">
+          <span class="prompt-notice__icon">👤</span>
+          <span class="prompt-notice__text" data-vi="Nội dung trên sẽ vào <code>USER.md</code> — bot dùng để cá nhân hóa cách trả lời cho bạn." data-en="This configures <code>USER.md</code> — used to personalize answers for you.">Nội dung trên sẽ vào <code>USER.md</code> — bot dùng để cá nhân hóa cách trả lời cho bạn.</span>
+        </div>
+      </div>
+
       <div class="form-group">
         <label class="form-group__label" data-vi="Nhà cung cấp AI" data-en="AI Provider">Nhà cung cấp AI</label>
         <div class="provider-grid" id="provider-grid">
@@ -108,49 +341,6 @@
         <select class="form-select" id="cfg-model">
           <!-- Populated by JS based on provider -->
         </select>
-      </div>
-
-      <!-- ─── Section divider ─── -->
-      <div class="section-divider">
-        <span class="section-divider__icon">🤖</span>
-        <span class="section-divider__text" data-vi="Danh tính & Tính cách Bot" data-en="Identity & Persona">Danh tính & Tính cách Bot</span>
-      </div>
-
-      <!-- ─── 3. Bot Identity (Name, Role, Emoji, Vibe) ─── -->
-      <div class="identity-grid">
-        <div class="form-group">
-          <label class="form-group__label" for="cfg-name" data-vi="Tên Bot" data-en="Bot Name">Tên Bot <span style="color: var(--danger, #ef4444);">*</span></label>
-          <input type="text" class="form-input" id="cfg-name" placeholder="VD: Williams, Jarvis, Luna..." oninput="window.__validateKeys()">
-        </div>
-        <div class="form-group">
-          <label class="form-group__label" for="cfg-desc" data-vi="Vai trò / Mô tả" data-en="Role / Description">Vai trò / Mô tả</label>
-          <input type="text" class="form-input" id="cfg-desc" placeholder="VD: Trợ lý AI cá nhân" value="Trợ lý">
-        </div>
-        <div class="form-group">
-          <label class="form-group__label" for="cfg-emoji">Emoji</label>
-          <input type="text" class="form-input form-input--emoji" id="cfg-emoji" value="🤖" maxlength="4">
-        </div>
-      </div>
-      <p class="form-group__hint" style="margin-top: -12px; margin-bottom: 24px;" data-vi="Các thông tin trên sẽ vào <code>IDENTITY.md</code> — nơi bot biết tên mình và cách xưng hô." data-en="This info configures <code>IDENTITY.md</code> — where the bot knows its name and how to address itself.">Các thông tin trên sẽ vào <code>IDENTITY.md</code> — nơi bot biết tên mình và cách xưng hô.</p>
-
-      <!-- ─── 4. Personality / System Prompt (→ SOUL.md + AGENTS.md) ─── -->
-      <div class="form-group">
-        <label class="form-group__label" for="cfg-prompt" data-vi="Tính cách, Vibe & Quy tắc trả lời" data-en="Personality, Vibe & Rules">Tính cách, Vibe & Quy tắc trả lời</label>
-        <textarea class="form-textarea" id="cfg-prompt" placeholder="Mô tả tính cách, vibe, phong cách trả lời, quy tắc cho bot..."></textarea>
-        <div class="prompt-notice">
-          <span class="prompt-notice__icon">📝</span>
-          <span class="prompt-notice__text" data-vi="Nội dung trên sẽ vào <code>SOUL.md</code> (tính cách) và <code>AGENTS.md</code> (quy tắc vận hành). OpenClaw tự động inject vào context đầu mỗi session." data-en="This configures <code>SOUL.md</code> (personality) and <code>AGENTS.md</code> (rules). OpenClaw automatically injects this into every session.">Nội dung trên sẽ vào <code>SOUL.md</code> (tính cách) và <code>AGENTS.md</code> (quy tắc vận hành). OpenClaw tự động inject vào context đầu mỗi session.</span>
-        </div>
-      </div>
-
-      <!-- ─── 4b. User Info (→ USER.md) ─── -->
-      <div class="form-group">
-        <label class="form-group__label" for="cfg-user-info" data-vi="👤 Thông tin về bạn (để bot hiểu bạn hơn)" data-en="👤 About You (so the bot replies better)">👤 Thông tin về bạn (để bot hiểu bạn hơn) <span style="color: var(--danger, #ef4444);">*</span></label>
-        <textarea class="form-textarea" id="cfg-user-info" placeholder="VD: Mình là dev, thích code Python, múi giờ UTC+7. Thích câu trả lời đi thẳng vào vấn đề, không rào trước đón sau..." style="min-height: 100px;"></textarea>
-        <div class="prompt-notice">
-          <span class="prompt-notice__icon">👤</span>
-          <span class="prompt-notice__text" data-vi="Nội dung trên sẽ vào <code>USER.md</code> — bot dùng để cá nhân hóa cách trả lời cho bạn. Để trống nếu chưa muốn điền." data-en="This configures <code>USER.md</code> — used to personalize answers for you. Leave blank if not needed.">Nội dung trên sẽ vào <code>USER.md</code> — bot dùng để cá nhân hóa cách trả lời cho bạn. Để trống nếu chưa muốn điền.</span>
-        </div>
       </div>
 
       <!-- ─── Section divider ─── -->
@@ -198,8 +388,8 @@
       </div>
     </section>
 
-    <!-- ===== Step 3: API Keys & Thư Mục ===== -->
-    <section class="step" data-step="3">
+    <!-- ===== Step 4: API Keys & Thư Mục ===== -->
+    <section class="step" data-step="4">
       <h2 class="step__title" data-vi="Nhập API Keys & Thư mục" data-en="Enter API Keys & Folder">Nhập API Keys & Thư mục</h2>
       <p class="step__description" style="margin-bottom: 4px;" data-vi="Nhập key trực tiếp + chọn nơi lưu project — wizard lo phần còn lại." data-en="Enter keys + choose project folder — the wizard handles the rest.">Nhập key trực tiếp + chọn nơi lưu project — wizard lo phần còn lại.</p>
       <p style="font-size: 13px; color: var(--danger, #ef4444); margin-top: 0; margin-bottom: 20px;" data-vi="Các trường có dấu <span style='color:var(--danger,#ef4444)'>*</span> là bắt buộc điền." data-en="Fields marked with <span style='color:var(--danger,#ef4444)'>*</span> are required.">Các trường có dấu <span style="color:var(--danger,#ef4444)">*</span> là bắt buộc điền.</p>
@@ -215,7 +405,7 @@
 
       <!-- Project Path Input -->
       <div class="form-group" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.06);">
-        <label class="form-group__label" data-vi="Thư mục lưu trữ Bot (Trên máy chứa Docker) <span style='color:var(--danger,#ef4444)'>*</span>" data-en="Bot Directory (On Docker host) <span style='color:var(--danger,#ef4444)'>*</span>">Thư mục lưu trữ Bot (Trên máy chứa Docker) <span style='color:var(--danger,#ef4444)'>*</span></label>
+        <label class="form-group__label" data-vi="📁 Thư mục lưu trữ Bot <span style='color:var(--danger,#ef4444)'>*</span>" data-en="📁 Bot Directory <span style='color:var(--danger,#ef4444)'>*</span>">📁 Thư mục lưu trữ Bot <span style="color:var(--danger,#ef4444)">*</span></label>
         <input type="text" class="form-input" id="cfg-project-path" value="D:\openclaw-setup" placeholder="VD: D:\openclaw-setup hoặc /home/user/openclaw-setup" style="font-family: monospace;">
         <p class="form-group__hint" data-vi="Script sẽ tự động tạo thư mục này và sinh các file config bên trong." data-en="The script will auto-create this folder and generate config files inside.">Script sẽ tự động tạo thư mục này và sinh các file config bên trong.</p>
       </div>
@@ -228,52 +418,91 @@
       <pre id="env-content" style="display:none;"></pre>
     </section>
 
-    <!-- ===== Step 4: Generated Output ===== -->
-    <section class="step" data-step="4">
-      <h2 id="step4-title" class="step__title" data-vi="🎉 Sẵn sàng! Chọn cách cài đặt" data-en="🎉 Ready! Choose install method">🎉 Sẵn sàng! Chọn cách cài đặt</h2>
-      <p id="step4-desc" class="step__description" data-vi="Chọn 1 trong 2 cách bên dưới để setup bot tự động." data-en="Choose one of the two methods below to auto-setup your bot.">Chọn 1 trong 2 cách bên dưới để setup bot tự động.</p>
+    <!-- ===== Step 5: Generated Output ===== -->
+    <section class="step" data-step="5">
+      <h2 id="step4-title" class="step__title" data-vi="🎉 Sẵn sàng! Tải script cài đặt" data-en="🎉 Ready! Download setup script">🎉 Sẵn sàng! Tải script cài đặt</h2>
+      <p id="step4-desc" class="step__description" data-vi="Script dưới đây đã được tạo sẵn theo cấu hình bạn đã chọn. Tải về và chạy — mọi thứ còn lại được xử lý tự động." data-en="The script below is generated from your choices. Download and run it — everything else is handled automatically.">Script dưới đây đã được tạo sẵn theo cấu hình bạn đã chọn. Tải về và chạy — mọi thứ còn lại được xử lý tự động.</p>
 
-      <!-- Option 1: Windows .bat -->
-      <div class="output-section" style="padding: 24px; border: 2px solid rgba(16, 185, 129, 0.3); border-radius: 12px; background: linear-gradient(135deg, rgba(16,185,129,0.04), rgba(139,92,246,0.03)); margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-          <span style="font-size: 28px;">🪟</span>
-          <div>
-            <h3 class="output-section__title" style="margin: 0;" data-vi="Cách 1: Windows — Download & Double-click" data-en="Option 1: Windows — Download & Double-click">Cách 1: Windows — Download & Double-click</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;" data-vi="Tải file .bat → double-click → tạo project + build Docker + chạy bot. Xong!" data-en="Download .bat → double-click → creates project + builds Docker + starts bot. Done!">Tải file .bat → double-click → tạo project + build Docker + chạy bot. Xong!</p>
-          </div>
-        </div>
-        <div style="display: flex; justify-content: center; margin: 20px 0 8px;">
-          <button class="btn btn--primary" onclick="downloadAutoSetupBat()" style="font-size: 15px; padding: 14px 40px; border-radius: 8px;">
-            <span data-vi="📥 Download setup-openclaw.bat" data-en="📥 Download setup-openclaw.bat">📥 Download setup-openclaw.bat</span>
-          </button>
-        </div>
-        <div style="font-size: 12.5px; color: var(--warning, #ffc107); margin: 10px 0 8px; text-align: center; padding: 6px; background: rgba(255, 193, 7, 0.08); border-radius: 6px; border: 1px solid rgba(255, 193, 7, 0.2);">
-          ⚠️ <strong data-vi="Lưu ý quan trọng:" data-en="Important notice:">Lưu ý quan trọng:</strong> 
-          <span data-vi="Click chuột phải vào file .bat → Properties (Thuộc tính) → tick Unblock (Mở khóa) trước khi chạy!" data-en="Right-click the .bat file → Properties → check Unblock before running!">Click chuột phải vào file .bat → Properties (Thuộc tính) → tick Unblock (Mở khóa) trước khi chạy!</span>
-        </div>
-        <p style="font-size: 12px; color: var(--text-muted); margin: 0; text-align: center;" data-vi="Yêu cầu: Docker Desktop đã cài và đang chạy" data-en="Requires: Docker Desktop installed and running">Yêu cầu: Docker Desktop đã cài và đang chạy</p>
+      <!-- What the script does automatically -->
+      <div id="script-auto-steps" style="margin-bottom: 24px; padding: 14px 16px; background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.2); border-radius: 10px; font-size: 13px; color: var(--text-secondary);">
+        <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">⚡ <span data-vi="Script sẽ tự động làm:" data-en="Script will automatically:">Script sẽ tự động làm:</span></div>
+        <div id="auto-steps-list"></div>
       </div>
 
-      <!-- Option 2: Linux/macOS Terminal -->
-      <div class="output-section" style="padding: 24px; border: 2px solid rgba(255, 107, 53, 0.3); border-radius: 12px; background: linear-gradient(135deg, rgba(255,107,53,0.04), rgba(139,92,246,0.03)); margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
-          <span style="font-size: 28px;">💻</span>
-          <div>
-            <h3 class="output-section__title" style="margin: 0;" data-vi="Cách 2: NPX (Windows / macOS / Linux)" data-en="Option 2: NPX (Windows / macOS / Linux)">Cách 2: NPX (Windows / macOS / Linux)</h3>
-            <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;" data-vi="Chạy lệnh bên dưới trong Terminal / PowerShell để bắt đầu setup." data-en="Run the command below in Terminal / PowerShell to start setup.">Chạy lệnh bên dưới trong Terminal / PowerShell để bắt đầu setup.</p>
+      <div id="docker-output">
+        <!-- Option 1: Docker setup download (OS-adaptive) -->
+        <div class="output-section" style="padding: 24px; border: 2px solid rgba(16, 185, 129, 0.3); border-radius: 12px; background: linear-gradient(135deg, rgba(16,185,129,0.04), rgba(139,92,246,0.03)); margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <span id="docker-dl-icon" style="font-size: 28px;">🪟</span>
+            <div>
+              <h3 class="output-section__title" style="margin: 0;" id="docker-dl-title" data-vi="Download Script Cài Đặt" data-en="Download Setup Script">Download Script Cài Đặt</h3>
+              <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;" id="docker-dl-desc" data-vi="Tải file → chạy → cài Docker, pull model và khởi động bot tự động" data-en="Download → run → auto-installs Docker, pulls model and starts bot">Tải file → chạy → cài Docker, pull model và khởi động bot tự động</p>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: center; margin: 20px 0 8px;">
+            <button class="btn btn--primary" onclick="downloadAutoSetupBat()" style="font-size: 15px; padding: 14px 40px; border-radius: 8px;">
+              <span>📥 Download <span id="docker-dl-filename">setup-openclaw-docker-win.bat</span></span>
+            </button>
+          </div>
+          <div id="docker-dl-win-note" style="font-size: 12.5px; color: var(--warning, #ffc107); margin: 10px 0 8px; text-align: center; padding: 6px; background: rgba(255, 193, 7, 0.08); border-radius: 6px; border: 1px solid rgba(255, 193, 7, 0.2);">
+            ⚠️ <strong data-vi="Lưu ý quan trọng:" data-en="Important notice:">Lưu ý quan trọng:</strong>
+            <span data-vi="Click chuột phải vào file .bat → Properties → tick Unblock trước khi chạy!" data-en="Right-click the .bat file → Properties → check Unblock before running!">Click chuột phải vào file .bat → Properties → tick Unblock trước khi chạy!</span>
+          </div>
+          <div id="docker-dl-sh-note" style="display:none; font-size: 12.5px; color: var(--text-secondary); margin: 10px 0 8px; text-align: center; padding: 6px; background: rgba(255,255,255,0.04); border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+            <span data-vi="Tải xong → chạy trong Terminal:" data-en="After download → run in Terminal:">Tải xong → chạy trong Terminal:</span>
+            <code id="docker-dl-sh-cmd" style="margin-left:6px; color: var(--claw-coral);">chmod +x setup-openclaw-docker-macos.sh && ./setup-openclaw-docker-macos.sh</code>
           </div>
         </div>
-        <div class="code-block">
-          <div class="code-block__header">
-            <span class="code-block__filename">Terminal</span>
-            <button class="btn-copy" onclick="copyToClipboard(this, 'out-setup-npx')">📋 Copy</button>
+
+
+        <!-- Option 2: Linux/macOS/VPS Terminal -->
+        <div class="output-section" style="padding: 24px; border: 2px solid rgba(255, 107, 53, 0.3); border-radius: 12px; background: linear-gradient(135deg, rgba(255,107,53,0.04), rgba(139,92,246,0.03)); margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <span style="font-size: 28px;">💻</span>
+            <div>
+              <h3 class="output-section__title" style="margin: 0;" data-vi="Cách 2: NPX (macOS / Linux / Ubuntu / VPS)" data-en="Option 2: NPX (macOS / Linux / Ubuntu / VPS)">Cách 2: NPX (macOS / Linux / Ubuntu / VPS)</h3>
+              <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;" data-vi="Chạy lệnh bên dưới trong Terminal — script tự cài Docker, 9Router/Ollama và khởi động bot." data-en="Run the command below in Terminal — script installs Docker, 9Router/Ollama and starts bot.">Chạy lệnh bên dưới trong Terminal — script tự cài Docker, 9Router/Ollama và khởi động bot.</p>
+            </div>
           </div>
-          <pre class="code-block__content" id="out-setup-npx" style="font-size: 15px; text-align: center; padding: 16px;">npx create-openclaw-bot</pre>
+          <div class="code-block">
+            <div class="code-block__header">
+              <span class="code-block__filename">Terminal</span>
+              <button class="btn-copy" onclick="copyToClipboard(this, 'out-setup-npx')">📋 Copy</button>
+            </div>
+            <pre class="code-block__content" id="out-setup-npx" style="font-size: 15px; text-align: center; padding: 16px;">npx create-openclaw-bot</pre>
+          </div>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 12px 0 0; text-align: center;" data-vi="Yêu cầu: Node.js 20+ — Script tự cài Docker Compose V2 và các thành phần cần thiết" data-en="Requires: Node.js 20+ — Script auto-installs Docker Compose V2 and required components">Yêu cầu: Node.js 20+ — Script tự cài Docker Compose V2 và các thành phần cần thiết</p>
         </div>
-        <p style="font-size: 12px; color: var(--text-muted); margin: 12px 0 0; text-align: center;" data-vi="Yêu cầu: Node.js 18+ và Docker Compose v2 — Hoạt động trên mọi hệ điều hành" data-en="Requires: Node.js 18+ and Docker Compose v2 — Works on all OS">Yêu cầu: Node.js 18+ và Docker Compose v2 — Hoạt động trên mọi hệ điều hành</p>
+      </div>
+
+      <!-- Native Output (shown when deployMode === native) -->
+      <div id="native-output" style="display:none;">
+        <div class="output-section" style="padding: 24px; border: 2px solid rgba(139, 92, 246, 0.3); border-radius: 12px; background: linear-gradient(135deg, rgba(139,92,246,0.04), rgba(16,185,129,0.03)); margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <span style="font-size: 28px;">💻</span>
+            <div>
+              <h3 class="output-section__title" style="margin: 0;" data-vi="Download Script Cài đặt" data-en="Download Setup Script">Download Script Cài đặt</h3>
+              <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0;" id="native-instructions" data-vi="Tải file → chạy để cài bot trực tiếp trên máy (tự động cài 9Router/Ollama nếu đã chọn)" data-en="Download → run to install bot directly on machine (auto-installs 9Router/Ollama if selected)">Tải file → chạy để cài bot trực tiếp trên máy (tự động cài 9Router/Ollama nếu đã chọn)</p>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: center; margin: 20px 0 8px;">
+            <button class="btn btn--primary" onclick="downloadNativeScript()" style="font-size: 15px; padding: 14px 40px; border-radius: 8px;">
+              <span>📥 Download <span id="native-script-name">setup-openclaw-win.bat</span></span>
+            </button>
+          </div>
+          <div style="font-size: 12.5px; color: var(--warning, #ffc107); margin: 10px 0 8px; text-align: center; padding: 6px; background: rgba(255, 193, 7, 0.08); border-radius: 6px; border: 1px solid rgba(255, 193, 7, 0.2);">
+            ⚠️ <strong data-vi="Yêu cầu:" data-en="Requires:">Yêu cầu:</strong>
+            <span data-vi="Node.js 20+ phải được cài sẵn trên máy" data-en="Node.js 20+ must be installed on your machine">Node.js 20+ phải được cài sẵn trên máy</span>
+          </div>
+        </div>
       </div>
 
       <!-- ===== Post-setup notices (conditional) ===== -->
+
+      <!-- Multi-Bot Group Setup Notice (shown when botCount > 1) -->
+      <div id="multibot-output-notice" class="cred-section" style="display:none; margin-top:24px; border-color:rgba(99,102,241,0.3); padding:20px 22px; background:linear-gradient(135deg,rgba(99,102,241,0.05),rgba(139,92,246,0.03));">
+        <!-- Filled by JS: generateOutput() -->
+      </div>
 
       <!-- Zalo Personal: Post-setup Docker Onboard Guide -->
       <div id="zalo-onboard-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(255, 193, 7, 0.3);">
@@ -296,7 +525,7 @@
 
       <!-- 9Router post-setup -->
       <div id="9router-notice" class="cred-section" style="display: none; margin-top: 24px; border-color: rgba(0, 200, 150, 0.3);">
-        <h3 class="cred-section__title"><span data-vi="🔀 Setup 9Router" data-en="🔀 Setup 9Router">🔀 Setup 9Router</span></h3>
+        <h3 class="cred-section__title"><span data-vi="🔀 Kích hoạt 9Router" data-en="🔀 Activate 9Router">🔀 Kích hoạt 9Router</span></h3>
         <div style="font-size: 14px; color: var(--text-secondary);">
           <div class="cred-step" style="margin-bottom: 8px;">
             <span class="cred-step__number">1</span>
@@ -304,7 +533,11 @@
           </div>
           <div class="cred-step" style="margin-bottom: 8px;">
             <span class="cred-step__number">2</span>
-            <span class="cred-step__text" data-vi="Đăng nhập OAuth vào các AI provider (Google, Claude...)" data-en="OAuth login to AI providers (Google, Claude...)">Đăng nhập OAuth vào các AI provider (Google, Claude...)</span>
+            <span class="cred-step__text" data-vi="Đăng nhập OAuth vào các AI provider (Google, Claude, GitHub...)" data-en="OAuth login to AI providers (Google, Claude, GitHub...)">Đăng nhập OAuth vào các AI provider (Google, Claude, GitHub...)</span>
+          </div>
+          <div class="cred-step">
+            <span class="cred-step__number">3</span>
+            <span class="cred-step__text" data-vi="Sao chép API key từ dashboard → đặt vào .env của bot (script đã chuẩn endpoint)" data-en="Copy API key from dashboard → paste into bot .env (script has already set the endpoint)">Sao chép API key từ dashboard → đặt vào .env của bot (script đã chuẩn endpoint)</span>
           </div>
         </div>
       </div>
@@ -324,7 +557,7 @@
         </div>
       </div>
     </section>
-    
+
     </main>
 
   <!-- ========== Navigation ========== -->
@@ -332,7 +565,7 @@
     <button class="btn btn--ghost" id="btn-prev" style="visibility: hidden;">
       <span data-vi="← Quay lại" data-en="← Go Back">← Quay lại</span>
     </button>
-    <button class="btn btn--primary" id="btn-next" disabled>
+    <button class="btn btn--primary" id="btn-next">
       <span id="btn-next-label" data-vi="Tiếp theo" data-en="Next">Tiếp theo</span> →
     </button>
   </div>

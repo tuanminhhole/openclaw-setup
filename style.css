@@ -1385,3 +1385,108 @@ body::after {
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(20px);
 }
+
+/* ============================================================
+   Step 1 — OS Cards & Smart Advisory Panel
+   ============================================================ */
+
+/* OS Card grid responsive */
+#native-os-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+@media (max-width: 640px) {
+  #native-os-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* OS card base */
+.env-os-card {
+  padding: 20px 14px 16px !important;
+  text-align: center !important;
+  transition: all var(--duration-normal) var(--ease-out) !important;
+  cursor: pointer;
+}
+
+.env-os-card:hover {
+  transform: translateY(-5px) scale(1.02) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Per-OS accent on hover */
+#card-os-win:hover        { border-color: rgba(0, 120, 215, 0.5) !important; box-shadow: 0 16px 40px rgba(0,120,215,0.15) !important; }
+#card-os-linux:hover      { border-color: rgba(255, 153, 0, 0.5) !important; box-shadow: 0 16px 40px rgba(255,153,0,0.12) !important; }
+#card-os-vps:hover        { border-color: rgba(240, 100, 50, 0.5) !important; box-shadow: 0 16px 40px rgba(240,100,50,0.12) !important; }
+#card-os-linux-desktop:hover { border-color: rgba(100, 210, 130, 0.5) !important; box-shadow: 0 16px 40px rgba(100,210,130,0.12) !important; }
+
+/* Selected OS — coral glow */
+.env-os-card.channel-card--selected {
+  border-color: var(--claw-coral) !important;
+  background: rgba(255, 107, 53, 0.07) !important;
+  box-shadow: 0 0 28px rgba(255, 107, 53, 0.18), inset 0 0 24px rgba(255, 107, 53, 0.04) !important;
+  transform: translateY(-2px);
+}
+
+/* OS card top stripe */
+.env-os-card.channel-card--selected::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  opacity: 1;
+}
+#card-os-win.channel-card--selected::before        { background: linear-gradient(90deg, #0078d7, #50b4fc); }
+#card-os-linux.channel-card--selected::before      { background: linear-gradient(90deg, #ff9900, #ffcc44); }
+#card-os-vps.channel-card--selected::before        { background: linear-gradient(90deg, #f06432, #f59e0b); }
+#card-os-linux-desktop.channel-card--selected::before { background: linear-gradient(90deg, #64d282, #22c55e); }
+
+/* deploy badge inside OS card */
+.env-deploy-badge {
+  font-size: 10.5px !important;
+  padding: 3px 9px !important;
+  border-radius: 20px;
+  display: inline-block;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.env-deploy-badge.badge--official {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16,185,129,0.25);
+}
+.env-deploy-badge.badge--warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.25);
+}
+
+/* Advisory panel */
+#env-advisory {
+  margin-top: 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.025);
+  transition: all var(--duration-normal) var(--ease-out);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Deploy override cards (compact horizontal) */
+#deploy-mode-grid .channel-card {
+  text-align: left !important;
+  padding: 12px 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+#deploy-mode-grid .channel-card:hover {
+  transform: translateY(-2px) !important;
+}
