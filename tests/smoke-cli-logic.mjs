@@ -86,9 +86,12 @@ checks.push(() => expectMatch(
   'CLI fast-test mode must be able to reuse an existing 9Router install'
 ));
 
-checks.push(() => expectMatch(
-  cli,
-  /function build9RouterSmartRouteSyncScript\(dbPath\) \{[\s\S]*safeDbPath[\s\S]*providerConnections[\s\S]*smart-route[\s\S]*async function writeNative9RouterSyncScript\(projectDir\) \{[\s\S]*getNative9RouterDataDir\(\), 'db\.json'/s,
+checks.push(() => expect(
+  cli.includes('function build9RouterSmartRouteSyncScript(dbPath) {')
+    && cli.includes('const safeDbPath = JSON.stringify(dbPath);')
+    && cli.includes("const ROUTER='http://localhost:20128';")
+    && cli.includes("fetch(ROUTER + '/api/providers')")
+    && cli.includes("build9RouterSmartRouteSyncScript(path.join(getNative9RouterDataDir(), 'db.json'))"),
   'Native 9Router flow must write a smart-route sync script based on the platform-specific 9Router data directory'
 ));
 
@@ -100,8 +103,9 @@ checks.push(() => expectMatch(
 
 checks.push(() => expect(
   cli.includes("Removed smart-route (no active providers)")
-    && cli.includes("if(!a.length){removeSmartRoute();return;}")
-    && cli.includes("if(!m.length){removeSmartRoute();return;}"),
+    && cli.includes("if (!a.length) {")
+    && cli.includes("if (!m.length) {")
+    && cli.includes("removeSmartRoute();"),
   '9Router sync logic in CLI must remove stale smart-route combos when providers are disabled'
 ));
 
@@ -282,20 +286,21 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /function providerLines\(arr, shell\) \{[\s\S]*npm install -g 9router[\s\S]*npm root -g[\s\S]*Join-Path \$npmRoot[\s\S]*Start-Process -WindowStyle Hidden -FilePath ''node\.exe''[\s\S]*9router-smart-route-sync\.js/s,
+  /function providerLines\(arr, shell\) \{[\s\S]*npm install -g 9router[\s\S]*start "9Router" cmd \/k "9router -n -t -l -H 0\.0\.0\.0 -p 20128 --skip-update"[\s\S]*9router-smart-route-sync\.js/s,
   'Native script generation must install and start a standalone 9Router dashboard on port 20128'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /function native9RouterSyncScriptContent\(\) \{[\s\S]*process\.platform==='win32'[\s\S]*AppData[\s\S]*Roaming[\s\S]*providerConnections[\s\S]*smart-route/s,
-  'Native script generation must embed a 9Router smart-route sync script with the correct Windows data directory'
+  /function native9RouterSyncScriptContent\(\) \{[\s\S]*path\.join\(process\.env\.HOME\|\|process\.env\.USERPROFILE\|\|'\.'\,\'\.9router\'\,\'db\.json\'\)[\s\S]*providerConnections[\s\S]*smart-route/s,
+  'Native script generation must embed a 9Router smart-route sync script'
 ));
 
 checks.push(() => expect(
   setup.includes("Removed smart-route (no active providers)")
-    && setup.includes("if(!a.length){removeSmartRoute();return;}")
-    && setup.includes("if(!m.length){removeSmartRoute();return;}"),
+    && setup.includes("if (!a.length) {")
+    && setup.includes("if (!m.length) {")
+    && setup.includes("removeSmartRoute();"),
   '9Router sync logic in setup.js must remove stale smart-route combos when providers are disabled'
 ));
 
@@ -311,10 +316,20 @@ checks.push(() => expectMatch(
   'Dockerfile patching in CLI must resolve gateway-cli dist files dynamically instead of hardcoding one hash'
 ));
 
+checks.push(() => expect(
+  !cli.includes("Buffer.from('\\${Buffer.from(syncComboScript).toString('base64')}','base64')"),
+  'CLI must precompute the 9Router sync script base64 instead of leaking Docker Compose interpolation markers'
+));
+
 checks.push(() => expectMatch(
   setup,
   /readdirSync\(dir\)\.find\(n=>\/\^gateway-cli-.*\\\\\.js\$\/\.test\(n\)\)[\s\S]*skipping timeout patch/,
   'Dockerfile patching in setup.js must resolve gateway-cli dist files dynamically instead of hardcoding one hash'
+));
+
+checks.push(() => expect(
+  !setup.includes("Buffer.from('\\${Buffer.from(syncScript).toString('base64')}','base64')"),
+  'Wizard compose generation must precompute the 9Router sync script base64 instead of leaking Docker Compose interpolation markers'
 ));
 
 checks.push(() => expectMatch(

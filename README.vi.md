@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.2-0EA5E9?style=for-the-badge" alt="Version 5.1.2" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.3-0EA5E9?style=for-the-badge" alt="Version 5.1.3" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,7 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
-## 🆕 Có gì mới trong v5.1.2
+## 🆕 Có gì mới trong v5.1.3
 
 - 💻 **OS-First Setup** — Bước đầu tiên bây giờ là chọn hệ điều hành của bạn (Windows, macOS, Ubuntu, VPS). Toàn bộ script, cấu hình và hướng dẫn được tạo ra phù hợp với lựa chọn đó.
 - 🧠 **Gemma 4 — 4 kích thước** — `gemma4:e2b` (~4 GB), `gemma4:e4b` (~8 GB), `gemma4:26b` (~18 GB), `gemma4:31b` (~24 GB). Tự pull về khi bot khởi động lần đầu.
@@ -112,7 +112,7 @@ Chạy lệnh trên trong Terminal → làm theo các prompt tương tác → sc
 2. Mở repo này làm workspace
 3. Paste vào chat:
    ```
-   Read SETUP.md and set up OpenClaw v5.1.2 for me.
+   Read SETUP.md and set up OpenClaw v5.1.3 for me.
    My bot token is X. Use 9Router (no API key).
    My project folder: <THƯ_MỤC_CỦA_BẠN>
    ```

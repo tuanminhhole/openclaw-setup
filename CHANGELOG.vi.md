@@ -1,6 +1,17 @@
 ﻿# Changelog (Tiếng Việt)
 
 
+## [5.1.3] — 2026-04-06
+
+### 🐜 Lỗi lọt biến nội suy vào giao diện Docker Compose
+
+Bản vá lỗi base64 trước đó đã gây ra lỗi mới (regression) do dùng ngoặc `${Buffer.from(...)}` bên trong chuỗi string sinh ra docker-compose. Điều này làm lọt nguyên đoạn text nội suy vào `docker-compose.yml` thay vì sinh ra chuỗi base64 thật.
+
+- **Fix**: Thực hiện tạo mã base64 hoàn chỉnh qua JavaScript (`const syncScriptBase64 = encodeBase64Utf8(syncScript)`) ngay từ ban đầu trước khi ghép chuỗi vào file compose
+- Đảm bảo file compose tạo thành nhận chính xác mã base64 thuần túy mà không bị lọt biến môi trường
+- Dọn dẹp lại script test tương ứng
+
+
 ## [5.1.2] — 2026-04-06
 
 ### 🐛 Fix Shell Injection: Sync Script Dùng Base64

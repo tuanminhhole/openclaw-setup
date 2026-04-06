@@ -1,6 +1,17 @@
 ﻿# Changelog (English)
 
 
+## [5.1.3] — 2026-04-06
+
+### 🐜 Fix Docker Compose Variable Interpolation Leak
+
+The previous base64 fix introduced a regression where the template literal `${Buffer.from(...)}` was mistakenly escaped in the composition script, causing the literal string to leak into `docker-compose.yml` instead of the actual base64 computed value.
+
+- **Fix**: Precompute the base64 string completely in JavaScript (`const syncScriptBase64 = encodeBase64Utf8(syncScript)`) before injecting it into the compose template
+- This guarantees the generated compose file receives the raw base64 string without any template interpolator conflicts
+- Also cleans up testing logic validating these fixes
+
+
 ## [5.1.2] — 2026-04-06
 
 ### 🐛 Fix Shell Injection: Sync Script Now Uses Base64 Encoding

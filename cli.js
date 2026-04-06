@@ -363,6 +363,23 @@ setTimeout(sync, 5000);
 setInterval(sync, INTERVAL);`;
 }
 
+function indentBlock(text, spaces) {
+  const prefix = ' '.repeat(spaces);
+  return String(text)
+    .split('\n')
+    .map((line) => `${prefix}${line}`)
+    .join('\n');
+}
+
+function build9RouterComposeEntrypointScript(syncScriptBase64) {
+  return [
+    'npm install -g 9router',
+    `node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('${syncScriptBase64}','base64').toString())"`,
+    'node /tmp/sync.js > /tmp/sync.log 2>&1 &',
+    'exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update'
+  ].join('\n');
+}
+
 async function writeNative9RouterSyncScript(projectDir) {
   const syncScriptPath = path.join(projectDir, '.openclaw', '9router-smart-route-sync.js');
   await fs.ensureDir(path.dirname(syncScriptPath));
@@ -1264,6 +1281,8 @@ async function main() {
   // It reads the persisted 9Router DB directly so smart-route still works
   // even when newer dashboard APIs require auth or change response shape.
   const syncComboScript = build9RouterSmartRouteSyncScript('/root/.9router/db.json');
+  const syncComboScriptBase64 = Buffer.from(syncComboScript).toString('base64');
+  const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncComboScriptBase64);
 
   // ─── Resolve primary model ───────────────────────────────────────────────────
   let modelsPrimary;
@@ -1311,10 +1330,7 @@ ${dependsOn}${extraHosts}    ports:
       - /bin/sh
       - -c
       - |
-        npm install -g 9router
-        node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('\${Buffer.from(syncComboScript).toString('base64')}','base64').toString())"
-        node /tmp/sync.js > /tmp/sync.log 2>&1 &
-        exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
+${indentBlock(docker9RouterEntrypointScript, 8)}
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0
@@ -1406,10 +1422,7 @@ ${hasBrowserDesktop ? `    extra_hosts:\n      - "host.docker.internal:host-gate
       - /bin/sh
       - -c
       - |
-        npm install -g 9router
-        node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('\${Buffer.from(syncComboScript).toString('base64')}','base64').toString())"
-        node /tmp/sync.js > /tmp/sync.log 2>&1 &
-        exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
+${indentBlock(docker9RouterEntrypointScript, 8)}
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0

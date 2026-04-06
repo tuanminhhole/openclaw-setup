@@ -1758,6 +1758,18 @@ model:
     // 3. Dockerfile
     const allPlugins = [];
     if (ch.pluginInstall) allPlugins.push(ch.pluginInstall);
+    const encodeBase64Utf8 = (value) => btoa(String.fromCharCode(...new TextEncoder().encode(String(value))));
+    const indentBlock = (text, spaces) => {
+      const prefix = ' '.repeat(spaces);
+      return String(text).split('\n').map((line) => `${prefix}${line}`).join('\n');
+    };
+    const build9RouterComposeEntrypointScript = (syncScriptBase64) => [
+      'npm install -g 9router',
+      `node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('${syncScriptBase64}','base64').toString())"`,
+      'node /tmp/sync.js > /tmp/sync.log 2>&1 &',
+      'exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update'
+    ].join('\n');
+
     state.config.plugins.forEach((pid) => {
       const plug = PLUGINS.find((p) => p.id === pid);
       if (plug) allPlugins.push(plug.package);
@@ -1887,6 +1899,8 @@ const sync = async () => {
 };
 setTimeout(sync, 5000);
 setInterval(sync, INTERVAL);`;
+    const syncScriptBase64 = encodeBase64Utf8(syncScript);
+    const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64);
 
     let compose;
     if (isMultiBotWizard) {
@@ -1919,10 +1933,7 @@ ${dependsOn}${extraHosts}    volumes:
       - /bin/sh
       - -c
       - |
-        npm install -g 9router
-        node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('\${Buffer.from(syncScript).toString('base64')}','base64').toString())"
-        node /tmp/sync.js > /tmp/sync.log 2>&1 &
-        exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
+${indentBlock(docker9RouterEntrypointScript, 8)}
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0
@@ -2015,10 +2026,7 @@ ${extraHostsBlock}
       - /bin/sh
       - -c
       - |
-        npm install -g 9router
-        node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('\${Buffer.from(syncScript).toString('base64')}','base64').toString())"
-        node /tmp/sync.js > /tmp/sync.log 2>&1 &
-        exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
+${indentBlock(docker9RouterEntrypointScript, 8)}
     environment:
       - PORT=20128
       - HOSTNAME=0.0.0.0
