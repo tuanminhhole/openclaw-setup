@@ -32,6 +32,217 @@ function installRelayPluginForProject(projectDir, isVi) {
   return false;
 }
 
+function isOpenClawInstalled() {
+  try {
+    execSync('openclaw --version', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isPm2Installed() {
+  try {
+    execSync('pm2 --version', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function is9RouterInstalled() {
+  try {
+    execSync('9router --help', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getUserNpmPrefixInfo() {
+  if (process.platform === 'win32') {
+    return null;
+  }
+
+  const prefixDir = path.join(os.homedir(), '.local');
+  return {
+    prefixDir,
+    binDir: path.join(prefixDir, 'bin')
+  };
+}
+
+function ensureBinDirOnPath(binDir) {
+  const delimiter = path.delimiter;
+  const pathParts = String(process.env.PATH || '').split(delimiter).filter(Boolean);
+  if (!pathParts.includes(binDir)) {
+    process.env.PATH = [binDir, ...pathParts].join(delimiter);
+  }
+}
+
+function appendLineIfMissing(filePath, line) {
+  let content = '';
+  if (fs.existsSync(filePath)) {
+    content = fs.readFileSync(filePath, 'utf8');
+  }
+
+  if (!content.includes(line)) {
+    const prefix = content && !content.endsWith('\n') ? '\n' : '';
+    fs.appendFileSync(filePath, `${prefix}${line}\n`);
+  }
+}
+
+function ensureUserWritableGlobalNpm({ isVi, osChoice }) {
+  if (process.platform === 'win32') {
+    return true;
+  }
+
+  const npmInfo = getUserNpmPrefixInfo();
+  if (!npmInfo) {
+    return true;
+  }
+
+  try {
+    fs.ensureDirSync(npmInfo.binDir);
+    process.env.npm_config_prefix = npmInfo.prefixDir;
+    ensureBinDirOnPath(npmInfo.binDir);
+
+    execSync(`npm config set prefix "${npmInfo.prefixDir.replace(/"/g, '\\"')}"`, {
+      stdio: 'ignore',
+      shell: true,
+      env: process.env
+    });
+
+    appendLineIfMissing(path.join(os.homedir(), '.profile'), 'export PATH="$HOME/.local/bin:$PATH"');
+    appendLineIfMissing(
+      path.join(os.homedir(), osChoice === 'macos' ? '.zshrc' : '.bashrc'),
+      'export PATH="$HOME/.local/bin:$PATH"'
+    );
+    return true;
+  } catch {
+    console.log(chalk.yellow(isVi
+      ? '⚠️  Không thể cấu hình npm global prefix trong ~/.local. Tiếp tục thử cài đặt trực tiếp.'
+      : '⚠️  Could not configure npm global prefix in ~/.local. Falling back to direct install.'));
+    return false;
+  }
+}
+
+const userNpmInfo = getUserNpmPrefixInfo();
+if (userNpmInfo) {
+  ensureBinDirOnPath(userNpmInfo.binDir);
+}
+
+function installGlobalPackage(pkg, { isVi, osChoice, displayName }) {
+  const installCommands = [];
+
+  if (osChoice === 'windows') {
+    installCommands.push(`npm install -g ${pkg}`);
+  } else {
+    ensureUserWritableGlobalNpm({ isVi, osChoice });
+    installCommands.push(`npm install -g ${pkg}`);
+    const npmInfo = getUserNpmPrefixInfo();
+    if (npmInfo) {
+      installCommands.push(`npm install -g --prefix "${npmInfo.prefixDir.replace(/"/g, '\\"')}" ${pkg}`);
+    }
+  }
+
+  for (const cmd of installCommands) {
+    try {
+      execSync(cmd, { stdio: 'inherit', shell: true, env: process.env });
+      return true;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  console.log(chalk.yellow(isVi
+    ? `⚠️  Không thể tự cài ${displayName}. Chạy thủ công: ${osChoice === 'windows' ? `npm install -g ${pkg}` : `npm config set prefix ~/.local && npm install -g ${pkg}`}`
+    : `⚠️  Could not auto-install ${displayName}. Run manually: ${osChoice === 'windows' ? `npm install -g ${pkg}` : `npm config set prefix ~/.local && npm install -g ${pkg}`}`));
+  return false;
+}
+
+function extractFirstHttpUrl(text) {
+  const match = String(text || '').match(/https?:\/\/[^\s"'`]+/);
+  return match ? match[0] : null;
+}
+
+function getTokenizedDashboardUrl(projectDir) {
+  try {
+    const output = execSync('openclaw dashboard', {
+      cwd: projectDir,
+      env: process.env,
+      encoding: 'utf8',
+      shell: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 15000
+    });
+    return extractFirstHttpUrl(output);
+  } catch (error) {
+    const combined = `${error?.stdout || ''}\n${error?.stderr || ''}`;
+    return extractFirstHttpUrl(combined);
+  }
+}
+
+function printNativeDashboardAccessInfo({ isVi, providerKey, projectDir, gatewayPort = 18791 }) {
+  const dashboardUrl = `http://localhost:${gatewayPort}`;
+  const tokenizedUrl = getTokenizedDashboardUrl(projectDir);
+
+  console.log(chalk.yellow(`\n🧭 ${isVi ? 'Dashboard OpenClaw:' : 'OpenClaw Dashboard:'} ${dashboardUrl}`));
+
+  if (tokenizedUrl) {
+    console.log(chalk.green(isVi
+      ? `   → Mở link đã kèm token: ${tokenizedUrl}`
+      : `   → Open the tokenized link directly: ${tokenizedUrl}`));
+  } else {
+    console.log(chalk.gray(isVi
+      ? '   → Nếu dashboard đòi Gateway Token, chạy: openclaw dashboard'
+      : '   → If the dashboard asks for a Gateway Token, run: openclaw dashboard'));
+  }
+
+  if (providerKey === '9router') {
+    console.log(chalk.yellow(`\n🔀 ${isVi ? '9Router Dashboard:' : '9Router Dashboard:'} http://localhost:20128/dashboard`));
+    console.log(chalk.gray(isVi
+      ? '   → Mở dashboard 9Router → đăng nhập OAuth → kết nối provider miễn phí'
+      : '   → Open the 9Router dashboard → complete OAuth login → connect a free provider'));
+    console.log(chalk.gray(isVi
+      ? '   → Sau khi login 9Router xong, bot sẽ tự dùng model smart-route qua http://localhost:20128/v1'
+      : '   → Once 9Router is logged in, the bot will use smart-route through http://localhost:20128/v1'));
+  }
+}
+
+function startNative9RouterPm2({ isVi, projectDir, appName }) {
+  const routerAppName = `${appName}-9router`;
+  execSync(
+    `pm2 start "9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update" --name "${routerAppName}" --cwd "${projectDir.replace(/\\/g, '/')}" && pm2 save`,
+    {
+      cwd: projectDir,
+      stdio: 'inherit',
+      shell: true,
+      env: process.env
+    }
+  );
+  console.log(chalk.green(`\n✅ ${isVi ? '9Router da duoc khoi dong qua PM2.' : '9Router is running via PM2.'}`));
+  console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${routerAppName}` : `   View logs: pm2 logs ${routerAppName}`));
+}
+
+async function syncLocalConfigToHome(projectDir, isVi) {
+  const homedir = os.homedir();
+  const globalClawDir = path.join(homedir, '.openclaw');
+  const localClawDir = path.join(projectDir, '.openclaw');
+  try {
+    await fs.ensureDir(globalClawDir);
+    await fs.copy(localClawDir, globalClawDir, { overwrite: true });
+    console.log(chalk.green(`\n✅ ${isVi
+      ? 'Config đã được sync vào ~/.openclaw/ — openclaw sẵn sàng!'
+      : 'Config synced to ~/.openclaw/ — openclaw is ready!'}`));
+    return true;
+  } catch {
+    console.log(chalk.yellow(`\n⚠️  ${isVi
+      ? `Không thể tự sync config. Chạy thủ công:\n   cp -rn ${localClawDir}/. ${globalClawDir}/`
+      : `Could not auto-sync config. Run manually:\n   cp -rn ${localClawDir}/. ${globalClawDir}/`}`));
+    return false;
+  }
+}
+
 function buildTelegramPostInstallChecklist({ isVi, bots, groupId }) {
   const botList = bots.map((bot, idx) => `- **${bot?.name || `Bot ${idx + 1}`}** — token: ${String(bot?.token || '').slice(0, 10)}...`).join('\n');
 
@@ -1052,7 +1263,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
           mode: 'merge',
           providers: {
             '9router': {
-              baseUrl: 'http://9router:20128/v1',
+              baseUrl: deployMode === 'native' ? 'http://localhost:20128/v1' : 'http://9router:20128/v1',
               apiKey: 'sk-no-key',
               api: 'openai-completions',
               models: [
@@ -1134,18 +1345,18 @@ ${hasBrowserDesktop ? `    extra_hosts:
     );
     // Generate ecosystem.config.js for PM2 native multi-bot
     if (deployMode === 'native') {
-      const pm2Apps = agentMetas.map((meta) => [
-        '  {',
-        `    name: '${meta.agentId}',`,
-        `    script: 'openclaw',`,
-        `    args: '--agent ${meta.agentId}',`,
-        `    cwd: '${projectDir.replace(/\\/g, '/')}',`,
-        `    interpreter: 'none',`,
-        `    autorestart: true,`,
-        `    watch: false,`,
-        `    env: { NODE_ENV: 'production' }`,
-        '  }',
-      ].join('\n')).join(',\n');
+      const pm2Apps = [
+        '    {',
+        `      name: '${botName || 'openclaw-multibot'}',`,
+        `      script: 'openclaw',`,
+        `      args: 'gateway run',`,
+        `      cwd: '${projectDir.replace(/\\/g, '/')}',`,
+        `      interpreter: 'none',`,
+        `      autorestart: true,`,
+        `      watch: false,`,
+        `      env: { NODE_ENV: 'production' }`,
+        '    }',
+      ].join('\n');
       const ecosystemContent = [
         '// PM2 ecosystem — run: pm2 start ecosystem.config.js',
         'module.exports = {',
@@ -1157,7 +1368,6 @@ ${hasBrowserDesktop ? `    extra_hosts:
       ].join('\n');
       await fs.writeFile(path.join(projectDir, 'ecosystem.config.js'), ecosystemContent);
     }
-    installRelayPluginForProject(projectDir, isVi);
     if (Object.keys(authProfilesJson).length > 0) {
       await fs.writeJson(path.join(rootClawDir, 'auth-profiles.json'), authProfilesJson, { spaces: 2 });
     }
@@ -1299,7 +1509,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
           mode: 'merge',
           providers: {
             '9router': {
-              baseUrl: 'http://9router:20128/v1',
+              baseUrl: deployMode === 'native' ? 'http://localhost:20128/v1' : 'http://9router:20128/v1',
               apiKey: 'sk-no-key',
               api: 'openai-completions',
               models: [
@@ -1656,7 +1866,7 @@ fi
         : `Could not auto-sync config. Run manually:\n   cp -rn ${localClawDir}/. ${globalClawDir}/`}`));
     }
 
-    console.log(chalk.cyan(`\n👉 ${isVi ? 'Đã tạo xong file cấu hình native.' : 'Native config files are ready.'}`));
+    console.log(chalk.cyan(`\n👉 ${isVi ? 'Đã tạo xong file cấu hình Docker.' : 'Docker config files are ready.'}`));
     console.log(chalk.gray(isVi
       ? `   Cấu trúc config: ${isMultiBot && channelKey === 'telegram' ? '.openclaw/ dùng chung + agents/workspace-*' : (isMultiBot ? 'bot1/, bot2/, ...' : '.openclaw/')}`
       : `   Config layout: ${isMultiBot && channelKey === 'telegram' ? 'shared .openclaw/ with agents/workspace-*' : (isMultiBot ? 'bot1/, bot2/, ...' : '.openclaw/')}`));
@@ -1675,6 +1885,94 @@ fi
     if (isMultiBot && channelKey === 'telegram') {
       console.log(chalk.yellow(`\n${isVi ? '📋 Xem hướng dẫn sau cài:' : '📋 Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
     }
+  } else {
+    if (!isOpenClawInstalled()) {
+      console.log(chalk.cyan(isVi
+        ? '\n📦 Dang cai openclaw binary (npm install -g openclaw)...'
+        : '\n📦 Installing openclaw binary (npm install -g openclaw)...'));
+      if (!installGlobalPackage('openclaw@latest', { isVi, osChoice, displayName: 'openclaw' })) {
+        process.exit(1);
+      }
+      console.log(chalk.green(isVi ? '✅ openclaw da cai xong!' : '✅ openclaw installed!'));
+    }
+
+    if (providerKey === '9router' && !is9RouterInstalled()) {
+      console.log(chalk.cyan(isVi
+        ? '\n📦 Dang cai 9Router binary (npm install -g 9router)...'
+        : '\n📦 Installing 9Router binary (npm install -g 9router)...'));
+      if (!installGlobalPackage('9router@latest', { isVi, osChoice, displayName: '9Router' })) {
+        process.exit(1);
+      }
+      console.log(chalk.green(isVi ? '✅ 9Router da cai xong!' : '✅ 9Router installed!'));
+    }
+
+    await syncLocalConfigToHome(projectDir, isVi);
+
+    if (isMultiBot && channelKey === 'telegram') {
+      installRelayPluginForProject(projectDir, isVi);
+    }
+
+    if (osChoice === 'vps') {
+      if (!isPm2Installed()) {
+        console.log(chalk.cyan(isVi ? '\n📦 Dang cai PM2...' : '\n📦 Installing PM2...'));
+        if (!installGlobalPackage('pm2@latest', { isVi, osChoice, displayName: 'PM2' })) {
+          process.exit(1);
+        }
+      }
+
+      if (isMultiBot && channelKey === 'telegram') {
+        if (providerKey === '9router') {
+          startNative9RouterPm2({ isVi, projectDir, appName: botName || 'openclaw-multibot' });
+        }
+        execSync('pm2 start ecosystem.config.js && pm2 save', {
+          cwd: projectDir,
+          stdio: 'inherit',
+          shell: true
+        });
+        console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoan tat! Multi-bot native dang chay qua PM2.' : 'Setup complete! Native multi-bot is running via PM2.'}`));
+        console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${botName || 'openclaw-multibot'}` : `   View logs: pm2 logs ${botName || 'openclaw-multibot'}`));
+        printNativeDashboardAccessInfo({ isVi, providerKey, projectDir });
+      } else {
+        const appName = botName || 'openclaw';
+        if (providerKey === '9router') {
+          startNative9RouterPm2({ isVi, projectDir, appName });
+        }
+        execSync(`pm2 start "openclaw gateway run" --name "${appName}" --cwd "${projectDir.replace(/\\/g, '/')}" && pm2 save`, {
+          cwd: projectDir,
+          stdio: 'inherit',
+          shell: true
+        });
+        console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoan tat! Bot native dang chay qua PM2.' : 'Setup complete! Native bot is running via PM2.'}`));
+        console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${appName}` : `   View logs: pm2 logs ${appName}`));
+        printNativeDashboardAccessInfo({ isVi, providerKey, projectDir });
+      }
+    } else {
+      if (providerKey === '9router') {
+        console.log(chalk.yellow(`\n${isVi ? 'Khoi dong 9Router native (background)...' : 'Starting native 9Router (background)...'}`));
+        spawn('9router', ['-n', '-t', '-l', '-H', '0.0.0.0', '-p', '20128', '--skip-update'], {
+          cwd: projectDir,
+          detached: true,
+          stdio: 'ignore',
+          shell: process.platform === 'win32'
+        }).unref();
+        console.log(chalk.gray(isVi
+          ? '   9Router dashboard: http://localhost:20128/dashboard'
+          : '   9Router dashboard: http://localhost:20128/dashboard'));
+      }
+      console.log(chalk.yellow(`\n${isVi ? 'Khoi dong native bot (foreground)...' : 'Starting native bot (foreground)...'}`));
+      const child = spawn('openclaw', ['gateway', 'run'], {
+        cwd: projectDir,
+        stdio: 'inherit',
+        shell: process.platform === 'win32'
+      });
+      child.on('close', (code) => process.exit(code ?? 0));
+      return;
+    }
+
+    console.log(chalk.cyan(`\n👉 ${isVi ? 'Native runtime da duoc cai san va khoi dong.' : 'Native runtime is installed and started.'}`));
+    if (isMultiBot && channelKey === 'telegram') {
+      console.log(chalk.yellow(`\n📋 ${isVi ? 'Xem huong dan sau cai:' : 'Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
+    }
   }
 }
 
@@ -1682,4 +1980,3 @@ main().catch(err => {
   console.error(chalk.red('Error:'), err);
   process.exit(1);
 });
-

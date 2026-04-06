@@ -1,6 +1,6 @@
 # Changelog (English)
 
-## [5.0.1] — 2026-04-04
+## [5.0.7] — 2026-04-06
 
 ### 🚀 Native Install Mode — No Docker Required
 
