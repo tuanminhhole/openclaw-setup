@@ -1,6 +1,18 @@
 ﻿# Changelog (English)
 
 
+## [5.1.2] — 2026-04-06
+
+### 🐛 Fix Shell Injection: Sync Script Now Uses Base64 Encoding
+
+The `node -e "...JSON.stringify(script)..."` approach caused `/bin/sh: Syntax error: "(" unexpected` because `JSON.stringify` produces a double-quoted string that breaks out of the surrounding `node -e "..."` shell argument.
+
+- **Fix**: sync script content is now **base64-encoded at compose-generation time** using `Buffer.from(script).toString('base64')`
+- The generated entrypoint becomes: `node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('<b64>','base64').toString())"`
+- Base64 output contains only `[A-Za-z0-9+/=]` — zero shell quoting issues, works in YAML `|` blocks without escaping
+- Applies to all compose generation paths: Docker web wizard (`setup.js` × 2) and Docker CLI (`cli.js` × 2)
+
+
 ## [5.1.1] — 2026-04-06
 
 ### 🔧 9Router Smart-Route Sync — Stable via API

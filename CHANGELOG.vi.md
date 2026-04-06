@@ -1,6 +1,18 @@
 ﻿# Changelog (Tiếng Việt)
 
 
+## [5.1.2] — 2026-04-06
+
+### 🐛 Fix Shell Injection: Sync Script Dùng Base64
+
+Approach node -e JSON.stringify gây lỗi /bin/sh: Syntax error "(" unexpected vì JSON.stringify sinh chuỗi double-quoted phá vỡ shell argument.
+
+- **Fix**: nội dung sync script nay được **base64-encode tại thời điểm gen compose** bằng Buffer.from(script).toString base64
+- Entrypoint sinh ra dạng: node -e writeFileSync Buffer.from b64 base64 toString
+- Base64 chỉ chứa [A-Za-z0-9+/=] — không có ký tự đặc biệt, hoạt động đúng trong YAML block
+- Áp dụng cho tất cả luồng gen compose: Docker web wizard (setup.js x2) và Docker CLI (cli.js x2)
+
+
 ## [5.1.1] — 2026-04-06
 
 ### 🔧 9Router Smart-Route Sync — Ổn định qua API

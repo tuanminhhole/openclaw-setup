@@ -1920,7 +1920,7 @@ ${dependsOn}${extraHosts}    volumes:
       - -c
       - |
         npm install -g 9router
-        node -e "require('fs').writeFileSync('/tmp/sync.js',${JSON.stringify(syncScript)})"
+        node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('\${Buffer.from(syncScript).toString('base64')}','base64').toString())"
         node /tmp/sync.js > /tmp/sync.log 2>&1 &
         exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
     environment:
@@ -2016,7 +2016,7 @@ ${extraHostsBlock}
       - -c
       - |
         npm install -g 9router
-        node -e "require('fs').writeFileSync('/tmp/sync.js',${JSON.stringify(syncScript)})"
+        node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('\${Buffer.from(syncScript).toString('base64')}','base64').toString())"
         node /tmp/sync.js > /tmp/sync.log 2>&1 &
         exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
     environment:
