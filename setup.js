@@ -728,8 +728,8 @@
       icon: '🐧',
       titleVi: 'Ubuntu / VPS — Khuyên dùng Native (Không Docker)',
       titleEn: 'Ubuntu / VPS — Recommended: Native (No Docker)',
-      descVi: 'Chạy thẳng trên máy, tiết kiệm RAM, khởi động nhanh. Script tự cài Node.js 20 LTS, PM2, 9Router/Ollama và giữ bot chạy liên tục sau reboot.',
-      descEn: 'Run directly on machine — lower RAM, faster startup. Script auto-installs Node.js 20 LTS, PM2, 9Router/Ollama and keeps bot running across reboots.',
+      descVi: 'Chạy thẳng trên máy, tiết kiệm RAM, khởi động nhanh. Script tự cài Node.js 20 LTS, OpenClaw CLI, PM2, 9Router/Ollama và giữ bot chạy liên tục sau reboot.',
+      descEn: 'Run directly on machine — lower RAM, faster startup. Script auto-installs Node.js 20 LTS, OpenClaw CLI, PM2, 9Router/Ollama and keeps bot running across reboots.',
       deploy: 'native',
       badgeVi: '💻 Native + PM2',
       badgeEn: '💻 Native + PM2',
@@ -739,8 +739,8 @@
       icon: '🖥️',
       titleVi: 'Linux Desktop — Khuyên dùng Native',
       titleEn: 'Linux Desktop — Recommended: Native',
-      descVi: 'Không cần Docker. Script tự cài Node.js 20 LTS nếu chưa có, rồi cài 9Router hoặc Ollama theo lựa chọn provider của bạn.',
-      descEn: 'No Docker needed. Script auto-installs Node.js 20 LTS if missing, then installs 9Router or Ollama based on your provider choice.',
+      descVi: 'Không cần Docker. Script tự cài Node.js 20 LTS nếu chưa có, cài OpenClaw CLI, rồi cài 9Router hoặc Ollama theo provider bạn chọn và khởi động bot ngay.',
+      descEn: 'No Docker needed. Script auto-installs Node.js 20 LTS if missing, installs OpenClaw CLI, then installs 9Router or Ollama based on your provider choice and starts the bot immediately.',
       deploy: 'native',
       badgeVi: '💻 Native',
       badgeEn: '💻 Native',
@@ -1815,7 +1815,7 @@ RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /v
 
 ARG CACHEBUST=${Date.now()}
 RUN npm install -g openclaw@latest${skillLines}${browserInstallLines}
-RUN node -e "const fs=require('fs');const p='/usr/local/lib/node_modules/openclaw/dist/gateway-cli-CWpalJNJ.js';let s=fs.readFileSync(p,'utf8');const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';if(!s.includes(to)){if(!s.includes(from)) throw new Error('chat.send patch anchor not found');s=s.replace(from,to);fs.writeFileSync(p,s);}"
+RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const file=(fs.readdirSync(dir).find(n=>/^gateway-cli-.*\\.js$/.test(n))||'');if(!file){console.warn('gateway cli dist file not found; skipping timeout patch');process.exit(0);}const p=path.join(dir,file);let s=fs.readFileSync(p,'utf8');const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';if(s.includes(to)){process.exit(0);}if(!s.includes(from)){console.warn('chat.send patch anchor not found; skipping timeout patch');process.exit(0);}s=s.replace(from,to);fs.writeFileSync(p,s);}"
 WORKDIR /root/.openclaw
 
 EXPOSE 18791
@@ -2840,11 +2840,11 @@ I am **${botName}**. When asked my name, I answer: _"I'm ${botName}"_.`;
       if (is9Router) {
         if (shell === 'bat') {
           arr.push('npm install -g 9router');
-          arr.push('start "9Router" cmd /k "9router"');
+          arr.push('start "9Router" cmd /k "9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update"');
           arr.push('timeout /t 5 /nobreak >nul');
         } else {
           arr.push('npm install -g 9router');
-          arr.push('9router &');
+          arr.push('nohup 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update >/tmp/9router.log 2>&1 &');
           arr.push('sleep 3');
         }
       } else if (isOllama) {
@@ -3456,6 +3456,11 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         '#!/usr/bin/env bash', 'set -e',
         `echo "=== OpenClaw Setup — macOS${isDocker ? ' Docker' : ' Native'} ==="`,
         'command -v node > /dev/null 2>&1 || { echo "ERROR: Node.js chua cai! https://nodejs.org"; exit 1; }',
+        'mkdir -p "$HOME/.local/bin"',
+        'npm config set prefix "$HOME/.local"',
+        'export PATH="$HOME/.local/bin:$PATH"',
+        'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.zshrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.zshrc"',
+        'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
         'npm install -g openclaw@latest',
       ];
       providerLines(sh, 'sh');
@@ -3482,7 +3487,12 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         '  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -',
         '  sudo apt-get install -y nodejs',
         'fi',
-        'npm install -g openclaw@latest pm2',
+        'mkdir -p "$HOME/.local/bin"',
+        'npm config set prefix "$HOME/.local"',
+        'export PATH="$HOME/.local/bin:$PATH"',
+        'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
+        'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
+        'npm install -g openclaw@latest pm2@latest',
       ];
       providerLines(vps, 'sh');
       if (pluginCmd) vps.push(pluginCmd);
@@ -3516,6 +3526,11 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         '  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -',
         '  sudo apt-get install -y nodejs',
         'fi',
+        'mkdir -p "$HOME/.local/bin"',
+        'npm config set prefix "$HOME/.local"',
+        'export PATH="$HOME/.local/bin:$PATH"',
+        'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
+        'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
         'npm install -g openclaw@latest',
       ];
       providerLines(lnx, 'sh');
