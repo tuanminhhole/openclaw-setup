@@ -1,6 +1,14 @@
 ﻿# Changelog (Tiếng Việt)
 
 
+## [5.1.5] — 2026-04-06
+
+### 🐞 Sửa lỗi PM2 khởi động 9Router trên Native
+
+- **Fix**: Chuyển từ việc chạy chuỗi bash (`execSync`) sang truyền mảng tham số rõ ràng (`execFileSync`) khi khởi động 9Router và script đồng bộ (sync) qua PM2. Đảm bảo PM2 luôn chạy được ứng dụng ổn định trên cả Linux (VPS) và Windows mà không bị vướng lỗi phân tích cú pháp dấu ngoặc kép hay khoảng trắng trong đường dẫn.
+- **Tối ưu**: PM2 giờ đây sẽ phân tách rạch ròi bằng cách gọi file thực thi `9router` với tham số `--interpreter none`, và luôn chạy sync script bằng đúng phiên bản NodeJS nội tại thông qua `--interpreter process.execPath`.
+
+
 ## [5.1.4] — 2026-04-06
 
 ### 🐞 Sửa lỗi BOM khởi động CLI & Tối ưu luồng vá Timeout trên Docker

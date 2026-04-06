@@ -195,7 +195,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*9router -n -t -l -H 0\.0\.0\.0 -p 20128 --skip-update[\s\S]*9router-sync[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
+  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*resolveCommandOnPath\('9router'\)[\s\S]*execFileSync\('pm2'[\s\S]*--interpreter'?,?[\s\S]*none[\s\S]*--skip-update[\s\S]*syncScriptPath\.replace\(\/\\\\\/g, '\/'\)[\s\S]*process\.execPath[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
   'VPS native 9Router flow must start a standalone 9Router dashboard on port 20128 via PM2'
 ));
 

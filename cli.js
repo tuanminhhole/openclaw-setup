@@ -5,7 +5,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
 import chalk from 'chalk';
-import { spawn, execSync } from 'child_process';
+import { spawn, execSync, execFileSync } from 'child_process';
 const TELEGRAM_RELAY_PLUGIN_ID = 'openclaw-telegram-multibot-relay';
 // Use plain npm package name — clawhub: protocol not supported in all OpenClaw versions
 const TELEGRAM_RELAY_PLUGIN_SPEC = TELEGRAM_RELAY_PLUGIN_ID;
@@ -363,6 +363,23 @@ setTimeout(sync, 5000);
 setInterval(sync, INTERVAL);`;
 }
 
+function resolveCommandOnPath(command) {
+  if (process.platform === 'win32') {
+    return resolveWindowsCommand(command);
+  }
+
+  try {
+    return execSync(`command -v ${command}`, {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+      shell: true,
+      env: process.env
+    }).trim() || command;
+  } catch {
+    return command;
+  }
+}
+
 function indentBlock(text, spaces) {
   const prefix = ' '.repeat(spaces);
   return String(text)
@@ -608,26 +625,46 @@ function runPm2Save({ projectDir, isVi }) {
 
 function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
   const routerAppName = `${appName}-9router`;
-  execSync(
-    `pm2 start "9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update" --name "${routerAppName}" --cwd "${projectDir.replace(/\\/g, '/')}"`,
-    {
-      cwd: projectDir,
-      stdio: 'inherit',
-      shell: true,
-      env: process.env
-    }
-  );
+  const routerCommand = resolveCommandOnPath('9router');
+  execFileSync('pm2', [
+    'start',
+    routerCommand,
+    '--name',
+    routerAppName,
+    '--cwd',
+    projectDir.replace(/\\/g, '/'),
+    '--interpreter',
+    'none',
+    '--',
+    '-n',
+    '-t',
+    '-l',
+    '-H',
+    '0.0.0.0',
+    '-p',
+    '20128',
+    '--skip-update'
+  ], {
+    cwd: projectDir,
+    stdio: 'inherit',
+    env: process.env
+  });
   if (syncScriptPath) {
     const syncAppName = `${appName}-9router-sync`;
-    execSync(
-      `pm2 start "node ${syncScriptPath.replace(/\\/g, '/')}" --name "${syncAppName}" --cwd "${projectDir.replace(/\\/g, '/')}"`,
-      {
-        cwd: projectDir,
-        stdio: 'inherit',
-        shell: true,
-        env: process.env
-      }
-    );
+    execFileSync('pm2', [
+      'start',
+      syncScriptPath.replace(/\\/g, '/'),
+      '--name',
+      syncAppName,
+      '--cwd',
+      projectDir.replace(/\\/g, '/'),
+      '--interpreter',
+      process.execPath
+    ], {
+      cwd: projectDir,
+      stdio: 'inherit',
+      env: process.env
+    });
   }
   runPm2Save({ projectDir, isVi });
   console.log(chalk.green(`\n✅ ${isVi ? '9Router da duoc khoi dong qua PM2.' : '9Router is running via PM2.'}`));

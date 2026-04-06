@@ -1,6 +1,14 @@
 ﻿# Changelog (English)
 
 
+## [5.1.5] — 2026-04-06
+
+### 🐞 Fix Native PM2 9Router Startup
+
+- **Fix**: Replaced shell string execution (`execSync`) with strict array arguments (`execFileSync`) when starting 9Router and its background sync script via PM2 on native systems. This guarantees reliable process spawning across both Linux (VPS) and Windows environments without PM2 shell-parsing errors on quotes or path spaces.
+- **Improved**: PM2 now explicitly runs the global `9router` binary via `--interpreter none` and the sync script via the current NodeJS runtime using `--interpreter process.execPath`.
+
+
 ## [5.1.4] — 2026-04-06
 
 ### 🐞 Fix CLI Startup BOM Error & Improve Docker Timeout Patch
