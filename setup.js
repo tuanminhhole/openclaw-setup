@@ -277,7 +277,7 @@
       envExtra: '',
       credSteps: [
         { textVi: '⚠️ Zalo Personal dùng <strong>unofficial API (zca-js)</strong> — chỉ nên dùng tài khoản phụ', textEn: '⚠️ Zalo Personal uses <strong>unofficial API (zca-js)</strong> — use an alternate account' },
-        { textVi: 'Sau khi Docker chạy, chạy <code>docker exec -it openclaw-bot openclaw onboard</code> để <strong>quét QR code</strong> login Zalo.', textEn: 'After Docker starts, run <code>docker exec -it openclaw-bot openclaw onboard</code> to <strong>scan QR code</strong> and login Zalo. 1-time setup.' },
+        { textVi: 'Native setup sẽ tự chạy login và copy QR về thư mục project. Nếu cần chạy lại thủ công, dùng <code>openclaw channels login --channel zalouser --verbose</code>.', textEn: 'Native setup now auto-runs the login flow and copies the QR into the project folder. If needed, rerun it manually with <code>openclaw channels login --channel zalouser --verbose</code>.' },
       ],
       channelConfig: {
         zalouser: {
@@ -1520,7 +1520,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
     // Generate native script if native mode
     if (isNativeMode) generateNativeScript();
 
-    // Show/hide Zalo Personal onboard notice
+    // Show/hide Zalo Personal login notice
     const zaloNotice = document.getElementById('zalo-onboard-notice');
     const isZaloPersonal = state.channel === 'zalo-personal';
     if (zaloNotice) {
@@ -1802,7 +1802,7 @@ model:
     const browserPrefix = hasBrowser
       ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & '
       : '';
-    // Patch config on every startup to survive openclaw onboard overwrites
+    // Patch config on every startup to keep gateway settings stable
     const patchCmd = `node -e \\"const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
     // Auto-approve device pairing after gateway starts (required since v2026.3.x)
     const autoApproveCmd = '(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) & ';
@@ -1841,17 +1841,31 @@ const sync = async () => {
   try {
     let db = {};
     try { db = JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e){}
+    if (!db.combos) db.combos = [];
+    const removeSmartRoute = () => {
+      const next = db.combos.filter(x => x.id !== 'smart-route');
+      if (next.length !== db.combos.length) {
+        db.combos = next;
+        fs.writeFileSync(p, JSON.stringify(db, null, 2));
+        console.log('[sync-combo] Removed smart-route (no active providers)');
+      }
+    };
     const a = (db.providerConnections || [])
       .filter(c => c && c.provider && c.isActive !== false && !c.disabled)
       .map(c => c.provider);
-    if (!a.length) return;
+    if (!a.length) {
+      removeSmartRoute();
+      return;
+    }
     
     const PREF = ['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];
     a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
     
     const m = a.flatMap(p => PM[p] || []);
-    if (!m.length) return;
-    if (!db.combos) db.combos = [];
+    if (!m.length) {
+      removeSmartRoute();
+      return;
+    }
 
     const c = { id: 'smart-route', name: 'smart-route', alias: 'smart-route', models: m };
     const i = db.combos.findIndex(x => x.id === 'smart-route');
@@ -2835,16 +2849,27 @@ I am **${botName}**. When asked my name, I answer: _"I'm ${botName}"_.`;
     if (isMultiBot && state.channel === 'telegram') allPlugins.push(relayPluginSpec);
     const pluginCmd = allPlugins.length > 0 ? ('npm exec openclaw plugins install ' + allPlugins.join(' ')) : '';
 
+    function native9RouterSyncScriptContent() {
+      return `const fs=require('fs');
+const path=require('path');
+const INTERVAL=30000;
+const p=path.join(process.env.HOME||process.env.USERPROFILE||'.','.9router','db.json');
+const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],claude-code:['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
+const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catch{}if(!db.combos)db.combos=[];const removeSmartRoute=()=>{const next=db.combos.filter(x=>x.id!=='smart-route');if(next.length!==db.combos.length){db.combos=next;fs.writeFileSync(p,JSON.stringify(db,null,2));}};const a=(db.providerConnections||[]).filter(c=>c&&c.provider&&c.isActive!==false&&!c.disabled).map(c=>c.provider);if(!a.length){removeSmartRoute();return;}const PREF=['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];a.sort((x,y)=>(PREF.indexOf(x)===-1?99:PREF.indexOf(x))-(PREF.indexOf(y)===-1?99:PREF.indexOf(y)));const m=a.flatMap(provider=>PM[provider]||[]);if(!m.length){removeSmartRoute();return;}const c={id:'smart-route',name:'smart-route',alias:'smart-route',models:m};const i=db.combos.findIndex(x=>x.id==='smart-route');if(i>=0){if(JSON.stringify(db.combos[i].models)!==JSON.stringify(c.models)){db.combos[i]=c;fs.writeFileSync(p,JSON.stringify(db,null,2));}}else{db.combos.push(c);fs.writeFileSync(p,JSON.stringify(db,null,2));}}catch{}};sync();setInterval(sync,INTERVAL);`;
+    }
+
     // ─── Shared initializer (provider install) ───────────────────────────────
     function providerLines(arr, shell) {
       if (is9Router) {
         if (shell === 'bat') {
           arr.push('npm install -g 9router');
           arr.push('start "9Router" cmd /k "9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update"');
+          arr.push('start "9Router Smart Route Sync" cmd /k "node .\\.openclaw\\9router-smart-route-sync.js"');
           arr.push('timeout /t 5 /nobreak >nul');
         } else {
           arr.push('npm install -g 9router');
           arr.push('nohup 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update >/tmp/9router.log 2>&1 &');
+          arr.push('nohup node ./.openclaw/9router-smart-route-sync.js >/tmp/9router-sync.log 2>&1 &');
           arr.push('sleep 3');
         }
       } else if (isOllama) {
@@ -3022,6 +3047,7 @@ I am **${botName}**. When asked my name, I answer: _"I'm ${botName}"_.`;
         '.openclaw/auth-profiles.json': sharedNativeAuthProfilesContent(),
         'TELEGRAM-POST-INSTALL.md': buildTelegramPostInstallChecklist(),
       };
+      if (is9Router) files['.openclaw/9router-smart-route-sync.js'] = native9RouterSyncScriptContent();
       const teamMd = isVi
         ? `# Doi Bot\n\n${multiBotAgentMetas.map((meta) => `## ${meta.name}\n- Vai tro: ${meta.desc}\n- Agent ID: \`${meta.agentId}\`\n- Telegram accountId: \`${meta.accountId}\`\n- Slash command: ${meta.slashCmd || '_(chua co)_'}\n- Tinh cach: ${meta.persona || '_(khong ghi ro)_'}`).join('\n\n')}\n\n## Quy uoc phoi hop\n- Tat ca bot trong doi biet ro vai tro cua nhau.\n- Neu user bao ban hoi mot bot khac, hay dung agent-to-agent noi bo thay vi doi Telegram chuyen tin cua bot.\n- Bot mo loi chi noi 1 cau ngan, sau do chuyen turn noi bo cho bot dich.\n- Bot dich phai tra loi cong khai bang chinh Telegram account cua minh trong cung chat/thread hien tai.\n- Neu can fallback, chi bot mo loi moi duoc phep tom tat thay.`
         : `# Bot Team\n\n${multiBotAgentMetas.map((meta) => `## ${meta.name}\n- Role: ${meta.desc}\n- Agent ID: \`${meta.agentId}\`\n- Telegram accountId: \`${meta.accountId}\`\n- Slash command: ${meta.slashCmd || '_(not set)_'}\n- Persona: ${meta.persona || '_(not specified)_'}`).join('\n\n')}\n\n## Coordination Rules\n- Every bot knows the full roster.\n- If the user asks you to consult another bot, use internal agent-to-agent handoff instead of waiting for Telegram bot-to-bot delivery.\n- The caller bot only sends one short opener, then hands off internally.\n- The target bot must publish the real answer with its own Telegram account in the same chat/thread.\n- If a fallback is needed, only the caller bot may summarize on behalf of the target.`;
@@ -3372,6 +3398,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       files[`${base}/.openclaw/openclaw.json`] = botConfigContent(botIndex);
       files[`${base}/.openclaw/exec-approvals.json`] = botExecApprovalsContent(botIndex);
       files[`${base}/.openclaw/auth-profiles.json`] = botAuthProfilesContent(botIndex);
+      if (is9Router) files[`${base}/.openclaw/9router-smart-route-sync.js`] = native9RouterSyncScriptContent();
       files[`${base}/.openclaw/agents/${agentId}.yaml`] = botAgentYamlContent(botIndex);
       files[`${base}/.openclaw/agents/${agentId}/agent/auth-profiles.json`] = botAuthProfilesContent(botIndex);
       Object.entries(botWorkspaceFiles(botIndex)).forEach(([name, content]) => {
@@ -3501,6 +3528,10 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         vps.push('echo "--- Creating shared multi-agent runtime ---"');
         appendShWriteCommands(vps, sharedNativeFileMap());
         vps.push('echo "--- Starting shared gateway via PM2 ---"');
+        if (is9Router) {
+          vps.push('pm2 start --name openclaw-multibot-9router -- sh -c "9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update"');
+          vps.push('pm2 start --name openclaw-multibot-9router-sync -- sh -c "node ./.openclaw/9router-smart-route-sync.js"');
+        }
         vps.push('pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"');
         vps.push('pm2 save && pm2 startup');
         vps.push(`echo ""`);
@@ -3510,6 +3541,10 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         vps.push(`echo "  pm2 logs openclaw-multibot"`);
       } else {
         appendShWriteCommands(vps, botFiles(0));
+        if (is9Router) {
+          vps.push('pm2 start --name openclaw-9router -- sh -c "9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update"');
+          vps.push('pm2 start --name openclaw-9router-sync -- sh -c "node ./.openclaw/9router-smart-route-sync.js"');
+        }
         vps.push('pm2 start --name openclaw -- sh -c "openclaw gateway run"');
         vps.push('pm2 save && pm2 startup');
         vps.push('echo "Bot dang chay! Xem log: pm2 logs openclaw"');
@@ -3684,7 +3719,9 @@ Write-Host "  🎉 ${isVi ? 'Setup hoàn tất!' : 'Setup complete!'}" -Foregrou
       ps += `Write-Host "  ${isVi ? 'Mở http://localhost:30128/dashboard để login OAuth' : 'Open http://localhost:30128/dashboard to login OAuth'}" -ForegroundColor White\n`;
     }
     if (state.channel === 'zalo-personal') {
-      ps += `Write-Host "  ${isVi ? 'Chạy: docker exec -it openclaw-bot openclaw onboard (quét QR)' : 'Run: docker exec -it openclaw-bot openclaw onboard (scan QR)'}" -ForegroundColor White\n`;
+      ps += `Write-Host "  ${isVi ? 'Chạy: docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose' : 'Run: docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose'}" -ForegroundColor White\n`;
+      ps += `Write-Host "  ${isVi ? 'QR sẽ nằm tại /tmp/openclaw/openclaw-zalouser-qr-default.png' : 'QR will be written to /tmp/openclaw/openclaw-zalouser-qr-default.png'}" -ForegroundColor DarkGray\n`;
+      ps += `Write-Host "  ${isVi ? 'Copy QR ra ngoài: docker compose cp ai-bot:/tmp/openclaw/openclaw-zalouser-qr-default.png ./zalo-login-qr.png' : 'Copy the QR out: docker compose cp ai-bot:/tmp/openclaw/openclaw-zalouser-qr-default.png ./zalo-login-qr.png'}" -ForegroundColor DarkGray\n`;
     }
 
     ps += `Write-Host ""
@@ -3858,69 +3895,37 @@ echo ""
   }
 
 
-  // ========== Zalo Personal Onboard Guide (post-Docker-setup) ==========
+  // ========== Zalo Personal Login Guide (post-setup) ==========
 
   function generateZaloOnboardGuide() {
     const lang = document.getElementById('cfg-language')?.value || 'vi';
-    setOutput('out-zalo-onboard-cmd', `docker exec -it openclaw-bot openclaw onboard`);
+    setOutput('out-zalo-onboard-cmd', `docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose`);
 
     if (lang === 'vi') {
       setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
-│  OpenClaw sẽ hỏi lần lượt — chọn như sau:          │
-├──────────────────────┬──────────────────────────────┤
-│  Câu hỏi             │  Chọn                        │
-├──────────────────────┼──────────────────────────────┤
-│  Security warning    │  ✅ Yes                       │
-│  Setup mode          │  ✅ QuickStart                │
-│  Config handling     │  ✅ Use existing values       │
-│  Model/auth provider │  Chọn tuỳ ý (VD: Google)     │
-│  API key             │  Nhập key (hoặc Enter nếu    │
-│                      │  đã có trong .env)            │
-│  Select channel      │  ✅ Zalo (Personal Account)   │
-│  Login via QR?       │  ✅ Yes                       │
-│  ─── QR LOGIN ───    │  📱 Mở file QR → Quét Zalo   │
-│  Did you scan QR?    │  ✅ Yes                       │
-│  DM policy           │  ✅ Pairing (recommended)     │
-│  Configure groups?   │  ✅ No                        │
-│  Configure skills?   │  ✅ No                        │
-│  Enable hooks?       │  ✅ Enter (chọn mặc định)     │
-│  Hatch your bot?     │  ✅ Do this later             │
-├──────────────────────┴──────────────────────────────┤
-│  💡 Bước QR Login:                                  │
-│  Khi bước QR hiện ra, test_openclaw sẽ lưu file QR │
-│  vào thư mục /tmp trong container.                  │
-│  Dùng lệnh: docker cp openclaw-bot:/tmp/qr.png .   │
-│  Mở file ảnh → quét bằng Zalo điện thoại →          │
-│  xác nhận kết nối → quay lại chọn Yes.              │
+│  Chạy lệnh bên trái để OpenClaw tạo QR đăng nhập.   │
+├─────────────────────────────────────────────────────┤
+│  1. Đảm bảo container/gateway đã chạy xong.         │
+│  2. Chạy lệnh login để tạo QR cho zalouser.         │
+│  3. OpenClaw sẽ in ra đường dẫn file QR trong /tmp. │
+│  4. Copy file QR ra ngoài nếu cần:                  │
+│     docker compose cp ai-bot:/tmp/openclaw/         │
+│       openclaw-zalouser-qr-default.png .            │
+│  5. Mở ảnh QR → quét bằng app Zalo → xác nhận.      │
+│  6. Sau khi login xong, restart bot nếu cần.        │
 └─────────────────────────────────────────────────────┘`);
     } else {
       setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
-│  OpenClaw will prompt you — choose as follows:     │
-├──────────────────────┬──────────────────────────────┤
-│  Prompt              │  Choice                      │
-├──────────────────────┼──────────────────────────────┤
-│  Security warning    │  ✅ Yes                       │
-│  Setup mode          │  ✅ QuickStart                │
-│  Config handling     │  ✅ Use existing values       │
-│  Model/auth provider │  Choose any (e.g. Google)    │
-│  API key             │  Enter key (or press Enter   │
-│                      │  if already in .env)          │
-│  Select channel      │  ✅ Zalo (Personal Account)   │
-│  Login via QR?       │  ✅ Yes                       │
-│  ─── QR LOGIN ───    │  📱 Open QR file → Scan Zalo │
-│  Did you scan QR?    │  ✅ Yes                       │
-│  DM policy           │  ✅ Pairing (recommended)     │
-│  Configure groups?   │  ✅ No                        │
-│  Configure skills?   │  ✅ No                        │
-│  Enable hooks?       │  ✅ Enter (default)           │
-│  Hatch your bot?     │  ✅ Do this later             │
-├──────────────────────┴──────────────────────────────┤
-│  💡 QR Login Step:                                  │
-│  When prompted, OpenClaw saves the QR code to       │
-│  /tmp inside the container.                         │
-│  Run: docker cp openclaw-bot:/tmp/qr.png .          │
-│  Open image → scan with Zalo mobile app →           │
-│  confirm login → go back & select Yes.              │
+│  Run the command on the left to generate a Zalo QR. │
+├─────────────────────────────────────────────────────┤
+│  1. Make sure the container/gateway is already up.  │
+│  2. Run the login command for zalouser.             │
+│  3. OpenClaw prints the QR image path under /tmp.   │
+│  4. Copy the QR out if needed:                      │
+│     docker compose cp ai-bot:/tmp/openclaw/         │
+│       openclaw-zalouser-qr-default.png .            │
+│  5. Open the image → scan with Zalo mobile app.     │
+│  6. Restart the bot afterwards if needed.           │
 └─────────────────────────────────────────────────────┘`);
     }
   }

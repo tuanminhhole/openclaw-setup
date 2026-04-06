@@ -1,4 +1,12 @@
-# Changelog (Tiếng Việt)
+﻿# Changelog (Tiếng Việt)
+
+## [5.1.0] — 2026-04-07
+
+### 🤖 Zalo Personal Login Improvements
+
+- Zalo Personal giờ sử dụng luồng đăng nhập `zalouser` trực tiếp trên cả native và Docker.
+- Setup in ra đường dẫn QR cùng các lệnh login/copy chính xác, giúp người dùng đăng nhập nhanh mà không cần `openclaw onboard`.
+- QR login Docker giờ nhắm vào service compose `ai-bot` đã sinh ra thay vì các tên container cũ dễ hỏng.
 
 ## [5.0.9] — 2026-04-06
 

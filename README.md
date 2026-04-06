@@ -1,9 +1,9 @@
-<div align="center">
+﻿<div align="center">
 
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.0.9-0EA5E9?style=for-the-badge" alt="Version 5.0.9" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.0-0EA5E9?style=for-the-badge" alt="Version 5.1.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,7 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ---
 
-## 🆕 What's new in v5.0.9
+## 🆕 What's new in v5.1.0
 
 - 💻 **OS-First Setup** — Step 1 is now choosing your OS (Windows, macOS, Ubuntu, VPS). All scripts, configs, and instructions are generated to match.
 - 🧠 **Gemma 4 — 4 sizes** — `gemma4:e2b` (~4 GB), `gemma4:e4b` (~8 GB), `gemma4:26b` (~18 GB), `gemma4:31b` (~24 GB). Auto-pulled on first launch.
@@ -33,6 +33,7 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 - 🤖 **Multi-Bot Deployment** — Deploy up to **5 independent Telegram bots** in one setup. Each bot runs in its own isolated workspace (`bot1/`, `bot2/`...) with its own token, name, slash command, and AI personality.
 - 💬 **Department Room Model** — Add all bots to one Telegram group and they behave like a professional team. Bots stay silent by default, only responding when @mentioned or their slash command is used — no spam, no chaos.
 - 🔗 **Group ID Helper** — "Get Group ID" button in Web Wizard + step-by-step guide in CLI. Opens @userinfobot directly — no documentation hunting needed.
+- 🔐 **Zalo Personal QR Login** — Zalo Personal now uses direct QR login flow for both native and Docker. Setup prints exact QR path + copy/login commands — no need to go through `openclaw onboard`.
 
 <details>
 <summary><b>Previous: What's new in v5.0.0</b></summary>
@@ -111,7 +112,7 @@ Run in your terminal → follow the interactive prompts → startup script is ge
 2. Open this repo as your workspace
 3. Paste into chat:
    ```
-   Read SETUP.md and set up OpenClaw v5.0.9 for me.
+   Read SETUP.md and set up OpenClaw v5.1.0 for me.
    My bot token is X. Use 9Router (no API key).
    My project folder: <YOUR_PATH>
    ```

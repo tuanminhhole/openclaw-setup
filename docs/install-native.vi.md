@@ -2,7 +2,7 @@
 
 Chế độ Native được thiết kế dành cho những ai không thể hoặc không muốn cài Docker. Chế độ này thường tối ưu cho Shared Hosting (cPanel), các gói VPS cấu hình rất thấp, hoặc cài trực tiếp trên máy Window để chạy cá nhân.
 
-OpenClaw v5.0.9+ tự động sinh sẵn các script cài đặt dành riêng cho Windows, Linux, VPS và Hosting.
+OpenClaw v5.1.0+ tự động sinh sẵn các script cài đặt dành riêng cho Windows, Linux, VPS và Hosting.
 
 ---
 

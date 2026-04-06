@@ -1,4 +1,12 @@
-# Changelog (English)
+﻿# Changelog (English)
+
+## [5.1.0] — 2026-04-07
+
+### 🤖 Zalo Personal Login Improvements
+
+- Zalo Personal now uses the direct `zalouser` login flow on both native and Docker.
+- Setup prints the QR path plus exact login/copy commands, so users can get in fast without `openclaw onboard`.
+- Docker QR login now targets the generated `ai-bot` compose service instead of brittle container names.
 
 ## [5.0.9] — 2026-04-06
 

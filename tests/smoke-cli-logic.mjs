@@ -58,6 +58,18 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
+  /async function writeNative9RouterSyncScript\(projectDir\) \{[\s\S]*9router-smart-route-sync\.js[\s\S]*providerConnections[\s\S]*smart-route/s,
+  'Native 9Router flow must write a smart-route sync script based on ~/.9router/db.json'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /Removed smart-route \(no active providers\)[\s\S]*if \(!a\.length\) \{[\s\S]*removeSmartRoute\(\)[\s\S]*if \(!m\.length\) \{[\s\S]*removeSmartRoute\(\)/s,
+  '9Router sync logic in CLI must remove stale smart-route combos when providers are disabled'
+));
+
+checks.push(() => expectMatch(
+  cli,
   /function ensureUserWritableGlobalNpm\(\{ isVi, osChoice \}\) \{[\s\S]*process\.env\.npm_config_prefix = npmInfo\.prefixDir[\s\S]*npm config set prefix "\$\{npmInfo\.prefixDir\.replace/s,
   'Native CLI must configure a user-writable npm global prefix for non-Windows installs'
 ));
@@ -82,13 +94,37 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
+  /function printZaloPersonalLoginInfo\(\{ isVi, deployMode, projectDir \}\) \{[\s\S]*docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*openclaw-zalouser-qr-default\.png[\s\S]*Copy-Item[\s\S]*docker compose cp ai-bot:\$\{qrPath\} \.\/zalo-login-qr\.png/s,
+  'CLI must print the dedicated Docker/native Zalo Personal login commands and QR copy path instead of onboarding'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /async function runNativeZaloPersonalLoginFlow\(\{ isVi, projectDir \}\) \{[\s\S]*spawn\('openclaw', \['channels', 'login', '--channel', 'zalouser', '--verbose'\]/s,
+  'Native Zalo flow must run the zalouser login command'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /async function runNativeZaloPersonalLoginFlow\(\{ isVi, projectDir \}\) \{[\s\S]*path\.join\(projectDir, 'zalo-login-qr\.png'\)[\s\S]*fs\.copy\(qrSourcePath, qrProjectPath, \{ overwrite: true \}\)/s,
+  'Native Zalo flow must copy the generated QR into the project folder'
+));
+
+checks.push(() => expectMatch(
+  cli,
   /baseUrl: deployMode === 'native' \? 'http:\/\/localhost:20128\/v1' : 'http:\/\/9router:20128\/v1'/,
   'Native 9Router config must target localhost instead of the Docker hostname'
 ));
 
 checks.push(() => expectMatch(
   cli,
-  /function startNative9RouterPm2\(\{ isVi, projectDir, appName \}\) \{[\s\S]*9router -n -t -l -H 0\.0\.0\.0 -p 20128 --skip-update[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
+  /channelKey === 'zalo-personal'\) \{\s*botConfig\.channels\['zalouser'\] = \{\s*enabled: true,\s*dmPolicy: 'pairing',\s*autoReply: true/s,
+  'CLI must configure Zalo Personal under channels.zalouser'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*9router -n -t -l -H 0\.0\.0\.0 -p 20128 --skip-update[\s\S]*9router-sync[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
   'VPS native 9Router flow must start a standalone 9Router dashboard on port 20128 via PM2'
 ));
 
@@ -100,8 +136,8 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /const child = spawn\('openclaw', \['gateway', 'run'\], \{/,
-  'Native desktop flows must start openclaw in foreground'
+  /if \(channelKey === 'zalo-personal'\) \{\s*await runNativeZaloPersonalLoginFlow\(\{ isVi, projectDir \}\);\s*\}[\s\S]*const child = spawn\('openclaw', \['gateway', 'run'\], \{/s,
+  'Native desktop flows must finish the Zalo login flow before starting openclaw in foreground'
 ));
 
 checks.push(() => expectOrder(
@@ -160,6 +196,24 @@ checks.push(() => expectMatch(
 ));
 
 checks.push(() => expectMatch(
+  setup,
+  /function native9RouterSyncScriptContent\(\) \{[\s\S]*providerConnections[\s\S]*smart-route/s,
+  'Native script generation must embed a 9Router smart-route sync script'
+));
+
+checks.push(() => expectMatch(
+  setup,
+  /Removed smart-route \(no active providers\)[\s\S]*if \(!a\.length\) \{[\s\S]*removeSmartRoute\(\)[\s\S]*if \(!m\.length\) \{[\s\S]*removeSmartRoute\(\)/s,
+  '9Router sync logic in setup.js must remove stale smart-route combos when providers are disabled'
+));
+
+checks.push(() => expectMatch(
+  setup,
+  /\.openclaw\/9router-smart-route-sync\.js[\s\S]*pm2 start --name openclaw-9router-sync/s,
+  'VPS native script generation must write and run the 9Router smart-route sync loop'
+));
+
+checks.push(() => expectMatch(
   cli,
   /readdirSync\(dir\)\.find\(n=>\/\^gateway-cli-.*\\\\\.js\$\/\.test\(n\)\)[\s\S]*skipping timeout patch/,
   'Dockerfile patching in CLI must resolve gateway-cli dist files dynamically instead of hardcoding one hash'
@@ -199,6 +253,12 @@ checks.push(() => expectMatch(
   setup,
   /steps\.push\(isVi \? '.*Cài OpenClaw CLI.*' : '.*Install OpenClaw CLI.*'\);/s,
   'Auto-steps summary must mention OpenClaw CLI installation'
+));
+
+checks.push(() => expectMatch(
+  setup,
+  /Native setup now auto-runs the login flow and copies the QR into the project folder[\s\S]*docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*docker compose cp ai-bot:\/tmp\/openclaw\/openclaw-zalouser-qr-default\.png \.\/zalo-login-qr\.png/s,
+  'Wizard copy must mention native auto-login and still show the dedicated Docker QR login command'
 ));
 
 for (const check of checks) {

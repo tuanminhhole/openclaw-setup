@@ -160,6 +160,23 @@ function installGlobalPackage(pkg, { isVi, osChoice, displayName }) {
   return false;
 }
 
+function build9RouterSmartRouteSyncScript(dbPath) {
+  const safeDbPath = JSON.stringify(dbPath);
+  return `const fs=require('fs');
+const INTERVAL=30000;
+const p=${safeDbPath};
+const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],claude-code:['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
+console.log('[sync-combo] 9Router sync loop started...');
+const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catch{}if(!db.combos)db.combos=[];const removeSmartRoute=()=>{const next=db.combos.filter(x=>x.id!=='smart-route');if(next.length!==db.combos.length){db.combos=next;fs.writeFileSync(p,JSON.stringify(db,null,2));console.log('[sync-combo] Removed smart-route (no active providers)');}};const a=(db.providerConnections||[]).filter(c=>c&&c.provider&&c.isActive!==false&&!c.disabled).map(c=>c.provider);if(!a.length){removeSmartRoute();return;}const PREF=['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];a.sort((x,y)=>(PREF.indexOf(x)===-1?99:PREF.indexOf(x))-(PREF.indexOf(y)===-1?99:PREF.indexOf(y)));const m=a.flatMap(provider=>PM[provider]||[]);if(!m.length){removeSmartRoute();return;}const c={id:'smart-route',name:'smart-route',alias:'smart-route',models:m};const i=db.combos.findIndex(x=>x.id==='smart-route');if(i>=0){if(JSON.stringify(db.combos[i].models)!==JSON.stringify(c.models)){db.combos[i]=c;fs.writeFileSync(p,JSON.stringify(db,null,2));console.log('[sync-combo] Updated smart-route: '+c.models.length+' models');}}else{db.combos.push(c);fs.writeFileSync(p,JSON.stringify(db,null,2));console.log('[sync-combo] Created smart-route: '+c.models.length+' models');}}catch{}};sync();setInterval(sync,INTERVAL);`;
+}
+
+async function writeNative9RouterSyncScript(projectDir) {
+  const syncScriptPath = path.join(projectDir, '.openclaw', '9router-smart-route-sync.js');
+  await fs.ensureDir(path.dirname(syncScriptPath));
+  await fs.writeFile(syncScriptPath, build9RouterSmartRouteSyncScript(path.join(os.homedir(), '.9router', 'db.json')));
+  return syncScriptPath;
+}
+
 function extractFirstHttpUrl(text) {
   const match = String(text || '').match(/https?:\/\/[^\s"'`]+/);
   return match ? match[0] : null;
@@ -209,6 +226,83 @@ function printNativeDashboardAccessInfo({ isVi, providerKey, projectDir, gateway
   }
 }
 
+function printZaloPersonalLoginInfo({ isVi, deployMode, projectDir }) {
+  const nativeCmd = 'openclaw channels login --channel zalouser --verbose';
+  const dockerCmd = 'docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose';
+  const cmd = deployMode === 'native' ? nativeCmd : dockerCmd;
+  const qrPath = deployMode === 'native'
+    ? path.join(os.tmpdir(), 'openclaw', 'openclaw-zalouser-qr-default.png')
+    : '/tmp/openclaw/openclaw-zalouser-qr-default.png';
+  const projectQrPath = path.join(projectDir, 'zalo-login-qr.png');
+  const copyCmd = deployMode === 'native'
+    ? (process.platform === 'win32'
+      ? `Copy-Item "${qrPath}" "${projectQrPath}"`
+      : `cp "${qrPath}" "${projectQrPath}"`)
+    : `docker compose cp ai-bot:${qrPath} ./zalo-login-qr.png`;
+
+  console.log(chalk.yellow(`\n📱 ${isVi ? 'Đăng nhập Zalo Personal (1 lần):' : 'Zalo Personal login (one time):'}`));
+  console.log(chalk.white(`   cd ${projectDir}${deployMode === 'native' ? '' : '/docker/openclaw'} ${process.platform === 'win32' ? ';' : '&&'} ${cmd}`));
+  console.log(chalk.gray(isVi
+    ? `   → OpenClaw sẽ tạo file QR tại: ${qrPath}`
+    : `   → OpenClaw will generate a QR image at: ${qrPath}`));
+  console.log(chalk.gray(isVi
+    ? `   → Nếu cần copy QR ra thư mục project, dùng: ${copyCmd}`
+    : `   → If needed, copy the QR into the project folder with: ${copyCmd}`));
+}
+
+async function waitForFile(filePath, timeoutMs = 15000, intervalMs = 500) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await fs.pathExists(filePath)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return fs.pathExists(filePath);
+}
+
+async function runNativeZaloPersonalLoginFlow({ isVi, projectDir }) {
+  const qrSourcePath = path.join(os.tmpdir(), 'openclaw', 'openclaw-zalouser-qr-default.png');
+  const qrProjectPath = path.join(projectDir, 'zalo-login-qr.png');
+  console.log(chalk.yellow(`\n📱 ${isVi ? 'Đang tạo QR đăng nhập Zalo Personal...' : 'Generating the Zalo Personal login QR...'}`));
+
+  const child = spawn('openclaw', ['channels', 'login', '--channel', 'zalouser', '--verbose'], {
+    cwd: projectDir,
+    stdio: 'inherit',
+    shell: process.platform === 'win32'
+  });
+
+  let qrCopied = false;
+  const copyQrIfReady = async () => {
+    if (qrCopied) return;
+    if (await waitForFile(qrSourcePath, 500, 250)) {
+      await fs.copy(qrSourcePath, qrProjectPath, { overwrite: true });
+      qrCopied = true;
+      console.log(chalk.green(isVi
+        ? `✅ QR đã được copy vào: ${qrProjectPath}`
+        : `✅ QR copied to: ${qrProjectPath}`));
+    }
+  };
+
+  const watcher = setInterval(() => {
+    copyQrIfReady().catch(() => {});
+  }, 750);
+
+  const exitCode = await new Promise((resolve) => {
+    child.on('close', (code) => resolve(code ?? 0));
+    child.on('error', () => resolve(1));
+  });
+  clearInterval(watcher);
+  await copyQrIfReady();
+
+  if (exitCode !== 0) {
+    console.log(chalk.yellow(isVi
+      ? '⚠️  Chưa hoàn tất đăng nhập Zalo trong lúc setup. Bạn có thể chạy lại lệnh login thủ công sau.'
+      : '⚠️  Zalo login was not completed during setup. You can run the login command manually afterwards.'));
+    printZaloPersonalLoginInfo({ isVi, deployMode: 'native', projectDir });
+  }
+}
+
 function runPm2Save({ projectDir, isVi }) {
   try {
     execSync('pm2 save', {
@@ -224,7 +318,7 @@ function runPm2Save({ projectDir, isVi }) {
   }
 }
 
-function startNative9RouterPm2({ isVi, projectDir, appName }) {
+function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
   const routerAppName = `${appName}-9router`;
   execSync(
     `pm2 start "9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update" --name "${routerAppName}" --cwd "${projectDir.replace(/\\/g, '/')}"`,
@@ -235,6 +329,18 @@ function startNative9RouterPm2({ isVi, projectDir, appName }) {
       env: process.env
     }
   );
+  if (syncScriptPath) {
+    const syncAppName = `${appName}-9router-sync`;
+    execSync(
+      `pm2 start "node ${syncScriptPath.replace(/\\/g, '/')}" --name "${syncAppName}" --cwd "${projectDir.replace(/\\/g, '/')}"`,
+      {
+        cwd: projectDir,
+        stdio: 'inherit',
+        shell: true,
+        env: process.env
+      }
+    );
+  }
   runPm2Save({ projectDir, isVi });
   console.log(chalk.green(`\n✅ ${isVi ? '9Router da duoc khoi dong qua PM2.' : '9Router is running via PM2.'}`));
   console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${routerAppName}` : `   View logs: pm2 logs ${routerAppName}`));
@@ -893,17 +999,31 @@ const sync = async () => {
   try {
     let db = {};
     try { db = JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e){}
+    if (!db.combos) db.combos = [];
+    const removeSmartRoute = () => {
+      const next = db.combos.filter(x => x.id !== 'smart-route');
+      if (next.length !== db.combos.length) {
+        db.combos = next;
+        fs.writeFileSync(p, JSON.stringify(db, null, 2));
+        console.log('[sync-combo] Removed smart-route (no active providers)');
+      }
+    };
     const a = (db.providerConnections || [])
       .filter(c => c && c.provider && c.isActive !== false && !c.disabled)
       .map(c => c.provider);
-    if (!a.length) return;
+    if (!a.length) {
+      removeSmartRoute();
+      return;
+    }
     
     const PREF = ['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];
     a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
     
     const m = a.flatMap(p => PM[p] || []);
-    if (!m.length) return;
-    if (!db.combos) db.combos = [];
+    if (!m.length) {
+      removeSmartRoute();
+      return;
+    }
 
     const c = { id: 'smart-route', name: 'smart-route', alias: 'smart-route', models: m };
     const i = db.combos.findIndex(x => x.id === 'smart-route');
@@ -1596,7 +1716,11 @@ ${hasBrowserDesktop ? `    extra_hosts:
       }
       botConfig.channels['telegram'] = telegramConfig;
     } else if (channelKey === 'zalo-personal') {
-      botConfig.channels['zalo'] = { enabled: true, provider: 'client', autoReply: true };
+      botConfig.channels['zalouser'] = {
+        enabled: true,
+        dmPolicy: 'pairing',
+        autoReply: true
+      };
     } else if (channelKey === 'zalo-bot') {
       botConfig.channels['zalo'] = { enabled: true, provider: 'official_account' };
     }
@@ -1833,8 +1957,7 @@ fi
               : '   → Run scripts/telegram-post-install-check.mjs to get the real links, verify group/privacy, then add the bots and disable privacy mode.'));
           }
         } else if (channelKey === 'zalo-personal') {
-          console.log(chalk.yellow(`\n📱 ${isVi ? 'Vui lòng chạy lệnh sau để đăng nhập Zalo Personal (1 lần duy nhất):' : 'Please run this command to login to Zalo Personal (once):'}`));
-          console.log(`cd ${projectDir} && docker compose exec -it openclaw bun run core:onboard`);
+          printZaloPersonalLoginInfo({ isVi, deployMode: 'docker', projectDir });
         }
       } else {
         console.log(chalk.red(`\n\u274c Docker exited with code ${code}`));
@@ -1922,6 +2045,11 @@ fi
       console.log(chalk.green(isVi ? '✅ 9Router da cai xong!' : '✅ 9Router installed!'));
     }
 
+    let native9RouterSyncScriptPath = null;
+    if (providerKey === '9router') {
+      native9RouterSyncScriptPath = await writeNative9RouterSyncScript(projectDir);
+    }
+
     await syncLocalConfigToHome(projectDir, isVi);
 
     if (isMultiBot && channelKey === 'telegram') {
@@ -1938,7 +2066,7 @@ fi
 
       if (isMultiBot && channelKey === 'telegram') {
         if (providerKey === '9router') {
-          startNative9RouterPm2({ isVi, projectDir, appName: botName || 'openclaw-multibot' });
+          startNative9RouterPm2({ isVi, projectDir, appName: botName || 'openclaw-multibot', syncScriptPath: native9RouterSyncScriptPath });
         }
         execSync('pm2 start ecosystem.config.js && pm2 save', {
           cwd: projectDir,
@@ -1948,10 +2076,16 @@ fi
         console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoan tat! Multi-bot native dang chay qua PM2.' : 'Setup complete! Native multi-bot is running via PM2.'}`));
         console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${botName || 'openclaw-multibot'}` : `   View logs: pm2 logs ${botName || 'openclaw-multibot'}`));
         printNativeDashboardAccessInfo({ isVi, providerKey, projectDir });
+        if (channelKey === 'zalo-personal') {
+          printZaloPersonalLoginInfo({ isVi, deployMode: 'native', projectDir });
+        }
       } else {
         const appName = botName || 'openclaw';
         if (providerKey === '9router') {
-          startNative9RouterPm2({ isVi, projectDir, appName });
+          startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath: native9RouterSyncScriptPath });
+        }
+        if (channelKey === 'zalo-personal') {
+          await runNativeZaloPersonalLoginFlow({ isVi, projectDir });
         }
         execSync(`pm2 start "openclaw gateway run" --name "${appName}" --cwd "${projectDir.replace(/\\/g, '/')}" && pm2 save`, {
           cwd: projectDir,
@@ -1961,6 +2095,9 @@ fi
         console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoan tat! Bot native dang chay qua PM2.' : 'Setup complete! Native bot is running via PM2.'}`));
         console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${appName}` : `   View logs: pm2 logs ${appName}`));
         printNativeDashboardAccessInfo({ isVi, providerKey, projectDir });
+        if (channelKey === 'zalo-personal') {
+          printZaloPersonalLoginInfo({ isVi, deployMode: 'native', projectDir });
+        }
       }
     } else {
       if (providerKey === '9router') {
@@ -1971,9 +2108,20 @@ fi
           stdio: 'ignore',
           shell: process.platform === 'win32'
         }).unref();
+        if (native9RouterSyncScriptPath) {
+          spawn('node', [native9RouterSyncScriptPath], {
+            cwd: projectDir,
+            detached: true,
+            stdio: 'ignore',
+            shell: process.platform === 'win32'
+          }).unref();
+        }
         console.log(chalk.gray(isVi
           ? '   9Router dashboard: http://localhost:20128/dashboard'
           : '   9Router dashboard: http://localhost:20128/dashboard'));
+      }
+      if (channelKey === 'zalo-personal') {
+        await runNativeZaloPersonalLoginFlow({ isVi, projectDir });
       }
       console.log(chalk.yellow(`\n${isVi ? 'Khoi dong native bot (foreground)...' : 'Starting native bot (foreground)...'}`));
       const child = spawn('openclaw', ['gateway', 'run'], {
