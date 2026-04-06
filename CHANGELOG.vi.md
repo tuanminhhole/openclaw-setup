@@ -1,6 +1,14 @@
 ﻿# Changelog (Tiếng Việt)
 
 
+## [5.1.4] — 2026-04-06
+
+### 🐞 Sửa lỗi BOM khởi động CLI & Tối ưu luồng vá Timeout trên Docker
+
+- **Sửa file CLI (BOM)**: Xóa tự động chèn BOM (`\uFEFF`) ở đầu file `cli.js`. Ký tự thừa này vốn làm hỏng shebang `#!/usr/bin/env node` và gây `SyntaxError: Unexpected token` trong nhiều môi trường khi chạy npx
+- **Cải thiện Docker Timeout Patch**: Quá trình can thiệp timeout (`300s`) trong lúc build Docker giờ chuyển sang scan quét toàn bộ các file `.js` trong thư mục `openclaw/dist` thay vì cố tìm file trùng hash `gateway-cli-*`. Giúp bản vá luôn áp dụng thành công trên các phiên bản backend khác biệt mà không in ra warning rác trên console
+
+
 ## [5.1.3] — 2026-04-06
 
 ### 🐜 Lỗi lọt biến nội suy vào giao diện Docker Compose

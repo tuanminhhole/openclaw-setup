@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.3-0EA5E9?style=for-the-badge" alt="Version 5.1.3" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.4-0EA5E9?style=for-the-badge" alt="Version 5.1.4" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,7 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ---
 
-## 🆕 What's new in v5.1.3
+## 🆕 What's new in v5.1.4
 
 - 💻 **OS-First Setup** — Step 1 is now choosing your OS (Windows, macOS, Ubuntu, VPS). All scripts, configs, and instructions are generated to match.
 - 🧠 **Gemma 4 — 4 sizes** — `gemma4:e2b` (~4 GB), `gemma4:e4b` (~8 GB), `gemma4:26b` (~18 GB), `gemma4:31b` (~24 GB). Auto-pulled on first launch.
@@ -112,7 +112,7 @@ Run in your terminal → follow the interactive prompts → startup script is ge
 2. Open this repo as your workspace
 3. Paste into chat:
    ```
-   Read SETUP.md and set up OpenClaw v5.1.3 for me.
+   Read SETUP.md and set up OpenClaw v5.1.4 for me.
    My bot token is X. Use 9Router (no API key).
    My project folder: <YOUR_PATH>
    ```

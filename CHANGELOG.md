@@ -1,6 +1,14 @@
 ﻿# Changelog (English)
 
 
+## [5.1.4] — 2026-04-06
+
+### 🐞 Fix CLI Startup BOM Error & Improve Docker Timeout Patch
+
+- **Fix CLI BOM**: Removed the unexpected byte order mark (BOM) `\uFEFF` at the beginning of `cli.js` which could cause the shebang `#!/usr/bin/env node` to fail resolving or cause SyntaxErrors in certain environments
+- **Improve Docker Timeout Patching**: The backend timeout override injection (`300s`) during Docker build now defensively scans all `.js` files in the `openclaw/dist` directory rather than trying to fuzzy-find a specific `gateway-cli-*` hash. This ensures the patch succeeds across different OpenClaw backend builds without noisy console warnings
+
+
 ## [5.1.3] — 2026-04-06
 
 ### 🐜 Fix Docker Compose Variable Interpolation Leak

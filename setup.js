@@ -1827,7 +1827,7 @@ RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /v
 
 ARG CACHEBUST=${Date.now()}
 RUN npm install -g openclaw@latest${skillLines}${browserInstallLines}
-RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const file=(fs.readdirSync(dir).find(n=>/^gateway-cli-.*\\.js$/.test(n))||'');if(!file){console.warn('gateway cli dist file not found; skipping timeout patch');process.exit(0);}const p=path.join(dir,file);let s=fs.readFileSync(p,'utf8');const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';if(s.includes(to)){process.exit(0);}if(!s.includes(from)){console.warn('chat.send patch anchor not found; skipping timeout patch');process.exit(0);}s=s.replace(from,to);fs.writeFileSync(p,s);}"
+RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const files=fs.readdirSync(dir).filter(n=>/\\.js$/.test(n));let patched=0;for(const file of files){const p=path.join(dir,file);let s='';try{s=fs.readFileSync(p,'utf8');}catch{continue;}if(s.includes(to)||!s.includes(from))continue;s=s.replace(from,to);fs.writeFileSync(p,s);patched++;}if(!patched){process.exit(0);}"
 WORKDIR /root/.openclaw
 
 EXPOSE 18791

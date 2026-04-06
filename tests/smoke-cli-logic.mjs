@@ -5,6 +5,7 @@ const root = process.cwd();
 const cli = fs.readFileSync(path.join(root, 'cli.js'), 'utf8');
 const setup = fs.readFileSync(path.join(root, 'setup.js'), 'utf8');
 const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const cliBytes = fs.readFileSync(path.join(root, 'cli.js'));
 
 function expect(condition, message) {
   if (!condition) {
@@ -30,6 +31,11 @@ checks.push(() => expectMatch(
   cli,
   /const deployModeDefault = \(osChoice === 'ubuntu' \|\| osChoice === 'vps'\) \? 'native' : 'docker';/,
   'Ubuntu/VPS must default to native deploy mode'
+));
+
+checks.push(() => expect(
+  !(cliBytes[0] === 0xef && cliBytes[1] === 0xbb && cliBytes[2] === 0xbf),
+  'CLI entrypoint must not include a UTF-8 BOM before the shebang'
 ));
 
 checks.push(() => expectMatch(
@@ -312,8 +318,8 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /readdirSync\(dir\)\.find\(n=>\/\^gateway-cli-.*\\\\\.js\$\/\.test\(n\)\)[\s\S]*skipping timeout patch/,
-  'Dockerfile patching in CLI must resolve gateway-cli dist files dynamically instead of hardcoding one hash'
+  /const files=fs\.readdirSync\(dir\)\.filter\(n=>\/\\\\\.js\$\/\.test\(n\)\)[\s\S]*let patched=0[\s\S]*if\(!patched\)\{process\.exit\(0\);\}/,
+  'Dockerfile patching in CLI must scan all OpenClaw dist JS files and silently skip when no timeout patch anchor exists'
 ));
 
 checks.push(() => expect(
@@ -323,8 +329,8 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /readdirSync\(dir\)\.find\(n=>\/\^gateway-cli-.*\\\\\.js\$\/\.test\(n\)\)[\s\S]*skipping timeout patch/,
-  'Dockerfile patching in setup.js must resolve gateway-cli dist files dynamically instead of hardcoding one hash'
+  /const files=fs\.readdirSync\(dir\)\.filter\(n=>\/\\\\\.js\$\/\.test\(n\)\)[\s\S]*let patched=0[\s\S]*if\(!patched\)\{process\.exit\(0\);\}/,
+  'Dockerfile patching in setup.js must scan all OpenClaw dist JS files and silently skip when no timeout patch anchor exists'
 ));
 
 checks.push(() => expect(
