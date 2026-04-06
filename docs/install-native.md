@@ -2,7 +2,7 @@
 
 Native installation is designed for users who cannot or prefer not to use Docker. This includes deployments on Shared Hosting (cPanel), low-tier VPS environments, or Windows desktops for direct access.
 
-OpenClaw v5.0.1+ natively supports deployment script generation for Windows, Linux, VPS, and Hosting environments.
+OpenClaw v5.0.9+ natively supports deployment script generation for Windows, Linux, VPS, and Hosting environments.
 
 ---
 

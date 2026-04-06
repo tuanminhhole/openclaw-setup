@@ -1,6 +1,6 @@
 # Changelog (Tiếng Việt)
 
-## [5.0.1] — 2026-04-04
+## [5.0.9] — 2026-04-06
 
 ### 🚀 Chế độ Native Install — Không cần Docker
 
