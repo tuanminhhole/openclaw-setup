@@ -1,5 +1,27 @@
 ﻿# Changelog (Tiếng Việt)
 
+
+## [5.1.1] — 2026-04-06
+
+### 🔧 9Router Smart-Route Sync — Ổn định qua API
+
+Sửa lỗi nghiêm trọng khiến sync script không nhận ra provider đang active, làm tất cả request fallback về `openai` (lỗi `404 No active credentials`).
+
+- **Nguyên nhân**: script đọc `db.providerConnections` từ `db.json` nhưng field này không tồn tại trong 9Router v0.3.79+ — connections chỉ có qua REST API
+- **Fix**: script giờ gọi `fetch('http://localhost:20128/api/providers')` → `d.connections[]` để detect provider đang active
+- **Fix**: thay heredoc `cat << 'CLAWEOF'` (gây ra `const p=undefined`) bằng `node -e require('fs').writeFileSync(...)` — không còn lỗi escaping trong YAML+shell
+- **Fix**: `build9RouterSmartRouteSyncScript()` trong CLI docker flow giờ truyền đúng `'/root/.9router/db.json'` làm db path
+- Áp dụng cho cả 3 vị trí: Docker web wizard (`setup.js`), Docker CLI (`cli.js`), và native (`cli.js`)
+
+### 📱 Zalo Pairing — Tự Động Approve Khi Gateway Đang Chạy
+
+- Trước đây, auto-approve chỉ chạy trong login flow ban đầu; pairing request mới khi gateway đang chạy bị bỏ qua
+- **Fix**: `openclaw gateway run` với Zalo Personal giờ pipe stdout/stderr và tự gọi `openclaw pairing approve zalouser <code>` khi phát hiện pairing code mới
+
+### 🧹 Output Docker CLI Gọn Hơn
+
+- Xóa các hướng dẫn thừa sau khi Docker build xong (`docker compose build`, `openclaw gateway`, PM2) — Docker mode tự chạy hoàn toàn, không cần thao tác thủ công thêm
+
 ## [5.1.0] — 2026-04-07
 
 ### 🤖 Zalo Personal Login Improvements

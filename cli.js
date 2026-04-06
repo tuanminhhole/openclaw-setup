@@ -59,6 +59,10 @@ function is9RouterInstalled() {
   }
 }
 
+function shouldReuseInstalledGlobals() {
+  return ['1', 'true', 'yes', 'on'].includes(String(process.env.OPENCLAW_SETUP_REUSE_GLOBALS || '').trim().toLowerCase());
+}
+
 function getUserNpmPrefixInfo() {
   if (process.platform === 'win32') {
     return null;
@@ -77,6 +81,133 @@ function ensureBinDirOnPath(binDir) {
   if (!pathParts.includes(binDir)) {
     process.env.PATH = [binDir, ...pathParts].join(delimiter);
   }
+}
+
+function quoteWindowsCmdArg(arg) {
+  const value = String(arg);
+  if (!/[\s"]/u.test(value)) {
+    return value;
+  }
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function quotePowerShellSingle(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function resolveWindowsCommand(command) {
+  try {
+    const output = execSync(`where.exe ${command}`, {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+      shell: true,
+      env: process.env
+    });
+    const firstMatch = output
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean);
+    return firstMatch || command;
+  } catch {
+    return command;
+  }
+}
+
+function spawnBackgroundProcess(command, args, options = {}) {
+  const { cwd, env = {} } = options;
+  const mergedEnv = { ...process.env, ...env };
+
+  if (process.platform === 'win32') {
+    const resolvedCommand = resolveWindowsCommand(command);
+    const argList = args.map((arg) => quotePowerShellSingle(arg)).join(', ');
+    const startProcessScript = [
+      `$filePath = ${quotePowerShellSingle(resolvedCommand)}`,
+      `$workingDir = ${quotePowerShellSingle(cwd || process.cwd())}`,
+      `$argList = @(${argList})`,
+      "Start-Process -WindowStyle Hidden -FilePath $filePath -WorkingDirectory $workingDir -ArgumentList $argList"
+    ].join('; ');
+
+    return spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', startProcessScript], {
+      cwd,
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env: mergedEnv
+    });
+  }
+
+  return spawn(command, args, {
+    cwd,
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
+    env: mergedEnv
+  });
+}
+
+function resolveNative9RouterDesktopLaunch() {
+  if (process.platform === 'win32') {
+    const npmRoot = (() => {
+      try {
+        return execSync('npm root -g', {
+          stdio: ['ignore', 'pipe', 'ignore'],
+          encoding: 'utf8',
+          shell: true,
+          env: process.env
+        }).trim();
+      } catch {
+        return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'npm', 'node_modules');
+      }
+    })();
+
+    return {
+      command: process.execPath,
+      args: [path.join(npmRoot, '9router', 'app', 'server.js')],
+      env: {
+        PORT: '20128',
+        HOSTNAME: '0.0.0.0'
+      }
+    };
+  }
+
+  return {
+    command: '9router',
+    args: ['-n', '-t', '-l', '-H', '0.0.0.0', '-p', '20128', '--skip-update'],
+    env: {}
+  };
+}
+
+function getNative9RouterDataDir() {
+  if (process.platform === 'win32') {
+    return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), '9router');
+  }
+
+  return path.join(os.homedir(), '.9router');
+}
+
+async function waitFor9RouterApiReady({ port = 20128, timeoutMs = 15000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  const candidates = [
+    `http://127.0.0.1:${port}/api/settings/require-login`,
+    `http://127.0.0.1:${port}/api/version`
+  ];
+
+  while (Date.now() < deadline) {
+    for (const url of candidates) {
+      try {
+        const response = await fetch(url, { signal: AbortSignal.timeout(2500) });
+        if (response.ok) {
+          return { ok: true, url };
+        }
+      } catch {
+        // keep polling until timeout
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+  }
+
+  return { ok: false, url: candidates[0] };
 }
 
 function appendLineIfMissing(filePath, line) {
@@ -160,20 +291,82 @@ function installGlobalPackage(pkg, { isVi, osChoice, displayName }) {
   return false;
 }
 
+function installLatestOpenClaw({ isVi, osChoice }) {
+  if (shouldReuseInstalledGlobals() && isOpenClawInstalled()) {
+    console.log(chalk.green(isVi
+      ? '\n♻️ Dang dung lai openclaw da cai san de test nhanh.'
+      : '\n♻️ Reusing the installed openclaw for a faster test run.'));
+    return;
+  }
+
+  console.log(chalk.cyan(isVi
+    ? '\n📦 Dang cai/cap nhat openclaw@latest...'
+    : '\n📦 Installing/updating openclaw@latest...'));
+
+  if (!installGlobalPackage('openclaw@latest', { isVi, osChoice, displayName: 'openclaw' })) {
+    process.exit(1);
+  }
+
+  console.log(chalk.green(isVi
+    ? '✅ openclaw da duoc cap nhat ban moi nhat!'
+    : '✅ openclaw is now on the latest version!'));
+}
+
 function build9RouterSmartRouteSyncScript(dbPath) {
   const safeDbPath = JSON.stringify(dbPath);
   return `const fs=require('fs');
 const INTERVAL=30000;
 const p=${safeDbPath};
-const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],claude-code:['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
+const ROUTER='http://localhost:20128';
+const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
 console.log('[sync-combo] 9Router sync loop started...');
-const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catch{}if(!db.combos)db.combos=[];const removeSmartRoute=()=>{const next=db.combos.filter(x=>x.id!=='smart-route');if(next.length!==db.combos.length){db.combos=next;fs.writeFileSync(p,JSON.stringify(db,null,2));console.log('[sync-combo] Removed smart-route (no active providers)');}};const a=(db.providerConnections||[]).filter(c=>c&&c.provider&&c.isActive!==false&&!c.disabled).map(c=>c.provider);if(!a.length){removeSmartRoute();return;}const PREF=['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];a.sort((x,y)=>(PREF.indexOf(x)===-1?99:PREF.indexOf(x))-(PREF.indexOf(y)===-1?99:PREF.indexOf(y)));const m=a.flatMap(provider=>PM[provider]||[]);if(!m.length){removeSmartRoute();return;}const c={id:'smart-route',name:'smart-route',alias:'smart-route',models:m};const i=db.combos.findIndex(x=>x.id==='smart-route');if(i>=0){if(JSON.stringify(db.combos[i].models)!==JSON.stringify(c.models)){db.combos[i]=c;fs.writeFileSync(p,JSON.stringify(db,null,2));console.log('[sync-combo] Updated smart-route: '+c.models.length+' models');}}else{db.combos.push(c);fs.writeFileSync(p,JSON.stringify(db,null,2));console.log('[sync-combo] Created smart-route: '+c.models.length+' models');}}catch{}};sync();setInterval(sync,INTERVAL);`;
+const sync = async () => {
+  try {
+    const res = await fetch(ROUTER + '/api/providers');
+    if (!res.ok) { console.log('[sync-combo] API not ready, retrying...'); return; }
+    const d = await res.json();
+    const a = (d.connections || [])
+      .filter(c => c && c.provider && c.isActive !== false && !c.disabled)
+      .map(c => c.provider);
+    let db = {};
+    try { db = JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e) {}
+    if (!db.combos) db.combos = [];
+    const removeSmartRoute = () => {
+      const next = db.combos.filter(x => x.id !== 'smart-route');
+      if (next.length !== db.combos.length) {
+        db.combos = next;
+        fs.writeFileSync(p, JSON.stringify(db, null, 2));
+        console.log('[sync-combo] Removed smart-route (no active providers)');
+      }
+    };
+    if (!a.length) { removeSmartRoute(); return; }
+    const PREF = ['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];
+    a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
+    const m = a.flatMap(pv => PM[pv] || []);
+    if (!m.length) { removeSmartRoute(); return; }
+    const c = { id: 'smart-route', name: 'smart-route', alias: 'smart-route', models: m };
+    const i = db.combos.findIndex(x => x.id === 'smart-route');
+    if (i >= 0) {
+      if (JSON.stringify(db.combos[i].models) !== JSON.stringify(c.models)) {
+        db.combos[i] = c;
+        fs.writeFileSync(p, JSON.stringify(db, null, 2));
+        console.log('[sync-combo] Updated smart-route: ' + c.models.length + ' models from: ' + a.join(','));
+      }
+    } else {
+      db.combos.push(c);
+      fs.writeFileSync(p, JSON.stringify(db, null, 2));
+      console.log('[sync-combo] Created smart-route: ' + c.models.length + ' models from: ' + a.join(','));
+    }
+  } catch(e) { console.log('[sync-combo] Error:', e.message); }
+};
+setTimeout(sync, 5000);
+setInterval(sync, INTERVAL);`;
 }
 
 async function writeNative9RouterSyncScript(projectDir) {
   const syncScriptPath = path.join(projectDir, '.openclaw', '9router-smart-route-sync.js');
   await fs.ensureDir(path.dirname(syncScriptPath));
-  await fs.writeFile(syncScriptPath, build9RouterSmartRouteSyncScript(path.join(os.homedir(), '.9router', 'db.json')));
+  await fs.writeFile(syncScriptPath, build9RouterSmartRouteSyncScript(path.join(getNative9RouterDataDir(), 'db.json')));
   return syncScriptPath;
 }
 
@@ -261,21 +454,95 @@ async function waitForFile(filePath, timeoutMs = 15000, intervalMs = 500) {
   return fs.pathExists(filePath);
 }
 
+function extractZaloPairingCode(text) {
+  const value = String(text || '');
+  const explicitCommandMatch = value.match(/openclaw pairing approve zalouser\s+([A-Z0-9-]+)/i);
+  if (explicitCommandMatch) {
+    return explicitCommandMatch[1].trim();
+  }
+
+  const pairingBlockMatch = value.match(/Pairing code:\s*`{0,3}\s*([A-Z0-9-]{6,})/i);
+  if (pairingBlockMatch) {
+    return pairingBlockMatch[1].trim();
+  }
+
+  return null;
+}
+
+function approveZaloPairingCode({ pairingCode, projectDir, isVi }) {
+  try {
+    execSync(`openclaw pairing approve zalouser ${pairingCode}`, {
+      cwd: projectDir,
+      stdio: 'inherit',
+      shell: true,
+      env: process.env
+    });
+    console.log(chalk.green(isVi
+      ? `✅ Da tu dong approve pairing code Zalo: ${pairingCode}`
+      : `✅ Automatically approved the Zalo pairing code: ${pairingCode}`));
+    return true;
+  } catch {
+    console.log(chalk.yellow(isVi
+      ? `⚠️  Khong the tu dong approve pairing code ${pairingCode}. Ban co the chay thu cong: openclaw pairing approve zalouser ${pairingCode}`
+      : `⚠️  Could not auto-approve pairing code ${pairingCode}. You can run it manually: openclaw pairing approve zalouser ${pairingCode}`));
+    return false;
+  }
+}
+
 async function runNativeZaloPersonalLoginFlow({ isVi, projectDir }) {
   const qrSourcePath = path.join(os.tmpdir(), 'openclaw', 'openclaw-zalouser-qr-default.png');
   const qrProjectPath = path.join(projectDir, 'zalo-login-qr.png');
   console.log(chalk.yellow(`\n📱 ${isVi ? 'Đang tạo QR đăng nhập Zalo Personal...' : 'Generating the Zalo Personal login QR...'}`));
+  const loginStartedAt = Date.now();
+
+  try {
+    await fs.remove(qrSourcePath);
+  } catch {
+    // ignore stale tmp QR cleanup failures
+  }
+
+  try {
+    await fs.remove(qrProjectPath);
+  } catch {
+    // ignore stale project QR cleanup failures
+  }
 
   const child = spawn('openclaw', ['channels', 'login', '--channel', 'zalouser', '--verbose'], {
     cwd: projectDir,
-    stdio: 'inherit',
+    stdio: ['inherit', 'pipe', 'pipe'],
     shell: process.platform === 'win32'
   });
+
+  let loginSucceeded = false;
+  let approvedPairingCode = null;
+  let outputBuffer = '';
+  const successPattern = /login successful|logged in successfully|channel login successful/i;
+  const forwardChunk = (chunk, target) => {
+    const text = chunk.toString();
+    outputBuffer = `${outputBuffer}${text}`.slice(-8000);
+    if (successPattern.test(text)) {
+      loginSucceeded = true;
+    }
+    const pairingCode = extractZaloPairingCode(outputBuffer);
+    if (pairingCode && pairingCode !== approvedPairingCode) {
+      if (approveZaloPairingCode({ pairingCode, projectDir, isVi })) {
+        approvedPairingCode = pairingCode;
+      }
+    }
+    target.write(text);
+  };
+
+  child.stdout?.on('data', (chunk) => forwardChunk(chunk, process.stdout));
+  child.stderr?.on('data', (chunk) => forwardChunk(chunk, process.stderr));
 
   let qrCopied = false;
   const copyQrIfReady = async () => {
     if (qrCopied) return;
     if (await waitForFile(qrSourcePath, 500, 250)) {
+      const qrStats = await fs.stat(qrSourcePath).catch(() => null);
+      if (!qrStats || qrStats.mtimeMs < loginStartedAt) {
+        return;
+      }
       await fs.copy(qrSourcePath, qrProjectPath, { overwrite: true });
       qrCopied = true;
       console.log(chalk.green(isVi
@@ -295,11 +562,15 @@ async function runNativeZaloPersonalLoginFlow({ isVi, projectDir }) {
   clearInterval(watcher);
   await copyQrIfReady();
 
-  if (exitCode !== 0) {
+  if (exitCode !== 0 && !loginSucceeded) {
     console.log(chalk.yellow(isVi
       ? '⚠️  Chưa hoàn tất đăng nhập Zalo trong lúc setup. Bạn có thể chạy lại lệnh login thủ công sau.'
       : '⚠️  Zalo login was not completed during setup. You can run the login command manually afterwards.'));
     printZaloPersonalLoginInfo({ isVi, deployMode: 'native', projectDir });
+  } else if (loginSucceeded && exitCode !== 0) {
+    console.log(chalk.green(isVi
+      ? '✅ Đăng nhập Zalo đã thành công dù CLI trả về trạng thái không chuẩn.'
+      : '✅ Zalo login succeeded even though the CLI returned a non-standard exit status.'));
   }
 }
 
@@ -992,56 +1263,7 @@ async function main() {
   // This script runs inside the 9Router container as a background loop.
   // It reads the persisted 9Router DB directly so smart-route still works
   // even when newer dashboard APIs require auth or change response shape.
-  const syncComboScript = `const fs=require('fs');const INTERVAL=30000;const p='/root/.9router/db.json';
-const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
-console.log('[sync-combo] 9Router sync loop started...');
-const sync = async () => {
-  try {
-    let db = {};
-    try { db = JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e){}
-    if (!db.combos) db.combos = [];
-    const removeSmartRoute = () => {
-      const next = db.combos.filter(x => x.id !== 'smart-route');
-      if (next.length !== db.combos.length) {
-        db.combos = next;
-        fs.writeFileSync(p, JSON.stringify(db, null, 2));
-        console.log('[sync-combo] Removed smart-route (no active providers)');
-      }
-    };
-    const a = (db.providerConnections || [])
-      .filter(c => c && c.provider && c.isActive !== false && !c.disabled)
-      .map(c => c.provider);
-    if (!a.length) {
-      removeSmartRoute();
-      return;
-    }
-    
-    const PREF = ['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];
-    a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
-    
-    const m = a.flatMap(p => PM[p] || []);
-    if (!m.length) {
-      removeSmartRoute();
-      return;
-    }
-
-    const c = { id: 'smart-route', name: 'smart-route', alias: 'smart-route', models: m };
-    const i = db.combos.findIndex(x => x.id === 'smart-route');
-    if (i >= 0) {
-      if (JSON.stringify(db.combos[i].models) !== JSON.stringify(c.models)) {
-        db.combos[i] = c;
-        fs.writeFileSync(p, JSON.stringify(db, null, 2));
-        console.log('[sync-combo] Updated smart-route: ' + c.models.length + ' models');
-      }
-    } else {
-      db.combos.push(c);
-      fs.writeFileSync(p, JSON.stringify(db, null, 2));
-      console.log('[sync-combo] Created smart-route: ' + c.models.length + ' models');
-    }
-  } catch (e) { }
-};
-sync();
-setInterval(sync, INTERVAL);`;
+  const syncComboScript = build9RouterSmartRouteSyncScript('/root/.9router/db.json');
 
   // ─── Resolve primary model ───────────────────────────────────────────────────
   let modelsPrimary;
@@ -1090,9 +1312,7 @@ ${dependsOn}${extraHosts}    ports:
       - -c
       - |
         npm install -g 9router
-        cat << 'CLAWEOF' > /tmp/sync.js
-        ${syncComboScript.replace(/\$/g, '$$').replace(/\n/g, '\n        ')}
-        CLAWEOF
+        node -e "require('fs').writeFileSync('/tmp/sync.js',${JSON.stringify(syncComboScript)})"
         node /tmp/sync.js > /tmp/sync.log 2>&1 &
         exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
     environment:
@@ -1187,9 +1407,7 @@ ${hasBrowserDesktop ? `    extra_hosts:\n      - "host.docker.internal:host-gate
       - -c
       - |
         npm install -g 9router
-        cat << 'CLAWEOF' > /tmp/sync.js
-        ${syncComboScript.replace(/\$/g, '$$').replace(/\n/g, '\n        ')}
-        CLAWEOF
+        node -e "require('fs').writeFileSync('/tmp/sync.js',${JSON.stringify(syncComboScript)})"
         node /tmp/sync.js > /tmp/sync.log 2>&1 &
         exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
     environment:
@@ -1967,8 +2185,12 @@ fi
       }
     });
 
-  } else if (deployMode === 'docker') {
-    console.log(chalk.cyan(`\n👉 ${isVi ? 'Tiếp theo, hãy chạy:' : 'Next, run:'}\n  cd ${projectDir}/docker/openclaw\n  docker compose build\n  docker compose up -d`));
+  }
+
+  installLatestOpenClaw({ isVi, osChoice });
+
+  if (deployMode === 'docker') {
+
     if (isMultiBot && channelKey === 'telegram') {
       console.log(chalk.yellow(`\n${isVi ? '📋 Xem hướng dẫn sau cài:' : '📋 Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
     }
@@ -2005,22 +2227,6 @@ fi
         : `Could not auto-sync config. Run manually:\n   cp -rn ${localClawDir}/. ${globalClawDir}/`}`));
     }
 
-    console.log(chalk.cyan(`\n👉 ${isVi ? 'Đã tạo xong file cấu hình Docker.' : 'Docker config files are ready.'}`));
-    console.log(chalk.gray(isVi
-      ? `   Cấu trúc config: ${isMultiBot && channelKey === 'telegram' ? '.openclaw/ dùng chung + agents/workspace-*' : (isMultiBot ? 'bot1/, bot2/, ...' : '.openclaw/')}`
-      : `   Config layout: ${isMultiBot && channelKey === 'telegram' ? 'shared .openclaw/ with agents/workspace-*' : (isMultiBot ? 'bot1/, bot2/, ...' : '.openclaw/')}`));
-
-    // Print exact run commands
-    console.log(chalk.bold.white(`\n🚀 ${isVi ? 'Chạy bot ngay:' : 'Start the bot now:'}`));
-    if (isMultiBot && channelKey === 'telegram') {
-      console.log(chalk.white(`   pm2 start ${path.join(projectDir, 'ecosystem.config.js')}`));
-    } else {
-      console.log(chalk.white(`   openclaw gateway`));
-    }
-    console.log(chalk.gray(isVi
-      ? `\n   Chạy background (PM2):\n   npm install -g pm2\n   pm2 start "openclaw gateway" --name "${botName || 'openclaw-bot'}" --cwd ${projectDir}\n   pm2 save && pm2 startup`
-      : `\n   Run in background (PM2):\n   npm install -g pm2\n   pm2 start "openclaw gateway" --name "${botName || 'openclaw-bot'}" --cwd ${projectDir}\n   pm2 save && pm2 startup`));
-
     if (isMultiBot && channelKey === 'telegram') {
       console.log(chalk.yellow(`\n${isVi ? '📋 Xem hướng dẫn sau cài:' : '📋 Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
     }
@@ -2035,14 +2241,20 @@ fi
       console.log(chalk.green(isVi ? '✅ openclaw da cai xong!' : '✅ openclaw installed!'));
     }
 
-    if (providerKey === '9router' && !is9RouterInstalled()) {
-      console.log(chalk.cyan(isVi
-        ? '\n📦 Dang cai 9Router binary (npm install -g 9router)...'
-        : '\n📦 Installing 9Router binary (npm install -g 9router)...'));
-      if (!installGlobalPackage('9router@latest', { isVi, osChoice, displayName: '9Router' })) {
-        process.exit(1);
+    if (providerKey === '9router') {
+      if (shouldReuseInstalledGlobals() && is9RouterInstalled()) {
+        console.log(chalk.green(isVi
+          ? '\n♻️ Dang dung lai 9Router da cai san de test nhanh.'
+          : '\n♻️ Reusing the installed 9Router for a faster test run.'));
+      } else if (!is9RouterInstalled()) {
+        console.log(chalk.cyan(isVi
+          ? '\n📦 Dang cai 9Router binary (npm install -g 9router)...'
+          : '\n📦 Installing 9Router binary (npm install -g 9router)...'));
+        if (!installGlobalPackage('9router@latest', { isVi, osChoice, displayName: '9Router' })) {
+          process.exit(1);
+        }
+        console.log(chalk.green(isVi ? '✅ 9Router da cai xong!' : '✅ 9Router installed!'));
       }
-      console.log(chalk.green(isVi ? '✅ 9Router da cai xong!' : '✅ 9Router installed!'));
     }
 
     let native9RouterSyncScriptPath = null;
@@ -2102,33 +2314,51 @@ fi
     } else {
       if (providerKey === '9router') {
         console.log(chalk.yellow(`\n${isVi ? 'Khoi dong 9Router native (background)...' : 'Starting native 9Router (background)...'}`));
-        spawn('9router', ['-n', '-t', '-l', '-H', '0.0.0.0', '-p', '20128', '--skip-update'], {
+        const native9RouterLaunch = resolveNative9RouterDesktopLaunch();
+        spawnBackgroundProcess(native9RouterLaunch.command, native9RouterLaunch.args, {
           cwd: projectDir,
-          detached: true,
-          stdio: 'ignore',
-          shell: process.platform === 'win32'
+          env: native9RouterLaunch.env
         }).unref();
+        const routerHealth = await waitFor9RouterApiReady();
         if (native9RouterSyncScriptPath) {
-          spawn('node', [native9RouterSyncScriptPath], {
-            cwd: projectDir,
-            detached: true,
-            stdio: 'ignore',
-            shell: process.platform === 'win32'
+          spawnBackgroundProcess(process.execPath, [native9RouterSyncScriptPath], {
+            cwd: projectDir
           }).unref();
         }
         console.log(chalk.gray(isVi
           ? '   9Router dashboard: http://localhost:20128/dashboard'
           : '   9Router dashboard: http://localhost:20128/dashboard'));
+        if (!routerHealth.ok) {
+          console.log(chalk.yellow(isVi
+            ? `   ⚠️  9Router da mo cong 20128 nhung admin API chua san sang. Kiem tra them: ${routerHealth.url}`
+            : `   ⚠️  9Router opened port 20128 but the admin API is not ready yet. Check: ${routerHealth.url}`));
+        }
       }
       if (channelKey === 'zalo-personal') {
         await runNativeZaloPersonalLoginFlow({ isVi, projectDir });
       }
       console.log(chalk.yellow(`\n${isVi ? 'Khoi dong native bot (foreground)...' : 'Starting native bot (foreground)...'}`));
+      const isZaloPersonal = channelKey === 'zalo-personal';
       const child = spawn('openclaw', ['gateway', 'run'], {
         cwd: projectDir,
-        stdio: 'inherit',
+        stdio: isZaloPersonal ? ['inherit', 'pipe', 'pipe'] : 'inherit',
         shell: process.platform === 'win32'
       });
+      if (isZaloPersonal) {
+        let approvedPairingCode = null;
+        const onGatewayChunk = (chunk, target) => {
+          const text = chunk.toString();
+          target.write(text);
+          const pairingCode = extractZaloPairingCode(text);
+          if (pairingCode && pairingCode !== approvedPairingCode) {
+            if (approveZaloPairingCode({ pairingCode, projectDir, isVi })) {
+              approvedPairingCode = pairingCode;
+            }
+          }
+        };
+        child.stdout?.on('data', (chunk) => onGatewayChunk(chunk, process.stdout));
+        child.stderr?.on('data', (chunk) => onGatewayChunk(chunk, process.stderr));
+      }
       child.on('close', (code) => process.exit(code ?? 0));
       return;
     }

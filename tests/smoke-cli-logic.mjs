@@ -40,6 +40,30 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
+  /function shouldReuseInstalledGlobals\(\) \{[\s\S]*OPENCLAW_SETUP_REUSE_GLOBALS[\s\S]*trim\(\)\.toLowerCase\(\)/,
+  'CLI must expose an env-flag helper for fast test runs that reuse installed global packages'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /function installLatestOpenClaw\(\{ isVi, osChoice \}\) \{[\s\S]*installGlobalPackage\('openclaw@latest', \{ isVi, osChoice, displayName: 'openclaw' \}\)[\s\S]*process\.exit\(1\)/,
+  'CLI must provide a shared helper that always installs or upgrades openclaw@latest'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /function installLatestOpenClaw\(\{ isVi, osChoice \}\) \{[\s\S]*shouldReuseInstalledGlobals\(\) && isOpenClawInstalled\(\)[\s\S]*Reusing the installed openclaw/s,
+  'CLI fast-test mode must be able to reuse an existing openclaw install'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /installLatestOpenClaw\(\{ isVi, osChoice \}\);\s*if \(deployMode === 'docker'\) \{/,
+  'CLI must install or upgrade openclaw before entering the Docker/native branches'
+));
+
+checks.push(() => expectMatch(
+  cli,
   /if \(!isOpenClawInstalled\(\)\) \{[\s\S]*installGlobalPackage\('openclaw@latest', \{ isVi, osChoice, displayName: 'openclaw' \}\)/,
   'Native branch must auto-install openclaw'
 ));
@@ -52,19 +76,32 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /if \(providerKey === '9router' && !is9RouterInstalled\(\)\) \{[\s\S]*installGlobalPackage\('9router@latest', \{ isVi, osChoice, displayName: '9Router' \}\)/,
+  /if \(providerKey === '9router'\) \{[\s\S]*else if \(!is9RouterInstalled\(\)\) \{[\s\S]*installGlobalPackage\('9router@latest', \{ isVi, osChoice, displayName: '9Router' \}\)/,
   'Native 9Router flow must auto-install 9Router'
 ));
 
 checks.push(() => expectMatch(
   cli,
-  /async function writeNative9RouterSyncScript\(projectDir\) \{[\s\S]*9router-smart-route-sync\.js[\s\S]*providerConnections[\s\S]*smart-route/s,
-  'Native 9Router flow must write a smart-route sync script based on ~/.9router/db.json'
+  /if \(providerKey === '9router'\) \{[\s\S]*shouldReuseInstalledGlobals\(\) && is9RouterInstalled\(\)[\s\S]*Reusing the installed 9Router[\s\S]*else if \(!is9RouterInstalled\(\)\)/s,
+  'CLI fast-test mode must be able to reuse an existing 9Router install'
 ));
 
 checks.push(() => expectMatch(
   cli,
-  /Removed smart-route \(no active providers\)[\s\S]*if \(!a\.length\) \{[\s\S]*removeSmartRoute\(\)[\s\S]*if \(!m\.length\) \{[\s\S]*removeSmartRoute\(\)/s,
+  /function build9RouterSmartRouteSyncScript\(dbPath\) \{[\s\S]*safeDbPath[\s\S]*providerConnections[\s\S]*smart-route[\s\S]*async function writeNative9RouterSyncScript\(projectDir\) \{[\s\S]*getNative9RouterDataDir\(\), 'db\.json'/s,
+  'Native 9Router flow must write a smart-route sync script based on the platform-specific 9Router data directory'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /function getNative9RouterDataDir\(\) \{[\s\S]*process\.platform === 'win32'[\s\S]*AppData[\s\S]*Roaming[\s\S]*9router[\s\S]*os\.homedir\(\)[\s\S]*\.9router/s,
+  'CLI must resolve the correct native 9Router data directory on both Windows and Unix'
+));
+
+checks.push(() => expect(
+  cli.includes("Removed smart-route (no active providers)")
+    && cli.includes("if(!a.length){removeSmartRoute();return;}")
+    && cli.includes("if(!m.length){removeSmartRoute();return;}"),
   '9Router sync logic in CLI must remove stale smart-route combos when providers are disabled'
 ));
 
@@ -100,14 +137,38 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
+  /function extractZaloPairingCode\(text\) \{[\s\S]*openclaw pairing approve zalouser[\s\S]*Pairing code:/s,
+  'CLI must be able to extract a Zalo pairing code from the login output'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /function approveZaloPairingCode\(\{ pairingCode, projectDir, isVi \}\) \{[\s\S]*openclaw pairing approve zalouser \$\{pairingCode\}/s,
+  'CLI must be able to auto-approve a detected Zalo pairing code'
+));
+
+checks.push(() => expectMatch(
+  cli,
   /async function runNativeZaloPersonalLoginFlow\(\{ isVi, projectDir \}\) \{[\s\S]*spawn\('openclaw', \['channels', 'login', '--channel', 'zalouser', '--verbose'\]/s,
   'Native Zalo flow must run the zalouser login command'
 ));
 
 checks.push(() => expectMatch(
   cli,
-  /async function runNativeZaloPersonalLoginFlow\(\{ isVi, projectDir \}\) \{[\s\S]*path\.join\(projectDir, 'zalo-login-qr\.png'\)[\s\S]*fs\.copy\(qrSourcePath, qrProjectPath, \{ overwrite: true \}\)/s,
-  'Native Zalo flow must copy the generated QR into the project folder'
+  /async function runNativeZaloPersonalLoginFlow\(\{ isVi, projectDir \}\) \{[\s\S]*fs\.remove\(qrSourcePath\)[\s\S]*fs\.remove\(qrProjectPath\)[\s\S]*fs\.copy\(qrSourcePath, qrProjectPath, \{ overwrite: true \}\)/s,
+  'Native Zalo flow must clear stale QR files and copy the fresh QR into the project folder'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /async function runNativeZaloPersonalLoginFlow\(\{ isVi, projectDir \}\) \{[\s\S]*outputBuffer[\s\S]*extractZaloPairingCode\(outputBuffer\)[\s\S]*approveZaloPairingCode\(\{ pairingCode, projectDir, isVi \}\)/s,
+  'Native Zalo flow must auto-approve pairing when the login command emits a pairing code'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /async function runNativeZaloPersonalLoginFlow\(\{ isVi, projectDir \}\) \{[\s\S]*let loginSucceeded = false[\s\S]*successPattern[\s\S]*if \(exitCode !== 0 && !loginSucceeded\)[\s\S]*else if \(loginSucceeded && exitCode !== 0\)/s,
+  'Native Zalo flow must tolerate non-standard exit codes when the login output already reports success'
 ));
 
 checks.push(() => expectMatch(
@@ -126,6 +187,36 @@ checks.push(() => expectMatch(
   cli,
   /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*9router -n -t -l -H 0\.0\.0\.0 -p 20128 --skip-update[\s\S]*9router-sync[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
   'VPS native 9Router flow must start a standalone 9Router dashboard on port 20128 via PM2'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /function spawnBackgroundProcess\(command, args, options = \{\}\) \{[\s\S]*if \(process\.platform === 'win32'\)[\s\S]*resolveWindowsCommand[\s\S]*Start-Process -WindowStyle Hidden[\s\S]*powershell\.exe/s,
+  'Native desktop background helpers must use hidden Start-Process launches on Windows'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*process\.platform === 'win32'[\s\S]*npm root -g[\s\S]*9router', 'app', 'server\.js'[\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'[\s\S]*command: '9router'[\s\S]*\['-n', '-t', '-l', '-H', '0\.0\.0\.0', '-p', '20128', '--skip-update'\]/s,
+  'Native desktop 9Router launch must bypass the interactive CLI menu on Windows while preserving the standard CLI launch elsewhere'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /const native9RouterLaunch = resolveNative9RouterDesktopLaunch\(\);[\s\S]*spawnBackgroundProcess\(native9RouterLaunch\.command, native9RouterLaunch\.args, \{[\s\S]*env: native9RouterLaunch\.env/s,
+  'Native desktop 9Router flow must launch through the background helper with the resolved launch spec'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /const routerHealth = await waitFor9RouterApiReady\(\);[\s\S]*admin API chua san sang[\s\S]*admin API is not ready yet/s,
+  'Native desktop 9Router flow must warn when the dashboard port opens but the admin API never becomes ready'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /spawnBackgroundProcess\(process\.execPath, \[native9RouterSyncScriptPath\]/,
+  'Native desktop 9Router sync loop must launch through the background helper'
 ));
 
 checks.push(() => expectMatch(
@@ -191,19 +282,20 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /function providerLines\(arr, shell\) \{[\s\S]*npm install -g 9router[\s\S]*9router -n -t -l -H 0\.0\.0\.0 -p 20128 --skip-update/s,
+  /function providerLines\(arr, shell\) \{[\s\S]*npm install -g 9router[\s\S]*npm root -g[\s\S]*Join-Path \$npmRoot[\s\S]*Start-Process -WindowStyle Hidden -FilePath ''node\.exe''[\s\S]*9router-smart-route-sync\.js/s,
   'Native script generation must install and start a standalone 9Router dashboard on port 20128'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /function native9RouterSyncScriptContent\(\) \{[\s\S]*providerConnections[\s\S]*smart-route/s,
-  'Native script generation must embed a 9Router smart-route sync script'
+  /function native9RouterSyncScriptContent\(\) \{[\s\S]*process\.platform==='win32'[\s\S]*AppData[\s\S]*Roaming[\s\S]*providerConnections[\s\S]*smart-route/s,
+  'Native script generation must embed a 9Router smart-route sync script with the correct Windows data directory'
 ));
 
-checks.push(() => expectMatch(
-  setup,
-  /Removed smart-route \(no active providers\)[\s\S]*if \(!a\.length\) \{[\s\S]*removeSmartRoute\(\)[\s\S]*if \(!m\.length\) \{[\s\S]*removeSmartRoute\(\)/s,
+checks.push(() => expect(
+  setup.includes("Removed smart-route (no active providers)")
+    && setup.includes("if(!a.length){removeSmartRoute();return;}")
+    && setup.includes("if(!m.length){removeSmartRoute();return;}"),
   '9Router sync logic in setup.js must remove stale smart-route combos when providers are disabled'
 ));
 

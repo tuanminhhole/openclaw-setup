@@ -1,5 +1,27 @@
 ﻿# Changelog (English)
 
+
+## [5.1.1] — 2026-04-06
+
+### 🔧 9Router Smart-Route Sync — Stable via API
+
+Fixed a critical bug where the sync script could not detect active providers, causing all requests to fall back to `openai` (resulting in `404 No active credentials`).
+
+- **Root cause**: sync script read `db.providerConnections` from `db.json`, but this field does not exist in 9Router v0.3.79+ — connections are only available via the REST API
+- **Fix**: sync script now calls `fetch('http://localhost:20128/api/providers')` → `d.connections[]` to detect active providers dynamically
+- **Fix**: replaced fragile `cat << 'CLAWEOF'` heredoc injection (which caused `const p=undefined`) with `node -e require('fs').writeFileSync(...)` — zero quoting issues in YAML+shell
+- **Fix**: `build9RouterSmartRouteSyncScript()` in CLI docker flow now correctly passes `'/root/.9router/db.json'` as the db path
+- Applies to all three sync script locations: Docker web wizard (`setup.js`), Docker CLI (`cli.js`), and native (`cli.js`)
+
+### 📱 Zalo Pairing — Auto-Approve During Gateway Run
+
+- Previously, auto-approve only ran during the initial login flow; new pairing requests while the gateway was already running were silently ignored
+- **Fix**: `openclaw gateway run` for Zalo Personal now pipes stdout/stderr and auto-calls `openclaw pairing approve zalouser <code>` whenever a new pairing code is detected
+
+### 🧹 Cleaner Docker CLI Output
+
+- Removed redundant post-setup instructions (`docker compose build`, `openclaw gateway`, PM2 commands) that appeared after Docker auto-build; Docker mode is self-contained and needs no manual follow-up steps
+
 ## [5.1.0] — 2026-04-07
 
 ### 🤖 Zalo Personal Login Improvements

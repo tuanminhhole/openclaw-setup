@@ -1,4 +1,4 @@
-/* ============================================
+﻿/* ============================================
    OpenClaw Setup Wizard — Logic v2
    Multi-model, Multi-plugin, Multi-channel
    ============================================ */
@@ -1850,7 +1850,10 @@ const sync = async () => {
         console.log('[sync-combo] Removed smart-route (no active providers)');
       }
     };
-    const a = (db.providerConnections || [])
+    const res = await fetch('http://localhost:20128/api/providers');
+    if (!res.ok) { console.log('[sync-combo] API not ready, retrying...'); return; }
+    const d = await res.json();
+    const a = (d.connections || [])
       .filter(c => c && c.provider && c.isActive !== false && !c.disabled)
       .map(c => c.provider);
     if (!a.length) {
@@ -1861,7 +1864,7 @@ const sync = async () => {
     const PREF = ['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];
     a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
     
-    const m = a.flatMap(p => PM[p] || []);
+    const m = a.flatMap(pv => PM[pv] || []);
     if (!m.length) {
       removeSmartRoute();
       return;
@@ -1882,7 +1885,7 @@ const sync = async () => {
     }
   } catch (e) { }
 };
-sync();
+setTimeout(sync, 5000);
 setInterval(sync, INTERVAL);`;
 
     let compose;
@@ -1917,9 +1920,7 @@ ${dependsOn}${extraHosts}    volumes:
       - -c
       - |
         npm install -g 9router
-        cat << 'CLAWEOF' > /tmp/sync.js
-        ${syncScript.replace(/\$/g, '$$$$').replace(/\n/g, '\n        ')}
-        CLAWEOF
+        node -e "require('fs').writeFileSync('/tmp/sync.js',${JSON.stringify(syncScript)})"
         node /tmp/sync.js > /tmp/sync.log 2>&1 &
         exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
     environment:
@@ -2015,9 +2016,7 @@ ${extraHostsBlock}
       - -c
       - |
         npm install -g 9router
-        cat << 'CLAWEOF' > /tmp/sync.js
-        ${syncScript.replace(/\$/g, '$$$$').replace(/\n/g, '\n        ')}
-        CLAWEOF
+        node -e "require('fs').writeFileSync('/tmp/sync.js',${JSON.stringify(syncScript)})"
         node /tmp/sync.js > /tmp/sync.log 2>&1 &
         exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update
     environment:
