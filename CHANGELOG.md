@@ -1,6 +1,13 @@
 ﻿# Changelog (English)
 
 
+## [5.1.10] — 2026-04-07
+
+### 🌟 Native UI Auto-Approve Bypasser
+
+- **Native PM2 Auto-Approve Loop**: The strict `pairing required` security feature mandates that all users manually execute an approval command in their terminal for new web dashboard authentications. While Docker deployments already included an automated bypass, the Native setup did not. This release introduces a dedicated `auto-approve` PM2 background daemon that infinitely polls and accepts new device keys, delivering a frictionless, zero-touch login experience identical to Docker deployments.
+
+
 ## [5.1.9] — 2026-04-07
 
 ### 🌟 Strict Schema Fix & WebCrypto UX Improvement

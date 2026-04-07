@@ -1869,6 +1869,16 @@ ${hasBrowserDesktop ? `    extra_hosts:
         `      autorestart: true,`,
         `      watch: false,`,
         `      env: { NODE_ENV: 'production' }`,
+        '    },',
+        '    {',
+        `      name: '${botName || 'openclaw-multibot'}-auto-approve',`,
+        `      script: 'sh',`,
+        `      args: '-c "while true; do npx --yes openclaw devices approve --latest 2>/dev/null || true; sleep 5; done"',`,
+        `      cwd: '${projectDir.replace(/\\/g, '/')}',`,
+        `      interpreter: 'none',`,
+        `      autorestart: true,`,
+        `      watch: false,`,
+        `      env: { NODE_ENV: 'production' }`,
         '    }',
       ].join('\n');
       const ecosystemContent = [

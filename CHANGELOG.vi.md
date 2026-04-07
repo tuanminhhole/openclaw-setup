@@ -1,6 +1,13 @@
 ﻿# Changelog (Tiếng Việt)
 
 
+## [5.1.10] — 2026-04-07
+
+### 🌟 Tự động Auto-Approve Thiết Bị cho Native VPS
+
+- **Bỏ Nhập Lệnh Thủ Công Trải Nghiệm PM2**: Cảnh báo `pairing required` (chờ duyệt thiết bị ghép nối E2E) trên giao diện Web buộc người dùng phải gõ lệnh đồng ý dưới Terminal. Ở luồng Docker, tính năng này đã được vô hiệu hóa bằng một đoạn script chạy ngầm tự gật đầu. Nhưng ở Native thì chưa! Phiên bản này chính thức nhúng thêm 1 tiến trình PM2 `auto-approve` siêu nhẹ chạy kẹp với các lệnh chính, giúp tự động gật đầu phê duyệt kết nối web mỗi 5 giây. Đảm bảo trải nghiệm "Click là vào" trên Native VPS mượt mà y hệt Docker!
+
+
 ## [5.1.9] — 2026-04-07
 
 ### 🌟 Trả lại Schema Chuẩn & Cải thiện UX WebCrypto
