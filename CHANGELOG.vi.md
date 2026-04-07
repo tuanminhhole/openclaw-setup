@@ -1,6 +1,14 @@
 ﻿# Changelog (Tiếng Việt)
 
 
+## [5.1.9] — 2026-04-07
+
+### 🌟 Trả lại Schema Chuẩn & Cải thiện UX WebCrypto
+
+- **Sửa lỗi sập Gateway do sai lầm Config**: OpenClaw bản mới nhất dùng Zod để khóa chặt Schema cấu hình. Cờ `requireDeviceIdentity` chêm vào bản 5.1.8 đã bị Backend từ chối thẳng thừng (`Unrecognized key`), dẫn đến server không thể khởi động vòng lặp. Bản 5.1.9 đã gỡ sạch cờ này, trả lại môi trường sạch để PM2 hoạt động 100%.
+- **Trợ lý SSH Tunnel Tự Động**: Bù lại sự khắt khe của WebCrypto khi dùng VPS/IP ngoài, Console giờ đây sẽ tự động in sẵn thần chú lệnh bẻ khóa `ssh -L ...` y hệt IP và Username thật của bạn. Bạn chỉ cần copy-paste để thông luồng một cách ngầu lòi, bảo mật tuyệt đối mà không cần mua Tên miền HTTPS.
+
+
 ## [5.1.8] — 2026-04-07
 
 ### 🌟 Sửa lỗi Đăng nhập Token (1008) & Cải tiến IP hiển thị trên VPS

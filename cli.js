@@ -502,6 +502,29 @@ function printNativeDashboardAccessInfo({ isVi, providerKey, projectDir, gateway
         ? `   → Ban mo tu may khac/WSL thi thu: ${tokenizedUrls.slice(1).join(' , ')}`
         : `   → If you are opening from another machine/WSL, try: ${tokenizedUrls.slice(1).join(' , ')}`));
     }
+
+    const externalHosts = gatewayUrls.filter(u => !u.includes('localhost') && !u.includes('127.0.0.1')).map(u => {
+      try { return new URL(u).hostname; } catch { return u; }
+    });
+    
+    if (externalHosts.length > 0) {
+      const mainIp = externalHosts[0];
+      const username = process.env.USER || 'user';
+      console.log(chalk.cyan(`\n🔐 ${isVi ? 'Bảo mật WebCrypto (Sửa Lỗi 1008)' : 'WebCrypto Security (Fix Error 1008)'}`));
+      console.log(chalk.gray(isVi
+        ? `   Nếu dùng các link IP ngoài (như ${mainIp}) bị lỗi từ chối kết nối WebCrypto (mã 1008):`
+        : `   If non-localhost IPs (like ${mainIp}) block WebCrypto connections with Error 1008:`));
+      console.log(chalk.white(isVi
+        ? `   1. Trên WSL/Máy nội bộ: Bạn CHỈ CẦN mở link http://127.0.0.1:${gatewayPort} là vào được.`
+        : `   1. On WSL/Local Network: Use the http://127.0.0.1:${gatewayPort} link directly.`));
+      console.log(chalk.white(isVi
+        ? `   2. Trên VPS Xa: Mở tab Terminal khác ở MÁY CỦA BẠN (Windows/Mac) chạy lệnh SSH Tunnel sau:`
+        : `   2. On Remote VPS: Run this SSH Tunnel command on YOUR LOCAL COMPUTER (Windows/Mac):`));
+      console.log(chalk.bgBlack.white(`      ssh -L ${gatewayPort}:localhost:${gatewayPort} ${username}@${mainIp}   `));
+      console.log(chalk.gray(isVi
+        ? `      Rồi quay lại trình duyệt mở link http://127.0.0.1:${gatewayPort}/#token=... là xong!`
+        : `      Then open the http://127.0.0.1:${gatewayPort}/#token=... link in your browser!`));
+    }
   } else {
     console.log(chalk.gray(isVi
       ? '   → Nếu dashboard đòi Gateway Token, chạy: openclaw dashboard'
@@ -1339,7 +1362,7 @@ async function main() {
   }
   
   
-  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add(\`http://\${entry.address}:18791\`);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a),requireDeviceIdentity:false})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add(\`http://\${entry.address}:18791\`);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
   const b64Patch = Buffer.from(patchScript).toString('base64');
 
   // Browser Playwright (both desktop & server modes need chromium)
@@ -1805,7 +1828,6 @@ ${hasBrowserDesktop ? `    extra_hosts:
         customBindHost: '0.0.0.0',
         controlUi: {
           allowedOrigins: getGatewayAllowedOrigins(18791),
-          requireDeviceIdentity: false,
         },
         auth: { mode: 'token', token: 'cli-dummy-token-xyz123' },
       },
@@ -2037,7 +2059,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
       tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
       gateway: {
         port: 18791 + (isMultiBot ? bIndex : 0), mode: 'local', bind: 'custom', customBindHost: '0.0.0.0',
-        controlUi: { allowedOrigins: getGatewayAllowedOrigins(18791 + (isMultiBot ? bIndex : 0)), requireDeviceIdentity: false },
+        controlUi: { allowedOrigins: getGatewayAllowedOrigins(18791 + (isMultiBot ? bIndex : 0)) },
         auth: { mode: 'token', token: 'cli-dummy-token-xyz123' }
       }
     };

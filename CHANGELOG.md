@@ -1,6 +1,14 @@
 ﻿# Changelog (English)
 
 
+## [5.1.9] — 2026-04-07
+
+### 🌟 Strict Schema Fix & WebCrypto UX Improvement
+
+- **Revert Unrecognized Config Key**: OpenClaw v2026.x.x enforces strict Zod schema validation. The previously injected `requireDeviceIdentity` flag caused an immediate startup crash (`Config invalid`). This version surgically removes the offending flag, ensuring the gateway boots successfully.
+- **Dynamic SSH Tunnel Helper**: Since WebCrypto strictly demands a secure context (HTTPS/localhost), accessing the dashboard via raw VPS IP triggers a `1008` error natively. The CLI now dynamically generates and prints the exact `ssh -L 18791:localhost:18791 ...` Port Forwarding command right in the terminal, guaranteeing a flawless, secure login experience for remote server operators without needing SSL.
+
+
 ## [5.1.8] — 2026-04-07
 
 ### 🌟 Dashboard VPS Connectivity & Token Login Fix
