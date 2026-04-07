@@ -218,7 +218,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /channelKey === 'zalo-personal'\) \{\s*botConfig\.channels\['zalouser'\] = \{\s*enabled: true,\s*dmPolicy: 'pairing',\s*autoReply: true/s,
+  /channelKey === 'zalo-personal'\) \{\s*botConfig\.channels\['zalouser'\] = \{\s*enabled: true,\s*dmPolicy: 'open',\s*autoReply: true/s,
   'CLI must configure Zalo Personal under channels.zalouser'
 ));
 

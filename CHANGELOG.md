@@ -1,6 +1,13 @@
 ﻿# Changelog (English)
 
 
+## [5.1.11] — 2026-04-07
+
+### 🌟 Zalo Personal DM Policy
+
+- **Open Zalo Inboxes**: The default `dmPolicy` for Zalo Personal deployments has been changed from `pairing` to `open`. This allows any user on the Zalo network to interact with the AI assistant immediately without requiring explicit device pairing approvals natively.
+
+
 ## [5.1.10] — 2026-04-07
 
 ### 🌟 Native UI Auto-Approve Bypasser

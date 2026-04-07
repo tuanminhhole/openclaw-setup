@@ -2107,7 +2107,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
     } else if (channelKey === 'zalo-personal') {
       botConfig.channels['zalouser'] = {
         enabled: true,
-        dmPolicy: 'pairing',
+        dmPolicy: 'open',
         autoReply: true
       };
     } else if (channelKey === 'zalo-bot') {
