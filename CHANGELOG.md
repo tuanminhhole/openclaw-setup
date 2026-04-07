@@ -1,6 +1,14 @@
 ﻿# Changelog (English)
 
 
+## [5.1.6] — 2026-04-07
+
+### 🐞 Fix PM2 SIGKILL on Native VPS Installs
+
+- **Fix `PM2 SIGKILL` Error**: Removed the `-t` (interactive TTY) flag from all background `9router` launches. This terminal-dependent flag could cause PM2 to hang and aggressively SIGKILL the spawned process on headless VPS environments.
+- **Robust PM2 Sync Helper**: Added a two-stage fallback for the 9Router smart-route sync script. If PM2 encounters `SIGKILL` or memory limits while spawning the sync helper, the setup gracefully falls back to a background `nohup node ... &` process instead of throwing a hard exception. If both fail, it logs a warning but allows the overall OpenClaw setup to finish successfully.
+
+
 ## [5.1.5] — 2026-04-06
 
 ### 🐞 Fix Native PM2 9Router Startup

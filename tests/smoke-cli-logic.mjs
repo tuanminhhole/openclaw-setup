@@ -195,7 +195,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*resolveCommandOnPath\('9router'\)[\s\S]*execFileSync\('pm2'[\s\S]*--interpreter'?,?[\s\S]*none[\s\S]*--skip-update[\s\S]*syncScriptPath\.replace\(\/\\\\\/g, '\/'\)[\s\S]*process\.execPath[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
+  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*resolveCommandOnPath\('9router'\)[\s\S]*execFileSync\('pm2'[\s\S]*--interpreter'?,?[\s\S]*none[\s\S]*'-n'[\s\S]*'-l'[\s\S]*'--skip-update'[\s\S]*nohup "\$\{process\.execPath\}" "\$\{normalizedSyncScriptPath\}" >\/tmp\/\$\{syncAppName\}\.log 2>&1 &[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
   'VPS native 9Router flow must start a standalone 9Router dashboard on port 20128 via PM2'
 ));
 
@@ -207,7 +207,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*process\.platform === 'win32'[\s\S]*npm root -g[\s\S]*9router', 'app', 'server\.js'[\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'[\s\S]*command: '9router'[\s\S]*\['-n', '-t', '-l', '-H', '0\.0\.0\.0', '-p', '20128', '--skip-update'\]/s,
+  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*process\.platform === 'win32'[\s\S]*npm root -g[\s\S]*9router', 'app', 'server\.js'[\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'[\s\S]*command: '9router'[\s\S]*\['-n', '-l', '-H', '0\.0\.0\.0', '-p', '20128', '--skip-update'\]/s,
   'Native desktop 9Router launch must bypass the interactive CLI menu on Windows while preserving the standard CLI launch elsewhere'
 ));
 
@@ -292,7 +292,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /function providerLines\(arr, shell\) \{[\s\S]*npm install -g 9router[\s\S]*start "9Router" cmd \/k "9router -n -t -l -H 0\.0\.0\.0 -p 20128 --skip-update"[\s\S]*9router-smart-route-sync\.js/s,
+  /function providerLines\(arr, shell\) \{[\s\S]*npm install -g 9router[\s\S]*start "9Router" cmd \/k "9router -n -l -H 0\.0\.0\.0 -p 20128 --skip-update"[\s\S]*nohup 9router -n -l -H 0\.0\.0\.0 -p 20128 --skip-update[\s\S]*9router-smart-route-sync\.js/s,
   'Native script generation must install and start a standalone 9Router dashboard on port 20128'
 ));
 

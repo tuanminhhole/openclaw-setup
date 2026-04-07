@@ -1,6 +1,14 @@
 ﻿# Changelog (Tiếng Việt)
 
 
+## [5.1.6] — 2026-04-07
+
+### 🐞 Khắc phục lỗi PM2 ngắt cài đặt (SIGKILL) trên VPS
+
+- **Sửa lỗi `PM2 SIGKILL`**: Loại bỏ cờ `-t` (chế độ giao diện terminal) khỏi tất cả các lệnh gọi `9router` chạy ngầm. Trên các VPS không giao diện (headless), cờ này có thể khiến PM2 bị treo và ném ra lỗi SIGKILL làm chết toàn bộ quá trình cài đặt.
+- **Tối ưu Sync Helper chạy ngầm**: Bổ sung cơ chế dự phòng 2 lớp cho script tự động đồng bộ (sync helper). Nếu PM2 bị giới hạn RAM hoặc quá tải gây lỗi SIGKILL, script sẽ không văng lỗi sập Setup nữa mà tự động fallback xuống chạy ẩn bằng `nohup node ... &`. Trong trường hợp xấu nhất, bộ cài chỉ báo cảnh báo vàng và rẽ nhánh cho phép tiến trình Setup tiếp tục tới bước cuối cùng thành công.
+
+
 ## [5.1.5] — 2026-04-06
 
 ### 🐞 Sửa lỗi PM2 khởi động 9Router trên Native

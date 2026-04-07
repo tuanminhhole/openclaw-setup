@@ -172,7 +172,7 @@ function resolveNative9RouterDesktopLaunch() {
 
   return {
     command: '9router',
-    args: ['-n', '-t', '-l', '-H', '0.0.0.0', '-p', '20128', '--skip-update'],
+    args: ['-n', '-l', '-H', '0.0.0.0', '-p', '20128', '--skip-update'],
     env: {}
   };
 }
@@ -393,7 +393,7 @@ function build9RouterComposeEntrypointScript(syncScriptBase64) {
     'npm install -g 9router',
     `node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('${syncScriptBase64}','base64').toString())"`,
     'node /tmp/sync.js > /tmp/sync.log 2>&1 &',
-    'exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update'
+    'exec 9router -n -l -H 0.0.0.0 -p 20128 --skip-update'
   ].join('\n');
 }
 
@@ -637,7 +637,6 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
     'none',
     '--',
     '-n',
-    '-t',
     '-l',
     '-H',
     '0.0.0.0',
@@ -651,20 +650,39 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
   });
   if (syncScriptPath) {
     const syncAppName = `${appName}-9router-sync`;
-    execFileSync('pm2', [
-      'start',
-      syncScriptPath.replace(/\\/g, '/'),
-      '--name',
-      syncAppName,
-      '--cwd',
-      projectDir.replace(/\\/g, '/'),
-      '--interpreter',
-      process.execPath
-    ], {
-      cwd: projectDir,
-      stdio: 'inherit',
-      env: process.env
-    });
+    const normalizedSyncScriptPath = syncScriptPath.replace(/\\/g, '/');
+    try {
+      execFileSync('pm2', [
+        'start',
+        normalizedSyncScriptPath,
+        '--name',
+        syncAppName,
+        '--cwd',
+        projectDir.replace(/\\/g, '/'),
+        '--interpreter',
+        process.execPath
+      ], {
+        cwd: projectDir,
+        stdio: 'inherit',
+        env: process.env
+      });
+    } catch {
+      try {
+        execSync(`nohup "${process.execPath}" "${normalizedSyncScriptPath}" >/tmp/${syncAppName}.log 2>&1 &`, {
+          cwd: projectDir,
+          stdio: 'ignore',
+          shell: true,
+          env: process.env
+        });
+        console.log(chalk.yellow(isVi
+          ? `⚠️  PM2 khong khoi dong duoc sync helper. Da fallback sang background node: /tmp/${syncAppName}.log`
+          : `⚠️  PM2 could not start the sync helper. Fell back to a background node process: /tmp/${syncAppName}.log`));
+      } catch {
+        console.log(chalk.yellow(isVi
+          ? `⚠️  Khong the khoi dong 9Router sync helper. 9Router van chay, nhung smart-route co the can dong bo thu cong sau.`
+          : `⚠️  Could not start the 9Router sync helper. 9Router is still running, but smart-route may need manual syncing later.`));
+      }
+    }
   }
   runPm2Save({ projectDir, isVi });
   console.log(chalk.green(`\n✅ ${isVi ? '9Router da duoc khoi dong qua PM2.' : '9Router is running via PM2.'}`));

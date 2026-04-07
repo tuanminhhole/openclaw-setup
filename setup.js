@@ -1767,7 +1767,7 @@ model:
       'npm install -g 9router',
       `node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('${syncScriptBase64}','base64').toString())"`,
       'node /tmp/sync.js > /tmp/sync.log 2>&1 &',
-      'exec 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update'
+      'exec 9router -n -l -H 0.0.0.0 -p 20128 --skip-update'
     ].join('\n');
 
     state.config.plugins.forEach((pid) => {
@@ -2870,12 +2870,12 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
       if (is9Router) {
         if (shell === 'bat') {
           arr.push('npm install -g 9router');
-          arr.push('start "9Router" cmd /k "9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update"');
+          arr.push('start "9Router" cmd /k "9router -n -l -H 0.0.0.0 -p 20128 --skip-update"');
           arr.push('start "9Router Smart Route Sync" cmd /k "node .\\.openclaw\\9router-smart-route-sync.js"');
           arr.push('timeout /t 5 /nobreak >nul');
         } else {
           arr.push('npm install -g 9router');
-          arr.push('nohup 9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update >/tmp/9router.log 2>&1 &');
+          arr.push('nohup 9router -n -l -H 0.0.0.0 -p 20128 --skip-update >/tmp/9router.log 2>&1 &');
           arr.push('nohup node ./.openclaw/9router-smart-route-sync.js >/tmp/9router-sync.log 2>&1 &');
           arr.push('sleep 3');
         }
@@ -3536,7 +3536,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         appendShWriteCommands(vps, sharedNativeFileMap());
         vps.push('echo "--- Starting shared gateway via PM2 ---"');
         if (is9Router) {
-          vps.push('pm2 start --name openclaw-multibot-9router -- sh -c "9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update"');
+          vps.push('pm2 start --name openclaw-multibot-9router -- sh -c "9router -n -l -H 0.0.0.0 -p 20128 --skip-update"');
           vps.push('pm2 start --name openclaw-multibot-9router-sync -- sh -c "node ./.openclaw/9router-smart-route-sync.js"');
         }
         vps.push('pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"');
@@ -3549,7 +3549,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       } else {
         appendShWriteCommands(vps, botFiles(0));
         if (is9Router) {
-          vps.push('pm2 start --name openclaw-9router -- sh -c "9router -n -t -l -H 0.0.0.0 -p 20128 --skip-update"');
+          vps.push('pm2 start --name openclaw-9router -- sh -c "9router -n -l -H 0.0.0.0 -p 20128 --skip-update"');
           vps.push('pm2 start --name openclaw-9router-sync -- sh -c "node ./.openclaw/9router-smart-route-sync.js"');
         }
         vps.push('pm2 start --name openclaw -- sh -c "openclaw gateway run"');
