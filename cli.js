@@ -146,34 +146,13 @@ function spawnBackgroundProcess(command, args, options = {}) {
 }
 
 function resolveNative9RouterDesktopLaunch() {
-  if (process.platform === 'win32') {
-    const npmRoot = (() => {
-      try {
-        return execSync('npm root -g', {
-          stdio: ['ignore', 'pipe', 'ignore'],
-          encoding: 'utf8',
-          shell: true,
-          env: process.env
-        }).trim();
-      } catch {
-        return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'npm', 'node_modules');
-      }
-    })();
-
-    return {
-      command: process.execPath,
-      args: [path.join(npmRoot, '9router', 'app', 'server.js')],
-      env: {
-        PORT: '20128',
-        HOSTNAME: '0.0.0.0'
-      }
-    };
-  }
-
   return {
-    command: '9router',
-    args: ['-n', '-l', '-H', '0.0.0.0', '-p', '20128', '--skip-update'],
-    env: {}
+    command: process.execPath,
+    args: [path.join(getGlobalNpmRoot(), '9router', 'app', 'server.js')],
+    env: {
+      PORT: '20128',
+      HOSTNAME: '0.0.0.0'
+    }
   };
 }
 
@@ -183,6 +162,26 @@ function getNative9RouterDataDir() {
   }
 
   return path.join(os.homedir(), '.9router');
+}
+
+function getGatewayAllowedOrigins(port) {
+  const normalizedPort = Number(port) || 18791;
+  const origins = new Set([
+    `http://localhost:${normalizedPort}`,
+    `http://127.0.0.1:${normalizedPort}`,
+    `http://0.0.0.0:${normalizedPort}`
+  ]);
+
+  for (const entries of Object.values(os.networkInterfaces() || {})) {
+    for (const entry of entries || []) {
+      if (!entry || entry.internal || entry.family !== 'IPv4' || !entry.address) {
+        continue;
+      }
+      origins.add(`http://${entry.address}:${normalizedPort}`);
+    }
+  }
+
+  return Array.from(origins);
 }
 
 async function waitFor9RouterApiReady({ port = 20128, timeoutMs = 15000 } = {}) {
@@ -377,6 +376,22 @@ function resolveCommandOnPath(command) {
     }).trim() || command;
   } catch {
     return command;
+  }
+}
+
+function getGlobalNpmRoot() {
+  try {
+    return execSync('npm root -g', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+      shell: true,
+      env: process.env
+    }).trim();
+  } catch {
+    if (process.platform === 'win32') {
+      return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'npm', 'node_modules');
+    }
+    return path.join(os.homedir(), '.local', 'lib', 'node_modules');
   }
 }
 
@@ -625,10 +640,10 @@ function runPm2Save({ projectDir, isVi }) {
 
 function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
   const routerAppName = `${appName}-9router`;
-  const routerCommand = resolveCommandOnPath('9router');
+  const routerLaunch = resolveNative9RouterDesktopLaunch();
   execFileSync('pm2', [
     'start',
-    routerCommand,
+    routerLaunch.command,
     '--name',
     routerAppName,
     '--cwd',
@@ -636,17 +651,11 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
     '--interpreter',
     'none',
     '--',
-    '-n',
-    '-l',
-    '-H',
-    '0.0.0.0',
-    '-p',
-    '20128',
-    '--skip-update'
+    ...routerLaunch.args
   ], {
     cwd: projectDir,
     stdio: 'inherit',
-    env: process.env
+    env: { ...process.env, ...routerLaunch.env }
   });
   if (syncScriptPath) {
     const syncAppName = `${appName}-9router-sync`;
@@ -1273,7 +1282,7 @@ async function main() {
   }
   
   
-  const patchScript = `const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add(\`http://\${entry.address}:18791\`);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
   const b64Patch = Buffer.from(patchScript).toString('base64');
 
   // Browser Playwright (both desktop & server modes need chromium)
@@ -1737,6 +1746,9 @@ ${hasBrowserDesktop ? `    extra_hosts:
         mode: 'local',
         bind: 'custom',
         customBindHost: '0.0.0.0',
+        controlUi: {
+          allowedOrigins: getGatewayAllowedOrigins(18791),
+        },
         auth: { mode: 'token', token: 'cli-dummy-token-xyz123' },
       },
     };
@@ -1967,6 +1979,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
       tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
       gateway: {
         port: 18791 + (isMultiBot ? bIndex : 0), mode: 'local', bind: 'custom', customBindHost: '0.0.0.0',
+        controlUi: { allowedOrigins: getGatewayAllowedOrigins(18791 + (isMultiBot ? bIndex : 0)) },
         auth: { mode: 'token', token: 'cli-dummy-token-xyz123' }
       }
     };

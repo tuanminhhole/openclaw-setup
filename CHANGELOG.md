@@ -1,6 +1,14 @@
 ﻿# Changelog (English)
 
 
+## [5.1.7] — 2026-04-07
+
+### 🌟 Fix Control UI CORS & Native 9Router Path Resolution
+
+- **Fix Control UI CORS Rejections**: OpenClaw v2026.3.x strict CORS policies blocked remote dashboard access. The setup configuration and Docker patching scripts now automatically resolve all active IPv4 interfaces (`os.networkInterfaces()`) alongside localhost to pre-populate the `gateway.controlUi.allowedOrigins` array. This ensures the Web UI works flawlessly out-of-the-box on remote VPS instances.
+- **Improved Native PM2 Path Resolution**: To prevent PM2 `$PATH` lookup failures with `nvm` on Linux, the script now bypasses the OS `9router` binary wrapper entirely. Instead, it computes the exact explicit path using `$(npm root -g)/9router/app/server.js` and executes it directly via the NodeJS interpreter.
+
+
 ## [5.1.6] — 2026-04-07
 
 ### 🐞 Fix PM2 SIGKILL on Native VPS Installs

@@ -1,6 +1,14 @@
 ﻿# Changelog (Tiếng Việt)
 
 
+## [5.1.7] — 2026-04-07
+
+### 🌟 Sửa lỗi CORS Control UI & Đường dẫn 9Router Native
+
+- **Sửa lỗi dội ngược CORS khi vào Control UI**: OpenClaw v2026.3.x siết chặt policy CORS khiến việc truy cập dashboard từ IP ngoài bị block. Các script tạo config và vá Docker giờ đã tự động quét toàn bộ IPv4 hiện có của server (`os.networkInterfaces()`) để nhúng vào mảng `gateway.controlUi.allowedOrigins`. Đảm bảo người dùng VPS vào được thẳng Control UI mà không bị lỗi mạng.
+- **Tối ưu đường dẫn PM2 Native**: Để tránh trường hợp tính năng PM2 không nhận diện đúng môi trường (lỗi `\$PATH` khi dùng `nvm`), bộ cài giờ bỏ qua file thực thi `9router` của HĐH. Thay vào đó, bộ cài tự tính toán đường dẫn tuyệt đối `\$(npm root -g)/9router/app/server.js` và truyền thẳng vào trình thông dịch Node, đảm bảo PM2 100% tìm thấy file khởi chạy 9Router.
+
+
 ## [5.1.6] — 2026-04-07
 
 ### 🐞 Khắc phục lỗi PM2 ngắt cài đặt (SIGKILL) trên VPS

@@ -108,6 +108,15 @@ checks.push(() => expectMatch(
 ));
 
 checks.push(() => expect(
+  cli.includes('function getGatewayAllowedOrigins(port) {')
+    && cli.includes('Object.values(os.networkInterfaces() || {})')
+    && cli.includes('`http://localhost:${normalizedPort}`')
+    && cli.includes('`http://127.0.0.1:${normalizedPort}`')
+    && cli.includes('`http://0.0.0.0:${normalizedPort}`'),
+  'CLI must derive control UI allowed origins from localhost plus non-internal IPv4 interfaces'
+));
+
+checks.push(() => expect(
   cli.includes("Removed smart-route (no active providers)")
     && cli.includes("if (!a.length) {")
     && cli.includes("if (!m.length) {")
@@ -189,13 +198,25 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
+  /controlUi:\s*\{\s*allowedOrigins: getGatewayAllowedOrigins\(18791\)/s,
+  'Native shared gateway config must seed control UI allowed origins'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /controlUi:\s*\{\s*allowedOrigins: getGatewayAllowedOrigins\(18791 \+ \(isMultiBot \? bIndex : 0\)\)/s,
+  'Native per-bot gateway config must seed control UI allowed origins for each port'
+));
+
+checks.push(() => expectMatch(
+  cli,
   /channelKey === 'zalo-personal'\) \{\s*botConfig\.channels\['zalouser'\] = \{\s*enabled: true,\s*dmPolicy: 'pairing',\s*autoReply: true/s,
   'CLI must configure Zalo Personal under channels.zalouser'
 ));
 
 checks.push(() => expectMatch(
   cli,
-  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*resolveCommandOnPath\('9router'\)[\s\S]*execFileSync\('pm2'[\s\S]*--interpreter'?,?[\s\S]*none[\s\S]*'-n'[\s\S]*'-l'[\s\S]*'--skip-update'[\s\S]*nohup "\$\{process\.execPath\}" "\$\{normalizedSyncScriptPath\}" >\/tmp\/\$\{syncAppName\}\.log 2>&1 &[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
+  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*resolveNative9RouterDesktopLaunch\(\)[\s\S]*execFileSync\('pm2'[\s\S]*routerLaunch\.command[\s\S]*--interpreter'?,?[\s\S]*none[\s\S]*routerLaunch\.args[\s\S]*routerLaunch\.env[\s\S]*nohup "\$\{process\.execPath\}" "\$\{normalizedSyncScriptPath\}" >\/tmp\/\$\{syncAppName\}\.log 2>&1 &[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
   'VPS native 9Router flow must start a standalone 9Router dashboard on port 20128 via PM2'
 ));
 
@@ -207,8 +228,8 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*process\.platform === 'win32'[\s\S]*npm root -g[\s\S]*9router', 'app', 'server\.js'[\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'[\s\S]*command: '9router'[\s\S]*\['-n', '-l', '-H', '0\.0\.0\.0', '-p', '20128', '--skip-update'\]/s,
-  'Native desktop 9Router launch must bypass the interactive CLI menu on Windows while preserving the standard CLI launch elsewhere'
+  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*command: process\.execPath[\s\S]*getGlobalNpmRoot\(\), '9router', 'app', 'server\.js'[\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'/s,
+  'Native desktop 9Router launch must bypass the interactive CLI menu by running the 9Router server entry directly'
 ));
 
 checks.push(() => expectMatch(
@@ -292,7 +313,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /function providerLines\(arr, shell\) \{[\s\S]*npm install -g 9router[\s\S]*start "9Router" cmd \/k "9router -n -l -H 0\.0\.0\.0 -p 20128 --skip-update"[\s\S]*nohup 9router -n -l -H 0\.0\.0\.0 -p 20128 --skip-update[\s\S]*9router-smart-route-sync\.js/s,
+  /function providerLines\(arr, shell\) \{[\s\S]*npm install -g 9router[\s\S]*start "9Router" cmd \/k "9router -n -l -H 0\.0\.0\.0 -p 20128 --skip-update"[\s\S]*nohup env PORT=20128 HOSTNAME=0\.0\.0\.0 node "\$\(npm root -g\)\/9router\/app\/server\.js"[\s\S]*9router-smart-route-sync\.js/s,
   'Native script generation must install and start a standalone 9Router dashboard on port 20128'
 ));
 
@@ -340,13 +361,13 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw-multibot/s,
+  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$\(npm root -g\)\/9router\/app\/server\.js" --name openclaw-multibot-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw-multibot/s,
   'VPS multi-bot native script must start the shared gateway via PM2'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*pm2 start --name openclaw -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw/s,
+  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$\(npm root -g\)\/9router\/app\/server\.js" --name openclaw-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw/s,
   'VPS single-bot native script must start one bot via PM2'
 ));
 
@@ -372,6 +393,32 @@ checks.push(() => expectMatch(
   setup,
   /Native setup now auto-runs the login flow and copies the QR into the project folder[\s\S]*docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*docker compose cp ai-bot:\/tmp\/openclaw\/openclaw-zalouser-qr-default\.png \.\/zalo-login-qr\.png/s,
   'Wizard copy must mention native auto-login and still show the dedicated Docker QR login command'
+));
+
+checks.push(() => expect(
+  setup.includes('function getGatewayAllowedOrigins(port) {')
+    && setup.includes('window.location')
+    && setup.includes('`http://localhost:${normalizedPort}`')
+    && setup.includes('`http://127.0.0.1:${normalizedPort}`'),
+  'Web wizard must expose a helper that seeds likely control UI origins'
+));
+
+checks.push(() => expectMatch(
+  setup,
+  /controlUi:\s*\{\s*allowedOrigins: getGatewayAllowedOrigins\(18791\)/s,
+  'Web wizard single-bot gateway config must seed control UI allowed origins'
+));
+
+checks.push(() => expectMatch(
+  setup,
+  /controlUi:\s*\{\s*allowedOrigins: getGatewayAllowedOrigins\(basePort\)/s,
+  'Web wizard per-bot gateway config must seed control UI allowed origins'
+));
+
+checks.push(() => expectMatch(
+  setup,
+  /const patchCmd = `node -e \\\\"const fs=require\('fs'\),os=require\('os'\),p='\/root\/\.openclaw\/openclaw\.json';if\(fs\.existsSync\(p\)\)\{[\s\S]*allowedOrigins:Array\.from\(a\)/s,
+  'Web wizard Docker patch command must add interface-based control UI allowed origins'
 ));
 
 for (const check of checks) {

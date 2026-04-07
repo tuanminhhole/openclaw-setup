@@ -49,6 +49,20 @@
     },
   };
 
+  function getGatewayAllowedOrigins(port) {
+    const normalizedPort = Number(port) || 18791;
+    const origins = new Set([
+      `http://localhost:${normalizedPort}`,
+      `http://127.0.0.1:${normalizedPort}`,
+      `http://0.0.0.0:${normalizedPort}`,
+    ]);
+    const currentHost = (window.location && window.location.hostname) ? window.location.hostname.trim() : '';
+    if (currentHost) {
+      origins.add(`http://${currentHost}:${normalizedPort}`);
+    }
+    return Array.from(origins);
+  }
+
 
   // ========== AI Providers & Models ==========
   const PROVIDERS = {
@@ -1581,6 +1595,9 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         port: 18791,
         mode: 'local',
         bind: '0.0.0.0',
+        controlUi: {
+          allowedOrigins: getGatewayAllowedOrigins(18791),
+        },
         auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
       },
     };
@@ -1815,7 +1832,7 @@ model:
       ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & '
       : '';
     // Patch config on every startup to keep gateway settings stable
-    const patchCmd = `node -e \\"const fs=require('fs'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0'});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
+    const patchCmd = `node -e \\"const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add(\\\`http://\\\${entry.address}:18791\\\`);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
     // Auto-approve device pairing after gateway starts (required since v2026.3.x)
     const autoApproveCmd = '(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) & ';
     const finalCmd = `CMD sh -c "${pluginInstallCmd}${patchCmd}${browserPrefix}${autoApproveCmd}${gatewayCmd}"`;
@@ -2875,7 +2892,7 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
           arr.push('timeout /t 5 /nobreak >nul');
         } else {
           arr.push('npm install -g 9router');
-          arr.push('nohup 9router -n -l -H 0.0.0.0 -p 20128 --skip-update >/tmp/9router.log 2>&1 &');
+          arr.push('nohup env PORT=20128 HOSTNAME=0.0.0.0 node "$(npm root -g)/9router/app/server.js" >/tmp/9router.log 2>&1 &');
           arr.push('nohup node ./.openclaw/9router-smart-route-sync.js >/tmp/9router-sync.log 2>&1 &');
           arr.push('sleep 3');
         }
@@ -3040,6 +3057,9 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
           port: 18791,
           mode: 'local',
           bind: '0.0.0.0',
+          controlUi: {
+            allowedOrigins: getGatewayAllowedOrigins(18791),
+          },
           auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
         },
       };
@@ -3153,6 +3173,9 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
           port: basePort,
           mode: 'local',
           bind: '0.0.0.0',
+          controlUi: {
+            allowedOrigins: getGatewayAllowedOrigins(basePort),
+          },
           auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
         },
 
@@ -3536,7 +3559,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         appendShWriteCommands(vps, sharedNativeFileMap());
         vps.push('echo "--- Starting shared gateway via PM2 ---"');
         if (is9Router) {
-          vps.push('pm2 start --name openclaw-multibot-9router -- sh -c "9router -n -l -H 0.0.0.0 -p 20128 --skip-update"');
+          vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$(npm root -g)/9router/app/server.js" --name openclaw-multibot-9router --interpreter "$(command -v node)"');
           vps.push('pm2 start --name openclaw-multibot-9router-sync -- sh -c "node ./.openclaw/9router-smart-route-sync.js"');
         }
         vps.push('pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"');
@@ -3549,7 +3572,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       } else {
         appendShWriteCommands(vps, botFiles(0));
         if (is9Router) {
-          vps.push('pm2 start --name openclaw-9router -- sh -c "9router -n -l -H 0.0.0.0 -p 20128 --skip-update"');
+          vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$(npm root -g)/9router/app/server.js" --name openclaw-9router --interpreter "$(command -v node)"');
           vps.push('pm2 start --name openclaw-9router-sync -- sh -c "node ./.openclaw/9router-smart-route-sync.js"');
         }
         vps.push('pm2 start --name openclaw -- sh -c "openclaw gateway run"');
