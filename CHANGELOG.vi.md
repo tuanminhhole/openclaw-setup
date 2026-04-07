@@ -1,7 +1,19 @@
-﻿# Changelog (Tiếng Việt)
+# Changelog (Tiếng Việt)
 
 
-## [5.1.11] — 2026-04-07
+
+## [5.1.12] — 2026-04-07
+
+### 🧠 Thêm Skills & Tự động chọn Plugin Relay
+
+- **Grid Skills 3 cột**: Layout mới 3 card/hàng thay vì 4, card rộng rãi hơn, dễ đọc hơn.
+- **7 Skills mới từ ClawHub**: Bổ sung đầy đủ `Web Search`, `GitHub`, `Google Calendar`, `Google Drive`, `Google Sheets`, `Notion`, `Slack` — phủ khắp các tác vụ năng suất phổ biến nhất trên OpenClaw dashboard.
+- **Plugin Telegram Multi-Bot Relay tự động**: Khi chọn nhiều bot Telegram (botCount ≥ 2), plugin `telegram-multibot-relay` được tự động tick chọn và ghi vào `openclaw.json → plugins.entries`. Khi quay về 1 bot, plugin bị bỏ chọn.
+- **Plugin selections → openclaw.json**: Tất cả plugin được user chọn (Voice Call, Matrix, MS Teams, Nostr...) đều được inject vào `plugins.entries` để Dashboard OpenClaw nhận trạng thái `enabled` đúng. Không chọn = không bật.
+- **Fix Step 3 "Tiếp theo" bị disabled**: Bỏ yêu cầu bắt buộc `cfg-user-info` (optional), sửa multi-bot check dùng `cfg-bot-tab-name`.
+- **Fix Step 4 multi-bot token**: Validate `key-bot-token-0` thay vì `key-bot-token` khi multi-bot Telegram.
+- **Fix AGENTS.md native multi-bot thiếu quy tắc bảo mật**: Inject `securityRules` vào cuối AGENTS.md của từng bot trong native multi-bot deployment.
+
 
 ### 🌟 Đổi Chính Sách Bảo Mật Zalo Personal
 

@@ -1,5 +1,18 @@
-﻿# Changelog (English)
+# Changelog (English)
 
+
+
+## [5.1.12] — 2026-04-07
+
+### 🧠 Expanded Skills & Auto-Select Multi-Bot Relay Plugin
+
+- **3-Column Skill Grid**: Skill cards now display 3 per row instead of 4 — wider cards, better readability.
+- **7 New ClawHub Skills**: Added `Web Search`, `GitHub`, `Google Calendar`, `Google Drive`, `Google Sheets`, `Notion`, `Slack` — covering the most common productivity workflows available on the OpenClaw dashboard.
+- **Telegram Multi-Bot Relay Auto-Select**: When multiple Telegram bots are selected (botCount ≥ 2), the `telegram-multibot-relay` plugin is automatically checked and written to `openclaw.json → plugins.entries`. Switching back to 1 bot deselects it.
+- **Plugin Selections → openclaw.json**: All plugins selected by the user (Voice Call, Matrix, MS Teams, Nostr...) are now injected into `plugins.entries` so the OpenClaw Dashboard receives the correct `enabled` state. Unselected = disabled.
+- **Fix Step 3 "Next" disabled**: Removed mandatory `cfg-user-info` requirement (it's optional), fixed multi-bot validation to use `cfg-bot-tab-name`.
+- **Fix Step 4 multi-bot token validation**: Now validates `key-bot-token-0` instead of `key-bot-token` in Telegram multi-bot mode.
+- **Fix native multi-bot AGENTS.md missing security rules**: Security rules are now appended to each bot's AGENTS.md during native multi-bot deployment.
 
 ## [5.1.11] — 2026-04-07
 

@@ -162,6 +162,14 @@
   // ========== Available Plugins (npm packages — runtime/channel extensions) ==========
   const PLUGINS = [
     {
+      id: 'telegram-multibot-relay',
+      name: 'Telegram Multi-Bot Relay',
+      icon: '🤝',
+      descVi: 'Điều phối nhiều bot Telegram trong cùng group — tự động khi chọn nhiều bot', descEn: 'Coordinate multiple Telegram bots in one group — auto-selected with multi-bot',
+      package: 'telegram-multibot-relay',
+      hidden: true, // hidden in UI, auto-selected programmatically
+    },
+    {
       id: 'voice-call',
       name: 'Voice Call',
       icon: '📞',
@@ -193,7 +201,6 @@
 
   // ========== Available Skills (ClawHub registry — agent capabilities) ==========
   const SKILLS = [
-    // Web Search removed — OpenClaw has native search built-in (no Tavily key needed)
     {
       id: 'browser',
       name: 'Browser Automation ⭐(Khuyên dùng)',
@@ -227,7 +234,7 @@
       id: 'image-gen',
       name: 'Image Generation',
       icon: '🎨',
-      descVi: 'Tạo ảnh bằng AI (DALL·E, Flux...)', descEn: 'Generate images using AI (DALL-E, Flux...)',
+      descVi: 'Tạo ảnh bằng AI (DALL·E, Flux, Midjourney...)', descEn: 'Generate images via AI (DALL-E, Flux, Midjourney...)',
       slug: 'image-gen',
       noteVi: 'Dùng chung OPENAI_API_KEY (DALL-E) hoặc thêm FLUX_API_KEY', noteEn: 'Uses OPENAI_API_KEY (DALL-E) or FLUX_API_KEY',
       envVars: ['# FLUX_API_KEY=<your_flux_key>  # chỉ cần nếu dùng Flux'],
@@ -243,10 +250,35 @@
       id: 'email',
       name: 'Email Assistant',
       icon: '📧',
-      descVi: 'Quản lý, soạn, tóm tắt email', descEn: 'Manage, compose, summarize emails',
+      descVi: 'Quản lý, soạn, tóm tắt email (Gmail, Outlook...)', descEn: 'Manage, compose, summarize emails (Gmail, Outlook...)',
       slug: 'email-assistant',
       noteVi: 'Cần cấu hình SMTP trong .env', noteEn: 'Requires SMTP configuration in .env',
       envVars: ['SMTP_HOST=smtp.gmail.com', 'SMTP_PORT=587', 'SMTP_USER=<your_email>', 'SMTP_PASS=<your_app_password>'],
+    },
+    {
+      id: 'web-search',
+      name: 'Web Search',
+      icon: '🔍',
+      descVi: 'Tìm kiếm web thời gian thực (DuckDuckGo) — không cần API key', descEn: 'Real-time web search (DuckDuckGo) — no API key needed',
+      slug: 'web-search',
+    },
+    {
+      id: 'notion',
+      name: 'Notion',
+      icon: '📓',
+      descVi: 'Tạo, chỉnh sửa trang và database Notion', descEn: 'Create and edit Notion pages and databases',
+      slug: 'notion',
+      noteVi: 'Cần Notion Integration Token', noteEn: 'Requires Notion Integration Token',
+      envVars: ['NOTION_API_KEY=<your_notion_integration_token>'],
+    },
+    {
+      id: 'slack',
+      name: 'Slack',
+      icon: '🗨️',
+      descVi: 'Gửi tin, react, ghim tin nhắn trong Slack', descEn: 'Send messages, react, pin items in Slack',
+      slug: 'slack',
+      noteVi: 'Cần Slack Bot Token', noteEn: 'Requires Slack Bot Token',
+      envVars: ['SLACK_BOT_TOKEN=<your_slack_bot_token>'],
     },
   ];
 
@@ -528,6 +560,24 @@
     // Ensure bots array has enough entries
     while (state.bots.length < count) {
       state.bots.push({ name: '', slashCmd: '', desc: '', provider: 'google', model: 'google/gemini-2.5-flash', token: '', apiKey: '' });
+    }
+
+    // Auto-select telegram-multibot-relay plugin when multi-bot, deselect when single
+    const relayId = 'telegram-multibot-relay';
+    if (count > 1) {
+      if (!state.config.plugins.includes(relayId)) {
+        state.config.plugins.push(relayId);
+      }
+    } else {
+      state.config.plugins = state.config.plugins.filter(p => p !== relayId);
+    }
+    // Sync relay card checkbox if already rendered
+    const relayCard = document.querySelector(`.plugin-card[data-plugin="${relayId}"]`);
+    if (relayCard) {
+      const isSelected = count > 1;
+      relayCard.classList.toggle('plugin-card--selected', isSelected);
+      const cb = relayCard.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = isSelected;
     }
 
     // Show/hide group option for 2+ bots
@@ -1021,9 +1071,11 @@
     }
 
     // Plugins grid (npm packages — extra channels/extensions)
+    // Filter out hidden plugins from user-facing grid
+    const visiblePlugins = PLUGINS.filter((p) => !p.hidden);
     const pluginGrid = document.getElementById('extra-plugin-grid');
     if (pluginGrid) {
-      pluginGrid.innerHTML = PLUGINS.map((p) => `
+      pluginGrid.innerHTML = visiblePlugins.map((p) => `
         <label class="plugin-card" data-plugin="${p.id}">
           <input type="checkbox" class="plugin-checkbox" value="${p.id}" onchange="window.__togglePlugin('${p.id}', this.checked)">
           <div class="plugin-card__icon">${p.icon}</div>
@@ -1751,6 +1803,17 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
           'telegram-multibot-relay': { enabled: true },
         },
       };
+    } else if (state.config.plugins.length > 0) {
+      // Non-multibot: write selected visible plugins into openclaw.json
+      const pluginEntries = {};
+      state.config.plugins.forEach((pid) => {
+        const plugin = PLUGINS.find((p) => p.id === pid);
+        if (!plugin || plugin.hidden) return;
+        pluginEntries[plugin.package || pid] = { enabled: true };
+      });
+      if (Object.keys(pluginEntries).length > 0) {
+        clawConfig.plugins = { entries: pluginEntries };
+      }
     }
 
     setOutput('out-openclaw-json', JSON.stringify(clawConfig, null, 2));
