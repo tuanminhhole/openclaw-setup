@@ -1,6 +1,14 @@
 ﻿# Changelog (English)
 
 
+## [5.1.8] — 2026-04-07
+
+### 🌟 Dashboard VPS Connectivity & Token Login Fix
+
+- **Fix `requireDeviceIdentity` Error on VPS**: OpenClaw's WebCrypto E2E identity check inherently demands a secure browser context (HTTPS or localhost). For raw IPv4 VPS deployments, the `crypto.subtle` browser limitation causes WebSocket `code=1008` rejection upon token login. The setup tool now seamlessly injects `requireDeviceIdentity: false` into the `gateway.controlUi` configuration, granting you flawless remote login capabilities over standard HTTP networks.
+- **Dynamic Terminal URLs**: The programmatic CLI will now intelligently scan and log your external, reachable IPv4 addresses in the console output alongside the local endpoints. This eliminates confusion and guarantees that the automatically generated tokenized dashboard links are ready for immediate copy-pasting.
+
+
 ## [5.1.7] — 2026-04-07
 
 ### 🌟 Fix Control UI CORS & Native 9Router Path Resolution

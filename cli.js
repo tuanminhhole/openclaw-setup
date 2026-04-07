@@ -184,6 +184,45 @@ function getGatewayAllowedOrigins(port) {
   return Array.from(origins);
 }
 
+function getReachableDashboardHosts(port) {
+  const normalizedPort = Number(port) || 18791;
+  const hosts = [];
+  const pushHost = (host) => {
+    if (!host) return;
+    const url = `http://${host}:${normalizedPort}`;
+    if (!hosts.includes(url)) {
+      hosts.push(url);
+    }
+  };
+
+  pushHost('127.0.0.1');
+  pushHost('localhost');
+
+  for (const entries of Object.values(os.networkInterfaces() || {})) {
+    for (const entry of entries || []) {
+      if (!entry || entry.internal || entry.family !== 'IPv4' || !entry.address) {
+        continue;
+      }
+      pushHost(entry.address);
+    }
+  }
+
+  return hosts;
+}
+
+function rewriteDashboardUrlHost(urlText, fallbackPort, targetBaseUrl) {
+  try {
+    const target = new URL(targetBaseUrl);
+    const parsed = new URL(urlText);
+    parsed.protocol = target.protocol;
+    parsed.hostname = target.hostname;
+    parsed.port = target.port || String(fallbackPort || '');
+    return parsed.toString();
+  } catch {
+    return `${targetBaseUrl}${String(urlText || '').startsWith('/') ? '' : '/'}${String(urlText || '')}`;
+  }
+}
+
 async function waitFor9RouterApiReady({ port = 20128, timeoutMs = 15000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   const candidates = [
@@ -442,15 +481,27 @@ function getTokenizedDashboardUrl(projectDir) {
 }
 
 function printNativeDashboardAccessInfo({ isVi, providerKey, projectDir, gatewayPort = 18791 }) {
-  const dashboardUrl = `http://localhost:${gatewayPort}`;
+  const gatewayUrls = getReachableDashboardHosts(gatewayPort);
+  const dashboardUrl = gatewayUrls[0] || `http://127.0.0.1:${gatewayPort}`;
   const tokenizedUrl = getTokenizedDashboardUrl(projectDir);
 
   console.log(chalk.yellow(`\n🧭 ${isVi ? 'Dashboard OpenClaw:' : 'OpenClaw Dashboard:'} ${dashboardUrl}`));
+  if (gatewayUrls.length > 1) {
+    console.log(chalk.gray(isVi
+      ? `   → Link khac co the mo duoc: ${gatewayUrls.slice(1).join(' , ')}`
+      : `   → Other reachable URLs: ${gatewayUrls.slice(1).join(' , ')}`));
+  }
 
   if (tokenizedUrl) {
+    const tokenizedUrls = gatewayUrls.map((baseUrl) => rewriteDashboardUrlHost(tokenizedUrl, gatewayPort, baseUrl));
     console.log(chalk.green(isVi
-      ? `   → Mở link đã kèm token: ${tokenizedUrl}`
-      : `   → Open the tokenized link directly: ${tokenizedUrl}`));
+      ? `   → Mở link đã kèm token: ${tokenizedUrls[0]}`
+      : `   → Open the tokenized link directly: ${tokenizedUrls[0]}`));
+    if (tokenizedUrls.length > 1) {
+      console.log(chalk.gray(isVi
+        ? `   → Ban mo tu may khac/WSL thi thu: ${tokenizedUrls.slice(1).join(' , ')}`
+        : `   → If you are opening from another machine/WSL, try: ${tokenizedUrls.slice(1).join(' , ')}`));
+    }
   } else {
     console.log(chalk.gray(isVi
       ? '   → Nếu dashboard đòi Gateway Token, chạy: openclaw dashboard'
@@ -458,7 +509,13 @@ function printNativeDashboardAccessInfo({ isVi, providerKey, projectDir, gateway
   }
 
   if (providerKey === '9router') {
-    console.log(chalk.yellow(`\n🔀 ${isVi ? '9Router Dashboard:' : '9Router Dashboard:'} http://localhost:20128/dashboard`));
+    const routerUrls = getReachableDashboardHosts(20128).map((baseUrl) => `${baseUrl}/dashboard`);
+    console.log(chalk.yellow(`\n🔀 ${isVi ? '9Router Dashboard:' : '9Router Dashboard:'} ${routerUrls[0] || 'http://127.0.0.1:20128/dashboard'}`));
+    if (routerUrls.length > 1) {
+      console.log(chalk.gray(isVi
+        ? `   → Link khac co the mo duoc: ${routerUrls.slice(1).join(' , ')}`
+        : `   → Other reachable URLs: ${routerUrls.slice(1).join(' , ')}`));
+    }
     console.log(chalk.gray(isVi
       ? '   → Mở dashboard 9Router → đăng nhập OAuth → kết nối provider miễn phí'
       : '   → Open the 9Router dashboard → complete OAuth login → connect a free provider'));
@@ -1282,7 +1339,7 @@ async function main() {
   }
   
   
-  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add(\`http://\${entry.address}:18791\`);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add(\`http://\${entry.address}:18791\`);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a),requireDeviceIdentity:false})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
   const b64Patch = Buffer.from(patchScript).toString('base64');
 
   // Browser Playwright (both desktop & server modes need chromium)
@@ -1748,6 +1805,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
         customBindHost: '0.0.0.0',
         controlUi: {
           allowedOrigins: getGatewayAllowedOrigins(18791),
+          requireDeviceIdentity: false,
         },
         auth: { mode: 'token', token: 'cli-dummy-token-xyz123' },
       },
@@ -1979,7 +2037,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
       tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
       gateway: {
         port: 18791 + (isMultiBot ? bIndex : 0), mode: 'local', bind: 'custom', customBindHost: '0.0.0.0',
-        controlUi: { allowedOrigins: getGatewayAllowedOrigins(18791 + (isMultiBot ? bIndex : 0)) },
+        controlUi: { allowedOrigins: getGatewayAllowedOrigins(18791 + (isMultiBot ? bIndex : 0)), requireDeviceIdentity: false },
         auth: { mode: 'token', token: 'cli-dummy-token-xyz123' }
       }
     };
@@ -2234,9 +2292,10 @@ fi
         console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoàn tất! Bot đang chạy.' : 'Setup complete! Bot is running.'}`));
         
         if (providerKey === '9router') {
+          const routerDashboardUrl = `${getReachableDashboardHosts(20128)[0] || 'http://127.0.0.1:20128'}/dashboard`;
           console.log(chalk.yellow(`\n🔀 ${isVi
-            ? '9Router Dashboard: http://localhost:20128/dashboard'
-            : '9Router Dashboard: http://localhost:20128/dashboard'}`));
+            ? `9Router Dashboard: ${routerDashboardUrl}`
+            : `9Router Dashboard: ${routerDashboardUrl}`}`));
           console.log(chalk.gray(isVi
             ? '   → Mở dashboard → đăng nhập OAuth để kết nối các Provider (iFlow, Gemini CLI, Claude Code...)'
             : '   → Open dashboard → OAuth login to connect Providers (iFlow, Gemini CLI, Claude Code...)'));

@@ -1,4 +1,4 @@
-﻿/* ============================================
+/* ============================================
    OpenClaw Setup Wizard — Logic v2
    Multi-model, Multi-plugin, Multi-channel
    ============================================ */
@@ -1597,6 +1597,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         bind: '0.0.0.0',
         controlUi: {
           allowedOrigins: getGatewayAllowedOrigins(18791),
+          requireDeviceIdentity: false,
         },
         auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
       },
@@ -1832,7 +1833,7 @@ model:
       ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & '
       : '';
     // Patch config on every startup to keep gateway settings stable
-    const patchCmd = `node -e \\"const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add(\\\`http://\\\${entry.address}:18791\\\`);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
+    const patchCmd = `node -e \\"const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add(\\\`http://\\\${entry.address}:18791\\\`);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a),requireDeviceIdentity:false})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
     // Auto-approve device pairing after gateway starts (required since v2026.3.x)
     const autoApproveCmd = '(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) & ';
     const finalCmd = `CMD sh -c "${pluginInstallCmd}${patchCmd}${browserPrefix}${autoApproveCmd}${gatewayCmd}"`;
@@ -3059,6 +3060,7 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
           bind: '0.0.0.0',
           controlUi: {
             allowedOrigins: getGatewayAllowedOrigins(18791),
+            requireDeviceIdentity: false,
           },
           auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
         },
@@ -3175,6 +3177,7 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
           bind: '0.0.0.0',
           controlUi: {
             allowedOrigins: getGatewayAllowedOrigins(basePort),
+            requireDeviceIdentity: false,
           },
           auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
         },

@@ -1,6 +1,14 @@
 ﻿# Changelog (Tiếng Việt)
 
 
+## [5.1.8] — 2026-04-07
+
+### 🌟 Sửa lỗi Đăng nhập Token (1008) & Cải tiến IP hiển thị trên VPS
+
+- **Tắt `requireDeviceIdentity` để vượt tường WebCrypto**: Do cơ chế bảo mật mới của Control UI bắt buộc trình duyệt phải dùng môi trường HTTPS (hoặc localhost) thì mới cấp quyền khởi tạo key mã hóa thiết bị E2E. Nếu dùng IP thường (HTTP) thì Dashboard sẽ báo lỗi đỏ `code=1008`. Bản setup mới nhất đã tự động chích cờ `requireDeviceIdentity: false` để tắt cơ chế ép buộc này đi, giúp bạn vào thẳng Dashboard bằng IP của VPS.
+- **Hiển thị Link Public ở Terminal**: Cấu trúc báo cáo của PM2 đã được viết lại để tự động tìm và sinh ra các đường dẫn kèm IPv4 Public (thay vì chỉ in mỗi `localhost`). Giờ đây bạn chỉ việc soi console và bấm/copy thẳng link vào trình duyệt mà không cần phải tự chế nữa.
+
+
 ## [5.1.7] — 2026-04-07
 
 ### 🌟 Sửa lỗi CORS Control UI & Đường dẫn 9Router Native

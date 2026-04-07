@@ -117,6 +117,14 @@ checks.push(() => expect(
 ));
 
 checks.push(() => expect(
+  cli.includes('function getReachableDashboardHosts(port) {')
+    && cli.includes('pushHost(\'127.0.0.1\')')
+    && cli.includes('pushHost(\'localhost\')')
+    && cli.includes('function rewriteDashboardUrlHost(urlText, fallbackPort, targetBaseUrl) {'),
+  'CLI must derive reachable dashboard hosts and rewrite tokenized dashboard URLs for WSL/LAN access'
+));
+
+checks.push(() => expect(
   cli.includes("Removed smart-route (no active providers)")
     && cli.includes("if (!a.length) {")
     && cli.includes("if (!m.length) {")
@@ -144,7 +152,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function printNativeDashboardAccessInfo\(\{ isVi, providerKey, projectDir, gatewayPort = 18791 \}\) \{[\s\S]*openclaw dashboard[\s\S]*9Router Dashboard:[\s\S]*localhost:20128\/dashboard/s,
+  /function printNativeDashboardAccessInfo\(\{ isVi, providerKey, projectDir, gatewayPort = 18791 \}\) \{[\s\S]*getReachableDashboardHosts\(gatewayPort\)[\s\S]*rewriteDashboardUrlHost[\s\S]*Other reachable URLs[\s\S]*getReachableDashboardHosts\(20128\)/s,
   'Native PM2 flow must expose dashboard access info and the tokenized dashboard command'
 ));
 
