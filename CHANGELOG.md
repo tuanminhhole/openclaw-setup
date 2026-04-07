@@ -1,13 +1,23 @@
 # Changelog (English)
 
+## [5.1.13] — 2026-04-08
 
+### 🐛 macOS Install Fixes & Wizard Stability
+
+- **Fix macOS `mkdir: : No such file or directory`**: `generateSetupScript` was using `\${dir}` / `\${path}` (escaped), which created empty bash variables — now JS-interpolated so actual file paths are written correctly.
+- **Fix macOS Docker script**: Added `docker info` daemon check before `docker compose up`; Docker mode now correctly calls `docker compose up` instead of `openclaw gateway run`.
+- **Fix macOS Native npm prefix**: Removed `npm config set prefix` which breaks Homebrew-managed Node.js. Now uses `export npm_config_prefix` (per-session env var) + `sudo npm install -g` fallback.
+- **Fix `window.__saveBotTabPersona is not a function`**: Added the missing `__saveBotTabPersona` function that HTML was calling but was never defined in `setup.js`.
+- **Fix Step 3 Next button in 1-bot mode**: `bindFormEvents` now syncs `cfg-name` input directly to `state.config.botName` and `state.bots[0].name` on every keystroke, then calls `updateNavButtons()` — Next button reacts instantly without requiring navigation.
+- **Fix persona per-bot isolation**: `saveBotTabMeta` and `syncBotTabMeta` now save/restore the `cfg-bot-tab-persona` field per-bot. Switching tabs correctly shows/hides each bot's persona; the value is persisted in `state.bots[i].persona` and used correctly in generated `.md` files.
+- **Fix cli.js macOS global npm**: `ensureUserWritableGlobalNpm` skips `npm config set prefix` on darwin; `installGlobalPackage` adds `sudo npm install -g` as macOS fallback.
 
 ## [5.1.12] — 2026-04-07
 
 ### 🧠 Expanded Skills & Auto-Select Multi-Bot Relay Plugin
 
 - **3-Column Skill Grid**: Skill cards now display 3 per row instead of 4 — wider cards, better readability.
-- **7 New ClawHub Skills**: Added `Web Search`, `GitHub`, `Google Calendar`, `Google Drive`, `Google Sheets`, `Notion`, `Slack` — covering the most common productivity workflows available on the OpenClaw dashboard.
+- **7 New ClawHub Skills**: Added `Web Search`, `Notion`, `Slack` — covering the most common productivity workflows available on the OpenClaw dashboard.
 - **Telegram Multi-Bot Relay Auto-Select**: When multiple Telegram bots are selected (botCount ≥ 2), the `telegram-multibot-relay` plugin is automatically checked and written to `openclaw.json → plugins.entries`. Switching back to 1 bot deselects it.
 - **Plugin Selections → openclaw.json**: All plugins selected by the user (Voice Call, Matrix, MS Teams, Nostr...) are now injected into `plugins.entries` so the OpenClaw Dashboard receives the correct `enabled` state. Unselected = disabled.
 - **Fix Step 3 "Next" disabled**: Removed mandatory `cfg-user-info` requirement (it's optional), fixed multi-bot validation to use `cfg-bot-tab-name`.
@@ -20,13 +30,11 @@
 
 - **Open Zalo Inboxes**: The default `dmPolicy` for Zalo Personal deployments has been changed from `pairing` to `open`. This allows any user on the Zalo network to interact with the AI assistant immediately without requiring explicit device pairing approvals natively.
 
-
 ## [5.1.10] — 2026-04-07
 
 ### 🌟 Native UI Auto-Approve Bypasser
 
 - **Native PM2 Auto-Approve Loop**: The strict `pairing required` security feature mandates that all users manually execute an approval command in their terminal for new web dashboard authentications. While Docker deployments already included an automated bypass, the Native setup did not. This release introduces a dedicated `auto-approve` PM2 background daemon that infinitely polls and accepts new device keys, delivering a frictionless, zero-touch login experience identical to Docker deployments.
-
 
 ## [5.1.9] — 2026-04-07
 
@@ -35,14 +43,12 @@
 - **Revert Unrecognized Config Key**: OpenClaw v2026.x.x enforces strict Zod schema validation. The previously injected `requireDeviceIdentity` flag caused an immediate startup crash (`Config invalid`). This version surgically removes the offending flag, ensuring the gateway boots successfully.
 - **Dynamic SSH Tunnel Helper**: Since WebCrypto strictly demands a secure context (HTTPS/localhost), accessing the dashboard via raw VPS IP triggers a `1008` error natively. The CLI now dynamically generates and prints the exact `ssh -L 18791:localhost:18791 ...` Port Forwarding command right in the terminal, guaranteeing a flawless, secure login experience for remote server operators without needing SSL.
 
-
 ## [5.1.8] — 2026-04-07
 
 ### 🌟 Dashboard VPS Connectivity & Token Login Fix
 
 - **Fix `requireDeviceIdentity` Error on VPS**: OpenClaw's WebCrypto E2E identity check inherently demands a secure browser context (HTTPS or localhost). For raw IPv4 VPS deployments, the `crypto.subtle` browser limitation causes WebSocket `code=1008` rejection upon token login. The setup tool now seamlessly injects `requireDeviceIdentity: false` into the `gateway.controlUi` configuration, granting you flawless remote login capabilities over standard HTTP networks.
 - **Dynamic Terminal URLs**: The programmatic CLI will now intelligently scan and log your external, reachable IPv4 addresses in the console output alongside the local endpoints. This eliminates confusion and guarantees that the automatically generated tokenized dashboard links are ready for immediate copy-pasting.
-
 
 ## [5.1.7] — 2026-04-07
 
@@ -51,14 +57,12 @@
 - **Fix Control UI CORS Rejections**: OpenClaw v2026.3.x strict CORS policies blocked remote dashboard access. The setup configuration and Docker patching scripts now automatically resolve all active IPv4 interfaces (`os.networkInterfaces()`) alongside localhost to pre-populate the `gateway.controlUi.allowedOrigins` array. This ensures the Web UI works flawlessly out-of-the-box on remote VPS instances.
 - **Improved Native PM2 Path Resolution**: To prevent PM2 `$PATH` lookup failures with `nvm` on Linux, the script now bypasses the OS `9router` binary wrapper entirely. Instead, it computes the exact explicit path using `$(npm root -g)/9router/app/server.js` and executes it directly via the NodeJS interpreter.
 
-
 ## [5.1.6] — 2026-04-07
 
 ### 🐞 Fix PM2 SIGKILL on Native VPS Installs
 
 - **Fix `PM2 SIGKILL` Error**: Removed the `-t` (interactive TTY) flag from all background `9router` launches. This terminal-dependent flag could cause PM2 to hang and aggressively SIGKILL the spawned process on headless VPS environments.
 - **Robust PM2 Sync Helper**: Added a two-stage fallback for the 9Router smart-route sync script. If PM2 encounters `SIGKILL` or memory limits while spawning the sync helper, the setup gracefully falls back to a background `nohup node ... &` process instead of throwing a hard exception. If both fail, it logs a warning but allows the overall OpenClaw setup to finish successfully.
-
 
 ## [5.1.5] — 2026-04-06
 
@@ -67,14 +71,12 @@
 - **Fix**: Replaced shell string execution (`execSync`) with strict array arguments (`execFileSync`) when starting 9Router and its background sync script via PM2 on native systems. This guarantees reliable process spawning across both Linux (VPS) and Windows environments without PM2 shell-parsing errors on quotes or path spaces.
 - **Improved**: PM2 now explicitly runs the global `9router` binary via `--interpreter none` and the sync script via the current NodeJS runtime using `--interpreter process.execPath`.
 
-
 ## [5.1.4] — 2026-04-06
 
 ### 🐞 Fix CLI Startup BOM Error & Improve Docker Timeout Patch
 
 - **Fix CLI BOM**: Removed the unexpected byte order mark (BOM) `\uFEFF` at the beginning of `cli.js` which could cause the shebang `#!/usr/bin/env node` to fail resolving or cause SyntaxErrors in certain environments
 - **Improve Docker Timeout Patching**: The backend timeout override injection (`300s`) during Docker build now defensively scans all `.js` files in the `openclaw/dist` directory rather than trying to fuzzy-find a specific `gateway-cli-*` hash. This ensures the patch succeeds across different OpenClaw backend builds without noisy console warnings
-
 
 ## [5.1.3] — 2026-04-06
 
@@ -86,7 +88,6 @@ The previous base64 fix introduced a regression where the template literal `${Bu
 - This guarantees the generated compose file receives the raw base64 string without any template interpolator conflicts
 - Also cleans up testing logic validating these fixes
 
-
 ## [5.1.2] — 2026-04-06
 
 ### 🐛 Fix Shell Injection: Sync Script Now Uses Base64 Encoding
@@ -97,7 +98,6 @@ The `node -e "...JSON.stringify(script)..."` approach caused `/bin/sh: Syntax er
 - The generated entrypoint becomes: `node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('<b64>','base64').toString())"`
 - Base64 output contains only `[A-Za-z0-9+/=]` — zero shell quoting issues, works in YAML `|` blocks without escaping
 - Applies to all compose generation paths: Docker web wizard (`setup.js` × 2) and Docker CLI (`cli.js` × 2)
-
 
 ## [5.1.1] — 2026-04-06
 

@@ -275,11 +275,15 @@ function ensureUserWritableGlobalNpm({ isVi, osChoice }) {
     process.env.npm_config_prefix = npmInfo.prefixDir;
     ensureBinDirOnPath(npmInfo.binDir);
 
-    execSync(`npm config set prefix "${npmInfo.prefixDir.replace(/"/g, '\\"')}"`, {
-      stdio: 'ignore',
-      shell: true,
-      env: process.env
-    });
+    // On macOS (darwin), skip mutating global .npmrc prefix — conflicts with Homebrew.
+    // The npm_config_prefix env var set above is sufficient for this process.
+    if (process.platform !== 'darwin') {
+      execSync(`npm config set prefix "${npmInfo.prefixDir.replace(/"/g, '\\"')}"`, {  
+        stdio: 'ignore',  
+        shell: true,  
+        env: process.env  
+      });
+    }
 
     appendLineIfMissing(path.join(os.homedir(), '.profile'), 'export PATH="$HOME/.local/bin:$PATH"');
     appendLineIfMissing(
@@ -311,6 +315,10 @@ function installGlobalPackage(pkg, { isVi, osChoice, displayName }) {
     const npmInfo = getUserNpmPrefixInfo();
     if (npmInfo) {
       installCommands.push(`npm install -g --prefix "${npmInfo.prefixDir.replace(/"/g, '\\"')}" ${pkg}`);
+    }
+    // macOS: if user-writable npm install fails, try sudo as last resort
+    if (osChoice === 'macos' || process.platform === 'darwin') {
+      installCommands.push(`sudo npm install -g ${pkg}`);
     }
   }
 

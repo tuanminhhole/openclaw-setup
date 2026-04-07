@@ -656,10 +656,12 @@
       if (labelEl) labelEl.style.display = 'none';
       if (slashGroup) slashGroup.style.display = 'none';
       
-      // Update fields
-      const bot = state.bots[0] || { name: 'Bot 1', desc: '', persona: '', slashCmd: '' };
-      document.getElementById('cfg-bot-tab-name').value = bot.name || '';
-      document.getElementById('cfg-bot-tab-desc').value = bot.desc || '';
+      // Restore single-bot fields — fall back to state.config.botName so Next button
+      // is never falsely disabled just because state.bots[0].name is empty yet.
+      const bot = state.bots[0] || { name: '', desc: '', persona: '', slashCmd: '' };
+      const resolvedName = bot.name || state.config.botName || '';
+      document.getElementById('cfg-bot-tab-name').value = resolvedName;
+      document.getElementById('cfg-bot-tab-desc').value = bot.desc || state.config.description || '';
       document.getElementById('cfg-bot-tab-persona').value = bot.persona || '';
       return;
     }
@@ -690,9 +692,11 @@
     const nameEl = document.getElementById('cfg-bot-tab-name');
     const slashEl = document.getElementById('cfg-bot-tab-slash');
     const descEl = document.getElementById('cfg-bot-tab-desc');
+    const personaEl = document.getElementById('cfg-bot-tab-persona');
     if (nameEl) nameEl.value = bot.name || '';
     if (slashEl) slashEl.value = bot.slashCmd || '';
     if (descEl) descEl.value = bot.desc || '';
+    if (personaEl) personaEl.value = bot.persona || '';
 
     // Also sync global config fields from active bot (provider/model carry over)
     if (bot.provider) {
@@ -733,9 +737,11 @@
     const nameEl = document.getElementById('cfg-bot-tab-name');
     const slashEl = document.getElementById('cfg-bot-tab-slash');
     const descEl = document.getElementById('cfg-bot-tab-desc');
+    const personaEl = document.getElementById('cfg-bot-tab-persona');
     if (nameEl) bot.name = nameEl.value;
     if (slashEl) bot.slashCmd = slashEl.value;
     if (descEl) bot.desc = descEl.value;
+    if (personaEl) bot.persona = personaEl.value;
   }
 
   window.__saveBotTabName = function(val) {
@@ -758,6 +764,12 @@
   window.__saveBotTabDesc = function(val) {
     if (state.bots[state.activeBotIndex]) {
       state.bots[state.activeBotIndex].desc = val;
+    }
+  };
+
+  window.__saveBotTabPersona = function(val) {
+    if (state.bots[state.activeBotIndex]) {
+      state.bots[state.activeBotIndex].persona = val;
     }
   };
 
@@ -976,12 +988,17 @@
       if (state.currentStep === 3) {
         if (state.botCount > 1) {
           // Multi-bot: require name for the currently active bot tab
-          const tabNameVal = document.getElementById('cfg-bot-tab-name')?.value?.trim();
+          // Fallback to state.bots to handle re-render cases where DOM may not yet have the value
+          const activeTab = state._activeBotTab || 0;
+          const tabNameVal = document.getElementById('cfg-bot-tab-name')?.value?.trim()
+            || state.bots[activeTab]?.name?.trim();
           if (!tabNameVal) isDisabled = true;
         } else {
           // Single bot: require cfg-name or the shared tab name field
+          // Fallback to state.config.botName for cases where the DOM field was cleared on re-render
           const nameVal = document.getElementById('cfg-name')?.value?.trim()
-            || document.getElementById('cfg-bot-tab-name')?.value?.trim();
+            || document.getElementById('cfg-bot-tab-name')?.value?.trim()
+            || state.config.botName?.trim();
           if (!nameVal) isDisabled = true;
         }
       }
@@ -1128,6 +1145,17 @@
           prompt.value = DEFAULT_PROMPTS[lang].replace('{BOT_NAME}', nameVal).replace('{BOT_DESC}', descVal);
           autoExpand(prompt);
         }
+        // Sync single-bot name to state + re-check Next button
+        if (e.target.id === 'cfg-name') {
+          state.config.botName = e.target.value;
+          if (state.bots[0]) state.bots[0].name = e.target.value;
+        }
+        updateNavButtons();
+      }
+      // Also re-check Next when typing directly in the tab name field
+      if (e.target.id === 'cfg-bot-tab-name') {
+        if (state.bots[state.activeBotIndex]) state.bots[state.activeBotIndex].name = e.target.value;
+        updateNavButtons();
       }
       if (e.target.id === 'cfg-prompt') {
         e.target.dataset.userEdited = 'true';
@@ -1227,6 +1255,12 @@
     state.config.systemPrompt = document.getElementById('cfg-prompt')?.value || state.config.systemPrompt || DEFAULT_PROMPTS['vi'];
     state.config.userInfo = document.getElementById('cfg-user-info')?.value?.trim() || state.config.userInfo || '';
     state.config.securityRules = document.getElementById('cfg-security')?.value || state.config.securityRules || DEFAULT_SECURITY_RULES['vi'];
+    // Also save bot-tab-name → bots[0].name so both state locations stay in sync
+    const tabName = document.getElementById('cfg-bot-tab-name')?.value?.trim();
+    if (tabName && state.bots[0]) state.bots[0].name = tabName;
+    else if (state.config.botName && state.bots[0] && !state.bots[0].name) {
+      state.bots[0].name = state.config.botName;
+    }
   }
 
   // Save Step 4 credential inputs to state (persists across Back navigation)
@@ -3585,29 +3619,55 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
     } else if (state.nativeOs === 'linux') {
       const isDocker = state.deployMode === 'docker';
       scriptName = isDocker ? 'setup-openclaw-docker-macos.sh' : 'setup-openclaw-macos.sh';
-      const sh = [
-        '#!/usr/bin/env bash', 'set -e',
-        `echo "=== OpenClaw Setup — macOS${isDocker ? ' Docker' : ' Native'} ==="`,
-        'command -v node > /dev/null 2>&1 || { echo "ERROR: Node.js chua cai! https://nodejs.org"; exit 1; }',
-        'mkdir -p "$HOME/.local/bin"',
-        'npm config set prefix "$HOME/.local"',
-        'export PATH="$HOME/.local/bin:$PATH"',
-        'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.zshrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.zshrc"',
-        'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-        'npm install -g openclaw@latest',
-      ];
-      providerLines(sh, 'sh');
-      if (pluginCmd) sh.push(pluginCmd);
 
-      if (isMultiBot) {
-        appendShWriteCommands(sh, sharedNativeFileMap());
-        sh.push('echo "Starting shared multi-bot gateway..."');
-        sh.push('openclaw gateway run');
-      } else {
+      if (isDocker) {
+        // ── macOS Docker mode: write files then docker compose up ──────────────
+        const sh = [
+          '#!/usr/bin/env bash', 'set -e',
+          'echo "=== OpenClaw Setup \u2014 macOS Docker ==="',
+          '# Check Docker Desktop is running',
+          'if ! docker info > /dev/null 2>&1; then',
+          '  echo "\u274c Docker Desktop chua chay! Mo Docker Desktop roi chay lai script nay."',
+          '  exit 1',
+          'fi',
+        ];
         appendShWriteCommands(sh, botFiles(0));
-        sh.push('openclaw gateway run');
+        sh.push('echo "Starting bot via Docker Compose..."');
+        sh.push('if docker compose version > /dev/null 2>&1; then COMPOSE="docker compose"; else COMPOSE="docker-compose"; fi');
+        sh.push('cd docker/openclaw');
+        sh.push('$COMPOSE up --detach --build');
+        sh.push('echo "\u2705 Bot dang chay via Docker. Xem log: docker logs -f openclaw-bot"');
+        scriptContent = sh.filter(Boolean).join('\n');
+      } else {
+        // ── macOS Native mode: same approach as Ubuntu but no PM2, no apt ────────
+        // Do NOT use 'npm config set prefix' on macOS — breaks Homebrew Node.
+        // Use export npm_config_prefix per-session + sudo fallback.
+        const sh = [
+          '#!/usr/bin/env bash', 'set -e',
+          'echo "=== OpenClaw Setup \u2014 macOS Native ==="',
+          'command -v node > /dev/null 2>&1 || { echo "ERROR: Node.js chua cai! https://nodejs.org"; exit 1; }',
+          '# User-local npm prefix (Homebrew-safe — no global npmrc mutation)',
+          'mkdir -p "$HOME/.local/bin"',
+          'export npm_config_prefix="$HOME/.local"',
+          'export PATH="$HOME/.local/bin:$PATH"',
+          'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.zshrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.zshrc"',
+          'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
+          '# Install openclaw (user-local first, sudo fallback)',
+          'npm install -g openclaw@latest || sudo npm install -g openclaw@latest',
+        ];
+        providerLines(sh, 'sh');
+        if (pluginCmd) sh.push(pluginCmd);
+
+        if (isMultiBot) {
+          appendShWriteCommands(sh, sharedNativeFileMap());
+          sh.push('echo "Starting shared multi-bot gateway..."');
+          sh.push('openclaw gateway run');
+        } else {
+          appendShWriteCommands(sh, botFiles(0));
+          sh.push('openclaw gateway run');
+        }
+        scriptContent = sh.filter(Boolean).join('\n');
       }
-      scriptContent = sh.filter(Boolean).join('\n');
 
     // ─── VPS/Ubuntu PM2 .SH ──────────────────────────────────────────────────
     } else if (state.nativeOs === 'vps') {
@@ -3957,14 +4017,14 @@ echo ""
 
     script += `# \${isVi ? 'Tạo thư mục' : 'Create directories'}\n`;
     Array.from(dirs).sort().forEach(dir => {
-      script += `mkdir -p "\${dir}"\n`;
+      script += `mkdir -p "${dir}"\n`;
     });
     script += '\n';
 
     Object.entries(files).forEach(([path, content]) => {
       script += `# \${path}\n`;
       const contentStr = typeof content === 'string' ? content : '';
-      script += `cat > "\${path}" << 'CLAWEOF'\n`;
+      script += `cat > "${path}" << 'CLAWEOF'\n`;
       script += contentStr;
       if (!contentStr.endsWith('\n')) script += '\n';
       script += `CLAWEOF\n\n`;
@@ -3975,6 +4035,7 @@ echo ""
     script += `echo ""\n`;
     script += `echo "\${isVi ? '🐳 Đang khởi động Docker (có thể mất vài phút)...' : '🐳 Starting Docker (may take a few minutes)...'}"\n`;
     script += `if docker compose version > /dev/null 2>&1; then\n  COMPOSE_CMD="docker compose"\nelif docker-compose version > /dev/null 2>&1; then\n  COMPOSE_CMD="docker-compose"\nelse\n  echo "\${isVi ? '❌ Không tìm thấy Docker Compose! Cài bằng: sudo apt-get install docker-compose-plugin' : '❌ Docker Compose not found! Install: sudo apt-get install docker-compose-plugin'}"\n  exit 1\nfi\n`;
+    script += `# Check Docker daemon is actually running\nif ! docker info > /dev/null 2>&1; then\n  echo "${isVi ? '❌ Docker daemon chưa chạy! Hãy mở Docker Desktop rồi chạy lại.' : '❌ Docker daemon is not running! Open Docker Desktop first, then re-run this script.'}"; exit 1\nfi\n`;
     
     if (isMultiBot) {
       script += `cd "docker/openclaw"\n`;
