@@ -922,19 +922,30 @@
       // Step 1 (env): always valid
       // Step 2 (channel): require selection
       if (state.currentStep === 2 && !state.channel) isDisabled = true;
-      // Step 3 (bot config): require bot name
+      // Step 3 (bot config): require at least one bot name
       if (state.currentStep === 3) {
-        const nameVal = document.getElementById('cfg-name')?.value?.trim();
-        const userInfoVal = document.getElementById('cfg-user-info')?.value?.trim();
-        if (!nameVal || !userInfoVal) isDisabled = true;
+        if (state.botCount > 1) {
+          // Multi-bot: require name for the currently active bot tab
+          const tabNameVal = document.getElementById('cfg-bot-tab-name')?.value?.trim();
+          if (!tabNameVal) isDisabled = true;
+        } else {
+          // Single bot: require cfg-name or the shared tab name field
+          const nameVal = document.getElementById('cfg-name')?.value?.trim()
+            || document.getElementById('cfg-bot-tab-name')?.value?.trim();
+          if (!nameVal) isDisabled = true;
+        }
       }
       // Step 4 (api keys): require token/key
       if (state.currentStep === 4) {
-        const botTokenEl = document.getElementById('key-bot-token');
         const apiKeyEl = document.getElementById('key-api-key');
         const provider = PROVIDERS[state.config.provider];
-        if ((state.channel === 'telegram' || state.channel === 'zalo-bot') && botTokenEl) {
-          if (!botTokenEl.value.trim()) isDisabled = true;
+        if (state.channel === 'telegram' && state.botCount > 1) {
+          // Multi-bot Telegram: require at least the first bot's token
+          const firstTokenEl = document.getElementById('key-bot-token-0');
+          if (!firstTokenEl || !firstTokenEl.value.trim()) isDisabled = true;
+        } else if (state.channel === 'telegram' || state.channel === 'zalo-bot') {
+          const botTokenEl = document.getElementById('key-bot-token');
+          if (!botTokenEl || !botTokenEl.value.trim()) isDisabled = true;
         }
         if (provider && !provider.isProxy && !provider.isLocal && provider.envKey && apiKeyEl) {
           if (!apiKeyEl.value.trim()) isDisabled = true;
@@ -3103,9 +3114,11 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
         files[`.openclaw/${meta.workspaceDir}/SOUL.md`] = isVi
           ? `# Tinh cach\n\n${meta.persona || 'Huu ich that su, gan gui, ngan gon.'}`
           : `# Soul\n\n${meta.persona || 'Helpful, concise, and practical.'}`;
+        const _secRulesForBot = state.config.securityRules || DEFAULT_SECURITY_RULES[isVi ? 'vi' : 'en'];
         files[`.openclaw/${meta.workspaceDir}/AGENTS.md`] = (isVi
-          ? `# Huong dan van hanh\n\n## Vai tro\nBan la **${meta.name}**, ${meta.desc.toLowerCase()}.\n\n## Khi nao nen tra loi\n- Trong group, xem user dang goi ban neu tin nhan co alias cua ban: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')}\n- Neu user tag username Telegram cua ban thi luon tra loi.\n- Gateway se tu dong tha ack \`👍\` khi nhan message; khong can tu tha them neu ack da hien.\n- Neu user dang goi ro bot khac ${relayTargetNames} thi khong cuop loi.\n\n## Phoi hop\n- Dung \`TEAM.md\` lam nguon su that.\n- Neu user bao ban hoi hoac xin y kien tu ${otherBots.length ? otherBots.map((peer) => `\`${peer.name}\``).join(', ') : '`bot khac`'} thi dung agent-to-agent noi bo ngay trong turn hien tai.\n- Neu ban la bot mo loi, chi gui 1 cau mo dau ngan roi handoff ngay. Khong tu noi thay bot dich tru khi handoff that bai ro rang.\n- Khi handoff, phai goi dung agent id ky thuat ${relayTargetIds}, khong dung ten hien thi.\n- Neu ban la bot dich nhan handoff, hay tra loi cong khai ngay trong cung Telegram chat/thread bang chinh account cua minh. Uu tien tra loi co \`[[reply_to_current]]\`; neu can, dung Telegram send/sendMessage action thay vi chi output thuong.\n- Khong bao user phai tag lai bot kia neu ban co the hoi noi bo duoc.`
-          : `# Operating Manual\n\n## Role\nYou are **${meta.name}**, ${meta.desc.toLowerCase()}.\n\n## When To Reply\n- In group chats, treat the message as addressed to you if it contains one of your aliases: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')}\n- Always reply when your Telegram username is tagged.\n- The gateway auto-sends the \`👍\` ack reaction on inbound messages; do not duplicate it manually if it already appeared.\n- If the message is clearly calling another bot such as ${relayTargetNames}, do not hijack it.\n\n## Coordination\n- Use \`TEAM.md\` as the source of truth.\n- If the user asks you to consult ${otherBots.length ? otherBots.map((peer) => `\`${peer.name}\``).join(', ') : '`another bot`'}, use internal agent-to-agent handoff in the same turn.\n- If you are the caller bot, send only one short opener then hand off immediately. Do not speak for the target bot unless the handoff clearly fails.\n- When handing off, use the exact technical agent id ${relayTargetIds}, not the display name.\n- If you are the target bot receiving a handoff, publish the real answer into the same Telegram chat/thread from your own account. Prefer replying with \`[[reply_to_current]]\`; if needed, use the Telegram send/sendMessage action instead of plain assistant output.\n- Do not ask the user to tag the other bot again if you can consult internally.`);
+          ? `# Huong dan van hanh\n\n## Vai tro\nBan la **${meta.name}**, ${meta.desc.toLowerCase()}.\n\n## Khi nao nen tra loi\n- Trong group, xem user dang goi ban neu tin nhan co alias cua ban: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')}\n- Neu user tag username Telegram cua ban thi luon tra loi.\n- Gateway se tu dong tha ack \`👍\` khi nhan message; khong can tu tha them neu ack da hien.\n- Neu user dang goi ro bot khac ${relayTargetNames} thi khong cuop loi.\n\n## Phoi hop\n- Dung \`TEAM.md\` lam nguon su that.\n- Neu user bao ban hoi hoac xin y kien tu ${otherBots.length ? otherBots.map((peer) => `\`${peer.name}\``).join(', ') : '`bot khac`'} thi dung agent-to-agent noi bo ngay trong turn hien tai.\n- Neu ban la bot mo loi, chi gui 1 cau mo dau ngan roi handoff ngay. Khong tu noi thay bot dich tru khi handoff that bai ro rang.\n- Khi handoff, phai goi dung agent id ky thuat ${relayTargetIds}, khong dung ten hien thi.\n- Neu ban la bot dich nhan handoff, hay tra loi cong khai ngay trong cung Telegram chat/thread bang chinh account cua minh. Uu tien tra loi co \`[[reply_to_current]]\`; neu can, dung Telegram send/sendMessage action thay vi chi output thuong.\n- Khong bao user phai tag lai bot kia neu ban co the hoi noi bo duoc.\n\n${_secRulesForBot}`
+          : `# Operating Manual\n\n## Role\nYou are **${meta.name}**, ${meta.desc.toLowerCase()}.\n\n## When To Reply\n- In group chats, treat the message as addressed to you if it contains one of your aliases: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')}\n- Always reply when your Telegram username is tagged.\n- The gateway auto-sends the \`👍\` ack reaction on inbound messages; do not duplicate it manually if it already appeared.\n- If the message is clearly calling another bot such as ${relayTargetNames}, do not hijack it.\n\n## Coordination\n- Use \`TEAM.md\` as the source of truth.\n- If the user asks you to consult ${otherBots.length ? otherBots.map((peer) => `\`${peer.name}\``).join(', ') : '`another bot`'}, use internal agent-to-agent handoff in the same turn.\n- If you are the caller bot, send only one short opener then hand off immediately. Do not speak for the target bot unless the handoff clearly fails.\n- When handing off, use the exact technical agent id ${relayTargetIds}, not the display name.\n- If you are the target bot receiving a handoff, publish the real answer into the same Telegram chat/thread from your own account. Prefer replying with \`[[reply_to_current]]\`; if needed, use the Telegram send/sendMessage action instead of plain assistant output.\n- Do not ask the user to tag the other bot again if you can consult internally.\n\n${_secRulesForBot}`);
+
         files[`.openclaw/${meta.workspaceDir}/TEAM.md`] = teamMd;
         files[`.openclaw/${meta.workspaceDir}/RELAY.md`] = isVi
           ? `# Telegram Relay Playbook\n\n## Muc tieu\n- Cho phep bot mo loi goi bot dich noi bo, sau do bot dich tra loi cong khai bang chinh account cua minh.\n\n## Protocol\n1. Bot mo loi gui 1 cau ngan xac nhan se hoi bot dich.\n2. Bot mo loi handoff noi bo bang dung agent id trong \`TEAM.md\`.\n3. Bot dich tra loi cong khai trong cung chat/thread hien tai.\n4. Neu thay \`[[reply_to_current]]\` hoac Telegram send/sendMessage action kha dung, uu tien dung de bam dung message goc.\n5. Neu handoff that bai ro rang, chi bot mo loi moi duoc fallback tom tat.\n`
