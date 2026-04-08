@@ -22,8 +22,9 @@ Docker hiệu quả nhưng có yêu cầu kỹ thuật nhất định. Hãy xem 
 
 Trước khi cài Docker, hãy đảm bảo có đủ:
 
-- **Node.js 20 LTS** trở lên: [nodejs.org](https://nodejs.org/)
-  - Node.js 20 LTS là phiên bản tối thiểu được khuyên dùng từ 2025 trở đi. Node.js 22 LTS cũng được hỗ trợ đầy đủ.
+- **Node.js 20/22/24**: [nodejs.org](https://nodejs.org/)
+  - Node.js 20 là mức tối thiểu khuyên dùng. Node.js 22 và 24 cũng ổn.
+  - Tạm tránh Node.js 25 vì đã có report OpenClaw lỗi trên bản này.
   - Kiểm tra: `node -v`
 - **Docker Engine kèm plugin Compose V2**: Hướng dẫn cài bên dưới.
   - Kiểm tra Compose V2: `docker compose version` (Lưu ý: `docker compose`, không phải `docker-compose`)

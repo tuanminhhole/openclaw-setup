@@ -22,8 +22,9 @@ Docker works well, but it has a learning curve. Review this table before proceed
 
 Before installing Docker, ensure the following:
 
-- **Node.js 20 LTS** or newer: [nodejs.org](https://nodejs.org/)
-  - Node.js 20 LTS is the minimum recommended version as of 2025. Node.js 22 LTS is also fully supported.
+- **Node.js 20/22/24**: [nodejs.org](https://nodejs.org/)
+  - Node.js 20 is the minimum recommended version. Node.js 22 and 24 are also fine.
+  - Avoid Node.js 25 for now; there are reports of OpenClaw failing on it.
   - Verify: `node -v`
 - **Docker Engine with Compose v2 plugin**: Instructions below.
   - Verify Compose v2: `docker compose version` (Note: `docker compose`, not `docker-compose`)

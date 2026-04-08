@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.11-0EA5E9?style=for-the-badge" alt="Version 5.1.13" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.11-0EA5E9?style=for-the-badge" alt="Version 5.1.14" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,7 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
-## 🆕 Có gì mới trong v5.1.13
+## 🆕 Có gì mới trong v5.1.14
 
 - 💻 **OS-First Setup** — Bước đầu tiên bây giờ là chọn hệ điều hành của bạn (Windows, macOS, Ubuntu, VPS). Toàn bộ script, cấu hình và hướng dẫn được tạo ra phù hợp với lựa chọn đó.
 - 🧠 **Gemma 4 — 4 kích thước** — `gemma4:e2b` (~4 GB), `gemma4:e4b` (~8 GB), `gemma4:26b` (~18 GB), `gemma4:31b` (~24 GB). Tự pull về khi bot khởi động lần đầu.
@@ -102,7 +102,9 @@ npx create-openclaw-bot
 
 Chạy lệnh trên trong Terminal → làm theo các prompt tương tác → script khởi động được tạo tự động.
 
-> Yêu cầu: **Node.js 20 LTS** trở lên. Kiểm tra: `node -v`
+> Yêu cầu: **Node.js 20/22/24**. Kiểm tra: `node -v`
+>
+> Lưu ý: **tạm tránh Node.js 25**. Đã có báo cáo OpenClaw lỗi với Node 25.
 
 <details>
 <summary><b>3️⃣ Cách C — AI Agent (Antigravity)</b></summary>
@@ -127,7 +129,7 @@ Chạy lệnh trên trong Terminal → làm theo các prompt tương tác → sc
 
 | Yêu cầu                 | Ghi chú                                                             |
 | ----------------------- | ------------------------------------------------------------------- |
-| **Node.js 20 LTS**      | [Tải về](https://nodejs.org/) · Kiểm tra: `node -v`                 |
+| **Node.js 20/22/24**   | [Tải về](https://nodejs.org/) · Kiểm tra: `node -v` · Tạm tránh Node 25 |
 | **Một AI provider**     | 9Router (miễn phí) hoặc Gemini/Claude/GPT-4o                        |
 | **Bot Token**           | Từ Telegram BotFather hoặc Zalo Developer                           |
 | **Ollama** _(tuỳ chọn)_ | Chỉ cần nếu muốn chạy Gemma 4 local · [Tải về](https://ollama.com/) |
@@ -136,7 +138,7 @@ Chạy lệnh trên trong Terminal → làm theo các prompt tương tác → sc
 
 | Yêu cầu                         | Ghi chú                                                                                        |
 | ------------------------------- | ---------------------------------------------------------------------------------------------- |
-| **Node.js 20 LTS**              | [Tải về](https://nodejs.org/) · Kiểm tra: `node -v`                                            |
+| **Node.js 20/22/24**           | [Tải về](https://nodejs.org/) · Kiểm tra: `node -v` · Tạm tránh Node 25                         |
 | **Docker Desktop + Compose V2** | [Tải về](https://www.docker.com/products/docker-desktop/) · Kiểm tra: `docker compose version` |
 | **Một AI provider**             | 9Router chạy như sidecar container — không cần cài riêng                                       |
 | **Bot Token**                   | Từ Telegram BotFather hoặc Zalo Developer                                                      |

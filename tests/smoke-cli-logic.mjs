@@ -52,8 +52,8 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function installLatestOpenClaw\(\{ isVi, osChoice \}\) \{[\s\S]*installGlobalPackage\('openclaw@latest', \{ isVi, osChoice, displayName: 'openclaw' \}\)[\s\S]*process\.exit\(1\)/,
-  'CLI must provide a shared helper that always installs or upgrades openclaw@latest'
+  /function installLatestOpenClaw\(\{ isVi, osChoice \}\) \{[\s\S]*installGlobalPackage\(OPENCLAW_NPM_SPEC, \{ isVi, osChoice, displayName: 'openclaw' \}\)[\s\S]*process\.exit\(1\)/,
+  'CLI must provide a shared helper that always installs or upgrades the pinned openclaw version'
 ));
 
 checks.push(() => expectMatch(
@@ -70,7 +70,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /if \(!isOpenClawInstalled\(\)\) \{[\s\S]*installGlobalPackage\('openclaw@latest', \{ isVi, osChoice, displayName: 'openclaw' \}\)/,
+  /if \(!isOpenClawInstalled\(\)\) \{[\s\S]*installGlobalPackage\(OPENCLAW_NPM_SPEC, \{ isVi, osChoice, displayName: 'openclaw' \}\)/,
   'Native branch must auto-install openclaw'
 ));
 
@@ -218,6 +218,25 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
+  /const dockerDir = path\.join\(projectDir, 'docker', 'openclaw'\);\s*await fs\.ensureDir\(dockerDir\);\s*await fs\.writeFile\(path\.join\(dockerDir, 'Dockerfile'\), dockerfile\);[\s\S]*await fs\.ensureDir\(dockerDir\);\s*await fs\.writeFile\(path\.join\(dockerDir, 'docker-compose\.yml'\), compose\);/s,
+  'Docker CLI flow must ensure docker/openclaw exists immediately before writing Dockerfile and docker-compose.yml'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /RUN npm install -g \$\{OPENCLAW_NPM_SPEC\} grammy/,
+  'Docker CLI image must install grammy alongside openclaw so Telegram runtime dependencies resolve'
+));
+
+checks.push(() => expect(
+  cli.includes("a.add('http://' + entry.address + ':18791')")
+    && cli.includes('allowedOrigins:Array.from(a).filter(Boolean)')
+    && !cli.includes("a.add(`http://${entry.address}:18791`)"),
+  'Docker CLI patch script must avoid shell-expanding ${entry.address} and must filter null origins'
+));
+
+checks.push(() => expectMatch(
+  cli,
   /channelKey === 'zalo-personal'\) \{\s*botConfig\.channels\['zalouser'\] = \{\s*enabled: true,\s*dmPolicy: 'open',\s*autoReply: true/s,
   'CLI must configure Zalo Personal under channels.zalouser'
 ));
@@ -303,19 +322,32 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /if \(state\.nativeOs === 'win'\) \{[\s\S]*scriptName = isDocker \? 'setup-openclaw-docker-win\.bat' : 'setup-openclaw-win\.bat';[\s\S]*npm install -g openclaw@latest[\s\S]*openclaw gateway run/s,
+  /if \(state\.nativeOs === 'win'\) \{[\s\S]*scriptName = isDocker \? 'setup-openclaw-docker-win\.bat' : 'setup-openclaw-win\.bat';[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*openclaw gateway run/s,
   'Windows native/docker script generation must use the correct file name and start command'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'linux'\) \{[\s\S]*scriptName = isDocker \? 'setup-openclaw-docker-macos\.sh' : 'setup-openclaw-macos\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@latest[\s\S]*openclaw gateway run/s,
+  /else if \(state\.nativeOs === 'linux'\) \{[\s\S]*scriptName = isDocker \? 'setup-openclaw-docker-macos\.sh' : 'setup-openclaw-macos\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*openclaw gateway run/s,
   'macOS script generation must use the correct file name and start command'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@latest pm2@latest[\s\S]*pm2 save && pm2 startup/s,
+  /RUN npm install -g openclaw@2026\.4\.5 grammy/,
+  'Wizard Dockerfile generation must install grammy alongside openclaw so Telegram runtime dependencies resolve'
+));
+
+checks.push(() => expect(
+  setup.includes("a.add('http://' + entry.address + ':18791')")
+    && setup.includes('allowedOrigins:Array.from(a).filter(Boolean)')
+    && !setup.includes("a.add(\\`http://\\${entry.address}:18791\\`)"),
+  'Wizard Docker patch command must avoid shell-expanding ${entry.address} and must filter null origins'
+));
+
+checks.push(() => expectMatch(
+  setup,
+  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@2026\.4\.5 pm2@latest[\s\S]*pm2 save && pm2 startup/s,
   'VPS native script generation must install openclaw+pm2 and persist PM2 startup'
 ));
 
@@ -323,6 +355,12 @@ checks.push(() => expectMatch(
   setup,
   /function providerLines\(arr, shell\) \{[\s\S]*npm install -g 9router[\s\S]*start "9Router" cmd \/k "9router -n -l -H 0\.0\.0\.0 -p 20128 --skip-update"[\s\S]*nohup env PORT=20128 HOSTNAME=0\.0\.0\.0 node "\$\(npm root -g\)\/9router\/app\/server\.js"[\s\S]*9router-smart-route-sync\.js/s,
   'Native script generation must install and start a standalone 9Router dashboard on port 20128'
+));
+
+checks.push(() => expectMatch(
+  setup,
+  /} else if \(is9Router\) \{[\s\S]*container_name: openclaw-bot[\s\S]*depends_on:[\s\S]*- 9router[\s\S]*container_name: 9router[\s\S]*PORT=20128[\s\S]*HOSTNAME=0\.0\.0\.0[\s\S]*9router-data:/s,
+  'Wizard single-bot Docker compose must include the 9Router sidecar service and named volume when provider is 9Router'
 ));
 
 checks.push(() => expectMatch(
@@ -381,7 +419,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'linux-desktop'\) \{[\s\S]*scriptName = 'setup-openclaw-linux\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@latest[\s\S]*openclaw gateway run/s,
+  /else if \(state\.nativeOs === 'linux-desktop'\) \{[\s\S]*scriptName = 'setup-openclaw-linux\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*openclaw gateway run/s,
   'Linux Desktop native script generation must install openclaw and run the gateway'
 ));
 

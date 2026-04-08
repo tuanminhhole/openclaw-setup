@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.13-0EA5E9?style=for-the-badge" alt="Version 5.1.13" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.14-0EA5E9?style=for-the-badge" alt="Version 5.1.14" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,7 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ---
 
-## 🆕 What's new in v5.1.13
+## 🆕 What's new in v5.1.14
 
 - 💻 **OS-First Setup** — Step 1 is now choosing your OS (Windows, macOS, Ubuntu, VPS). All scripts, configs, and instructions are generated to match.
 - 🧠 **Gemma 4 — 4 sizes** — `gemma4:e2b` (~4 GB), `gemma4:e4b` (~8 GB), `gemma4:26b` (~18 GB), `gemma4:31b` (~24 GB). Auto-pulled on first launch.
@@ -102,7 +102,9 @@ npx create-openclaw-bot
 
 Run in your terminal → follow the interactive prompts → startup script is generated automatically.
 
-> Requires: **Node.js 20 LTS** or newer. Check: `node -v`
+> Requires: **Node.js 20/22/24**. Check: `node -v`
+>
+> Note: **avoid Node.js 25 for now**. There are reports of OpenClaw failing on Node 25.
 
 <details>
 <summary><b>3️⃣ Option C — AI Agent (Antigravity)</b></summary>
@@ -127,7 +129,7 @@ Run in your terminal → follow the interactive prompts → startup script is ge
 
 | Requirement             | Notes                                                                     |
 | ----------------------- | ------------------------------------------------------------------------- |
-| **Node.js 20 LTS**      | [Download](https://nodejs.org/) · Check: `node -v`                        |
+| **Node.js 20/22/24**   | [Download](https://nodejs.org/) · Check: `node -v` · Avoid Node 25 for now |
 | **An AI provider**      | 9Router (free) or Gemini/Claude/GPT-4o                                    |
 | **Bot Token**           | From Telegram BotFather or Zalo Developer                                 |
 | **Ollama** _(optional)_ | Only if you want to run Gemma 4 locally · [Download](https://ollama.com/) |
@@ -136,7 +138,7 @@ Run in your terminal → follow the interactive prompts → startup script is ge
 
 | Requirement                     | Notes                                                                                         |
 | ------------------------------- | --------------------------------------------------------------------------------------------- |
-| **Node.js 20 LTS**              | [Download](https://nodejs.org/) · Check: `node -v`                                            |
+| **Node.js 20/22/24**           | [Download](https://nodejs.org/) · Check: `node -v` · Avoid Node 25 for now                    |
 | **Docker Desktop + Compose V2** | [Download](https://www.docker.com/products/docker-desktop/) · Check: `docker compose version` |
 | **An AI provider**              | 9Router runs as a sidecar container — no separate install needed                              |
 | **Bot Token**                   | From Telegram BotFather or Zalo Developer                                                     |

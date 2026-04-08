@@ -7,6 +7,7 @@ import os from 'os';
 import chalk from 'chalk';
 import { spawn, execSync, execFileSync } from 'child_process';
 const TELEGRAM_RELAY_PLUGIN_ID = 'openclaw-telegram-multibot-relay';
+const OPENCLAW_NPM_SPEC = 'openclaw@2026.4.5';
 // Use plain npm package name — clawhub: protocol not supported in all OpenClaw versions
 const TELEGRAM_RELAY_PLUGIN_SPEC = TELEGRAM_RELAY_PLUGIN_ID;
 
@@ -346,10 +347,10 @@ function installLatestOpenClaw({ isVi, osChoice }) {
   }
 
   console.log(chalk.cyan(isVi
-    ? '\n📦 Dang cai/cap nhat openclaw@latest...'
-    : '\n📦 Installing/updating openclaw@latest...'));
+    ? `\n📦 Dang cai/cap nhat ${OPENCLAW_NPM_SPEC}...`
+    : `\n📦 Installing/updating ${OPENCLAW_NPM_SPEC}...`));
 
-  if (!installGlobalPackage('openclaw@latest', { isVi, osChoice, displayName: 'openclaw' })) {
+  if (!installGlobalPackage(OPENCLAW_NPM_SPEC, { isVi, osChoice, displayName: 'openclaw' })) {
     process.exit(1);
   }
 
@@ -1370,7 +1371,7 @@ async function main() {
   }
   
   
-  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add(\`http://\${entry.address}:18791\`);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
   const b64Patch = Buffer.from(patchScript).toString('base64');
 
   // Browser Playwright (both desktop & server modes need chromium)
@@ -1408,7 +1409,7 @@ async function main() {
   dockerfileLines.push(
     '',
     `ARG CACHEBUST=${Date.now()}`,
-    'RUN npm install -g openclaw@latest',
+    `RUN npm install -g ${OPENCLAW_NPM_SPEC} grammy`,
     '',
     '# Fix chat.send dropping resolved agent timeout into reply pipeline.',
     '# Without this, Telegram/WebChat paths fall back to an internal 300s default even when',
@@ -1423,7 +1424,9 @@ async function main() {
   );
   const dockerfile = dockerfileLines.join('\n');
 
-  await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', 'Dockerfile'), dockerfile);
+  const dockerDir = path.join(projectDir, 'docker', 'openclaw');
+  await fs.ensureDir(dockerDir);
+  await fs.writeFile(path.join(dockerDir, 'Dockerfile'), dockerfile);
 
   // agentId no longer tightly coupled here, handled inside bot processes
   const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
@@ -1658,7 +1661,8 @@ ${hasBrowserDesktop ? `    extra_hosts:
       - ../../.openclaw:/root/.openclaw`;
   }
   
-  await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'), compose);
+  await fs.ensureDir(dockerDir);
+  await fs.writeFile(path.join(dockerDir, 'docker-compose.yml'), compose);
 
   let authProfilesJson = {};
   if (provider.isLocal) {
@@ -2378,15 +2382,15 @@ fi
     const isOpenClawInstalled = () => { try { execSync('openclaw --version', { stdio: 'ignore' }); return true; } catch { return false; } };
     if (!isOpenClawInstalled()) {
       console.log(chalk.cyan(isVi
-        ? '\n📦 Đang cài openclaw binary (npm install -g openclaw)...'
-        : '\n📦 Installing openclaw binary (npm install -g openclaw)...'));
+        ? `\n📦 Đang cài openclaw binary (npm install -g ${OPENCLAW_NPM_SPEC})...`
+        : `\n📦 Installing openclaw binary (npm install -g ${OPENCLAW_NPM_SPEC})...`));
       try {
-        execSync('npm install -g openclaw', { stdio: 'inherit' });
+        execSync(`npm install -g ${OPENCLAW_NPM_SPEC}`, { stdio: 'inherit' });
         console.log(chalk.green(isVi ? '✅ openclaw đã cài xong!' : '✅ openclaw installed!'));
       } catch {
         console.log(chalk.yellow(isVi
-          ? '⚠️  Không tự cài được. Chạy thủ công: sudo npm install -g openclaw'
-          : '⚠️  Could not auto-install. Run manually: sudo npm install -g openclaw'));
+          ? `⚠️  Không tự cài được. Chạy thủ công: sudo npm install -g ${OPENCLAW_NPM_SPEC}`
+          : `⚠️  Could not auto-install. Run manually: sudo npm install -g ${OPENCLAW_NPM_SPEC}`));
       }
     }
 
@@ -2413,9 +2417,9 @@ fi
   } else {
     if (!isOpenClawInstalled()) {
       console.log(chalk.cyan(isVi
-        ? '\n📦 Dang cai openclaw binary (npm install -g openclaw)...'
-        : '\n📦 Installing openclaw binary (npm install -g openclaw)...'));
-      if (!installGlobalPackage('openclaw@latest', { isVi, osChoice, displayName: 'openclaw' })) {
+        ? `\n📦 Dang cai openclaw binary (npm install -g ${OPENCLAW_NPM_SPEC})...`
+        : `\n📦 Installing openclaw binary (npm install -g ${OPENCLAW_NPM_SPEC})...`));
+      if (!installGlobalPackage(OPENCLAW_NPM_SPEC, { isVi, osChoice, displayName: 'openclaw' })) {
         process.exit(1);
       }
       console.log(chalk.green(isVi ? '✅ openclaw da cai xong!' : '✅ openclaw installed!'));

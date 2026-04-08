@@ -804,8 +804,8 @@
       icon: '🐧',
       titleVi: 'Ubuntu / VPS — Khuyên dùng Native (Không Docker)',
       titleEn: 'Ubuntu / VPS — Recommended: Native (No Docker)',
-      descVi: 'Chạy thẳng trên máy, tiết kiệm RAM, khởi động nhanh. Script tự cài Node.js 20 LTS, OpenClaw CLI, PM2, 9Router/Ollama và giữ bot chạy liên tục sau reboot.',
-      descEn: 'Run directly on machine — lower RAM, faster startup. Script auto-installs Node.js 20 LTS, OpenClaw CLI, PM2, 9Router/Ollama and keeps bot running across reboots.',
+      descVi: 'Chạy thẳng trên máy, tiết kiệm RAM, khởi động nhanh. Script tự cài Node.js 20 LTS, OpenClaw CLI, PM2, 9Router/Ollama và giữ bot chạy liên tục sau reboot. Tạm tránh Node 25.',
+      descEn: 'Run directly on machine — lower RAM, faster startup. Script auto-installs Node.js 20 LTS, OpenClaw CLI, PM2, 9Router/Ollama and keeps bot running across reboots. Avoid Node 25 for now.',
       deploy: 'native',
       badgeVi: '💻 Native + PM2',
       badgeEn: '💻 Native + PM2',
@@ -815,8 +815,8 @@
       icon: '🖥️',
       titleVi: 'Linux Desktop — Khuyên dùng Native',
       titleEn: 'Linux Desktop — Recommended: Native',
-      descVi: 'Không cần Docker. Script tự cài Node.js 20 LTS nếu chưa có, cài OpenClaw CLI, rồi cài 9Router hoặc Ollama theo provider bạn chọn và khởi động bot ngay.',
-      descEn: 'No Docker needed. Script auto-installs Node.js 20 LTS if missing, installs OpenClaw CLI, then installs 9Router or Ollama based on your provider choice and starts the bot immediately.',
+      descVi: 'Không cần Docker. Script tự cài Node.js 20 LTS nếu chưa có, cài OpenClaw CLI, rồi cài 9Router hoặc Ollama theo provider bạn chọn và khởi động bot ngay. Tạm tránh Node 25.',
+      descEn: 'No Docker needed. Script auto-installs Node.js 20 LTS if missing, installs OpenClaw CLI, then installs 9Router or Ollama based on your provider choice and starts the bot immediately. Avoid Node 25 for now.',
       deploy: 'native',
       badgeVi: '💻 Native',
       badgeEn: '💻 Native',
@@ -1940,7 +1940,7 @@ model:
       ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & '
       : '';
     // Patch config on every startup to keep gateway settings stable
-    const patchCmd = `node -e \\"const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add(\\\`http://\\\${entry.address}:18791\\\`);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
+    const patchCmd = `node -e \\"const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
     // Auto-approve device pairing after gateway starts (required since v2026.3.x)
     const autoApproveCmd = '(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) & ';
     const finalCmd = `CMD sh -c "${pluginInstallCmd}${patchCmd}${browserPrefix}${autoApproveCmd}${gatewayCmd}"`;
@@ -1951,7 +1951,7 @@ RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /v
 
 
 ARG CACHEBUST=${Date.now()}
-RUN npm install -g openclaw@latest${skillLines}${browserInstallLines}
+RUN npm install -g openclaw@2026.4.5 grammy${skillLines}${browserInstallLines}
 RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const files=fs.readdirSync(dir).filter(n=>/\\.js$/.test(n));let patched=0;for(const file of files){const p=path.join(dir,file);let s='';try{s=fs.readFileSync(p,'utf8');}catch{continue;}if(s.includes(to)||!s.includes(from))continue;s=s.replace(from,to);fs.writeFileSync(p,s);patched++;}if(!patched){process.exit(0);}"
 WORKDIR /root/.openclaw
 
@@ -2979,14 +2979,14 @@ I am **${botName}**. When asked my name, I answer: _"I'm ${botName}"_.`;
       if (p) allPlugins.push(p.package);
     });
     if (isMultiBot && state.channel === 'telegram') allPlugins.push(relayPluginSpec);
-    const pluginCmd = allPlugins.length > 0 ? ('npm exec openclaw plugins install ' + allPlugins.join(' ')) : '';
+    const pluginCmd = allPlugins.length > 0 ? ('call npm exec -- openclaw plugins install ' + allPlugins.join(' ') + ' || goto :fail') : '';
 
     function native9RouterSyncScriptContent() {
       return `const fs=require('fs');
 const path=require('path');
 const INTERVAL=30000;
 const p=path.join(process.env.HOME||process.env.USERPROFILE||'.','.9router','db.json');
-const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],claude-code:['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
+const PM={'codex':['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],'github':['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],'cursor':['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],'kilo':['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],'cline':['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],'iflow':['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],'qwen':['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],'kiro':['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],'ollama':['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],'glm':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'minimax':['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],'kimi':['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],'deepseek':['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],'xai':['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],'mistral':['mistral/mistral-large-latest','mistral/codestral-latest'],'groq':['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],'cerebras':['cerebras/gpt-oss-120b'],'alicode':['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],'openai':['openai/gpt-4o','openai/gpt-4.1'],'anthropic':['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],'gemini':['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
 const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catch{}if(!db.combos)db.combos=[];const removeSmartRoute=()=>{const next=db.combos.filter(x=>x.id!=='smart-route');if(next.length!==db.combos.length){db.combos=next;fs.writeFileSync(p,JSON.stringify(db,null,2));}};const a=(db.providerConnections||[]).filter(c=>c&&c.provider&&c.isActive!==false&&!c.disabled).map(c=>c.provider);if(!a.length){removeSmartRoute();return;}const PREF=['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];a.sort((x,y)=>(PREF.indexOf(x)===-1?99:PREF.indexOf(x))-(PREF.indexOf(y)===-1?99:PREF.indexOf(y)));const m=a.flatMap(provider=>PM[provider]||[]);if(!m.length){removeSmartRoute();return;}const c={id:'smart-route',name:'smart-route',alias:'smart-route',models:m};const i=db.combos.findIndex(x=>x.id==='smart-route');if(i>=0){if(JSON.stringify(db.combos[i].models)!==JSON.stringify(c.models)){db.combos[i]=c;fs.writeFileSync(p,JSON.stringify(db,null,2));}}else{db.combos.push(c);fs.writeFileSync(p,JSON.stringify(db,null,2));}}catch{}};sync();setInterval(sync,INTERVAL);`;
     }
 
@@ -2994,9 +2994,8 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
     function providerLines(arr, shell) {
       if (is9Router) {
         if (shell === 'bat') {
-          arr.push('npm install -g 9router');
+          arr.push('call npm install -g 9router || goto :fail');
           arr.push('start "9Router" cmd /k "9router -n -l -H 0.0.0.0 -p 20128 --skip-update"');
-          arr.push('start "9Router Smart Route Sync" cmd /k "node .\\.openclaw\\9router-smart-route-sync.js"');
           arr.push('timeout /t 5 /nobreak >nul');
         } else {
           arr.push('npm install -g 9router');
@@ -3589,13 +3588,14 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       scriptName = isDocker ? 'setup-openclaw-docker-win.bat' : 'setup-openclaw-win.bat';
       const lines = [
         '@echo off',
+        'setlocal EnableExtensions',
         'chcp 65001 >nul',
         `echo === OpenClaw Setup — Windows${isDocker ? ' Docker' : ' Native'} ===`,
         'echo.',
         'echo [1/5] Kiem tra Node.js...',
         'where node >nul 2>&1 || (echo ERROR: Node.js chua cai! Tai tai: https://nodejs.org && pause && exit /b 1)',
         'echo [2/5] Cai OpenClaw CLI...',
-        'npm install -g openclaw@latest',
+        'call npm install -g openclaw@2026.4.5 || goto :fail',
       ];
       providerLines(lines, 'bat');
       if (pluginCmd) { lines.push('echo Cai plugins...'); lines.push(pluginCmd); }
@@ -3603,16 +3603,26 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       if (isMultiBot) {
         lines.push('echo [4/5] Tao runtime multi-agent dung chung...');
         appendBatWriteCommands(lines, sharedNativeFileMap());
+        if (is9Router) lines.push('start "9Router Smart Route Sync" cmd /k "node .\\.openclaw\\9router-smart-route-sync.js"');
         lines.push('echo [5/5] Khoi dong gateway multi-bot...');
-        lines.push('openclaw gateway run');
+        lines.push('call openclaw gateway run');
       } else {
         lines.push('echo [4/5] Tao file cau hinh...');
         appendBatWriteCommands(lines, botFiles(0));
+        if (is9Router) lines.push('start "9Router Smart Route Sync" cmd /k "node .\\.openclaw\\9router-smart-route-sync.js"');
         lines.push('echo [5/5] Khoi dong bot...');
-        lines.push('openclaw gateway run');
+        lines.push('call openclaw gateway run');
       }
 
+      lines.push('goto :end');
+      lines.push(':fail');
+      lines.push('echo.');
+      lines.push('echo Cai dat that bai. Kiem tra dong loi ngay phia tren.');
       lines.push('pause');
+      lines.push('exit /b 1');
+      lines.push(':end');
+      lines.push('pause');
+      lines.push('endlocal');
       scriptContent = lines.filter(Boolean).join('\r\n');
 
     // ─── macOS .SH ───────────────────────────────────────────────────────────
@@ -3653,7 +3663,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
           'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.zshrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.zshrc"',
           'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
           '# Install openclaw (user-local first, sudo fallback)',
-          'npm install -g openclaw@latest || sudo npm install -g openclaw@latest',
+          'npm install -g openclaw@2026.4.5 || sudo npm install -g openclaw@2026.4.5',
         ];
         providerLines(sh, 'sh');
         if (pluginCmd) sh.push(pluginCmd);
@@ -3685,7 +3695,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         'export PATH="$HOME/.local/bin:$PATH"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-        'npm install -g openclaw@latest pm2@latest',
+        'npm install -g openclaw@2026.4.5 pm2@latest',
       ];
       providerLines(vps, 'sh');
       if (pluginCmd) vps.push(pluginCmd);
@@ -3732,7 +3742,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         'export PATH="$HOME/.local/bin:$PATH"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-        'npm install -g openclaw@latest',
+        'npm install -g openclaw@2026.4.5',
       ];
       providerLines(lnx, 'sh');
       if (pluginCmd) lnx.push(pluginCmd);
@@ -3766,7 +3776,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
     if (stepsList) {
       const steps = [];
       steps.push(isVi ? '✅ Kiểm tra Node.js (cài tự động trên Ubuntu/VPS nếu chưa có)' : '✅ Check Node.js (auto-install on Ubuntu/VPS if missing)');
-      steps.push(isVi ? '📦 Cài OpenClaw CLI (<code>npm install -g openclaw@latest</code>)' : '📦 Install OpenClaw CLI (<code>npm install -g openclaw@latest</code>)');
+      steps.push(isVi ? '📦 Cài OpenClaw CLI (<code>npm install -g openclaw@2026.4.5</code>)' : '📦 Install OpenClaw CLI (<code>npm install -g openclaw@2026.4.5</code>)');
       if (is9Router) {
         steps.push(isVi ? '🔀 Cài 9Router (<code>npm install -g 9router</code>) và khởi động tự động' : '🔀 Install 9Router (<code>npm install -g 9router</code>) and start automatically');
       } else if (isOllama) {
