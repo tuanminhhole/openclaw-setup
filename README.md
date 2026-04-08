@@ -26,14 +26,9 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ## 🆕 What's new in v5.1.14
 
-- 💻 **OS-First Setup** — Step 1 is now choosing your OS (Windows, macOS, Ubuntu, VPS). All scripts, configs, and instructions are generated to match.
-- 🧠 **Gemma 4 — 4 sizes** — `gemma4:e2b` (~4 GB), `gemma4:e4b` (~8 GB), `gemma4:26b` (~18 GB), `gemma4:31b` (~24 GB). Auto-pulled on first launch.
-- 📄 **Consistent script naming** — Scripts are generated per OS: `setup-openclaw-docker-win.bat`, `setup-openclaw-docker-macos.sh`, `setup-openclaw-vps.sh`... No more environment confusion.
-- 🌐 **Native Install for Ubuntu/VPS** — No Docker needed. Both CLI and Web Wizard support running directly with PM2 — less RAM overhead, stable 24/7.
-- 🤖 **Multi-Bot Deployment** — Deploy up to **5 independent Telegram bots** in one setup. Each bot runs in its own isolated workspace (`bot1/`, `bot2/`...) with its own token, name, slash command, and AI personality.
-- 💬 **Department Room Model** — Add all bots to one Telegram group and they behave like a professional team. Bots stay silent by default, only responding when @mentioned or their slash command is used — no spam, no chaos.
-- 🔗 **Group ID Helper** — "Get Group ID" button in Web Wizard + step-by-step guide in CLI. Opens @userinfobot directly — no documentation hunting needed.
-- 🔐 **Zalo Personal QR Login** — Zalo Personal now uses direct QR login flow for both native and Docker. Setup prints exact QR path + copy/login commands — no need to go through `openclaw onboard`.
+- 🔒 **Pinned OpenClaw version** — The OpenClaw update published on `April 8, 2026` is currently broken, so setup now stays on `openclaw@2026.4.5` for stability.
+- 🐳 **Dockerfile fixes** — Fixed the Windows Docker flow so startup no longer breaks on bad command escaping or invalid generated `allowedOrigins`.
+- 🟢 **Stable Node.js note** — Added guidance to use `Node.js 20` through `24`, and to avoid `Node.js 25` for now due to reported OpenClaw issues.
 
 <details>
 <summary><b>Previous: What's new in v5.0.0</b></summary>
@@ -114,7 +109,7 @@ Run in your terminal → follow the interactive prompts → startup script is ge
 2. Open this repo as your workspace
 3. Paste into chat:
    ```
-   Read SETUP.md and set up OpenClaw v5.1.11 for me.
+Read SETUP.md and set up OpenClaw v5.1.14 for me.
    My bot token is X. Use 9Router (no API key).
    My project folder: <YOUR_PATH>
    ```

@@ -3,9 +3,11 @@
 
 ## [5.1.14] — 2026-04-08
 
-### 🌟 Đổi Chính Sách Bảo Mật Zalo Personal
+### Sửa lỗi ổn định OpenClaw và Docker
 
-- **Thả Ga Inbox Zalo Cầm Tay**: Lược bỏ rào cản duyệt bảo mật của Zalo Personal. Thông số `dmPolicy` trên cài đặt Zalo cá nhân đã được chuyển mặc định từ `pairing` sang `open`. Bây giờ bất cứ ai trên mạng lưới Zalo nhắn tin vào tài khoản của Bot đều sẽ được AI tự động tiếp đón ngay lập tức thay vì bị chặn lại chờ bạn duyệt lệnh kết nối E2E!
+- Pin lại OpenClaw về `openclaw@2026.4.5` vì bản cập nhật ngày `08/04/2026` đang lỗi.
+- Sửa Dockerfile cho các case Docker trên Windows để tránh lỗi startup do escape command sai và lỗi `allowedOrigins`.
+- Thêm ghi chú khuyên dùng `Node.js 20` đến `24`, tạm tránh `Node.js 25` để ổn định hơn với OpenClaw.
 
 ## [5.1.13] — 2026-04-08
 
@@ -402,3 +404,4 @@ Tất cả những thay đổi nổi bật của dự án sẽ được ghi ché
 - Telegram-only configuration
 - Google Gemini single provider support
 - Manual config file instructions
+

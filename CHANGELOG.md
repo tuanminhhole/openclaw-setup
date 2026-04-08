@@ -3,9 +3,11 @@
 
 ## [5.1.14] — 2026-04-08
 
-### 🌟 Zalo Personal DM Policy
+### OpenClaw stability and Docker fixes
 
-- **Open Zalo Inboxes**: The default `dmPolicy` for Zalo Personal deployments has been changed from `pairing` to `open`. This allows any user on the Zalo network to interact with the AI assistant immediately without requiring explicit device pairing approvals natively.
+- Pinned OpenClaw back to `openclaw@2026.4.5` because the update published on `April 8, 2026` is currently broken.
+- Fixed Dockerfile generation for Windows Docker setups to avoid startup failures caused by bad command escaping and invalid `allowedOrigins`.
+- Added guidance to use `Node.js 20` through `24`, and to avoid `Node.js 25` for now for better OpenClaw stability.
 
 ## [5.1.13] — 2026-04-08
 
@@ -410,3 +412,4 @@ All notable changes to this project will be documented in this file.
 - Configured Telegram-only support.
 - Configured Google Gemini single provider support.
 - Included manual configuration file setup instructions.
+
