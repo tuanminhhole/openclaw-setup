@@ -1,4 +1,16 @@
-﻿# Changelog (Tiáº¿ng Viá»‡t)
+# Changelog (Tiếng Việt)
+
+
+## [5.2.0] — 2026-04-09
+
+### Upgrade 1 Lệnh (Không Cần Chạy Lại Wizard)
+
+- Thêm subcommand `upgrade` vào CLI: `npx create-openclaw-bot@latest upgrade`. Tự nhận diện Docker hay Native/PM2 và cập nhật OpenClaw mà không cần chạy lại wizard.
+- Thêm `upgrade.ps1` cho Windows — nhấp đúp trong thư mục bot là tự động upgrade. Không cần biết terminal.
+- Thêm `upgrade.sh` cho Linux / macOS / Ubuntu — `bash upgrade.sh` hoặc pipe trực tiếp qua `curl`/`wget` từ GitHub.
+- Toàn bộ dữ liệu người dùng giữ nguyên: `.env`, `.openclaw/memory/`, sessions, credentials, OAuth token 9Router không bao giờ bị xoá.
+- Docker mode: vá `Dockerfile` (cập nhật `OPENCLAW_NPM_SPEC` + `CACHEBUST`) → `docker compose build --no-cache` + `docker compose up -d`.
+- Native/PM2 mode: cài lại `openclaw` + `9router` global → `pm2 restart all`.
 
 
 ## [5.1.15] â€” 2026-04-08

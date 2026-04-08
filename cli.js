@@ -9,6 +9,7 @@ import { spawn, execSync, execFileSync } from 'child_process';
 const TELEGRAM_RELAY_PLUGIN_RUNTIME_ID = 'telegram-multibot-relay';
 const TELEGRAM_RELAY_PLUGIN_PACKAGE = 'openclaw-telegram-multibot-relay';
 const OPENCLAW_NPM_SPEC = 'openclaw@2026.4.5';
+const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
 // Use plain npm package name — clawhub: protocol not supported in all OpenClaw versions
 const TELEGRAM_RELAY_PLUGIN_SPEC = TELEGRAM_RELAY_PLUGIN_PACKAGE;
 
@@ -1027,13 +1028,13 @@ const CHANNELS = {
 };
 
 const PROVIDERS = {
-  '9router': { name: '9Router Proxy (Khuyên dùng)', icon: '🔀', isProxy: true },
-  'openai': { name: 'OpenAI (ChatGPT)', icon: '🧠', envKey: 'OPENAI_API_KEY' },
-  'ollama': { name: 'Local Ollama', icon: '🏠', isLocal: true },
-  'google': { name: 'Google (Gemini)', icon: '⚡', envKey: 'GEMINI_API_KEY' },
-  'anthropic': { name: 'Anthropic (Claude)', icon: '🦄', envKey: 'ANTHROPIC_API_KEY' },
-  'xai': { name: 'xAI (Grok)', icon: '✖️', envKey: 'XAI_API_KEY' },
-  'groq': { name: 'Groq (LPU)', icon: '🏎️', envKey: 'GROQ_API_KEY' }
+  '9router': { name: '9Router Proxy (Khuyên dùng)', icon: '🔀', isProxy: true, supportsEmbeddings: false },
+  'openai': { name: 'OpenAI (ChatGPT)', icon: '🧠', envKey: 'OPENAI_API_KEY', supportsEmbeddings: true },
+  'ollama': { name: 'Local Ollama', icon: '🏠', isLocal: true, supportsEmbeddings: true },
+  'google': { name: 'Google (Gemini)', icon: '⚡', envKey: 'GEMINI_API_KEY', supportsEmbeddings: true },
+  'anthropic': { name: 'Anthropic (Claude)', icon: '🦄', envKey: 'ANTHROPIC_API_KEY', supportsEmbeddings: false },
+  'xai': { name: 'xAI (Grok)', icon: '✖️', envKey: 'XAI_API_KEY', supportsEmbeddings: false },
+  'groq': { name: 'Groq (LPU)', icon: '🏎️', envKey: 'GROQ_API_KEY', supportsEmbeddings: false }
 };
 
 const SKILLS = [
@@ -1048,8 +1049,122 @@ const SKILLS = [
   { value: 'tts', name: '🔊 Text-To-Speech (OpenAI/ElevenLabs)', checked: false, slug: 'tts' },
 ];
 
+function providerSupportsMemoryEmbeddings(providerKey) {
+  return !!PROVIDERS[providerKey]?.supportsEmbeddings;
+}
+
+function getCliSkillChoices({ providerKey, isVi }) {
+  return SKILLS.map((skill) => {
+    if (skill.value !== 'memory') return { ...skill };
+    const recommended = providerSupportsMemoryEmbeddings(providerKey);
+    return {
+      ...skill,
+      name: recommended
+        ? (isVi ? '🧠 Long-term Memory (⭐ Khuyên dùng)' : '🧠 Long-term Memory (⭐ Recommended)')
+        : '🧠 Long-term Memory'
+    };
+  });
+}
+
+
+
+// ─── Upgrade Mode ──────────────────────────────────────────────────────────
+// Usage: npx create-openclaw-bot@latest upgrade
+// Auto-detects Docker vs Native, updates OpenClaw, rebuilds/restarts.
+// Does NOT touch .env, memory, sessions, credentials.
+async function runUpgrade() {
+  console.log(chalk.red('\n=================================='));
+  console.log(chalk.redBright(LOGO));
+  console.log(chalk.cyan('     🔄 OpenClaw Upgrade Mode     '));
+  console.log(chalk.red('==================================\n'));
+
+  const projectDir        = process.cwd();
+  const dockerComposePath = path.join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
+  const dockerfilePath    = path.join(projectDir, 'docker', 'openclaw', 'Dockerfile');
+  const dockerDir         = path.join(projectDir, 'docker', 'openclaw');
+  const nativeOpenClawDir = path.join(projectDir, '.openclaw');
+  const dotEnvPath        = path.join(projectDir, '.env');
+
+  const isDockerSetup = fs.existsSync(dockerComposePath);
+  const isNativeSetup = fs.existsSync(nativeOpenClawDir) &&
+    (fs.existsSync(dotEnvPath) || fs.existsSync(path.join(nativeOpenClawDir, 'openclaw.json')));
+
+  if (!isDockerSetup && !isNativeSetup) {
+    console.log(chalk.red('\n❌ Khong tim thay project OpenClaw trong thu muc hien tai.'));
+    console.log(chalk.gray('   Da kiem tra: ' + projectDir));
+    console.log(chalk.yellow('\n💡 Di chuyen vao thu muc bot roi chay lai:'));
+    console.log(chalk.white('   npx create-openclaw-bot@latest upgrade'));
+    console.log(chalk.gray('\n   Windows: double-click upgrade.ps1'));
+    console.log(chalk.gray('   Linux/Mac: bash upgrade.sh'));
+    process.exit(1);
+  }
+
+  const mode = isDockerSetup ? 'docker' : 'native';
+  const modeLabel = mode === 'docker' ? '🐳 Docker' : '⚡ Native / PM2';
+  console.log(chalk.green('\n✅ Phat hien: ' + modeLabel));
+  console.log(chalk.gray('   Project: ' + projectDir));
+  console.log(chalk.cyan('\n📦 Cap nhat len ' + OPENCLAW_NPM_SPEC + '...\n'));
+
+  if (mode === 'docker') {
+    // Patch Dockerfile: update pinned openclaw version + force CACHEBUST
+    if (fs.existsSync(dockerfilePath)) {
+      let fc = fs.readFileSync(dockerfilePath, 'utf8');
+      const patched = fc
+        .replace(/npm install -g openclaw@\S+/g, 'npm install -g ' + OPENCLAW_NPM_SPEC)
+        .replace(/ARG CACHEBUST=\d+/g, 'ARG CACHEBUST=' + Date.now());
+      if (patched !== fc) {
+        fs.writeFileSync(dockerfilePath, patched);
+        console.log(chalk.green('  ✅ Dockerfile updated → ' + OPENCLAW_NPM_SPEC));
+      } else {
+        const refreshed = fc.replace(/ARG CACHEBUST=\d+/g, 'ARG CACHEBUST=' + Date.now());
+        if (refreshed !== fc) fs.writeFileSync(dockerfilePath, refreshed);
+        console.log(chalk.gray('  ℹ️  Dockerfile da o ' + OPENCLAW_NPM_SPEC + ', refresh CACHEBUST'));
+      }
+    }
+    console.log(chalk.cyan('\n🐳 Dang rebuild container...'));
+    try {
+      execSync('docker compose build --no-cache', { cwd: dockerDir, stdio: 'inherit', shell: true });
+      execSync('docker compose up -d', { cwd: dockerDir, stdio: 'inherit', shell: true });
+      console.log(chalk.green('\n✅ Upgrade hoan tat! Bot dang chay voi phien ban moi.'));
+    } catch {
+      console.log(chalk.red('\n❌ Loi Docker. Chay thu cong:'));
+      console.log(chalk.white('   cd "' + dockerDir + '"'));
+      console.log(chalk.white('   docker compose build --no-cache && docker compose up -d'));
+      process.exit(1);
+    }
+  }
+
+  if (mode === 'native') {
+    const osChoice = process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'vps';
+    const installed = installGlobalPackage(OPENCLAW_NPM_SPEC, { isVi: true, osChoice, displayName: 'openclaw' });
+    if (installed) console.log(chalk.green('  ✅ openclaw → ' + OPENCLAW_NPM_SPEC));
+    try {
+      execSync('npm install -g 9router', { stdio: 'ignore', shell: true, env: process.env });
+      console.log(chalk.green('  ✅ 9router → latest'));
+    } catch { console.log(chalk.gray('  ℹ️  9router update skipped')); }
+    console.log(chalk.cyan('\n♻️  Restarting PM2...'));
+    try {
+      execSync('pm2 restart all', { stdio: 'inherit', shell: true });
+      console.log(chalk.green('\n✅ Upgrade hoan tat! PM2 da duoc restart.'));
+    } catch {
+      console.log(chalk.yellow('\n⚠️  Khong the tu restart PM2. Chay thu cong: pm2 restart all'));
+    }
+  }
+
+  const gatewayUrls = getReachableDashboardHosts(18791);
+  console.log(chalk.yellow('\n🧭 Dashboard: ' + (gatewayUrls[0] || 'http://localhost:18791')));
+  if (gatewayUrls.length > 1) console.log(chalk.gray('   Hoac: ' + gatewayUrls.slice(1).join(' , ')));
+  console.log(chalk.gray('\n   💡 Data cu (memory, sessions, 9Router OAuth) duoc giu nguyen.'));
+  console.log(chalk.gray('   💡 De thay doi config bot, mo lai index.html hoac chay npx create-openclaw-bot\n'));
+}
 
 async function main() {
+  // Upgrade subcommand: npx create-openclaw-bot@latest upgrade
+  if (process.argv[2] === 'upgrade' || process.argv.includes('--upgrade')) {
+    await runUpgrade();
+    return;
+  }
+
   console.log(chalk.red('\n=================================='));
   console.log(chalk.redBright(LOGO));
   console.log(chalk.greenBright('     OpenClaw Auto Setup CLI     '));
@@ -1303,7 +1418,7 @@ async function main() {
   // 4. Skills
   const selectedSkills = await checkbox({
     message: isVi ? 'Bật tính năng bổ sung (Space để chọn):' : 'Enable extra skills (Space to select):',
-    choices: SKILLS
+    choices: getCliSkillChoices({ providerKey, isVi })
   });
 
   let tavilyKey = '';
@@ -1434,7 +1549,7 @@ async function main() {
   }
   
   
-  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'loopback',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});delete c.gateway.customBindHost;fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
   const b64Patch = Buffer.from(patchScript).toString('base64');
 
   // Browser Playwright (both desktop & server modes need chromium)
@@ -1447,8 +1562,9 @@ async function main() {
       ].join('\n')
     : '';
   // socat only for Desktop mode (bridge to host Chrome)
-  const socatApt = hasBrowserDesktop ? ' socat' : '';
+  const socatApt = ' socat';
   const socatBridge = hasBrowserDesktop ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & ' : '';
+  const gatewayBridge = 'socat TCP-LISTEN:18791,fork,reuseaddr TCP:127.0.0.1:18791 & ';
 
   // Skills install at RUNTIME (not build-time — requires openclaw config + ClawHub auth)
   const skillSlugs = SKILLS
@@ -1472,7 +1588,7 @@ async function main() {
   dockerfileLines.push(
     '',
     `ARG CACHEBUST=${Date.now()}`,
-    `RUN npm install -g ${OPENCLAW_NPM_SPEC} grammy`,
+    `RUN npm install -g ${OPENCLAW_NPM_SPEC} ${OPENCLAW_RUNTIME_PACKAGES}`,
     '',
     '# Fix chat.send dropping resolved agent timeout into reply pipeline.',
     '# Without this, Telegram/WebChat paths fall back to an internal 300s default even when',
@@ -1483,7 +1599,7 @@ async function main() {
     '',
     'EXPOSE 18791',
     '',
-    `CMD sh -c "node -e \\"eval(Buffer.from('${b64Patch}','base64').toString())\\" && ${skillInstallCmd}${relayInstallCmd}${socatBridge}(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) & openclaw gateway run"`
+    `CMD sh -c "node -e \\"eval(Buffer.from('${b64Patch}','base64').toString())\\" && ${skillInstallCmd}${relayInstallCmd}${socatBridge}${gatewayBridge}(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) & openclaw gateway run"`
   );
   const dockerfile = dockerfileLines.join('\n');
 
@@ -1899,8 +2015,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
       gateway: {
         port: 18791,
         mode: 'local',
-        bind: 'custom',
-        customBindHost: '0.0.0.0',
+        bind: 'loopback',
         controlUi: {
           allowedOrigins: getGatewayAllowedOrigins(18791),
         },
@@ -1912,6 +2027,9 @@ ${hasBrowserDesktop ? `    extra_hosts:
         [TELEGRAM_RELAY_PLUGIN_RUNTIME_ID]: { enabled: true },
       },
     };
+    if (!selectedSkills.includes('memory')) {
+      sharedConfig.plugins.slots = { ...(sharedConfig.plugins.slots || {}), memory: 'none' };
+    }
 
     if (hasBrowserDesktop) {
       sharedConfig.browser = {
@@ -2143,11 +2261,14 @@ ${hasBrowserDesktop ? `    extra_hosts:
       channels: {},
       tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
       gateway: {
-        port: 18791 + (isMultiBot ? bIndex : 0), mode: 'local', bind: 'custom', customBindHost: '0.0.0.0',
+        port: 18791 + (isMultiBot ? bIndex : 0), mode: 'local', bind: 'loopback',
         controlUi: { allowedOrigins: getGatewayAllowedOrigins(18791 + (isMultiBot ? bIndex : 0)) },
         auth: { mode: 'token', token: 'cli-dummy-token-xyz123' }
       }
     };
+    if (!selectedSkills.includes('memory')) {
+      botConfig.plugins = { ...(botConfig.plugins || {}), slots: { ...((botConfig.plugins && botConfig.plugins.slots) || {}), memory: 'none' } };
+    }
 
     if (hasBrowserDesktop) {
       botConfig.browser = {

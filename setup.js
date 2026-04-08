@@ -69,6 +69,7 @@
     google: {
       name: 'Google Gemini',
       logo: LOGO.gemini,
+      supportsEmbeddings: true,
       envKey: 'GOOGLE_API_KEY',
       envLabel: 'Google AI API Key',
       envLink: 'https://aistudio.google.com/apikey',
@@ -83,6 +84,7 @@
     anthropic: {
       name: 'Anthropic Claude',
       logo: LOGO.anthropic,
+      supportsEmbeddings: false,
       envKey: 'ANTHROPIC_API_KEY',
       envLabel: 'Anthropic API Key',
       envLink: 'https://console.anthropic.com/settings/keys',
@@ -97,6 +99,7 @@
     openai: {
       name: 'OpenAI / Codex',
       logo: LOGO.openai,
+      supportsEmbeddings: true,
       envKey: 'OPENAI_API_KEY',
       envLabel: 'OpenAI API Key',
       envLink: 'https://platform.openai.com/api-keys',
@@ -112,6 +115,7 @@
     openrouter: {
       name: 'OpenRouter',
       logo: LOGO.openrouter,
+      supportsEmbeddings: false,
       envKey: 'OPENROUTER_API_KEY',
       envLabel: 'OpenRouter API Key',
       envLink: 'https://openrouter.ai/keys',
@@ -126,6 +130,7 @@
     ollama: {
       name: 'Ollama (Local)',
       logo: LOGO.ollama,
+      supportsEmbeddings: true,
       envKey: 'OLLAMA_HOST',
       envLabel: 'Ollama Host URL',
       envLink: 'https://ollama.com',
@@ -147,6 +152,7 @@
       name: '9Router (Proxy)',
       logo: null,
       logoEmoji: '🔀',
+      supportsEmbeddings: false,
       envKey: null,
       envLabel: null,
       envLink: 'https://github.com/decolua/9router',
@@ -281,6 +287,72 @@
       envVars: ['SLACK_BOT_TOKEN=<your_slack_bot_token>'],
     },
   ];
+
+  function providerSupportsMemoryEmbeddings(providerKey) {
+    const provider = PROVIDERS[providerKey];
+    if (!provider) return false;
+    return !!provider.supportsEmbeddings;
+  }
+
+  function getSkillDisplayName(skill, providerKey, lang) {
+    const normalizedName = String(skill.name || '')
+      .replace(/\s*[⭐🌟]\s*\((Khuyên dùng|Recommended)\)\s*/gi, '')
+      .replace(/\s*[⭐🌟]\s*(Khuyên dùng|Recommended)\s*/gi, '')
+      .trim();
+    if (skill.id === 'memory') {
+      return 'Long-term Memory';
+    }
+    return normalizedName;
+  }
+
+  function getSkillBadge(skill, providerKey, lang) {
+    const isVi = lang !== 'en';
+    if (skill.id === 'memory' && providerSupportsMemoryEmbeddings(providerKey)) {
+      return {
+        text: isVi ? 'Khuyên dùng' : 'Recommended',
+        className: 'plugin-card__badge plugin-card__badge--recommended'
+      };
+    }
+    if (skill.id === 'browser' || skill.id === 'scheduler') {
+      return {
+        text: isVi ? 'Khuyên dùng' : 'Recommended',
+        className: 'plugin-card__badge plugin-card__badge--recommended'
+      };
+    }
+    return null;
+  }
+
+  function getSkillExtraNote(skill, providerKey, lang) {
+    const isVi = lang !== 'en';
+    const baseNote = isVi ? (skill.noteVi || skill.note || '') : (skill.noteEn || skill.note || '');
+    if (skill.id !== 'memory' || providerSupportsMemoryEmbeddings(providerKey)) {
+      return baseNote;
+    }
+    const providerName = PROVIDERS[providerKey]?.name || providerKey;
+    const memoryNote = isVi
+      ? `Provider hiện tại (${providerName}) chưa có đường embeddings được xác nhận trong wizard, nên memory search sẽ không được gắn khuyên dùng.`
+      : `The current provider (${providerName}) does not have a confirmed embeddings path in the wizard, so memory search is not marked recommended.`;
+    return baseNote ? `${baseNote} ${memoryNote}` : memoryNote;
+  }
+
+  function escapeHtml(text) {
+    return String(text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function getSkillTooltipContent(skill, providerKey, lang) {
+    const desc = lang === 'vi' ? (skill.descVi || skill.desc || '') : (skill.descEn || skill.desc || '');
+    const note = getSkillExtraNote(skill, providerKey, lang);
+    return [desc, note].filter(Boolean).join('\n\n');
+  }
+
+  function getPluginTooltipContent(plugin, lang) {
+    return lang === 'vi' ? (plugin.descVi || plugin.desc || '') : (plugin.descEn || plugin.desc || '');
+  }
 
   // ========== Channel definitions ==========
   const CHANNELS = {
@@ -1069,6 +1141,8 @@
         `<option value="${m.id}">${m.name} — ${(() => { const l=document.getElementById('cfg-language')?.value||'vi'; return l==='vi'?(m.descVi||m.desc):(m.descEn||m.desc); })()} ${(() => { const l=document.getElementById('cfg-language')?.value||'vi'; return l==='vi'?(m.badgeVi||m.badge):(m.badgeEn||m.badge); })()}</option>`
       ).join('');
     }
+
+    renderPluginGrid();
   };
 
   function renderPluginGrid() {
@@ -1078,15 +1152,36 @@
     const skillGrid = document.getElementById('plugin-grid');
     if (skillGrid) {
       skillGrid.innerHTML = SKILLS.map((s) => `
-        <label class="plugin-card" data-skill="${s.id}">
-          <input type="checkbox" class="plugin-checkbox" value="${s.id}" onchange="window.__toggleSkill('${s.id}', this.checked)">
-          <div class="plugin-card__icon">${s.icon}</div>
+        <label class="plugin-card ${state.config.skills.includes(s.id) ? 'plugin-card--selected' : ''}" data-skill="${s.id}">
+          <input type="checkbox" class="plugin-checkbox" value="${s.id}" ${state.config.skills.includes(s.id) ? 'checked' : ''} onchange="window.__toggleSkill('${s.id}', this.checked)">
           <div class="plugin-card__info">
-            <div class="plugin-card__name">${s.name}</div>
-            <div class="plugin-card__desc">${lang === 'vi' ? (s.descVi || s.desc) : (s.descEn || s.desc)}</div>
-            ${(s.noteVi || s.note) ? `<div class="plugin-card__note">⚙️ ${lang === 'vi' ? (s.noteVi || s.note) : (s.noteEn || s.note)}</div>` : ''}
+            <div class="plugin-card__topline">
+              <div class="plugin-card__titleline">
+                <div class="plugin-card__icon">${s.icon}</div>
+                <div class="plugin-card__name">${getSkillDisplayName(s, state.config.provider, lang)}</div>
+              </div>
+              <span class="toggle-switch plugin-card__switch">
+                <input type="checkbox" tabindex="-1" aria-hidden="true" ${state.config.skills.includes(s.id) ? 'checked' : ''}>
+                <span class="toggle-slider"></span>
+              </span>
+            </div>
+            <div class="plugin-card__subline">
+              <div class="plugin-card__hint-slot">
+                ${(() => {
+                  const tooltip = getSkillTooltipContent(s, state.config.provider, lang);
+                  return tooltip
+                    ? `<span class="plugin-card__hint" tabindex="0" role="note" aria-label="${escapeHtml(tooltip)}">ⓘ<span class="plugin-card__tooltip">${escapeHtml(tooltip)}</span></span>`
+                    : '<span class="plugin-card__hint plugin-card__hint--placeholder" aria-hidden="true"></span>';
+                })()}
+              </div>
+              <div class="plugin-card__badge-slot">
+                ${(() => {
+                  const badge = getSkillBadge(s, state.config.provider, lang);
+                  return badge ? `<span class="${badge.className}">${badge.text}</span>` : '<span class="plugin-card__badge plugin-card__badge--placeholder" aria-hidden="true"></span>';
+                })()}
+              </div>
+            </div>
           </div>
-          <div class="plugin-card__check">✓</div>
         </label>
       `).join('');
     }
@@ -1097,14 +1192,33 @@
     const pluginGrid = document.getElementById('extra-plugin-grid');
     if (pluginGrid) {
       pluginGrid.innerHTML = visiblePlugins.map((p) => `
-        <label class="plugin-card" data-plugin="${p.id}">
-          <input type="checkbox" class="plugin-checkbox" value="${p.id}" onchange="window.__togglePlugin('${p.id}', this.checked)">
-          <div class="plugin-card__icon">${p.icon}</div>
+        <label class="plugin-card ${state.config.plugins.includes(p.id) ? 'plugin-card--selected' : ''}" data-plugin="${p.id}">
+          <input type="checkbox" class="plugin-checkbox" value="${p.id}" ${state.config.plugins.includes(p.id) ? 'checked' : ''} onchange="window.__togglePlugin('${p.id}', this.checked)">
           <div class="plugin-card__info">
-            <div class="plugin-card__name">${p.name}</div>
-            <div class="plugin-card__desc">${lang === 'vi' ? (p.descVi || p.desc) : (p.descEn || p.desc)}</div>
+            <div class="plugin-card__topline">
+              <div class="plugin-card__titleline">
+                <div class="plugin-card__icon">${p.icon}</div>
+                <div class="plugin-card__name">${p.name}</div>
+              </div>
+              <span class="toggle-switch plugin-card__switch">
+                <input type="checkbox" tabindex="-1" aria-hidden="true" ${state.config.plugins.includes(p.id) ? 'checked' : ''}>
+                <span class="toggle-slider"></span>
+              </span>
+            </div>
+            <div class="plugin-card__subline">
+              <div class="plugin-card__hint-slot">
+                ${(() => {
+                  const tooltip = getPluginTooltipContent(p, lang);
+                  return tooltip
+                    ? `<span class="plugin-card__hint" tabindex="0" role="note" aria-label="${escapeHtml(tooltip)}">ⓘ<span class="plugin-card__tooltip">${escapeHtml(tooltip)}</span></span>`
+                    : '<span class="plugin-card__hint plugin-card__hint--placeholder" aria-hidden="true"></span>';
+                })()}
+              </div>
+              <div class="plugin-card__badge-slot">
+                <span class="plugin-card__badge plugin-card__badge--placeholder" aria-hidden="true"></span>
+              </div>
+            </div>
           </div>
-          <div class="plugin-card__check">✓</div>
         </label>
       `).join('');
     }
@@ -1116,8 +1230,10 @@
     } else {
       state.config.skills = state.config.skills.filter((s) => s !== id);
     }
-    document.querySelector(`.plugin-card[data-skill="${id}"]`)
-      ?.classList.toggle('plugin-card--selected', checked);
+    const card = document.querySelector(`.plugin-card[data-skill="${id}"]`);
+    card?.classList.toggle('plugin-card--selected', checked);
+    const switchInput = card?.querySelector('.plugin-card__switch input');
+    if (switchInput) switchInput.checked = checked;
   };
 
   window.__togglePlugin = function (id, checked) {
@@ -1126,8 +1242,10 @@
     } else {
       state.config.plugins = state.config.plugins.filter((p) => p !== id);
     }
-    document.querySelector(`.plugin-card[data-plugin="${id}"]`)
-      ?.classList.toggle('plugin-card--selected', checked);
+    const card = document.querySelector(`.plugin-card[data-plugin="${id}"]`);
+    card?.classList.toggle('plugin-card--selected', checked);
+    const switchInput = card?.querySelector('.plugin-card__switch input');
+    if (switchInput) switchInput.checked = checked;
   };
 
   function bindFormEvents() {
@@ -1547,6 +1665,7 @@
     const isLocal = provider.isLocal;
     const isTelegramMultiBot = state.botCount > 1 && state.channel === 'telegram';
     const relayPluginSpec = 'openclaw-telegram-multibot-relay';
+    const openClawRuntimePackages = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
 
     function buildRelayPluginInstallCommand(prefix) {
       return `${prefix} plugins install ${relayPluginSpec} 2>/dev/null || true`;
@@ -1695,6 +1814,8 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         },
         list: [{
           id: agentId,
+          workspace: 'workspace',
+          agentDir: `agents/${agentId}/agent`,
           model: { primary: state.config.model, fallbacks: [] },
         }],
       },
@@ -1704,8 +1825,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       gateway: {
         port: 18791,
         mode: 'local',
-        bind: 'custom',
-        customBindHost: '0.0.0.0',
+        bind: 'loopback',
         controlUi: {
           allowedOrigins: getGatewayAllowedOrigins(18791),
         },
@@ -1811,8 +1931,8 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       clawConfig.agents.list = multiBotAgentMetas.map((meta) => ({
         id: meta.agentId,
         name: meta.name,
-        workspace: `${nativeOpenClawRoot}/${meta.workspaceDir}`,
-        agentDir: `${nativeOpenClawRoot}/agents/${meta.agentId}/agent`,
+        workspace: meta.workspaceDir,
+        agentDir: `agents/${meta.agentId}/agent`,
         model: { primary: state.config.model, fallbacks: [] },
       }));
       clawConfig.bindings = multiBotAgentMetas.map((meta) => ({
@@ -1852,7 +1972,10 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
           'telegram-multibot-relay': { enabled: true },
         },
       };
-    } else if (state.config.plugins.length > 0) {
+      if (!state.config.skills.includes('memory')) {
+        clawConfig.plugins.slots = { ...(clawConfig.plugins.slots || {}), memory: 'none' };
+      }
+    } else if (state.config.plugins.length > 0 || !state.config.skills.includes('memory')) {
       // Non-multibot: write selected visible plugins into openclaw.json
       const pluginEntries = {};
       state.config.plugins.forEach((pid) => {
@@ -1860,8 +1983,9 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         if (!plugin || plugin.hidden) return;
         pluginEntries[plugin.package || pid] = { enabled: true };
       });
-      if (Object.keys(pluginEntries).length > 0) {
-        clawConfig.plugins = { entries: pluginEntries };
+      clawConfig.plugins = { entries: pluginEntries };
+      if (!state.config.skills.includes('memory')) {
+        clawConfig.plugins.slots = { ...(clawConfig.plugins.slots || {}), memory: 'none' };
       }
     }
 
@@ -1930,7 +2054,7 @@ model:
       : '';
 
     // Browser Automation: extra Docker deps
-    const browserAptExtra = hasBrowser ? ' socat' : '';
+    const browserAptExtra = ' socat';
     const browserInstallLines = hasBrowser
       ? [
           '',
@@ -1954,11 +2078,12 @@ model:
     const browserPrefix = hasBrowser
       ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & '
       : '';
+    const gatewayBridgePrefix = 'socat TCP-LISTEN:18791,fork,reuseaddr TCP:127.0.0.1:18791 & ';
     // Patch config on every startup to keep gateway settings stable
-    const patchCmd = `node -e \\"const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
+    const patchCmd = `node -e \\"const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'loopback',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});delete c.gateway.customBindHost;fs.writeFileSync(p,JSON.stringify(c,null,2));}\\" && `;
     // Auto-approve device pairing after gateway starts (required since v2026.3.x)
     const autoApproveCmd = '(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) & ';
-    const finalCmd = `CMD sh -c "${pluginInstallCmd}${patchCmd}${browserPrefix}${autoApproveCmd}${gatewayCmd}"`;
+    const finalCmd = `CMD sh -c "${pluginInstallCmd}${patchCmd}${browserPrefix}${gatewayBridgePrefix}${autoApproveCmd}${gatewayCmd}"`;
 
     const dockerfile = `FROM node:22-slim
 
@@ -1966,7 +2091,7 @@ RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /v
 
 
 ARG CACHEBUST=${Date.now()}
-RUN npm install -g openclaw@2026.4.5 grammy${skillLines}${browserInstallLines}
+RUN npm install -g openclaw@2026.4.5 ${openClawRuntimePackages}${skillLines}${browserInstallLines}
 RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const files=fs.readdirSync(dir).filter(n=>/\\.js$/.test(n));let patched=0;for(const file of files){const p=path.join(dir,file);let s='';try{s=fs.readFileSync(p,'utf8');}catch{continue;}if(s.includes(to)||!s.includes(from))continue;s=s.replace(from,to);fs.writeFileSync(p,s);patched++;}if(!patched){process.exit(0);}"
 WORKDIR /root/.openclaw
 
@@ -2772,14 +2897,15 @@ fi
         botConfig.agents.defaults.model = { primary: state.config.model, fallbacks: [] };
         botConfig.agents.list = [{
           id: botAgentId,
+          workspace: 'workspace',
+          agentDir: `agents/${botAgentId}/agent`,
           model: { primary: state.config.model, fallbacks: [] },
         }];
         botConfig.gateway = {
           ...(botConfig.gateway || {}),
           port: 18791,
           mode: 'local',
-          bind: 'custom',
-          customBindHost: '0.0.0.0',
+          bind: 'loopback',
           auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
         };
 
@@ -2990,6 +3116,7 @@ I am **${botName}**. When asked my name, I answer: _"I'm ${botName}"_.`;
     const selectedModel = (state.config.model || 'ollama/gemma4:e2b').replace('ollama/', '');
     const isMultiBot = state.botCount > 1 && state.channel === 'telegram';
     const projectDir = state.config.projectPath || '.';
+    const todayStamp = new Date().toISOString().slice(0, 10);
 
     const allPlugins = [];
     if (ch && ch.pluginInstall) allPlugins.push(ch.pluginInstall);
@@ -3155,8 +3282,8 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
           list: multiBotAgentMetas.map((meta) => ({
             id: meta.agentId,
             name: meta.name,
-            workspace: `${nativeProjectOpenClawRoot}/${meta.workspaceDir}`,
-            agentDir: `${nativeProjectOpenClawRoot}/agents/${meta.agentId}/agent`,
+            workspace: meta.workspaceDir,
+            agentDir: `agents/${meta.agentId}/agent`,
             model: { primary: state.config.model, fallbacks: [] },
           })),
         },
@@ -3201,14 +3328,16 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
         gateway: {
           port: 18791,
           mode: 'local',
-          bind: 'custom',
-          customBindHost: '0.0.0.0',
+          bind: 'loopback',
           controlUi: {
             allowedOrigins: getGatewayAllowedOrigins(18791),
           },
           auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
         },
       };
+      if (!state.config.skills.includes('memory')) {
+        cfg.plugins = { ...(cfg.plugins || {}), slots: { ...((cfg.plugins && cfg.plugins.slots) || {}), memory: 'none' } };
+      }
       return JSON.stringify(cfg, null, 2);
     }
 
@@ -3308,7 +3437,12 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
             timeoutSeconds: botProvider.isLocal ? 900 : 120,
             ...(botProvider.isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
           },
-          list: [{ id: agentId, model: { primary: bot.model || state.config.model } }],
+          list: [{
+            id: agentId,
+            workspace: 'workspace',
+            agentDir: `agents/${agentId}/agent`,
+            model: { primary: bot.model || state.config.model }
+          }],
         },
         ...(botProvider.isProxy ? {
           models: {
@@ -3350,8 +3484,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
         gateway: {
           port: basePort,
           mode: 'local',
-          bind: 'custom',
-          customBindHost: '0.0.0.0',
+          bind: 'loopback',
           controlUi: {
             allowedOrigins: getGatewayAllowedOrigins(basePort),
           },
@@ -3372,6 +3505,9 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       });
       if (Object.keys(skillEntries).length > 0) {
         cfg.skills = { entries: skillEntries };
+      }
+      if (!state.config.skills.includes('memory')) {
+        cfg.plugins = { ...(cfg.plugins || {}), slots: { ...((cfg.plugins && cfg.plugins.slots) || {}), memory: 'none' } };
       }
 
       if (state.channel === 'telegram') {
@@ -3724,7 +3860,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         'echo [1/5] Kiem tra Node.js...',
         'where node >nul 2>&1 || (echo ERROR: Node.js chua cai! Tai tai: https://nodejs.org && pause && exit /b 1)',
         'echo [2/5] Cai OpenClaw CLI...',
-        'call npm install -g openclaw@2026.4.5 || goto :fail',
+        `call npm install -g openclaw@2026.4.5 ${openClawRuntimePackages} || goto :fail`,
       ];
       providerLines(lines, 'bat');
       if (hasBrowser) {
@@ -3829,7 +3965,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.zshrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.zshrc"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
         '# Install openclaw (user-local first, sudo fallback)',
-          'npm install -g openclaw@2026.4.5 || sudo npm install -g openclaw@2026.4.5',
+          `npm install -g openclaw@2026.4.5 ${openClawRuntimePackages} || sudo npm install -g openclaw@2026.4.5 ${openClawRuntimePackages}`,
         ];
         providerLines(sh, 'sh');
         if (pluginCmd) sh.push(pluginCmd);
@@ -3867,7 +4003,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         'export DATA_DIR="$PROJECT_DIR/.9router"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-        'npm install -g openclaw@2026.4.5 pm2@latest',
+        `npm install -g openclaw@2026.4.5 ${openClawRuntimePackages} pm2@latest`,
       ];
       providerLines(vps, 'sh');
       if (pluginCmd) vps.push(pluginCmd);
@@ -3922,7 +4058,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         'export DATA_DIR="$PROJECT_DIR/.9router"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-        'npm install -g openclaw@2026.4.5',
+        `npm install -g openclaw@2026.4.5 ${openClawRuntimePackages}`,
       ];
       providerLines(lnx, 'sh');
       if (pluginCmd) lnx.push(pluginCmd);

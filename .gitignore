@@ -57,9 +57,14 @@ Thumbs.db
 bump-version.mjs
 test-cli-output.mjs
 patch_cli.py
+patch-cli.mjs
 *.test.mjs
 PLANS.md
+ARCHITECTURE.md
 
 # ===== API Doc Scrapes =====
 *_doc*.md
 tele_docs*.md
+
+# ===== Agent =====
+.agent

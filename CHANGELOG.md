@@ -1,4 +1,16 @@
-﻿# Changelog (English)
+# Changelog (English)
+
+
+## [5.2.0] — 2026-04-09
+
+### One-Command Upgrade (No Wizard Required)
+
+- Added `upgrade` subcommand to the CLI: `npx create-openclaw-bot@latest upgrade`. Detects Docker vs Native mode automatically and updates OpenClaw without re-running the setup wizard.
+- Added `upgrade.ps1` for Windows users — double-click in the bot folder to trigger an upgrade. No terminal knowledge required.
+- Added `upgrade.sh` for Linux / macOS / Ubuntu — run `bash upgrade.sh` locally or pipe via `curl` or `wget` directly from GitHub without cloning the repo.
+- All user data is preserved during upgrade: `.env`, `.openclaw/memory/`, sessions, credentials, and 9Router OAuth tokens are never modified.
+- Docker mode: patching `Dockerfile` (`OPENCLAW_NPM_SPEC` + `CACHEBUST` refresh) then `docker compose build --no-cache` + `docker compose up -d`.
+- Native / PM2 mode: reinstalls `openclaw` + `9router` globals then runs `pm2 restart all`.
 
 
 ## [5.1.15] â€” 2026-04-08

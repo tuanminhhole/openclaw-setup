@@ -86,6 +86,16 @@ checks.push(() => expectMatch(
   'Native 9Router flow must auto-install 9Router'
 ));
 
+checks.push(() => expect(
+  cli.includes('function providerSupportsMemoryEmbeddings(providerKey) {')
+    && cli.includes("supportsEmbeddings: true")
+    && cli.includes("supportsEmbeddings: false")
+    && cli.includes("function getCliSkillChoices({ providerKey, isVi }) {")
+    && cli.includes("skill.value !== 'memory'")
+    && cli.includes("providerSupportsMemoryEmbeddings(providerKey)"),
+  'CLI skill labels must compute memory recommendations from provider embedding capability instead of hardcoding them'
+));
+
 checks.push(() => expectMatch(
   cli,
   /if \(providerKey === '9router'\) \{[\s\S]*shouldReuseInstalledGlobals\(\) && is9RouterInstalled\(\)[\s\S]*Reusing the installed 9Router[\s\S]*else if \(!is9RouterInstalled\(\)\)/s,
@@ -224,15 +234,18 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /RUN npm install -g \$\{OPENCLAW_NPM_SPEC\} grammy/,
-  'Docker CLI image must install grammy alongside openclaw so Telegram runtime dependencies resolve'
+  /RUN npm install -g \$\{OPENCLAW_NPM_SPEC\} \$\{OPENCLAW_RUNTIME_PACKAGES\}/,
+  'Docker CLI image must install the full OpenClaw runtime package set alongside openclaw'
 ));
 
 checks.push(() => expect(
   cli.includes("a.add('http://' + entry.address + ':18791')")
     && cli.includes('allowedOrigins:Array.from(a).filter(Boolean)')
+    && cli.includes("bind:'loopback'")
+    && cli.includes("delete c.gateway.customBindHost;")
+    && cli.includes("const gatewayBridge = 'socat TCP-LISTEN:18791,fork,reuseaddr TCP:127.0.0.1:18791 & ';")
     && !cli.includes("a.add(`http://${entry.address}:18791`)"),
-  'Docker CLI patch script must avoid shell-expanding ${entry.address} and must filter null origins'
+  'Docker CLI patch script must keep the gateway loopback-local behind a socat bridge and avoid shell-expanding ${entry.address}'
 ));
 
 checks.push(() => expectMatch(
@@ -341,20 +354,23 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /RUN npm install -g openclaw@2026\.4\.5 grammy/,
-  'Wizard Dockerfile generation must install grammy alongside openclaw so Telegram runtime dependencies resolve'
+  /RUN npm install -g openclaw@2026\.4\.5 \$\{openClawRuntimePackages\}/,
+  'Wizard Dockerfile generation must install the full OpenClaw runtime package set alongside openclaw'
 ));
 
 checks.push(() => expect(
   setup.includes("a.add('http://' + entry.address + ':18791')")
     && setup.includes('allowedOrigins:Array.from(a).filter(Boolean)')
+    && setup.includes("bind:'loopback'")
+    && setup.includes("delete c.gateway.customBindHost;")
+    && setup.includes("const gatewayBridgePrefix = 'socat TCP-LISTEN:18791,fork,reuseaddr TCP:127.0.0.1:18791 & ';")
     && !setup.includes("a.add(\\`http://\\${entry.address}:18791\\`)"),
-  'Wizard Docker patch command must avoid shell-expanding ${entry.address} and must filter null origins'
+  'Wizard Docker patch command must keep the gateway loopback-local behind a socat bridge and avoid shell-expanding ${entry.address}'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*PROJECT_DIR="[\s\S]*export OPENCLAW_HOME="\$PROJECT_DIR\/\.openclaw"[\s\S]*export OPENCLAW_STATE_DIR="\$PROJECT_DIR\/\.openclaw"[\s\S]*export DATA_DIR="\$PROJECT_DIR\/\.9router"[\s\S]*npm install -g openclaw@2026\.4\.5 pm2@latest[\s\S]*pm2 save && pm2 startup/s,
+  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*PROJECT_DIR="[\s\S]*export OPENCLAW_HOME="\$PROJECT_DIR\/\.openclaw"[\s\S]*export OPENCLAW_STATE_DIR="\$PROJECT_DIR\/\.openclaw"[\s\S]*export DATA_DIR="\$PROJECT_DIR\/\.9router"[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*pm2@latest[\s\S]*pm2 save && pm2 startup/s,
   'VPS native script generation must keep runtime files project-local, install openclaw+pm2, and persist PM2 startup'
 ));
 
@@ -398,9 +414,9 @@ checks.push(() => expect(
 ));
 
 checks.push(() => expect(
-  setup.includes("bind: 'custom'")
-    && setup.includes("customBindHost: '0.0.0.0'")
-    && !setup.includes("bind: '0.0.0.0'")
+  setup.includes("bind: 'loopback'")
+    && !setup.includes("bind: 'custom'")
+    && !setup.includes("customBindHost: '0.0.0.0'")
     && setup.includes("state.bots[state.activeBotIndex].provider = key;")
     && setup.includes("state.bots[state.activeBotIndex].model = p.models[0].id;")
     && setup.includes("state.bots[state.activeBotIndex].provider = state.config.provider;")
@@ -415,9 +431,13 @@ checks.push(() => expect(
     && setup.includes("lines.push('call npm install -g agent-browser playwright || goto :fail');")
     && setup.includes("lines.push('call npx playwright install chromium || goto :fail');")
     && setup.includes("lines.push('echo Cai skills...');")
+    && setup.includes("const openClawRuntimePackages = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';")
+    && setup.includes("memory: 'none'")
+    && setup.includes("workspace: 'workspace'")
+    && setup.includes("workspace: meta.workspaceDir")
     && !setup.includes("const authProviderName = provider.isProxy ? '9router' : provider.id;")
     && !setup.includes("const authProviderName = botProvider.isProxy ? '9router' : botProvider.id;"),
-  'Wizard native config generation must avoid legacy gateway.bind aliases, preserve concrete auth provider ids, and sync single-bot provider/model selections into bot state'
+  'Wizard native config generation must keep gateway loopback-local, preserve concrete auth provider ids, disable memory search by default, and sync single-bot provider/model selections into bot state'
 ));
 
 checks.push(() => expectMatch(
@@ -444,6 +464,16 @@ checks.push(() => expect(
     && setup.includes("if (!m.length) {")
     && setup.includes("removeSmartRoute();"),
   '9Router sync logic in setup.js must remove stale smart-route combos when providers are disabled'
+));
+
+checks.push(() => expect(
+  setup.includes('function providerSupportsMemoryEmbeddings(providerKey) {')
+    && setup.includes('function getSkillDisplayName(skill, providerKey, lang) {')
+    && setup.includes('function getSkillExtraNote(skill, providerKey, lang) {')
+    && setup.includes('renderPluginGrid();')
+    && setup.includes("supportsEmbeddings: true")
+    && setup.includes("supportsEmbeddings: false"),
+  'Wizard skill cards must recompute memory recommendation labels from provider embedding capability when the provider changes'
 ));
 
 checks.push(() => expectMatch(
