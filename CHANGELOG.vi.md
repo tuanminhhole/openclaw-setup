@@ -1,402 +1,416 @@
-# Changelog (Tiếng Việt)
+﻿# Changelog (Tiáº¿ng Viá»‡t)
 
 
-## [5.1.14] — 2026-04-08
+## [5.1.15] â€” 2026-04-08
 
-### Sửa lỗi ổn định OpenClaw và Docker
+### Dong Bo Native Setup & Sua Loi Wizard Windows
 
-- Pin lại OpenClaw về `openclaw@2026.4.5` vì bản cập nhật ngày `08/04/2026` đang lỗi.
-- Sửa Dockerfile cho các case Docker trên Windows để tránh lỗi startup do escape command sai và lỗi `allowedOrigins`.
-- Thêm ghi chú khuyên dùng `Node.js 20` đến `24`, tạm tránh `Node.js 25` để ổn định hơn với OpenClaw.
+- Sua wizard HTML tren Windows native de file `.bat` tai ve luon duoc regenerate theo state moi nhat truoc khi download.
+- Sua toan bo runtime path tren Windows native theo project dir nguoi dung nhap: `.env`, `.openclaw` va `.9router` khong con roi ve home/AppData.
+- Them `OPENCLAW_STATE_DIR` vao native runtime env de OpenClaw doc dung config duoc sinh trong thu muc project.
+- Chong format config legacy `gateway.bind: "0.0.0.0"` va chuyen sang `bind: "custom"` + `customBindHost: "0.0.0.0"`.
+- Sua luong single-bot tren Windows native de provider, model, API key va Telegram bot token tu wizard duoc sync dung vao `.env` va `openclaw.json`.
+- Sua native Windows 9Router path resolution va doi helper sync `smart-route` sang lay active providers tu API song cua `9Router`, khop voi logic Docker.
+- Bu native parity cho skill/runtime tren Windows: skill duoc cai tu dong, browser automation tu cai runtime can thiet, va `skills.entries` dung dung `slug`.
+- Cap nhat native script cho macOS, Linux Desktop va Ubuntu/VPS de chay tu `PROJECT_DIR` duoc chon va export `OPENCLAW_HOME`, `OPENCLAW_STATE_DIR`, `DATA_DIR` theo project-local.
+- Mo rong smoke test cho runtime path native, 9Router sync, provider/token sync, browser install va luong startup project-local tren Unix.
 
-## [5.1.13] — 2026-04-08
+## [5.1.14] â€” 2026-04-08
 
-### 🐛 Sửa lỗi cài macOS & ổn định Wizard
+### Sá»­a lá»—i á»•n Ä‘á»‹nh OpenClaw vÃ  Docker
 
-- **Sửa lỗi `mkdir: : No such file or directory` trên macOS**: `generateSetupScript` dùng `\${dir}` / `\${path}` (escaped) tạo ra biến bash rỗng — giờ dùng JS interpolation đú́ng nên đường dẫn thực tế được ghi vào script.
-- **Sửa script Docker macOS**: Thêm kiểm tra Docker daemon `docker info` trước khi chạy `docker compose up`; chế độ Docker giờ gọi đú́ng `docker compose up` thay vì `openclaw gateway run`.
-- **Sửa npm prefix macOS Native**: Bỏ `npm config set prefix` gây xung đột với Homebrew Node.js. Giờ dùng `export npm_config_prefix` (env var cho session hiện tại) và fallback `sudo npm install -g`.
-- **Sửa `window.__saveBotTabPersona is not a function`**: Thêm hàm `__saveBotTabPersona` bị thiếu — HTML gọi nhưng JS chưa định nghĩa.
-- **Sửa nút Tiếp theo Step 3 chế độ 1 bot**: `bindFormEvents` giờ sync `cfg-name` vào `state.config.botName` và `state.bots[0].name` ngay khi gõ, rồi gọi `updateNavButtons()` — nút Tiếp phản hồi ngay không cần chuyển bước.
-- **Sửa persona riêng từng bot**: `saveBotTabMeta` và `syncBotTabMeta` giờ save/restore field `cfg-bot-tab-persona` cho từng bot. Chuyển tab hiển thị đú́ng nội dung persona tương ứng; giá trị lưu vào `state.bots[i].persona` và được dùng chính xác khi tạo file `.md`.
-- **Sửa cli.js npm macOS**: `ensureUserWritableGlobalNpm` bỏ `npm config set prefix` trên darwin; `installGlobalPackage` thêm `sudo npm install -g` làm fallback.
+- Pin láº¡i OpenClaw vá» `openclaw@2026.4.5` vÃ¬ báº£n cáº­p nháº­t ngÃ y `08/04/2026` Ä‘ang lá»—i.
+- Sá»­a Dockerfile cho cÃ¡c case Docker trÃªn Windows Ä‘á»ƒ trÃ¡nh lá»—i startup do escape command sai vÃ  lá»—i `allowedOrigins`.
+- ThÃªm ghi chÃº khuyÃªn dÃ¹ng `Node.js 20` Ä‘áº¿n `24`, táº¡m trÃ¡nh `Node.js 25` Ä‘á»ƒ á»•n Ä‘á»‹nh hÆ¡n vá»›i OpenClaw.
 
-## [5.1.12] — 2026-04-07
+## [5.1.13] â€” 2026-04-08
 
-### 🧠 Thêm Skills & Tự động chọn Plugin Relay
+### ðŸ› Sá»­a lá»—i cÃ i macOS & á»•n Ä‘á»‹nh Wizard
 
-- **Grid Skills 3 cột**: Layout mới 3 card/hàng thay vì 4, card rộng rãi hơn, dễ đọc hơn.
-- **7 Skills mới từ ClawHub**: Bổ sung đầy đủ `Web Search`, `GitHub`, `Notion`, `Slack` — phủ khắp các tác vụ năng suất phổ biến nhất trên OpenClaw dashboard.
-- **Plugin Telegram Multi-Bot Relay tự động**: Khi chọn nhiều bot Telegram (botCount ≥ 2), plugin `telegram-multibot-relay` được tự động tick chọn và ghi vào `openclaw.json → plugins.entries`. Khi quay về 1 bot, plugin bị bỏ chọn.
-- **Plugin selections → openclaw.json**: Tất cả plugin được user chọn (Voice Call, Matrix, MS Teams, Nostr...) đều được inject vào `plugins.entries` để Dashboard OpenClaw nhận trạng thái `enabled` đúng. Không chọn = không bật.
-- **Fix Step 3 "Tiếp theo" bị disabled**: Bỏ yêu cầu bắt buộc `cfg-user-info` (optional), sửa multi-bot check dùng `cfg-bot-tab-name`.
-- **Fix Step 4 multi-bot token**: Validate `key-bot-token-0` thay vì `key-bot-token` khi multi-bot Telegram.
-- **Fix AGENTS.md native multi-bot thiếu quy tắc bảo mật**: Inject `securityRules` vào cuối AGENTS.md của từng bot trong native multi-bot deployment.
+- **Sá»­a lá»—i `mkdir: : No such file or directory` trÃªn macOS**: `generateSetupScript` dÃ¹ng `\${dir}` / `\${path}` (escaped) táº¡o ra biáº¿n bash rá»—ng â€” giá» dÃ¹ng JS interpolation Ä‘ÃºÌng nÃªn Ä‘Æ°á»ng dáº«n thá»±c táº¿ Ä‘Æ°á»£c ghi vÃ o script.
+- **Sá»­a script Docker macOS**: ThÃªm kiá»ƒm tra Docker daemon `docker info` trÆ°á»›c khi cháº¡y `docker compose up`; cháº¿ Ä‘á»™ Docker giá» gá»i Ä‘ÃºÌng `docker compose up` thay vÃ¬ `openclaw gateway run`.
+- **Sá»­a npm prefix macOS Native**: Bá» `npm config set prefix` gÃ¢y xung Ä‘á»™t vá»›i Homebrew Node.js. Giá» dÃ¹ng `export npm_config_prefix` (env var cho session hiá»‡n táº¡i) vÃ  fallback `sudo npm install -g`.
+- **Sá»­a `window.__saveBotTabPersona is not a function`**: ThÃªm hÃ m `__saveBotTabPersona` bá»‹ thiáº¿u â€” HTML gá»i nhÆ°ng JS chÆ°a Ä‘á»‹nh nghÄ©a.
+- **Sá»­a nÃºt Tiáº¿p theo Step 3 cháº¿ Ä‘á»™ 1 bot**: `bindFormEvents` giá» sync `cfg-name` vÃ o `state.config.botName` vÃ  `state.bots[0].name` ngay khi gÃµ, rá»“i gá»i `updateNavButtons()` â€” nÃºt Tiáº¿p pháº£n há»“i ngay khÃ´ng cáº§n chuyá»ƒn bÆ°á»›c.
+- **Sá»­a persona riÃªng tá»«ng bot**: `saveBotTabMeta` vÃ  `syncBotTabMeta` giá» save/restore field `cfg-bot-tab-persona` cho tá»«ng bot. Chuyá»ƒn tab hiá»ƒn thá»‹ Ä‘ÃºÌng ná»™i dung persona tÆ°Æ¡ng á»©ng; giÃ¡ trá»‹ lÆ°u vÃ o `state.bots[i].persona` vÃ  Ä‘Æ°á»£c dÃ¹ng chÃ­nh xÃ¡c khi táº¡o file `.md`.
+- **Sá»­a cli.js npm macOS**: `ensureUserWritableGlobalNpm` bá» `npm config set prefix` trÃªn darwin; `installGlobalPackage` thÃªm `sudo npm install -g` lÃ m fallback.
 
-### 🌟 Đổi Chính Sách Bảo Mật Zalo Personal
+## [5.1.12] â€” 2026-04-07
 
-- **Thả Ga Inbox Zalo Cầm Tay**: Lược bỏ rào cản duyệt bảo mật của Zalo Personal. Thông số `dmPolicy` trên cài đặt Zalo cá nhân đã được chuyển mặc định từ `pairing` sang `open`. Bây giờ bất cứ ai trên mạng lưới Zalo nhắn tin vào tài khoản của Bot đều sẽ được AI tự động tiếp đón ngay lập tức thay vì bị chặn lại chờ bạn duyệt lệnh kết nối E2E!
+### ðŸ§  ThÃªm Skills & Tá»± Ä‘á»™ng chá»n Plugin Relay
 
-## [5.1.10] — 2026-04-07
+- **Grid Skills 3 cá»™t**: Layout má»›i 3 card/hÃ ng thay vÃ¬ 4, card rá»™ng rÃ£i hÆ¡n, dá»… Ä‘á»c hÆ¡n.
+- **7 Skills má»›i tá»« ClawHub**: Bá»• sung Ä‘áº§y Ä‘á»§ `Web Search`, `GitHub`, `Notion`, `Slack` â€” phá»§ kháº¯p cÃ¡c tÃ¡c vá»¥ nÄƒng suáº¥t phá»• biáº¿n nháº¥t trÃªn OpenClaw dashboard.
+- **Plugin Telegram Multi-Bot Relay tá»± Ä‘á»™ng**: Khi chá»n nhiá»u bot Telegram (botCount â‰¥ 2), plugin `telegram-multibot-relay` Ä‘Æ°á»£c tá»± Ä‘á»™ng tick chá»n vÃ  ghi vÃ o `openclaw.json â†’ plugins.entries`. Khi quay vá» 1 bot, plugin bá»‹ bá» chá»n.
+- **Plugin selections â†’ openclaw.json**: Táº¥t cáº£ plugin Ä‘Æ°á»£c user chá»n (Voice Call, Matrix, MS Teams, Nostr...) Ä‘á»u Ä‘Æ°á»£c inject vÃ o `plugins.entries` Ä‘á»ƒ Dashboard OpenClaw nháº­n tráº¡ng thÃ¡i `enabled` Ä‘Ãºng. KhÃ´ng chá»n = khÃ´ng báº­t.
+- **Fix Step 3 "Tiáº¿p theo" bá»‹ disabled**: Bá» yÃªu cáº§u báº¯t buá»™c `cfg-user-info` (optional), sá»­a multi-bot check dÃ¹ng `cfg-bot-tab-name`.
+- **Fix Step 4 multi-bot token**: Validate `key-bot-token-0` thay vÃ¬ `key-bot-token` khi multi-bot Telegram.
+- **Fix AGENTS.md native multi-bot thiáº¿u quy táº¯c báº£o máº­t**: Inject `securityRules` vÃ o cuá»‘i AGENTS.md cá»§a tá»«ng bot trong native multi-bot deployment.
 
-### 🌟 Tự động Auto-Approve Thiết Bị cho Native VPS
+### ðŸŒŸ Äá»•i ChÃ­nh SÃ¡ch Báº£o Máº­t Zalo Personal
 
-- **Bỏ Nhập Lệnh Thủ Công Trải Nghiệm PM2**: Cảnh báo `pairing required` (chờ duyệt thiết bị ghép nối E2E) trên giao diện Web buộc người dùng phải gõ lệnh đồng ý dưới Terminal. Ở luồng Docker, tính năng này đã được vô hiệu hóa bằng một đoạn script chạy ngầm tự gật đầu. Nhưng ở Native thì chưa! Phiên bản này chính thức nhúng thêm 1 tiến trình PM2 `auto-approve` siêu nhẹ chạy kẹp với các lệnh chính, giúp tự động gật đầu phê duyệt kết nối web mỗi 5 giây. Đảm bảo trải nghiệm "Click là vào" trên Native VPS mượt mà y hệt Docker!
+- **Tháº£ Ga Inbox Zalo Cáº§m Tay**: LÆ°á»£c bá» rÃ o cáº£n duyá»‡t báº£o máº­t cá»§a Zalo Personal. ThÃ´ng sá»‘ `dmPolicy` trÃªn cÃ i Ä‘áº·t Zalo cÃ¡ nhÃ¢n Ä‘Ã£ Ä‘Æ°á»£c chuyá»ƒn máº·c Ä‘á»‹nh tá»« `pairing` sang `open`. BÃ¢y giá» báº¥t cá»© ai trÃªn máº¡ng lÆ°á»›i Zalo nháº¯n tin vÃ o tÃ i khoáº£n cá»§a Bot Ä‘á»u sáº½ Ä‘Æ°á»£c AI tá»± Ä‘á»™ng tiáº¿p Ä‘Ã³n ngay láº­p tá»©c thay vÃ¬ bá»‹ cháº·n láº¡i chá» báº¡n duyá»‡t lá»‡nh káº¿t ná»‘i E2E!
 
-## [5.1.9] — 2026-04-07
+## [5.1.10] â€” 2026-04-07
 
-### 🌟 Trả lại Schema Chuẩn & Cải thiện UX WebCrypto
+### ðŸŒŸ Tá»± Ä‘á»™ng Auto-Approve Thiáº¿t Bá»‹ cho Native VPS
 
-- **Sửa lỗi sập Gateway do sai lầm Config**: OpenClaw bản mới nhất dùng Zod để khóa chặt Schema cấu hình. Cờ `requireDeviceIdentity` chêm vào bản 5.1.8 đã bị Backend từ chối thẳng thừng (`Unrecognized key`), dẫn đến server không thể khởi động vòng lặp. Bản 5.1.9 đã gỡ sạch cờ này, trả lại môi trường sạch để PM2 hoạt động 100%.
-- **Trợ lý SSH Tunnel Tự Động**: Bù lại sự khắt khe của WebCrypto khi dùng VPS/IP ngoài, Console giờ đây sẽ tự động in sẵn thần chú lệnh bẻ khóa `ssh -L ...` y hệt IP và Username thật của bạn. Bạn chỉ cần copy-paste để thông luồng một cách ngầu lòi, bảo mật tuyệt đối mà không cần mua Tên miền HTTPS.
+- **Bá» Nháº­p Lá»‡nh Thá»§ CÃ´ng Tráº£i Nghiá»‡m PM2**: Cáº£nh bÃ¡o `pairing required` (chá» duyá»‡t thiáº¿t bá»‹ ghÃ©p ná»‘i E2E) trÃªn giao diá»‡n Web buá»™c ngÆ°á»i dÃ¹ng pháº£i gÃµ lá»‡nh Ä‘á»“ng Ã½ dÆ°á»›i Terminal. á»ž luá»“ng Docker, tÃ­nh nÄƒng nÃ y Ä‘Ã£ Ä‘Æ°á»£c vÃ´ hiá»‡u hÃ³a báº±ng má»™t Ä‘oáº¡n script cháº¡y ngáº§m tá»± gáº­t Ä‘áº§u. NhÆ°ng á»Ÿ Native thÃ¬ chÆ°a! PhiÃªn báº£n nÃ y chÃ­nh thá»©c nhÃºng thÃªm 1 tiáº¿n trÃ¬nh PM2 `auto-approve` siÃªu nháº¹ cháº¡y káº¹p vá»›i cÃ¡c lá»‡nh chÃ­nh, giÃºp tá»± Ä‘á»™ng gáº­t Ä‘áº§u phÃª duyá»‡t káº¿t ná»‘i web má»—i 5 giÃ¢y. Äáº£m báº£o tráº£i nghiá»‡m "Click lÃ  vÃ o" trÃªn Native VPS mÆ°á»£t mÃ  y há»‡t Docker!
 
-## [5.1.8] — 2026-04-07
+## [5.1.9] â€” 2026-04-07
 
-### 🌟 Sửa lỗi Đăng nhập Token (1008) & Cải tiến IP hiển thị trên VPS
+### ðŸŒŸ Tráº£ láº¡i Schema Chuáº©n & Cáº£i thiá»‡n UX WebCrypto
 
-- **Tắt `requireDeviceIdentity` để vượt tường WebCrypto**: Do cơ chế bảo mật mới của Control UI bắt buộc trình duyệt phải dùng môi trường HTTPS (hoặc localhost) thì mới cấp quyền khởi tạo key mã hóa thiết bị E2E. Nếu dùng IP thường (HTTP) thì Dashboard sẽ báo lỗi đỏ `code=1008`. Bản setup mới nhất đã tự động chích cờ `requireDeviceIdentity: false` để tắt cơ chế ép buộc này đi, giúp bạn vào thẳng Dashboard bằng IP của VPS.
-- **Hiển thị Link Public ở Terminal**: Cấu trúc báo cáo của PM2 đã được viết lại để tự động tìm và sinh ra các đường dẫn kèm IPv4 Public (thay vì chỉ in mỗi `localhost`). Giờ đây bạn chỉ việc soi console và bấm/copy thẳng link vào trình duyệt mà không cần phải tự chế nữa.
+- **Sá»­a lá»—i sáº­p Gateway do sai láº§m Config**: OpenClaw báº£n má»›i nháº¥t dÃ¹ng Zod Ä‘á»ƒ khÃ³a cháº·t Schema cáº¥u hÃ¬nh. Cá» `requireDeviceIdentity` chÃªm vÃ o báº£n 5.1.8 Ä‘Ã£ bá»‹ Backend tá»« chá»‘i tháº³ng thá»«ng (`Unrecognized key`), dáº«n Ä‘áº¿n server khÃ´ng thá»ƒ khá»Ÿi Ä‘á»™ng vÃ²ng láº·p. Báº£n 5.1.9 Ä‘Ã£ gá»¡ sáº¡ch cá» nÃ y, tráº£ láº¡i mÃ´i trÆ°á»ng sáº¡ch Ä‘á»ƒ PM2 hoáº¡t Ä‘á»™ng 100%.
+- **Trá»£ lÃ½ SSH Tunnel Tá»± Äá»™ng**: BÃ¹ láº¡i sá»± kháº¯t khe cá»§a WebCrypto khi dÃ¹ng VPS/IP ngoÃ i, Console giá» Ä‘Ã¢y sáº½ tá»± Ä‘á»™ng in sáºµn tháº§n chÃº lá»‡nh báº» khÃ³a `ssh -L ...` y há»‡t IP vÃ  Username tháº­t cá»§a báº¡n. Báº¡n chá»‰ cáº§n copy-paste Ä‘á»ƒ thÃ´ng luá»“ng má»™t cÃ¡ch ngáº§u lÃ²i, báº£o máº­t tuyá»‡t Ä‘á»‘i mÃ  khÃ´ng cáº§n mua TÃªn miá»n HTTPS.
 
-## [5.1.7] — 2026-04-07
+## [5.1.8] â€” 2026-04-07
 
-### 🌟 Sửa lỗi CORS Control UI & Đường dẫn 9Router Native
+### ðŸŒŸ Sá»­a lá»—i ÄÄƒng nháº­p Token (1008) & Cáº£i tiáº¿n IP hiá»ƒn thá»‹ trÃªn VPS
 
-- **Sửa lỗi dội ngược CORS khi vào Control UI**: OpenClaw v2026.3.x siết chặt policy CORS khiến việc truy cập dashboard từ IP ngoài bị block. Các script tạo config và vá Docker giờ đã tự động quét toàn bộ IPv4 hiện có của server (`os.networkInterfaces()`) để nhúng vào mảng `gateway.controlUi.allowedOrigins`. Đảm bảo người dùng VPS vào được thẳng Control UI mà không bị lỗi mạng.
-- **Tối ưu đường dẫn PM2 Native**: Để tránh trường hợp tính năng PM2 không nhận diện đúng môi trường (lỗi `\$PATH` khi dùng `nvm`), bộ cài giờ bỏ qua file thực thi `9router` của HĐH. Thay vào đó, bộ cài tự tính toán đường dẫn tuyệt đối `\$(npm root -g)/9router/app/server.js` và truyền thẳng vào trình thông dịch Node, đảm bảo PM2 100% tìm thấy file khởi chạy 9Router.
+- **Táº¯t `requireDeviceIdentity` Ä‘á»ƒ vÆ°á»£t tÆ°á»ng WebCrypto**: Do cÆ¡ cháº¿ báº£o máº­t má»›i cá»§a Control UI báº¯t buá»™c trÃ¬nh duyá»‡t pháº£i dÃ¹ng mÃ´i trÆ°á»ng HTTPS (hoáº·c localhost) thÃ¬ má»›i cáº¥p quyá»n khá»Ÿi táº¡o key mÃ£ hÃ³a thiáº¿t bá»‹ E2E. Náº¿u dÃ¹ng IP thÆ°á»ng (HTTP) thÃ¬ Dashboard sáº½ bÃ¡o lá»—i Ä‘á» `code=1008`. Báº£n setup má»›i nháº¥t Ä‘Ã£ tá»± Ä‘á»™ng chÃ­ch cá» `requireDeviceIdentity: false` Ä‘á»ƒ táº¯t cÆ¡ cháº¿ Ã©p buá»™c nÃ y Ä‘i, giÃºp báº¡n vÃ o tháº³ng Dashboard báº±ng IP cá»§a VPS.
+- **Hiá»ƒn thá»‹ Link Public á»Ÿ Terminal**: Cáº¥u trÃºc bÃ¡o cÃ¡o cá»§a PM2 Ä‘Ã£ Ä‘Æ°á»£c viáº¿t láº¡i Ä‘á»ƒ tá»± Ä‘á»™ng tÃ¬m vÃ  sinh ra cÃ¡c Ä‘Æ°á»ng dáº«n kÃ¨m IPv4 Public (thay vÃ¬ chá»‰ in má»—i `localhost`). Giá» Ä‘Ã¢y báº¡n chá»‰ viá»‡c soi console vÃ  báº¥m/copy tháº³ng link vÃ o trÃ¬nh duyá»‡t mÃ  khÃ´ng cáº§n pháº£i tá»± cháº¿ ná»¯a.
 
-## [5.1.6] — 2026-04-07
+## [5.1.7] â€” 2026-04-07
 
-### 🐞 Khắc phục lỗi PM2 ngắt cài đặt (SIGKILL) trên VPS
+### ðŸŒŸ Sá»­a lá»—i CORS Control UI & ÄÆ°á»ng dáº«n 9Router Native
 
-- **Sửa lỗi `PM2 SIGKILL`**: Loại bỏ cờ `-t` (chế độ giao diện terminal) khỏi tất cả các lệnh gọi `9router` chạy ngầm. Trên các VPS không giao diện (headless), cờ này có thể khiến PM2 bị treo và ném ra lỗi SIGKILL làm chết toàn bộ quá trình cài đặt.
-- **Tối ưu Sync Helper chạy ngầm**: Bổ sung cơ chế dự phòng 2 lớp cho script tự động đồng bộ (sync helper). Nếu PM2 bị giới hạn RAM hoặc quá tải gây lỗi SIGKILL, script sẽ không văng lỗi sập Setup nữa mà tự động fallback xuống chạy ẩn bằng `nohup node ... &`. Trong trường hợp xấu nhất, bộ cài chỉ báo cảnh báo vàng và rẽ nhánh cho phép tiến trình Setup tiếp tục tới bước cuối cùng thành công.
+- **Sá»­a lá»—i dá»™i ngÆ°á»£c CORS khi vÃ o Control UI**: OpenClaw v2026.3.x siáº¿t cháº·t policy CORS khiáº¿n viá»‡c truy cáº­p dashboard tá»« IP ngoÃ i bá»‹ block. CÃ¡c script táº¡o config vÃ  vÃ¡ Docker giá» Ä‘Ã£ tá»± Ä‘á»™ng quÃ©t toÃ n bá»™ IPv4 hiá»‡n cÃ³ cá»§a server (`os.networkInterfaces()`) Ä‘á»ƒ nhÃºng vÃ o máº£ng `gateway.controlUi.allowedOrigins`. Äáº£m báº£o ngÆ°á»i dÃ¹ng VPS vÃ o Ä‘Æ°á»£c tháº³ng Control UI mÃ  khÃ´ng bá»‹ lá»—i máº¡ng.
+- **Tá»‘i Æ°u Ä‘Æ°á»ng dáº«n PM2 Native**: Äá»ƒ trÃ¡nh trÆ°á»ng há»£p tÃ­nh nÄƒng PM2 khÃ´ng nháº­n diá»‡n Ä‘Ãºng mÃ´i trÆ°á»ng (lá»—i `\$PATH` khi dÃ¹ng `nvm`), bá»™ cÃ i giá» bá» qua file thá»±c thi `9router` cá»§a HÄH. Thay vÃ o Ä‘Ã³, bá»™ cÃ i tá»± tÃ­nh toÃ¡n Ä‘Æ°á»ng dáº«n tuyá»‡t Ä‘á»‘i `\$(npm root -g)/9router/app/server.js` vÃ  truyá»n tháº³ng vÃ o trÃ¬nh thÃ´ng dá»‹ch Node, Ä‘áº£m báº£o PM2 100% tÃ¬m tháº¥y file khá»Ÿi cháº¡y 9Router.
 
-## [5.1.5] — 2026-04-06
+## [5.1.6] â€” 2026-04-07
 
-### 🐞 Sửa lỗi PM2 khởi động 9Router trên Native
+### ðŸž Kháº¯c phá»¥c lá»—i PM2 ngáº¯t cÃ i Ä‘áº·t (SIGKILL) trÃªn VPS
 
-- **Fix**: Chuyển từ việc chạy chuỗi bash (`execSync`) sang truyền mảng tham số rõ ràng (`execFileSync`) khi khởi động 9Router và script đồng bộ (sync) qua PM2. Đảm bảo PM2 luôn chạy được ứng dụng ổn định trên cả Linux (VPS) và Windows mà không bị vướng lỗi phân tích cú pháp dấu ngoặc kép hay khoảng trắng trong đường dẫn.
-- **Tối ưu**: PM2 giờ đây sẽ phân tách rạch ròi bằng cách gọi file thực thi `9router` với tham số `--interpreter none`, và luôn chạy sync script bằng đúng phiên bản NodeJS nội tại thông qua `--interpreter process.execPath`.
+- **Sá»­a lá»—i `PM2 SIGKILL`**: Loáº¡i bá» cá» `-t` (cháº¿ Ä‘á»™ giao diá»‡n terminal) khá»i táº¥t cáº£ cÃ¡c lá»‡nh gá»i `9router` cháº¡y ngáº§m. TrÃªn cÃ¡c VPS khÃ´ng giao diá»‡n (headless), cá» nÃ y cÃ³ thá»ƒ khiáº¿n PM2 bá»‹ treo vÃ  nÃ©m ra lá»—i SIGKILL lÃ m cháº¿t toÃ n bá»™ quÃ¡ trÃ¬nh cÃ i Ä‘áº·t.
+- **Tá»‘i Æ°u Sync Helper cháº¡y ngáº§m**: Bá»• sung cÆ¡ cháº¿ dá»± phÃ²ng 2 lá»›p cho script tá»± Ä‘á»™ng Ä‘á»“ng bá»™ (sync helper). Náº¿u PM2 bá»‹ giá»›i háº¡n RAM hoáº·c quÃ¡ táº£i gÃ¢y lá»—i SIGKILL, script sáº½ khÃ´ng vÄƒng lá»—i sáº­p Setup ná»¯a mÃ  tá»± Ä‘á»™ng fallback xuá»‘ng cháº¡y áº©n báº±ng `nohup node ... &`. Trong trÆ°á»ng há»£p xáº¥u nháº¥t, bá»™ cÃ i chá»‰ bÃ¡o cáº£nh bÃ¡o vÃ ng vÃ  ráº½ nhÃ¡nh cho phÃ©p tiáº¿n trÃ¬nh Setup tiáº¿p tá»¥c tá»›i bÆ°á»›c cuá»‘i cÃ¹ng thÃ nh cÃ´ng.
 
-## [5.1.4] — 2026-04-06
+## [5.1.5] â€” 2026-04-06
 
-### 🐞 Sửa lỗi BOM khởi động CLI & Tối ưu luồng vá Timeout trên Docker
+### ðŸž Sá»­a lá»—i PM2 khá»Ÿi Ä‘á»™ng 9Router trÃªn Native
 
-- **Sửa file CLI (BOM)**: Xóa tự động chèn BOM (`\uFEFF`) ở đầu file `cli.js`. Ký tự thừa này vốn làm hỏng shebang `#!/usr/bin/env node` và gây `SyntaxError: Unexpected token` trong nhiều môi trường khi chạy npx
-- **Cải thiện Docker Timeout Patch**: Quá trình can thiệp timeout (`300s`) trong lúc build Docker giờ chuyển sang scan quét toàn bộ các file `.js` trong thư mục `openclaw/dist` thay vì cố tìm file trùng hash `gateway-cli-*`. Giúp bản vá luôn áp dụng thành công trên các phiên bản backend khác biệt mà không in ra warning rác trên console
+- **Fix**: Chuyá»ƒn tá»« viá»‡c cháº¡y chuá»—i bash (`execSync`) sang truyá»n máº£ng tham sá»‘ rÃµ rÃ ng (`execFileSync`) khi khá»Ÿi Ä‘á»™ng 9Router vÃ  script Ä‘á»“ng bá»™ (sync) qua PM2. Äáº£m báº£o PM2 luÃ´n cháº¡y Ä‘Æ°á»£c á»©ng dá»¥ng á»•n Ä‘á»‹nh trÃªn cáº£ Linux (VPS) vÃ  Windows mÃ  khÃ´ng bá»‹ vÆ°á»›ng lá»—i phÃ¢n tÃ­ch cÃº phÃ¡p dáº¥u ngoáº·c kÃ©p hay khoáº£ng tráº¯ng trong Ä‘Æ°á»ng dáº«n.
+- **Tá»‘i Æ°u**: PM2 giá» Ä‘Ã¢y sáº½ phÃ¢n tÃ¡ch ráº¡ch rÃ²i báº±ng cÃ¡ch gá»i file thá»±c thi `9router` vá»›i tham sá»‘ `--interpreter none`, vÃ  luÃ´n cháº¡y sync script báº±ng Ä‘Ãºng phiÃªn báº£n NodeJS ná»™i táº¡i thÃ´ng qua `--interpreter process.execPath`.
 
-## [5.1.3] — 2026-04-06
+## [5.1.4] â€” 2026-04-06
 
-### 🐜 Lỗi lọt biến nội suy vào giao diện Docker Compose
+### ðŸž Sá»­a lá»—i BOM khá»Ÿi Ä‘á»™ng CLI & Tá»‘i Æ°u luá»“ng vÃ¡ Timeout trÃªn Docker
 
-Bản vá lỗi base64 trước đó đã gây ra lỗi mới (regression) do dùng ngoặc `${Buffer.from(...)}` bên trong chuỗi string sinh ra docker-compose. Điều này làm lọt nguyên đoạn text nội suy vào `docker-compose.yml` thay vì sinh ra chuỗi base64 thật.
+- **Sá»­a file CLI (BOM)**: XÃ³a tá»± Ä‘á»™ng chÃ¨n BOM (`\uFEFF`) á»Ÿ Ä‘áº§u file `cli.js`. KÃ½ tá»± thá»«a nÃ y vá»‘n lÃ m há»ng shebang `#!/usr/bin/env node` vÃ  gÃ¢y `SyntaxError: Unexpected token` trong nhiá»u mÃ´i trÆ°á»ng khi cháº¡y npx
+- **Cáº£i thiá»‡n Docker Timeout Patch**: QuÃ¡ trÃ¬nh can thiá»‡p timeout (`300s`) trong lÃºc build Docker giá» chuyá»ƒn sang scan quÃ©t toÃ n bá»™ cÃ¡c file `.js` trong thÆ° má»¥c `openclaw/dist` thay vÃ¬ cá»‘ tÃ¬m file trÃ¹ng hash `gateway-cli-*`. GiÃºp báº£n vÃ¡ luÃ´n Ã¡p dá»¥ng thÃ nh cÃ´ng trÃªn cÃ¡c phiÃªn báº£n backend khÃ¡c biá»‡t mÃ  khÃ´ng in ra warning rÃ¡c trÃªn console
 
-- **Fix**: Thực hiện tạo mã base64 hoàn chỉnh qua JavaScript (`const syncScriptBase64 = encodeBase64Utf8(syncScript)`) ngay từ ban đầu trước khi ghép chuỗi vào file compose
-- Đảm bảo file compose tạo thành nhận chính xác mã base64 thuần túy mà không bị lọt biến môi trường
-- Dọn dẹp lại script test tương ứng
+## [5.1.3] â€” 2026-04-06
 
-## [5.1.2] — 2026-04-06
+### ðŸœ Lá»—i lá»t biáº¿n ná»™i suy vÃ o giao diá»‡n Docker Compose
 
-### 🐛 Fix Shell Injection: Sync Script Dùng Base64
+Báº£n vÃ¡ lá»—i base64 trÆ°á»›c Ä‘Ã³ Ä‘Ã£ gÃ¢y ra lá»—i má»›i (regression) do dÃ¹ng ngoáº·c `${Buffer.from(...)}` bÃªn trong chuá»—i string sinh ra docker-compose. Äiá»u nÃ y lÃ m lá»t nguyÃªn Ä‘oáº¡n text ná»™i suy vÃ o `docker-compose.yml` thay vÃ¬ sinh ra chuá»—i base64 tháº­t.
 
-Approach node -e JSON.stringify gây lỗi /bin/sh: Syntax error "(" unexpected vì JSON.stringify sinh chuỗi double-quoted phá vỡ shell argument.
+- **Fix**: Thá»±c hiá»‡n táº¡o mÃ£ base64 hoÃ n chá»‰nh qua JavaScript (`const syncScriptBase64 = encodeBase64Utf8(syncScript)`) ngay tá»« ban Ä‘áº§u trÆ°á»›c khi ghÃ©p chuá»—i vÃ o file compose
+- Äáº£m báº£o file compose táº¡o thÃ nh nháº­n chÃ­nh xÃ¡c mÃ£ base64 thuáº§n tÃºy mÃ  khÃ´ng bá»‹ lá»t biáº¿n mÃ´i trÆ°á»ng
+- Dá»n dáº¹p láº¡i script test tÆ°Æ¡ng á»©ng
 
-- **Fix**: nội dung sync script nay được **base64-encode tại thời điểm gen compose** bằng Buffer.from(script).toString base64
-- Entrypoint sinh ra dạng: node -e writeFileSync Buffer.from b64 base64 toString
-- Base64 chỉ chứa [A-Za-z0-9+/=] — không có ký tự đặc biệt, hoạt động đúng trong YAML block
-- Áp dụng cho tất cả luồng gen compose: Docker web wizard (setup.js x2) và Docker CLI (cli.js x2)
+## [5.1.2] â€” 2026-04-06
 
-## [5.1.1] — 2026-04-06
+### ðŸ› Fix Shell Injection: Sync Script DÃ¹ng Base64
 
-### 🔧 9Router Smart-Route Sync — Ổn định qua API
+Approach node -e JSON.stringify gÃ¢y lá»—i /bin/sh: Syntax error "(" unexpected vÃ¬ JSON.stringify sinh chuá»—i double-quoted phÃ¡ vá»¡ shell argument.
 
-Sửa lỗi nghiêm trọng khiến sync script không nhận ra provider đang active, làm tất cả request fallback về `openai` (lỗi `404 No active credentials`).
+- **Fix**: ná»™i dung sync script nay Ä‘Æ°á»£c **base64-encode táº¡i thá»i Ä‘iá»ƒm gen compose** báº±ng Buffer.from(script).toString base64
+- Entrypoint sinh ra dáº¡ng: node -e writeFileSync Buffer.from b64 base64 toString
+- Base64 chá»‰ chá»©a [A-Za-z0-9+/=] â€” khÃ´ng cÃ³ kÃ½ tá»± Ä‘áº·c biá»‡t, hoáº¡t Ä‘á»™ng Ä‘Ãºng trong YAML block
+- Ãp dá»¥ng cho táº¥t cáº£ luá»“ng gen compose: Docker web wizard (setup.js x2) vÃ  Docker CLI (cli.js x2)
 
-- **Nguyên nhân**: script đọc `db.providerConnections` từ `db.json` nhưng field này không tồn tại trong 9Router v0.3.79+ — connections chỉ có qua REST API
-- **Fix**: script giờ gọi `fetch('http://localhost:20128/api/providers')` → `d.connections[]` để detect provider đang active
-- **Fix**: thay heredoc `cat << 'CLAWEOF'` (gây ra `const p=undefined`) bằng `node -e require('fs').writeFileSync(...)` — không còn lỗi escaping trong YAML+shell
-- **Fix**: `build9RouterSmartRouteSyncScript()` trong CLI docker flow giờ truyền đúng `'/root/.9router/db.json'` làm db path
-- Áp dụng cho cả 3 vị trí: Docker web wizard (`setup.js`), Docker CLI (`cli.js`), và native (`cli.js`)
+## [5.1.1] â€” 2026-04-06
 
-### 📱 Zalo Pairing — Tự Động Approve Khi Gateway Đang Chạy
+### ðŸ”§ 9Router Smart-Route Sync â€” á»”n Ä‘á»‹nh qua API
 
-- Trước đây, auto-approve chỉ chạy trong login flow ban đầu; pairing request mới khi gateway đang chạy bị bỏ qua
-- **Fix**: `openclaw gateway run` với Zalo Personal giờ pipe stdout/stderr và tự gọi `openclaw pairing approve zalouser <code>` khi phát hiện pairing code mới
+Sá»­a lá»—i nghiÃªm trá»ng khiáº¿n sync script khÃ´ng nháº­n ra provider Ä‘ang active, lÃ m táº¥t cáº£ request fallback vá» `openai` (lá»—i `404 No active credentials`).
 
-### 🧹 Output Docker CLI Gọn Hơn
+- **NguyÃªn nhÃ¢n**: script Ä‘á»c `db.providerConnections` tá»« `db.json` nhÆ°ng field nÃ y khÃ´ng tá»“n táº¡i trong 9Router v0.3.79+ â€” connections chá»‰ cÃ³ qua REST API
+- **Fix**: script giá» gá»i `fetch('http://localhost:20128/api/providers')` â†’ `d.connections[]` Ä‘á»ƒ detect provider Ä‘ang active
+- **Fix**: thay heredoc `cat << 'CLAWEOF'` (gÃ¢y ra `const p=undefined`) báº±ng `node -e require('fs').writeFileSync(...)` â€” khÃ´ng cÃ²n lá»—i escaping trong YAML+shell
+- **Fix**: `build9RouterSmartRouteSyncScript()` trong CLI docker flow giá» truyá»n Ä‘Ãºng `'/root/.9router/db.json'` lÃ m db path
+- Ãp dá»¥ng cho cáº£ 3 vá»‹ trÃ­: Docker web wizard (`setup.js`), Docker CLI (`cli.js`), vÃ  native (`cli.js`)
 
-- Xóa các hướng dẫn thừa sau khi Docker build xong (`docker compose build`, `openclaw gateway`, PM2) — Docker mode tự chạy hoàn toàn, không cần thao tác thủ công thêm
+### ðŸ“± Zalo Pairing â€” Tá»± Äá»™ng Approve Khi Gateway Äang Cháº¡y
 
-## [5.1.0] — 2026-04-07
+- TrÆ°á»›c Ä‘Ã¢y, auto-approve chá»‰ cháº¡y trong login flow ban Ä‘áº§u; pairing request má»›i khi gateway Ä‘ang cháº¡y bá»‹ bá» qua
+- **Fix**: `openclaw gateway run` vá»›i Zalo Personal giá» pipe stdout/stderr vÃ  tá»± gá»i `openclaw pairing approve zalouser <code>` khi phÃ¡t hiá»‡n pairing code má»›i
 
-### 🤖 Zalo Personal Login Improvements
+### ðŸ§¹ Output Docker CLI Gá»n HÆ¡n
 
-- Zalo Personal giờ sử dụng luồng đăng nhập `zalouser` trực tiếp trên cả native và Docker.
-- Setup in ra đường dẫn QR cùng các lệnh login/copy chính xác, giúp người dùng đăng nhập nhanh mà không cần `openclaw onboard`.
-- QR login Docker giờ nhắm vào service compose `ai-bot` đã sinh ra thay vì các tên container cũ dễ hỏng.
+- XÃ³a cÃ¡c hÆ°á»›ng dáº«n thá»«a sau khi Docker build xong (`docker compose build`, `openclaw gateway`, PM2) â€” Docker mode tá»± cháº¡y hoÃ n toÃ n, khÃ´ng cáº§n thao tÃ¡c thá»§ cÃ´ng thÃªm
 
-## [5.0.9] — 2026-04-06
+## [5.1.0] â€” 2026-04-07
 
-### 🚀 Chế độ Native Install — Không cần Docker
+### ðŸ¤– Zalo Personal Login Improvements
 
-OpenClaw giờ hỗ trợ **cài đặt native (không dùng Docker)** trên Windows, Linux, macOS, VPS và shared hosting.
+- Zalo Personal giá» sá»­ dá»¥ng luá»“ng Ä‘Äƒng nháº­p `zalouser` trá»±c tiáº¿p trÃªn cáº£ native vÃ  Docker.
+- Setup in ra Ä‘Æ°á»ng dáº«n QR cÃ¹ng cÃ¡c lá»‡nh login/copy chÃ­nh xÃ¡c, giÃºp ngÆ°á»i dÃ¹ng Ä‘Äƒng nháº­p nhanh mÃ  khÃ´ng cáº§n `openclaw onboard`.
+- QR login Docker giá» nháº¯m vÃ o service compose `ai-bot` Ä‘Ã£ sinh ra thay vÃ¬ cÃ¡c tÃªn container cÅ© dá»… há»ng.
 
-- **CLI native mode** — thêm chọn chế độ: `docker` (mặc định) hoặc `native`
-- **Script khởi động sinh tự động theo OS:**
-  - 🪟 **Windows** → `setup-openclaw-win.bat` (double-click cài ngay)
-  - 🐧 **Linux / macOS** → `setup-openclaw-linux.sh`
-  - 🖥️ **VPS / Ubuntu** → `setup-openclaw-vps.sh` (PM2 chạy nền)
-  - 🏠 **Shared Hosting / cPanel** → `setup-openclaw-hosting.sh` + `ecosystem.config.cjs`
-- **Web Wizard cập nhật** — Thêm toggle Deploy Mode (Docker / Native) + chọn OS
-- **URL host động** — Ollama và 9Router URL tự chuyển:
+## [5.0.9] â€” 2026-04-06
+
+### ðŸš€ Cháº¿ Ä‘á»™ Native Install â€” KhÃ´ng cáº§n Docker
+
+OpenClaw giá» há»— trá»£ **cÃ i Ä‘áº·t native (khÃ´ng dÃ¹ng Docker)** trÃªn Windows, Linux, macOS, VPS vÃ  shared hosting.
+
+- **CLI native mode** â€” thÃªm chá»n cháº¿ Ä‘á»™: `docker` (máº·c Ä‘á»‹nh) hoáº·c `native`
+- **Script khá»Ÿi Ä‘á»™ng sinh tá»± Ä‘á»™ng theo OS:**
+  - ðŸªŸ **Windows** â†’ `setup-openclaw-win.bat` (double-click cÃ i ngay)
+  - ðŸ§ **Linux / macOS** â†’ `setup-openclaw-linux.sh`
+  - ðŸ–¥ï¸ **VPS / Ubuntu** â†’ `setup-openclaw-vps.sh` (PM2 cháº¡y ná»n)
+  - ðŸ  **Shared Hosting / cPanel** â†’ `setup-openclaw-hosting.sh` + `ecosystem.config.cjs`
+- **Web Wizard cáº­p nháº­t** â€” ThÃªm toggle Deploy Mode (Docker / Native) + chá»n OS
+- **URL host Ä‘á»™ng** â€” Ollama vÃ  9Router URL tá»± chuyá»ƒn:
   - Docker: `http://ollama:11434` / `http://9router:20128/v1`
   - Native: `http://localhost:11434` / `http://localhost:20128/v1`
-- **Kiểm tra Node.js 18+** — Native mode yêu cầu Node.js 18+ trước khi chạy
-- **Test scripts** — `test-native-install.bat` (Windows) và `test-native-install.sh` (Linux/macOS)
+- **Kiá»ƒm tra Node.js 18+** â€” Native mode yÃªu cáº§u Node.js 18+ trÆ°á»›c khi cháº¡y
+- **Test scripts** â€” `test-native-install.bat` (Windows) vÃ  `test-native-install.sh` (Linux/macOS)
 
-### 🤖 Cập nhật Gemma 4
+### ðŸ¤– Cáº­p nháº­t Gemma 4
 
-- **4 biến thể Gemma 4** qua Ollama: `gemma4:e2b` (~4-6 GB), `gemma4:e4b` (~8-10 GB), `gemma4:26b` (~18-24 GB), `gemma4:31b` (~24+ GB)
-- Tự pull model Gemma 4 khi `docker compose up` lần đầu (timeout container tăng lên 15 phút)
-- Nâng timeout Ollama lên **300 giây** để xử lý model lớn
-- Thêm `OLLAMA_NUM_PARALLEL=1` và `OLLAMA_KEEP_ALIVE=24h` vào Docker sidecar
+- **4 biáº¿n thá»ƒ Gemma 4** qua Ollama: `gemma4:e2b` (~4-6 GB), `gemma4:e4b` (~8-10 GB), `gemma4:26b` (~18-24 GB), `gemma4:31b` (~24+ GB)
+- Tá»± pull model Gemma 4 khi `docker compose up` láº§n Ä‘áº§u (timeout container tÄƒng lÃªn 15 phÃºt)
+- NÃ¢ng timeout Ollama lÃªn **300 giÃ¢y** Ä‘á»ƒ xá»­ lÃ½ model lá»›n
+- ThÃªm `OLLAMA_NUM_PARALLEL=1` vÃ  `OLLAMA_KEEP_ALIVE=24h` vÃ o Docker sidecar
 
-### 🤖 Multi-Bot Deployment (tối đa 5 bot Telegram trên mỗi workspace)
+### ðŸ¤– Multi-Bot Deployment (tá»‘i Ä‘a 5 bot Telegram trÃªn má»—i workspace)
 
-OpenClaw giờ hỗ trợ triển khai **nhiều bot Telegram độc lập** từ một setup duy nhất — mỗi bot có identity, slash command, AI personality và thư mục workspace riêng biệt.
+OpenClaw giá» há»— trá»£ triá»ƒn khai **nhiá»u bot Telegram Ä‘á»™c láº­p** tá»« má»™t setup duy nháº¥t â€” má»—i bot cÃ³ identity, slash command, AI personality vÃ  thÆ° má»¥c workspace riÃªng biá»‡t.
 
-- **Triển khai 1–5 bot cùng lúc** — Web Wizard và CLI đều hỗ trợ cấu hình multi-bot
-- **Workspace riêng biệt** — mỗi bot có thư mục `botN/` riêng với `.env` và cấu hình `.openclaw/` riêng, không gây xung đột token hay cấu hình
-- **Tự động gán cổng** — cổng bắt đầu từ `18791` và tăng dần cho mỗi bot (`18791`, `18792`, ...) để tránh xung đột binding host
-- **Docker Compose đa-service** — tự động sinh `docker-compose.yml` với một service cho mỗi bot, cộng thêm một container provider chung (9Router hoặc Ollama)
-- **Department Room Model** — khi các bot chia sẻ chung một nhóm Telegram, chúng hoạt động như một đội ngũ chuyên nghiệp:
-  - 🤫 **Mặc định im lặng** — bot phản hồi bằng emoji (👍 ❤️) với tin nhắn thông thường nhưng không bao giờ spam reply
-  - 📣 **Trigger bằng @mention hoặc /slash** — chỉ bot được nhắc tên hoặc được gọi lệnh mới phản hồi, giống như gọi tên đồng nghiệp trong phòng họp
-  - 🗃️ **Workspace chung** — tất cả bot đọc từ một thư mục workspace chung và có thể cộng tác trên các tác vụ, tệp và báo cáo
-- **Cấu hình botGroup** được inject vào `openclaw.json` của mỗi bot để chúng biết tên và lệnh slash của nhau khi runtime
+- **Triá»ƒn khai 1â€“5 bot cÃ¹ng lÃºc** â€” Web Wizard vÃ  CLI Ä‘á»u há»— trá»£ cáº¥u hÃ¬nh multi-bot
+- **Workspace riÃªng biá»‡t** â€” má»—i bot cÃ³ thÆ° má»¥c `botN/` riÃªng vá»›i `.env` vÃ  cáº¥u hÃ¬nh `.openclaw/` riÃªng, khÃ´ng gÃ¢y xung Ä‘á»™t token hay cáº¥u hÃ¬nh
+- **Tá»± Ä‘á»™ng gÃ¡n cá»•ng** â€” cá»•ng báº¯t Ä‘áº§u tá»« `18791` vÃ  tÄƒng dáº§n cho má»—i bot (`18791`, `18792`, ...) Ä‘á»ƒ trÃ¡nh xung Ä‘á»™t binding host
+- **Docker Compose Ä‘a-service** â€” tá»± Ä‘á»™ng sinh `docker-compose.yml` vá»›i má»™t service cho má»—i bot, cá»™ng thÃªm má»™t container provider chung (9Router hoáº·c Ollama)
+- **Department Room Model** â€” khi cÃ¡c bot chia sáº» chung má»™t nhÃ³m Telegram, chÃºng hoáº¡t Ä‘á»™ng nhÆ° má»™t Ä‘á»™i ngÅ© chuyÃªn nghiá»‡p:
+  - ðŸ¤« **Máº·c Ä‘á»‹nh im láº·ng** â€” bot pháº£n há»“i báº±ng emoji (ðŸ‘ â¤ï¸) vá»›i tin nháº¯n thÃ´ng thÆ°á»ng nhÆ°ng khÃ´ng bao giá» spam reply
+  - ðŸ“£ **Trigger báº±ng @mention hoáº·c /slash** â€” chá»‰ bot Ä‘Æ°á»£c nháº¯c tÃªn hoáº·c Ä‘Æ°á»£c gá»i lá»‡nh má»›i pháº£n há»“i, giá»‘ng nhÆ° gá»i tÃªn Ä‘á»“ng nghiá»‡p trong phÃ²ng há»p
+  - ðŸ—ƒï¸ **Workspace chung** â€” táº¥t cáº£ bot Ä‘á»c tá»« má»™t thÆ° má»¥c workspace chung vÃ  cÃ³ thá»ƒ cá»™ng tÃ¡c trÃªn cÃ¡c tÃ¡c vá»¥, tá»‡p vÃ  bÃ¡o cÃ¡o
+- **Cáº¥u hÃ¬nh botGroup** Ä‘Æ°á»£c inject vÃ o `openclaw.json` cá»§a má»—i bot Ä‘á»ƒ chÃºng biáº¿t tÃªn vÃ  lá»‡nh slash cá»§a nhau khi runtime
 
-### 🔗 Trợ giúp lấy Telegram Group ID
+### ðŸ”— Trá»£ giÃºp láº¥y Telegram Group ID
 
-Lấy Group ID giờ trở nên cực kỳ đơn giản:
+Láº¥y Group ID giá» trá»Ÿ nÃªn cá»±c ká»³ Ä‘Æ¡n giáº£n:
 
-- **Web Wizard**: card "Đã có group" giờ hiển thị nút inline `Lấy Group ID` mở thẳng **@userinfobot**, kèm hướng dẫn từng bước (forward tin nhắn nhóm → bot trả về Chat ID)
-- **CLI**: chọn "existing group" sẽ in ra hướng dẫn tương tác với các bước đánh số và link trực tiếp đến `https://t.me/userinfobot`
+- **Web Wizard**: card "ÄÃ£ cÃ³ group" giá» hiá»ƒn thá»‹ nÃºt inline `Láº¥y Group ID` má»Ÿ tháº³ng **@userinfobot**, kÃ¨m hÆ°á»›ng dáº«n tá»«ng bÆ°á»›c (forward tin nháº¯n nhÃ³m â†’ bot tráº£ vá» Chat ID)
+- **CLI**: chá»n "existing group" sáº½ in ra hÆ°á»›ng dáº«n tÆ°Æ¡ng tÃ¡c vá»›i cÃ¡c bÆ°á»›c Ä‘Ã¡nh sá»‘ vÃ  link trá»±c tiáº¿p Ä‘áº¿n `https://t.me/userinfobot`
 
-### 🎨 Tinh chỉnh UI
+### ðŸŽ¨ Tinh chá»‰nh UI
 
-- **Bộ chọn tùy chọn nhóm** được thiết kế dạng **hai thẻ tương tác** với icon, mô tả, hiệu ứng hover glow và dấu tick chọn động
-- Trạng thái active của thẻ: màu xanh lá + viền cho "tạo sau", màu xanh chàm + viền cho "nhóm đã có"
-- Hàng nhập Group ID bao gồm nút trợ giúp inline — không cần tìm kiếm tài liệu nữa
+- **Bá»™ chá»n tÃ¹y chá»n nhÃ³m** Ä‘Æ°á»£c thiáº¿t káº¿ dáº¡ng **hai tháº» tÆ°Æ¡ng tÃ¡c** vá»›i icon, mÃ´ táº£, hiá»‡u á»©ng hover glow vÃ  dáº¥u tick chá»n Ä‘á»™ng
+- Tráº¡ng thÃ¡i active cá»§a tháº»: mÃ u xanh lÃ¡ + viá»n cho "táº¡o sau", mÃ u xanh chÃ m + viá»n cho "nhÃ³m Ä‘Ã£ cÃ³"
+- HÃ ng nháº­p Group ID bao gá»“m nÃºt trá»£ giÃºp inline â€” khÃ´ng cáº§n tÃ¬m kiáº¿m tÃ i liá»‡u ná»¯a
 
-## [5.0.0] — 2026-04-04
+## [5.0.0] â€” 2026-04-04
 
-### 🚀 Hỗ trợ Gemma 4 — Model mới nhất của Google
+### ðŸš€ Há»— trá»£ Gemma 4 â€” Model má»›i nháº¥t cá»§a Google
 
-OpenClaw v5.0.0 cập nhật **Gemma 4** — dòng model open-weights mới của Google DeepMind, ra mắt 02/04/2026.
+OpenClaw v5.0.0 cáº­p nháº­t **Gemma 4** â€” dÃ²ng model open-weights má»›i cá»§a Google DeepMind, ra máº¯t 02/04/2026.
 
-- **Gemma 4 có sẵn 3 size qua Ollama** — `gemma4:4b` (~6 GB RAM), `gemma4` mặc định (~10 GB), `gemma4:27b` (~18 GB)
-- **Không cần cài Ollama thủ công** — Khi chọn Local Ollama + Gemma 4, setup tự động sinh **service `ollama` sát cạnh trong `docker-compose.yml`**. Docker tự pull model khi `docker compose up`. Không cần cài Ollama trước.
-- **OLLAMA_HOST tự cấu hình** — Trỏ thẳng vào sidecar container (`http://ollama:11434`).
-- **Cập nhật danh sách model** — Thêm `gemma4`, `gemma4:27b`, `gemma4:4b` vào Ollama provider trên cả CLI và Web Wizard.
+- **Gemma 4 cÃ³ sáºµn 3 size qua Ollama** â€” `gemma4:4b` (~6 GB RAM), `gemma4` máº·c Ä‘á»‹nh (~10 GB), `gemma4:27b` (~18 GB)
+- **KhÃ´ng cáº§n cÃ i Ollama thá»§ cÃ´ng** â€” Khi chá»n Local Ollama + Gemma 4, setup tá»± Ä‘á»™ng sinh **service `ollama` sÃ¡t cáº¡nh trong `docker-compose.yml`**. Docker tá»± pull model khi `docker compose up`. KhÃ´ng cáº§n cÃ i Ollama trÆ°á»›c.
+- **OLLAMA_HOST tá»± cáº¥u hÃ¬nh** â€” Trá» tháº³ng vÃ o sidecar container (`http://ollama:11434`).
+- **Cáº­p nháº­t danh sÃ¡ch model** â€” ThÃªm `gemma4`, `gemma4:27b`, `gemma4:4b` vÃ o Ollama provider trÃªn cáº£ CLI vÃ  Web Wizard.
 
-### 💻 Yêu cầu phần cứng cho Gemma 4
+### ðŸ’» YÃªu cáº§u pháº§n cá»©ng cho Gemma 4
 
-| Model               | RAM/VRAM tối thiểu (4-bit) | Phù hợp                        |
+| Model               | RAM/VRAM tá»‘i thiá»ƒu (4-bit) | PhÃ¹ há»£p                        |
 | ------------------- | -------------------------- | ------------------------------ |
-| `gemma4:4b`         | ~6 GB                      | Laptop thông thường, Mac M1/M2 |
-| `gemma4` (mặc định) | ~10 GB                     | PC 16 GB RAM                   |
+| `gemma4:4b`         | ~6 GB                      | Laptop thÃ´ng thÆ°á»ng, Mac M1/M2 |
+| `gemma4` (máº·c Ä‘á»‹nh) | ~10 GB                     | PC 16 GB RAM                   |
 | `gemma4:27b`        | ~18 GB                     | Workstation 32 GB / GPU 24 GB  |
 
-> Gemma 4 **miễn phí, open-weights, giấy phép Apache 2.0**. Không cần API key — chạy 100% local qua Docker.
+> Gemma 4 **miá»…n phÃ­, open-weights, giáº¥y phÃ©p Apache 2.0**. KhÃ´ng cáº§n API key â€” cháº¡y 100% local qua Docker.
 
-## [4.1.4] — 2026-04-03
+## [4.1.4] â€” 2026-04-03
 
-### ✨ Cải tiến
+### âœ¨ Cáº£i tiáº¿n
 
-- CLI/Wizard đồng bộ đầy đủ skills (Browser Automation, Memory, RAG, Code Interpreter, v.v.)
-- Browser Automation: chọn chế độ Desktop (Host Chrome) hoặc Server (Headless Chromium) cho Linux/Ubuntu
-- Sửa lỗi Dockerfile WORKDIR gây lỗi build trên Linux
-- Skills install tại **runtime** container (không phải lúc build) để tránh lỗi ClawHub auth
-- TOOLS.md động: tự sinh theo danh sách skills đã chọn
-- Tự tạo `browser-tool.js` (Desktop mode) và `BROWSER.md`
-- Tự đăng ký skills vào `openclaw.json → skills.entries`
-- Bổ sung prompt cấu hình Email SMTP và inject vào `.env`
-- Single-source version qua `bump-version.mjs` — 1 lệnh cập nhật tất cả file
+- CLI/Wizard Ä‘á»“ng bá»™ Ä‘áº§y Ä‘á»§ skills (Browser Automation, Memory, RAG, Code Interpreter, v.v.)
+- Browser Automation: chá»n cháº¿ Ä‘á»™ Desktop (Host Chrome) hoáº·c Server (Headless Chromium) cho Linux/Ubuntu
+- Sá»­a lá»—i Dockerfile WORKDIR gÃ¢y lá»—i build trÃªn Linux
+- Skills install táº¡i **runtime** container (khÃ´ng pháº£i lÃºc build) Ä‘á»ƒ trÃ¡nh lá»—i ClawHub auth
+- TOOLS.md Ä‘á»™ng: tá»± sinh theo danh sÃ¡ch skills Ä‘Ã£ chá»n
+- Tá»± táº¡o `browser-tool.js` (Desktop mode) vÃ  `BROWSER.md`
+- Tá»± Ä‘Äƒng kÃ½ skills vÃ o `openclaw.json â†’ skills.entries`
+- Bá»• sung prompt cáº¥u hÃ¬nh Email SMTP vÃ  inject vÃ o `.env`
+- Single-source version qua `bump-version.mjs` â€” 1 lá»‡nh cáº­p nháº­t táº¥t cáº£ file
 
-## [4.1.3] — 2026-04-02
+## [4.1.3] â€” 2026-04-02
 
-### ✨ Cải tiến
+### âœ¨ Cáº£i tiáº¿n
 
-- CLI/Wizard đồng bộ đầy đủ skills (Browser Automation, Memory, RAG, Code Interpreter, v.v.)
-- Browser Automation: chọn chế độ Desktop (Host Chrome) hoặc Server (Headless Chromium)
-- Sửa lỗi Dockerfile WORKDIR trên Linux
-- TOOLS.md động: tự sinh theo skills đã chọn
-- Tự tạo browser-tool.js (Desktop mode) và BROWSER.md
-- Tự đăng ký skills vào `openclaw.json → skills.entries`
-- Bổ sung prompt cấu hình Email SMTP
+- CLI/Wizard Ä‘á»“ng bá»™ Ä‘áº§y Ä‘á»§ skills (Browser Automation, Memory, RAG, Code Interpreter, v.v.)
+- Browser Automation: chá»n cháº¿ Ä‘á»™ Desktop (Host Chrome) hoáº·c Server (Headless Chromium)
+- Sá»­a lá»—i Dockerfile WORKDIR trÃªn Linux
+- TOOLS.md Ä‘á»™ng: tá»± sinh theo skills Ä‘Ã£ chá»n
+- Tá»± táº¡o browser-tool.js (Desktop mode) vÃ  BROWSER.md
+- Tá»± Ä‘Äƒng kÃ½ skills vÃ o `openclaw.json â†’ skills.entries`
+- Bá»• sung prompt cáº¥u hÃ¬nh Email SMTP
 
-Tất cả những thay đổi nổi bật của dự án sẽ được ghi chép trong file này.
+Táº¥t cáº£ nhá»¯ng thay Ä‘á»•i ná»•i báº­t cá»§a dá»± Ã¡n sáº½ Ä‘Æ°á»£c ghi chÃ©p trong file nÃ y.
 
-## [4.1.2] — 2026-04-01
+## [4.1.2] â€” 2026-04-01
 
-### Khắc phục
+### Kháº¯c phá»¥c
 
-- **CLI setup**: Khắc phục lỗi sinh file `docker-compose.yml` định dạng sai khi dùng 9Router (lỗi báo `yaml: while scanning a simple key`) bằng cách đổi cách escape string `syncComboScript` sang kiểu heredoc block scalars của bash để tránh xung đột nháy kép/nháy đơn trong YAML.
+- **CLI setup**: Kháº¯c phá»¥c lá»—i sinh file `docker-compose.yml` Ä‘á»‹nh dáº¡ng sai khi dÃ¹ng 9Router (lá»—i bÃ¡o `yaml: while scanning a simple key`) báº±ng cÃ¡ch Ä‘á»•i cÃ¡ch escape string `syncComboScript` sang kiá»ƒu heredoc block scalars cá»§a bash Ä‘á»ƒ trÃ¡nh xung Ä‘á»™t nhÃ¡y kÃ©p/nhÃ¡y Ä‘Æ¡n trong YAML.
 
-## [4.1.0] — 2026-04-01
+## [4.1.0] â€” 2026-04-01
 
-### 🚀 Stable 9Router Smart Routing
+### ðŸš€ Stable 9Router Smart Routing
 
-- **Khởi tạo Database tinh gọn**: Combo mặc định của 9Router hiện tại sạch 100% (chỉ lưu `smart-route`). Đã loại bỏ việc tự động tiêm GPT-4o/Claude/Gemini như các rác hệ thống để ưu tiên 100% sức mạnh định tuyến động.
-- **Tối giản Giao diện Toggling**: Cả web Setup Wizard và CLI đều được tinh giản, không còn liệt kê mảng models dư thừa khi chọn 9Router. Hệ thống mặc định chốt cứng Auto Route (`smart-route`) và giao hoàn toàn phán quyết chuyển đổi cho thuật toán `PREF`.
+- **Khá»Ÿi táº¡o Database tinh gá»n**: Combo máº·c Ä‘á»‹nh cá»§a 9Router hiá»‡n táº¡i sáº¡ch 100% (chá»‰ lÆ°u `smart-route`). ÄÃ£ loáº¡i bá» viá»‡c tá»± Ä‘á»™ng tiÃªm GPT-4o/Claude/Gemini nhÆ° cÃ¡c rÃ¡c há»‡ thá»‘ng Ä‘á»ƒ Æ°u tiÃªn 100% sá»©c máº¡nh Ä‘á»‹nh tuyáº¿n Ä‘á»™ng.
+- **Tá»‘i giáº£n Giao diá»‡n Toggling**: Cáº£ web Setup Wizard vÃ  CLI Ä‘á»u Ä‘Æ°á»£c tinh giáº£n, khÃ´ng cÃ²n liá»‡t kÃª máº£ng models dÆ° thá»«a khi chá»n 9Router. Há»‡ thá»‘ng máº·c Ä‘á»‹nh chá»‘t cá»©ng Auto Route (`smart-route`) vÃ  giao hoÃ n toÃ n phÃ¡n quyáº¿t chuyá»ƒn Ä‘á»•i cho thuáº­t toÃ¡n `PREF`.
 
-## [4.0.9] — 2026-04-01
+## [4.0.9] â€” 2026-04-01
 
-### 🔄 Dynamic Smart Route (Đồng bộ Provider Realtime)
+### ðŸ”„ Dynamic Smart Route (Äá»“ng bá»™ Provider Realtime)
 
-- **Routing Thông Minh**: Combo `smart-route` không còn là danh sách cứng 100+ model. Script đồng bộ chạy ngầm mỗi 30 giây sẽ tự động quét `/api/providers` của 9Router và chỉ đưa vào combo **những provider đã kết nối VÀ đang bật**. Triệt tiêu hoàn toàn lỗi `404 No active credentials`.
-- **Bật/Tắt Tức Thì**: Bật hoặc tắt provider trên Dashboard 9Router — combo tự cập nhật trong vòng 30 giây, không cần restart container.
-- **Mapping Đầy Đủ**: Hỗ trợ 25+ provider (Codex, Claude Code, GitHub Copilot, Cursor, Kilo, Cline, Gemini CLI, iFlow, Qwen, Kiro, Ollama, GLM, MiniMax, DeepSeek, xAI, Mistral, Groq...).
+- **Routing ThÃ´ng Minh**: Combo `smart-route` khÃ´ng cÃ²n lÃ  danh sÃ¡ch cá»©ng 100+ model. Script Ä‘á»“ng bá»™ cháº¡y ngáº§m má»—i 30 giÃ¢y sáº½ tá»± Ä‘á»™ng quÃ©t `/api/providers` cá»§a 9Router vÃ  chá»‰ Ä‘Æ°a vÃ o combo **nhá»¯ng provider Ä‘Ã£ káº¿t ná»‘i VÃ€ Ä‘ang báº­t**. Triá»‡t tiÃªu hoÃ n toÃ n lá»—i `404 No active credentials`.
+- **Báº­t/Táº¯t Tá»©c ThÃ¬**: Báº­t hoáº·c táº¯t provider trÃªn Dashboard 9Router â€” combo tá»± cáº­p nháº­t trong vÃ²ng 30 giÃ¢y, khÃ´ng cáº§n restart container.
+- **Mapping Äáº§y Äá»§**: Há»— trá»£ 25+ provider (Codex, Claude Code, GitHub Copilot, Cursor, Kilo, Cline, Gemini CLI, iFlow, Qwen, Kiro, Ollama, GLM, MiniMax, DeepSeek, xAI, Mistral, Groq...).
 
-### 🐳 Tự Động Cài Docker
+### ðŸ³ Tá»± Äá»™ng CÃ i Docker
 
-- **Zero-Prerequisite**: `npx create-openclaw-bot` tự phát hiện Docker chưa cài → tự tải + cài qua `winget` (Windows), `brew` (macOS), hoặc script chính thức Docker (Linux).
-- **Hướng Dẫn Rõ Ràng**: Nếu cài tự động thất bại, hiển thị link tải trực tiếp kèm hướng dẫn chi tiết.
+- **Zero-Prerequisite**: `npx create-openclaw-bot` tá»± phÃ¡t hiá»‡n Docker chÆ°a cÃ i â†’ tá»± táº£i + cÃ i qua `winget` (Windows), `brew` (macOS), hoáº·c script chÃ­nh thá»©c Docker (Linux).
+- **HÆ°á»›ng Dáº«n RÃµ RÃ ng**: Náº¿u cÃ i tá»± Ä‘á»™ng tháº¥t báº¡i, hiá»ƒn thá»‹ link táº£i trá»±c tiáº¿p kÃ¨m hÆ°á»›ng dáº«n chi tiáº¿t.
 
-## [4.0.8] — 2026-03-31
+## [4.0.8] â€” 2026-03-31
 
-### ✨ Tối ưu 9Router & Mở rộng Ollama Cloud
+### âœ¨ Tá»‘i Æ°u 9Router & Má»Ÿ rá»™ng Ollama Cloud
 
-- **Tích hợp 9Router cực kỳ Ổn định (Zero Config)**: Proxy 9Router hiện được tự động kích hoạt bảo mật bên trong mạng Docker network qua cổng `sk-no-key`. Toàn bộ thiết đặt API keys thủ công và định tuyến models được gỡ bỏ khỏi `.env` để nhường chỗ cho hệ thống quản lý tập trung và thông minh hơn qua [9Router Dashboard](http://localhost:20128/dashboard).
-- **Mở Rộng Kết Nối Models**: Đưa vào danh sách hỗ trợ trọn bộ hệ sinh thái Ollama Cloud (_Qwen 3.5, GLM-5, MiniMax, GPT-OSS_), Kiro Haiku, Qwen Flash, cùng toàn bộ iFlow models hoàn toàn miễn phí.
-- **Tự động Inject Smart Routing**: Cấu hình tự động gài sẵn combo luân chuyển linh hoạt `smart-route` giúp cân bằng tải công việc qua lại mượt mà giữa Codex, Claude Code, Gemini, và iFlow.
+- **TÃ­ch há»£p 9Router cá»±c ká»³ á»”n Ä‘á»‹nh (Zero Config)**: Proxy 9Router hiá»‡n Ä‘Æ°á»£c tá»± Ä‘á»™ng kÃ­ch hoáº¡t báº£o máº­t bÃªn trong máº¡ng Docker network qua cá»•ng `sk-no-key`. ToÃ n bá»™ thiáº¿t Ä‘áº·t API keys thá»§ cÃ´ng vÃ  Ä‘á»‹nh tuyáº¿n models Ä‘Æ°á»£c gá»¡ bá» khá»i `.env` Ä‘á»ƒ nhÆ°á»ng chá»— cho há»‡ thá»‘ng quáº£n lÃ½ táº­p trung vÃ  thÃ´ng minh hÆ¡n qua [9Router Dashboard](http://localhost:20128/dashboard).
+- **Má»Ÿ Rá»™ng Káº¿t Ná»‘i Models**: ÄÆ°a vÃ o danh sÃ¡ch há»— trá»£ trá»n bá»™ há»‡ sinh thÃ¡i Ollama Cloud (_Qwen 3.5, GLM-5, MiniMax, GPT-OSS_), Kiro Haiku, Qwen Flash, cÃ¹ng toÃ n bá»™ iFlow models hoÃ n toÃ n miá»…n phÃ­.
+- **Tá»± Ä‘á»™ng Inject Smart Routing**: Cáº¥u hÃ¬nh tá»± Ä‘á»™ng gÃ i sáºµn combo luÃ¢n chuyá»ƒn linh hoáº¡t `smart-route` giÃºp cÃ¢n báº±ng táº£i cÃ´ng viá»‡c qua láº¡i mÆ°á»£t mÃ  giá»¯a Codex, Claude Code, Gemini, vÃ  iFlow.
 
-### 🧹 Clean Workspace & Auto-Setup Đa Nền Tảng
+### ðŸ§¹ Clean Workspace & Auto-Setup Äa Ná»n Táº£ng
 
-- **Zero-Clutter Generation**: Dọn sạch hoàn toàn các template làm mẫu như `.env.example` hay các file cấu hình `docker-compose` tĩnh dư thừa. Script setup sẽ tự khởi tạo linh động các file thực thụ ngay lúc chạy cho một workspace gọn gàng nhất.
-- **Auto Browser Đa Nền Tảng**: Bổ sung `start-chrome-debug.sh` mới đét cho macOS/Linux đồng bộ hoàn hảo với file `.bat` thiết lập chạy Automation trên Windows, mở ra kỷ nguyên Auto-Browser tiện lợi.
-- **Auto Prompt CLI**: `npx create-openclaw-bot` hiện đã hoàn chỉnh về feature-parity với Web UI, hỗ trợ tra vấn thông tin thiết lập User Identity và Persona của Bot trực tiếp ở bảng console.
+- **Zero-Clutter Generation**: Dá»n sáº¡ch hoÃ n toÃ n cÃ¡c template lÃ m máº«u nhÆ° `.env.example` hay cÃ¡c file cáº¥u hÃ¬nh `docker-compose` tÄ©nh dÆ° thá»«a. Script setup sáº½ tá»± khá»Ÿi táº¡o linh Ä‘á»™ng cÃ¡c file thá»±c thá»¥ ngay lÃºc cháº¡y cho má»™t workspace gá»n gÃ ng nháº¥t.
+- **Auto Browser Äa Ná»n Táº£ng**: Bá»• sung `start-chrome-debug.sh` má»›i Ä‘Ã©t cho macOS/Linux Ä‘á»“ng bá»™ hoÃ n háº£o vá»›i file `.bat` thiáº¿t láº­p cháº¡y Automation trÃªn Windows, má»Ÿ ra ká»· nguyÃªn Auto-Browser tiá»‡n lá»£i.
+- **Auto Prompt CLI**: `npx create-openclaw-bot` hiá»‡n Ä‘Ã£ hoÃ n chá»‰nh vá» feature-parity vá»›i Web UI, há»— trá»£ tra váº¥n thÃ´ng tin thiáº¿t láº­p User Identity vÃ  Persona cá»§a Bot trá»±c tiáº¿p á»Ÿ báº£ng console.
 
-## [4.0.1] — 2026-03-31
+## [4.0.1] â€” 2026-03-31
 
-### ✨ Tự Động Hoá (Tự tạo thư mục cài đặt gốc) & NPM CLI
+### âœ¨ Tá»± Äá»™ng HoÃ¡ (Tá»± táº¡o thÆ° má»¥c cÃ i Ä‘áº·t gá»‘c) & NPM CLI
 
-- **One-Command Install (npx)**: Gói CLI `create-openclaw-bot` được tải lên NPM. Người dùng Windows, Linux, Mac chỉ cần mở Terminal gõ lệnh `npx create-openclaw-bot` để setup tự động từ A-Z qua giao diện tương tác.
-- **Tự động Setup & Khởi động Docker**: Quy trình tạo `.bat`/CLI được viết lại, thiết lập xong sẽ mở Docker compose tự động tải và kích hoạt Bot ngay.
-- **Improved UI Setup**: Gọn gàng hoá file preview, đổi layout UI cho Zalo Bot API để dùng official vector SVG, nổi màu xanh chủ đạo Zalo thay vì logo trong suốt.
-- **Safety First**: Lược bỏ tuỳ chọn mô hình Antigravity (AG) khỏi 9router Proxy Models và thêm cảnh báo đỏ trên UI để tránh rủi ro người dùng bị khoá account Google AI Ultra do lạm dụng quá mức. Cập nhật icon credit cho thesvg.org.
+- **One-Command Install (npx)**: GÃ³i CLI `create-openclaw-bot` Ä‘Æ°á»£c táº£i lÃªn NPM. NgÆ°á»i dÃ¹ng Windows, Linux, Mac chá»‰ cáº§n má»Ÿ Terminal gÃµ lá»‡nh `npx create-openclaw-bot` Ä‘á»ƒ setup tá»± Ä‘á»™ng tá»« A-Z qua giao diá»‡n tÆ°Æ¡ng tÃ¡c.
+- **Tá»± Ä‘á»™ng Setup & Khá»Ÿi Ä‘á»™ng Docker**: Quy trÃ¬nh táº¡o `.bat`/CLI Ä‘Æ°á»£c viáº¿t láº¡i, thiáº¿t láº­p xong sáº½ má»Ÿ Docker compose tá»± Ä‘á»™ng táº£i vÃ  kÃ­ch hoáº¡t Bot ngay.
+- **Improved UI Setup**: Gá»n gÃ ng hoÃ¡ file preview, Ä‘á»•i layout UI cho Zalo Bot API Ä‘á»ƒ dÃ¹ng official vector SVG, ná»•i mÃ u xanh chá»§ Ä‘áº¡o Zalo thay vÃ¬ logo trong suá»‘t.
+- **Safety First**: LÆ°á»£c bá» tuá»³ chá»n mÃ´ hÃ¬nh Antigravity (AG) khá»i 9router Proxy Models vÃ  thÃªm cáº£nh bÃ¡o Ä‘á» trÃªn UI Ä‘á»ƒ trÃ¡nh rá»§i ro ngÆ°á»i dÃ¹ng bá»‹ khoÃ¡ account Google AI Ultra do láº¡m dá»¥ng quÃ¡ má»©c. Cáº­p nháº­t icon credit cho thesvg.org.
 
-## [4.0.0] — 2026-03-30
+## [4.0.0] â€” 2026-03-30
 
-### ✨ New Features & Updates
+### âœ¨ New Features & Updates
 
-- **Full English Localization** — Đã hoàn thiện toàn bộ bản dịch tiếng Anh cho Setup Wizard (Button, Label, Step 4 Output).
-- **Language Toggle Relocation** — Di chuyển công tắc ngôn ngữ (VI/EN) sang vị trí dễ nhìn và thao tác hơn.
-- **Setup UI/UX fixes** — Cải thiện giao diện Setup Wizard cho Browser Automation và sửa các lỗi hiển thị (như undefined model badge).
-- **Reference Error Fixes** — Khắc phục một số lỗi Reference Error trong quá trình chạy setup.
+- **Full English Localization** â€” ÄÃ£ hoÃ n thiá»‡n toÃ n bá»™ báº£n dá»‹ch tiáº¿ng Anh cho Setup Wizard (Button, Label, Step 4 Output).
+- **Language Toggle Relocation** â€” Di chuyá»ƒn cÃ´ng táº¯c ngÃ´n ngá»¯ (VI/EN) sang vá»‹ trÃ­ dá»… nhÃ¬n vÃ  thao tÃ¡c hÆ¡n.
+- **Setup UI/UX fixes** â€” Cáº£i thiá»‡n giao diá»‡n Setup Wizard cho Browser Automation vÃ  sá»­a cÃ¡c lá»—i hiá»ƒn thá»‹ (nhÆ° undefined model badge).
+- **Reference Error Fixes** â€” Kháº¯c phá»¥c má»™t sá»‘ lá»—i Reference Error trong quÃ¡ trÃ¬nh cháº¡y setup.
 
-## [3.0.2] — 2026-03-29
+## [3.0.2] â€” 2026-03-29
 
-### ✨ 9Router Smart Proxy Expansion
+### âœ¨ 9Router Smart Proxy Expansion
 
-- **9Router db.json Stability** — Cập nhật logic inject db.json của 9router qua entrypoint để tránh lỗi báo mất file "No such file or directory, lstat db.json".
-- **Flagship Fallback Proxy** — Cấu hình "Smart Proxy" để có danh sách luân chuyển các LLMs Flagship mạnh mẽ nhất hiện tại của Codex, Antigravity, Claude Code, và Github Copilot.
-- **Tùy chỉnh Setup Wizard** — Khi cài đặt hiện tại sẽ thấy danh sách provider/model hoàn chỉnh, và Smart Proxy được đặt làm chuẩn ưu tiên để tự fix lỗi "404 No Active Credentials".
+- **9Router db.json Stability** â€” Cáº­p nháº­t logic inject db.json cá»§a 9router qua entrypoint Ä‘á»ƒ trÃ¡nh lá»—i bÃ¡o máº¥t file "No such file or directory, lstat db.json".
+- **Flagship Fallback Proxy** â€” Cáº¥u hÃ¬nh "Smart Proxy" Ä‘á»ƒ cÃ³ danh sÃ¡ch luÃ¢n chuyá»ƒn cÃ¡c LLMs Flagship máº¡nh máº½ nháº¥t hiá»‡n táº¡i cá»§a Codex, Antigravity, Claude Code, vÃ  Github Copilot.
+- **TÃ¹y chá»‰nh Setup Wizard** â€” Khi cÃ i Ä‘áº·t hiá»‡n táº¡i sáº½ tháº¥y danh sÃ¡ch provider/model hoÃ n chá»‰nh, vÃ  Smart Proxy Ä‘Æ°á»£c Ä‘áº·t lÃ m chuáº©n Æ°u tiÃªn Ä‘á»ƒ tá»± fix lá»—i "404 No Active Credentials".
 
-## [3.0.1] — 2026-03-29
+## [3.0.1] â€” 2026-03-29
 
-### ✨ New Features
+### âœ¨ New Features
 
-- **Wizard UI Redesign (Step 2)** — AI Provider/Model lên đầu, sau đó Identity, Personality, Security Rules, Extensions
-- **User Info textarea** — User tự nhập thông tin về mình → sinh vào `USER.md` để bot cá nhân hóa
-- **Editable Security Rules** — Hiển thị quy tắc bảo mật mặc định, user có thể sửa → inject vào `AGENTS.md`
-- **Section dividers** — Icon dividers giữa các nhóm config (🤖 🔐 🧩)
+- **Wizard UI Redesign (Step 2)** â€” AI Provider/Model lÃªn Ä‘áº§u, sau Ä‘Ã³ Identity, Personality, Security Rules, Extensions
+- **User Info textarea** â€” User tá»± nháº­p thÃ´ng tin vá» mÃ¬nh â†’ sinh vÃ o `USER.md` Ä‘á»ƒ bot cÃ¡ nhÃ¢n hÃ³a
+- **Editable Security Rules** â€” Hiá»ƒn thá»‹ quy táº¯c báº£o máº­t máº·c Ä‘á»‹nh, user cÃ³ thá»ƒ sá»­a â†’ inject vÃ o `AGENTS.md`
+- **Section dividers** â€” Icon dividers giá»¯a cÃ¡c nhÃ³m config (ðŸ¤– ðŸ” ðŸ§©)
 
-### 🐛 Bug Fixes
+### ðŸ› Bug Fixes
 
-- **Skills auto-enable** — Khi chọn skill, giờ tự động khai báo trong `openclaw.json` → `skills.entries` (enabled: true). Trước đây chỉ cài Dockerfile nhưng không register → bot không nhận skill
-- **Skills env injection** — Skills cần API key (Tavily, SMTP…) tự động inject env vars vào `skills.entries`
+- **Skills auto-enable** â€” Khi chá»n skill, giá» tá»± Ä‘á»™ng khai bÃ¡o trong `openclaw.json` â†’ `skills.entries` (enabled: true). TrÆ°á»›c Ä‘Ã¢y chá»‰ cÃ i Dockerfile nhÆ°ng khÃ´ng register â†’ bot khÃ´ng nháº­n skill
+- **Skills env injection** â€” Skills cáº§n API key (Tavily, SMTPâ€¦) tá»± Ä‘á»™ng inject env vars vÃ o `skills.entries`
 
-### 🎨 UI/UX
+### ðŸŽ¨ UI/UX
 
-- Identity grid 3 cột (Tên, Vai trò, Emoji) — bỏ Vibe (gộp vào System Prompt)
-- Emoji input fix: `form-input--emoji` class, cùng height với input khác
-- Label System Prompt → "Tính cách, Vibe & Quy tắc trả lời"
+- Identity grid 3 cá»™t (TÃªn, Vai trÃ², Emoji) â€” bá» Vibe (gá»™p vÃ o System Prompt)
+- Emoji input fix: `form-input--emoji` class, cÃ¹ng height vá»›i input khÃ¡c
+- Label System Prompt â†’ "TÃ­nh cÃ¡ch, Vibe & Quy táº¯c tráº£ lá»i"
 - Responsive mobile: Name full width, Role + Emoji side-by-side
-- Security textarea readonly mặc định, nút "✏️ Sửa" / "🔒 Khóa" toggle
+- Security textarea readonly máº·c Ä‘á»‹nh, nÃºt "âœï¸ Sá»­a" / "ðŸ”’ KhÃ³a" toggle
 
-### 🔧 Technical
+### ðŸ”§ Technical
 
-- `state.config.userInfo` — new field, saved from `cfg-user-info` textarea
-- `state.config.securityRules` — editable, defaults per language (vi/en)
+- `state.config.userInfo` â€” new field, saved from `cfg-user-info` textarea
+- `state.config.securityRules` â€” editable, defaults per language (vi/en)
 - `DEFAULT_SECURITY_RULES` constant with vi/en templates
 - `clawConfig.skills.entries` generated from selected skills
 - Language toggle updates both prompt and security rules
 
 ---
 
-## [3.0.0] — 2026-03-28
+## [3.0.0] â€” 2026-03-28
 
-### ✨ New Features
+### âœ¨ New Features
 
-- **9Router Integration** — AI proxy, không cần API key, multi-container Docker (`docker-compose.yml` 2 service)
-- **Skills System (ClawHub)** — 8 agent capabilities: Web Search, Browser Automation, Memory, RAG, Image Gen, Bot Scheduler, Code Interpreter, Email Assistant
-- **Plugins System (npm)** — 4 runtime extensions: Voice Call, Matrix, MS Teams, Nostr
-- **Browser Automation** — Full Chrome Debug Mode support (socat proxy, agent-browser, Playwright engine)
-- **Task Scheduler** — Windows Scheduled Task auto-starts Chrome Debug khi logon (delay 10s)
-- **Skill-aware .env** — `.env` template tự động thêm env vars cho skills cần API key (Tavily, SMTP, Flux...)
-- **Post-setup Management** — Hướng dẫn thêm/bỏ skills/plugins sau khi setup qua `docker exec`
+- **9Router Integration** â€” AI proxy, khÃ´ng cáº§n API key, multi-container Docker (`docker-compose.yml` 2 service)
+- **Skills System (ClawHub)** â€” 8 agent capabilities: Web Search, Browser Automation, Memory, RAG, Image Gen, Bot Scheduler, Code Interpreter, Email Assistant
+- **Plugins System (npm)** â€” 4 runtime extensions: Voice Call, Matrix, MS Teams, Nostr
+- **Browser Automation** â€” Full Chrome Debug Mode support (socat proxy, agent-browser, Playwright engine)
+- **Task Scheduler** â€” Windows Scheduled Task auto-starts Chrome Debug khi logon (delay 10s)
+- **Skill-aware .env** â€” `.env` template tá»± Ä‘á»™ng thÃªm env vars cho skills cáº§n API key (Tavily, SMTP, Flux...)
+- **Post-setup Management** â€” HÆ°á»›ng dáº«n thÃªm/bá» skills/plugins sau khi setup qua `docker exec`
 
-### 🎨 UI/UX
+### ðŸŽ¨ UI/UX
 
-- Tách Skills (4-column grid) và Plugins (riêng biệt) — rõ ràng hơn
-- Skill cards hiện notes (⚙️) cho skills cần setup thêm
-- Browser Automation notice card ở Step 4 với `.bat` + `.ps1` scripts
-- Management guide card (🔧) với `docker exec` commands
+- TÃ¡ch Skills (4-column grid) vÃ  Plugins (riÃªng biá»‡t) â€” rÃµ rÃ ng hÆ¡n
+- Skill cards hiá»‡n notes (âš™ï¸) cho skills cáº§n setup thÃªm
+- Browser Automation notice card á»Ÿ Step 4 vá»›i `.bat` + `.ps1` scripts
+- Management guide card (ðŸ”§) vá»›i `docker exec` commands
 
-### 📚 Documentation
+### ðŸ“š Documentation
 
-- `docs/browser-automation-guide.md` — Hướng dẫn sử dụng Browser Automation cho user
-- `docs/skills-plugins-guide.md` — Tổng hợp toàn bộ skills/plugins + setup + env vars
-- README.md / README.vi.md — Thêm 9Router, Skills/Plugins, FAQs mới
+- `docs/browser-automation-guide.md` â€” HÆ°á»›ng dáº«n sá»­ dá»¥ng Browser Automation cho user
+- `docs/skills-plugins-guide.md` â€” Tá»•ng há»£p toÃ n bá»™ skills/plugins + setup + env vars
+- README.md / README.vi.md â€” ThÃªm 9Router, Skills/Plugins, FAQs má»›i
 
-### 🔧 Technical
+### ðŸ”§ Technical
 
-- `state.config.skills[]` + `state.config.plugins[]` quản lý độc lập
+- `state.config.skills[]` + `state.config.plugins[]` quáº£n lÃ½ Ä‘á»™c láº­p
 - `openclaw.json` inject `browser` config khi Browser skill selected
-- Dockerfile conditional: socat, agent-browser chỉ khi cần
-- docker-compose: `extra_hosts` cho cả 9Router lẫn non-9Router
+- Dockerfile conditional: socat, agent-browser chá»‰ khi cáº§n
+- docker-compose: `extra_hosts` cho cáº£ 9Router láº«n non-9Router
 
 ---
 
-## [2.0.0] — 2026-03-27
+## [2.0.0] â€” 2026-03-27
 
-### ✨ New Features
+### âœ¨ New Features
 
-- **Setup Wizard UI** — Interactive web wizard (`index.html`) to configure OpenClaw bots visually
-- **Multi-Channel Support** — Telegram, Zalo Bot API, Zalo Personal channel selection
-- **Multi-Provider AI** — Google Gemini, Anthropic Claude, OpenAI/Codex, OpenRouter, Ollama (local)
-- **Plugin System** — Modular plugin grid: Browser Automation, Scheduler, Memory, Web Search, RAG, Image Gen
-- **Config Generation** — Auto-generates `openclaw.json`, `agent.yaml`, `Dockerfile`, `docker-compose.yml`
-- **Language Toggle** — VI/EN toggle switch with SVG flag icons
-- **Brand Logos** — Real SVG logos from [thesvg.org](https://thesvg.org) for all providers and channels
+- **Setup Wizard UI** â€” Interactive web wizard (`index.html`) to configure OpenClaw bots visually
+- **Multi-Channel Support** â€” Telegram, Zalo Bot API, Zalo Personal channel selection
+- **Multi-Provider AI** â€” Google Gemini, Anthropic Claude, OpenAI/Codex, OpenRouter, Ollama (local)
+- **Plugin System** â€” Modular plugin grid: Browser Automation, Scheduler, Memory, Web Search, RAG, Image Gen
+- **Config Generation** â€” Auto-generates `openclaw.json`, `agent.yaml`, `Dockerfile`, `docker-compose.yml`
+- **Language Toggle** â€” VI/EN toggle switch with SVG flag icons
+- **Brand Logos** â€” Real SVG logos from [thesvg.org](https://thesvg.org) for all providers and channels
 
-### 🎨 Design
+### ðŸŽ¨ Design
 
 - Dark-themed glassmorphism UI with animated multi-layer gradients
 - Provider cards with unique colored icon backgrounds (Gemini purple, Claude orange, OpenAI green, OpenRouter violet, Ollama cyan)
 - Auto-expanding System Prompt textarea (no internal scroll)
 - Shimmer animation on title, glow effects on selected cards
 
-### 📚 Documentation
+### ðŸ“š Documentation
 
-- `README.md` / `README.vi.md` — Full bilingual docs with multi-provider table
-- `SETUP.md` / `SETUP.vi.md` — Technical setup guide for AI agents
+- `README.md` / `README.vi.md` â€” Full bilingual docs with multi-provider table
+- `SETUP.md` / `SETUP.vi.md` â€” Technical setup guide for AI agents
 - Security notice: System Prompt = personality only, framework enforces security rules
 
 ---
 
-## [1.0.0] — 2026-03-26
+## [1.0.0] â€” 2026-03-26
 
 ### Initial Release
 
@@ -404,4 +418,5 @@ Tất cả những thay đổi nổi bật của dự án sẽ được ghi ché
 - Telegram-only configuration
 - Google Gemini single provider support
 - Manual config file instructions
+
 

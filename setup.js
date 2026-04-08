@@ -166,7 +166,7 @@
       name: 'Telegram Multi-Bot Relay',
       icon: '🤝',
       descVi: 'Điều phối nhiều bot Telegram trong cùng group — tự động khi chọn nhiều bot', descEn: 'Coordinate multiple Telegram bots in one group — auto-selected with multi-bot',
-      package: 'telegram-multibot-relay',
+      package: 'openclaw-telegram-multibot-relay',
       hidden: true, // hidden in UI, auto-selected programmatically
     },
     {
@@ -1053,6 +1053,10 @@
     state.config.provider = key;
     const p = PROVIDERS[key];
     state.config.model = p.models[0].id;
+    if (state.bots[state.activeBotIndex]) {
+      state.bots[state.activeBotIndex].provider = key;
+      state.bots[state.activeBotIndex].model = p.models[0].id;
+    }
 
     // Highlight card
     document.querySelectorAll('.provider-card').forEach((c) => c.classList.remove('provider-card--selected'));
@@ -1261,6 +1265,10 @@
     else if (state.config.botName && state.bots[0] && !state.bots[0].name) {
       state.bots[0].name = state.config.botName;
     }
+    if (state.bots[state.activeBotIndex]) {
+      state.bots[state.activeBotIndex].provider = state.config.provider;
+      state.bots[state.activeBotIndex].model = state.config.model;
+    }
   }
 
   // Save Step 4 credential inputs to state (persists across Back navigation)
@@ -1271,6 +1279,10 @@
     if (botTokenEl) state.config.botToken = botTokenEl.value;
     if (apiKeyEl) state.config.apiKey = apiKeyEl.value;
     if (pathEl) state.config.projectPath = pathEl.value;
+    if (state.botCount <= 1 && state.bots[state.activeBotIndex]) {
+      if (botTokenEl) state.bots[state.activeBotIndex].token = botTokenEl.value;
+      if (apiKeyEl) state.bots[state.activeBotIndex].apiKey = apiKeyEl.value;
+    }
 
     // Also save multi-bot tokens individually
     if (state.botCount > 1) {
@@ -1534,7 +1546,7 @@
     const is9Router = provider.isProxy;
     const isLocal = provider.isLocal;
     const isTelegramMultiBot = state.botCount > 1 && state.channel === 'telegram';
-    const relayPluginSpec = 'clawhub:openclaw-telegram-multibot-relay';
+    const relayPluginSpec = 'openclaw-telegram-multibot-relay';
 
     function buildRelayPluginInstallCommand(prefix) {
       return `${prefix} plugins install ${relayPluginSpec} 2>/dev/null || true`;
@@ -1546,6 +1558,7 @@
 
     function buildTelegramPostInstallChecklist() {
       const groupId = state.groupId || '';
+      const nativeProjectOpenClawRoot = `${projectDir.replace(/\\/g, '/')}/.openclaw`;
       const botList = state.bots.slice(0, state.botCount).map((bot, idx) => `- **${bot?.name || `Bot ${idx + 1}`}**`).join('\n');
       const isVi = lang === 'vi';
       return isVi
@@ -1691,7 +1704,8 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       gateway: {
         port: 18791,
         mode: 'local',
-        bind: '0.0.0.0',
+        bind: 'custom',
+        customBindHost: '0.0.0.0',
         controlUi: {
           allowedOrigins: getGatewayAllowedOrigins(18791),
         },
@@ -1793,11 +1807,12 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         botToken: meta.token || '<your_bot_token>',
         ackReaction: '👍',
       }]));
+      const nativeOpenClawRoot = '.openclaw';
       clawConfig.agents.list = multiBotAgentMetas.map((meta) => ({
         id: meta.agentId,
         name: meta.name,
-        workspace: `/root/.openclaw/${meta.workspaceDir}`,
-        agentDir: `/root/.openclaw/agents/${meta.agentId}/agent`,
+        workspace: `${nativeOpenClawRoot}/${meta.workspaceDir}`,
+        agentDir: `${nativeOpenClawRoot}/agents/${meta.agentId}/agent`,
         model: { primary: state.config.model, fallbacks: [] },
       }));
       clawConfig.bindings = multiBotAgentMetas.map((meta) => ({
@@ -1969,8 +1984,8 @@ ${finalCmd}`;
 
     // ─── Dynamic Smart Route Sync Script ────────────────────────────────────────
     // Background loop inside 9Router container every 30s.
-    // Read providerConnections directly from db.json so smart-route survives
-    // dashboard auth/response changes in newer 9Router builds.
+    // Sync against the 9Router API so smart-route matches the current
+    // active provider set instead of stale db-only state.
     const syncScript = `const fs=require('fs');const INTERVAL=30000;const p='/root/.9router/db.json';
 const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],cline:['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],iflow:['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],qwen:['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],kiro:['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],ollama:['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],glm:['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],minimax:['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],kimi:['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],deepseek:['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],xai:['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],mistral:['mistral/mistral-large-latest','mistral/codestral-latest'],groq:['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],cerebras:['cerebras/gpt-oss-120b'],alicode:['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],openai:['openai/gpt-4o','openai/gpt-4.1'],anthropic:['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],gemini:['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
 console.log('[sync-combo] 9Router sync loop started...');
@@ -2763,7 +2778,8 @@ fi
           ...(botConfig.gateway || {}),
           port: 18791,
           mode: 'local',
-          bind: '0.0.0.0',
+          bind: 'custom',
+          customBindHost: '0.0.0.0',
           auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
         };
 
@@ -2968,6 +2984,9 @@ I am **${botName}**. When asked my name, I answer: _"I'm ${botName}"_.`;
     const is9Router = !!(provider && provider.isProxy);
     const isOllama = !!(provider && provider.isLocal);
     const hasBrowser = state.config.skills.includes('browser');
+    const nativeSkillConfigs = state.config.skills
+      .map((sid) => SKILLS.find((s) => s.id === sid))
+      .filter((skill) => skill && skill.id !== 'scheduler' && skill.slug && skill.slug !== 'browser-automation');
     const selectedModel = (state.config.model || 'ollama/gemma4:e2b').replace('ollama/', '');
     const isMultiBot = state.botCount > 1 && state.channel === 'telegram';
     const projectDir = state.config.projectPath || '.';
@@ -2980,14 +2999,31 @@ I am **${botName}**. When asked my name, I answer: _"I'm ${botName}"_.`;
     });
     if (isMultiBot && state.channel === 'telegram') allPlugins.push(relayPluginSpec);
     const pluginCmd = allPlugins.length > 0 ? ('call npm exec -- openclaw plugins install ' + allPlugins.join(' ') + ' || goto :fail') : '';
+    const nativeSkillInstallCmds = nativeSkillConfigs.map((skill) => `call openclaw skills install ${skill.slug} || echo Warning: Failed to install skill ${skill.slug}`);
 
     function native9RouterSyncScriptContent() {
       return `const fs=require('fs');
 const path=require('path');
 const INTERVAL=30000;
-const p=path.join(process.env.HOME||process.env.USERPROFILE||'.','.9router','db.json');
+const p=path.join(process.env.DATA_DIR||'.9router','db.json');
+const ROUTER='http://localhost:20128';
 const PM={'codex':['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],'github':['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],'cursor':['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],'kilo':['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],'cline':['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],'iflow':['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],'qwen':['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],'kiro':['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],'ollama':['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],'glm':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'minimax':['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],'kimi':['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],'deepseek':['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],'xai':['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],'mistral':['mistral/mistral-large-latest','mistral/codestral-latest'],'groq':['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],'cerebras':['cerebras/gpt-oss-120b'],'alicode':['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],'openai':['openai/gpt-4o','openai/gpt-4.1'],'anthropic':['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],'gemini':['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
-const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catch{}if(!db.combos)db.combos=[];const removeSmartRoute=()=>{const next=db.combos.filter(x=>x.id!=='smart-route');if(next.length!==db.combos.length){db.combos=next;fs.writeFileSync(p,JSON.stringify(db,null,2));}};const a=(db.providerConnections||[]).filter(c=>c&&c.provider&&c.isActive!==false&&!c.disabled).map(c=>c.provider);if(!a.length){removeSmartRoute();return;}const PREF=['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];a.sort((x,y)=>(PREF.indexOf(x)===-1?99:PREF.indexOf(x))-(PREF.indexOf(y)===-1?99:PREF.indexOf(y)));const m=a.flatMap(provider=>PM[provider]||[]);if(!m.length){removeSmartRoute();return;}const c={id:'smart-route',name:'smart-route',alias:'smart-route',models:m};const i=db.combos.findIndex(x=>x.id==='smart-route');if(i>=0){if(JSON.stringify(db.combos[i].models)!==JSON.stringify(c.models)){db.combos[i]=c;fs.writeFileSync(p,JSON.stringify(db,null,2));}}else{db.combos.push(c);fs.writeFileSync(p,JSON.stringify(db,null,2));}}catch{}};sync();setInterval(sync,INTERVAL);`;
+console.log('[sync-combo] 9Router sync loop started...');
+const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.ok){console.log('[sync-combo] API not ready, retrying...');return;}const d=await res.json();const a=(d.connections||[]).filter(c=>c&&c.provider&&c.isActive!==false&&!c.disabled).map(c=>c.provider);let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catch{}if(!db.combos)db.combos=[];const removeSmartRoute=()=>{const next=db.combos.filter(x=>x.id!=='smart-route');if(next.length!==db.combos.length){db.combos=next;fs.writeFileSync(p,JSON.stringify(db,null,2));console.log('[sync-combo] Removed smart-route (no active providers)');}};if(!a.length){removeSmartRoute();return;}const PREF=['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];a.sort((x,y)=>(PREF.indexOf(x)===-1?99:PREF.indexOf(x))-(PREF.indexOf(y)===-1?99:PREF.indexOf(y)));const m=a.flatMap(provider=>PM[provider]||[]);if(!m.length){removeSmartRoute();return;}const c={id:'smart-route',name:'smart-route',alias:'smart-route',models:m};const i=db.combos.findIndex(x=>x.id==='smart-route');if(i>=0){if(JSON.stringify(db.combos[i].models)!==JSON.stringify(c.models)){db.combos[i]=c;fs.writeFileSync(p,JSON.stringify(db,null,2));console.log('[sync-combo] Updated smart-route: '+c.models.length+' models from: '+a.join(','));}}else{db.combos.push(c);fs.writeFileSync(p,JSON.stringify(db,null,2));console.log('[sync-combo] Created smart-route: '+c.models.length+' models from: '+a.join(','));}}catch(e){console.log('[sync-combo] Error:',e.message);}};setTimeout(sync,5000);setInterval(sync,INTERVAL);`;
+    }
+
+    function native9RouterServerEntryLookup() {
+      return "node -e \"const fs=require('fs'),path=require('path'),os=require('os'),cp=require('child_process');const home=os.homedir();const roots=[];try{const root=cp.execSync('npm root -g',{stdio:['ignore','pipe','ignore'],encoding:'utf8'}).trim();if(root)roots.push(root);}catch{}for(const prefix of [process.env.npm_config_prefix,process.env.NPM_CONFIG_PREFIX,process.env.PREFIX,process.env.NPM_PREFIX,path.join(home,'.local'),path.join(home,'.npm-global'),path.join(home,'.local','share','npm')].filter(Boolean)){roots.push(path.join(prefix,'lib','node_modules'));}roots.push(path.join(home,'.local','share','npm','lib','node_modules'));roots.push(path.join(home,'.local','lib','node_modules'));const seen=new Set();const found=roots.map(root=>path.join(root,'9router','app','server.js')).find(candidate=>{if(seen.has(candidate))return false;seen.add(candidate);return fs.existsSync(candidate);});if(!found)process.exit(1);console.log(found);\"";
+    }
+
+    function windowsHiddenNodeLaunch(targetPath, extraEnv = {}) {
+      function quotePowerShellSingle(value) {
+        return `'${String(value).replace(/'/g, "''")}'`;
+      }
+      const envAssignments = Object.entries(extraEnv)
+        .map(([key, value]) => `$env:${key}=${quotePowerShellSingle(String(value))}`)
+        .join('; ');
+      return `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "${envAssignments ? `${envAssignments}; ` : ''}Start-Process -WindowStyle Hidden -FilePath (Get-Command node).Source -ArgumentList @('${targetPath.replace(/'/g, "''")}')"`;
     }
 
     // ─── Shared initializer (provider install) ───────────────────────────────
@@ -2995,12 +3031,14 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
       if (is9Router) {
         if (shell === 'bat') {
           arr.push('call npm install -g 9router || goto :fail');
-          arr.push('start "9Router" cmd /k "9router -n -l -H 0.0.0.0 -p 20128 --skip-update"');
+          arr.push(`for /f "usebackq delims=" %%I in (\`${native9RouterServerEntryLookup()}\`) do set "NINE_ROUTER_ENTRY=%%I"`);
+          arr.push(windowsHiddenNodeLaunch('%NINE_ROUTER_ENTRY%', { PORT: '20128', HOSTNAME: '0.0.0.0', DATA_DIR: '%DATA_DIR%' }));
           arr.push('timeout /t 5 /nobreak >nul');
         } else {
           arr.push('npm install -g 9router');
-          arr.push('nohup env PORT=20128 HOSTNAME=0.0.0.0 node "$(npm root -g)/9router/app/server.js" >/tmp/9router.log 2>&1 &');
-          arr.push('nohup node ./.openclaw/9router-smart-route-sync.js >/tmp/9router-sync.log 2>&1 &');
+          arr.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);
+          arr.push('nohup env PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$PWD/.9router" node "$NINE_ROUTER_ENTRY" >/tmp/9router.log 2>&1 &');
+          arr.push('nohup env DATA_DIR="$PWD/.9router" node ./.openclaw/9router-smart-route-sync.js >/tmp/9router-sync.log 2>&1 &');
           arr.push('sleep 3');
         }
       } else if (isOllama) {
@@ -3061,7 +3099,7 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
           order: { ollama: ['ollama:default'] },
         };
       } else {
-        const authProviderName = provider.isProxy ? '9router' : provider.id;
+        const authProviderName = provider.isProxy ? '9router' : state.config.provider;
         const authProfileId = provider.isProxy ? '9router-proxy' : `${authProviderName}:default`;
         const authKeyValue = provider.isProxy
           ? 'sk-no-key'
@@ -3117,8 +3155,8 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
           list: multiBotAgentMetas.map((meta) => ({
             id: meta.agentId,
             name: meta.name,
-            workspace: `./.openclaw/${meta.workspaceDir}`,
-            agentDir: `./.openclaw/agents/${meta.agentId}/agent`,
+            workspace: `${nativeProjectOpenClawRoot}/${meta.workspaceDir}`,
+            agentDir: `${nativeProjectOpenClawRoot}/agents/${meta.agentId}/agent`,
             model: { primary: state.config.model, fallbacks: [] },
           })),
         },
@@ -3163,7 +3201,8 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
         gateway: {
           port: 18791,
           mode: 'local',
-          bind: '0.0.0.0',
+          bind: 'custom',
+          customBindHost: '0.0.0.0',
           controlUi: {
             allowedOrigins: getGatewayAllowedOrigins(18791),
           },
@@ -3259,36 +3298,108 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
       const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const basePort = 18791 + botIndex;
       const groupId = state.groupId || '';
-      const channelConfig = JSON.parse(JSON.stringify(ch.channelConfig || {}));
-      if (state.channel === 'telegram' && isMultiBot) {
-        channelConfig.groupPolicy = groupId ? 'allowlist' : 'open';
-        channelConfig.groupAllowFrom = ['*'];
-        channelConfig.groups = {
-          [groupId || '*']: {
-            enabled: true,
-            requireMention: false,
-          },
-        };
-      }
+      const botProvider = PROVIDERS[bot.provider] || provider;
       const cfg = {
         meta: { lastTouchedVersion: '2026.3.24' },
         agents: {
-          defaults: { model: { primary: bot.model || state.config.model }, compaction: { mode: 'safeguard' }, timeoutSeconds: 120 },
+          defaults: {
+            model: { primary: bot.model || state.config.model },
+            compaction: { mode: 'safeguard' },
+            timeoutSeconds: botProvider.isLocal ? 900 : 120,
+            ...(botProvider.isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
+          },
           list: [{ id: agentId, model: { primary: bot.model || state.config.model } }],
         },
-        commands: { native: 'auto', nativeSkills: 'auto', restart: true },
-        channels: channelConfig,
+        ...(botProvider.isProxy ? {
+          models: {
+            mode: 'merge',
+            providers: {
+              '9router': {
+                baseUrl: 'http://localhost:20128/v1',
+                apiKey: 'sk-no-key',
+                api: 'openai-completions',
+                models: [
+                  {
+                    id: 'smart-route',
+                    name: 'Smart Proxy (Auto Route)',
+                    contextWindow: 200000,
+                    maxTokens: 8192,
+                  }
+                ]
+              }
+            }
+          }
+        } : {}),
+        ...(botProvider.isLocal ? {
+          models: {
+            providers: {
+              ollama: {
+                baseUrl: 'http://localhost:11434',
+                apiKey: 'ollama-local',
+                api: 'ollama',
+                models: [
+                  { id: selectedModel, name: selectedModel, contextWindow: 128000, maxTokens: 8192 }
+                ]
+              }
+            }
+          }
+        } : {}),
+        commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
+        channels: {},
+        tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
         gateway: {
           port: basePort,
           mode: 'local',
-          bind: '0.0.0.0',
+          bind: 'custom',
+          customBindHost: '0.0.0.0',
           controlUi: {
             allowedOrigins: getGatewayAllowedOrigins(basePort),
           },
           auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
         },
-
       };
+
+      if (hasBrowser) {
+        cfg.browser = { enabled: true };
+      }
+
+      const skillEntries = {};
+      state.config.skills.forEach((sid) => {
+        const skill = SKILLS.find((s) => s.id === sid);
+        if (!skill) return;
+        if (skill.id === 'scheduler' || skill.slug === 'browser-automation' || !skill.slug) return;
+        skillEntries[skill.slug] = { enabled: true };
+      });
+      if (Object.keys(skillEntries).length > 0) {
+        cfg.skills = { entries: skillEntries };
+      }
+
+      if (state.channel === 'telegram') {
+        cfg.channels.telegram = {
+          enabled: true,
+          dmPolicy: 'open',
+          allowFrom: ['*'],
+        };
+        if (isMultiBot) {
+          cfg.channels.telegram.groupPolicy = groupId ? 'allowlist' : 'open';
+          cfg.channels.telegram.groupAllowFrom = ['*'];
+          cfg.channels.telegram.groups = {
+            [groupId || '*']: {
+              enabled: true,
+              requireMention: false,
+            },
+          };
+        }
+      } else if (state.channel === 'zalo-personal') {
+        cfg.channels.zalouser = {
+          enabled: true,
+          dmPolicy: 'open',
+          autoReply: true,
+        };
+      } else if (state.channel === 'zalo-bot') {
+        cfg.channels.zalo = { enabled: true, provider: 'official_account' };
+      }
+
       return JSON.stringify(cfg, null, 2);
     }
 
@@ -3310,7 +3421,7 @@ const sync=()=>{try{let db={};try{db=JSON.parse(fs.readFileSync(p,'utf8'));}catc
           order: { ollama: ['ollama:default'] },
         };
       } else {
-        const authProviderName = botProvider.isProxy ? '9router' : botProvider.id;
+        const authProviderName = botProvider.isProxy ? '9router' : (bot.provider || state.config.provider);
         const authProfileId = botProvider.isProxy ? '9router-proxy' : `${authProviderName}:default`;
         const authKeyValue = botProvider.isProxy
           ? 'sk-no-key'
@@ -3579,6 +3690,17 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       });
     }
 
+    function mapWindowsNativeFiles(files) {
+      return Object.fromEntries(Object.entries(files).map(([relPath, content]) => {
+        const normalized = relPath.replace(/\\/g, '/');
+        if (normalized === '.env') return ['%PROJECT_DIR%\\.env', content];
+        if (normalized.startsWith('.openclaw/')) {
+          return [`%OPENCLAW_HOME%\\${normalized.slice('.openclaw/'.length).replace(/\//g, '\\')}`, content];
+        }
+        return [`%PROJECT_DIR%\\${normalized.replace(/\//g, '\\')}`, content];
+      }));
+    }
+
     let scriptContent = '';
     let scriptName = '';
 
@@ -3590,6 +3712,13 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         '@echo off',
         'setlocal EnableExtensions',
         'chcp 65001 >nul',
+        `set "PROJECT_DIR=${projectDir.replace(/\//g, '\\')}"`,
+        'if not exist "%PROJECT_DIR%" mkdir "%PROJECT_DIR%"',
+        'cd /d "%PROJECT_DIR%"',
+        'set "OPENCLAW_HOME=%PROJECT_DIR%\\.openclaw"',
+        'set "OPENCLAW_STATE_DIR=%PROJECT_DIR%\\.openclaw"',
+        'set "DATA_DIR=%PROJECT_DIR%\\.9router"',
+        'set "PATH=%APPDATA%\\npm;%PATH%"',
         `echo === OpenClaw Setup — Windows${isDocker ? ' Docker' : ' Native'} ===`,
         'echo.',
         'echo [1/5] Kiem tra Node.js...',
@@ -3598,18 +3727,49 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         'call npm install -g openclaw@2026.4.5 || goto :fail',
       ];
       providerLines(lines, 'bat');
+      if (hasBrowser) {
+        lines.push('echo Cai Browser Automation runtime...');
+        lines.push('call npm install -g agent-browser playwright || goto :fail');
+        lines.push('call npx playwright install chromium || goto :fail');
+      }
+      if (nativeSkillInstallCmds.length > 0) {
+        lines.push('echo Cai skills...');
+        lines.push(...nativeSkillInstallCmds);
+      }
       if (pluginCmd) { lines.push('echo Cai plugins...'); lines.push(pluginCmd); }
+      lines.push('if not exist "%OPENCLAW_HOME%" mkdir "%OPENCLAW_HOME%"');
+      lines.push('if not exist "%DATA_DIR%" mkdir "%DATA_DIR%"');
 
       if (isMultiBot) {
         lines.push('echo [4/5] Tao runtime multi-agent dung chung...');
-        appendBatWriteCommands(lines, sharedNativeFileMap());
-        if (is9Router) lines.push('start "9Router Smart Route Sync" cmd /k "node .\\.openclaw\\9router-smart-route-sync.js"');
+        appendBatWriteCommands(lines, mapWindowsNativeFiles(sharedNativeFileMap()));
+        if (is9Router) lines.push(windowsHiddenNodeLaunch('%OPENCLAW_HOME%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
+        lines.push('if not exist "%OPENCLAW_HOME%\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\openclaw.json" && goto :fail)');
+        lines.push('echo.');
+        lines.push('echo OpenClaw Dashboard: http://127.0.0.1:18791');
+        lines.push('echo Other reachable URLs: http://localhost:18791');
+        lines.push('echo If the dashboard asks for a Gateway Token, run: openclaw dashboard');
+        if (is9Router) {
+          lines.push('echo.');
+          lines.push('echo 9Router Dashboard: http://127.0.0.1:20128/dashboard');
+          lines.push('echo Other reachable URLs: http://localhost:20128/dashboard');
+        }
         lines.push('echo [5/5] Khoi dong gateway multi-bot...');
         lines.push('call openclaw gateway run');
       } else {
         lines.push('echo [4/5] Tao file cau hinh...');
-        appendBatWriteCommands(lines, botFiles(0));
-        if (is9Router) lines.push('start "9Router Smart Route Sync" cmd /k "node .\\.openclaw\\9router-smart-route-sync.js"');
+        appendBatWriteCommands(lines, mapWindowsNativeFiles(botFiles(0)));
+        if (is9Router) lines.push(windowsHiddenNodeLaunch('%OPENCLAW_HOME%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
+        lines.push('if not exist "%OPENCLAW_HOME%\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\openclaw.json" && goto :fail)');
+        lines.push('echo.');
+        lines.push('echo OpenClaw Dashboard: http://127.0.0.1:18791');
+        lines.push('echo Other reachable URLs: http://localhost:18791');
+        lines.push('echo If the dashboard asks for a Gateway Token, run: openclaw dashboard');
+        if (is9Router) {
+          lines.push('echo.');
+          lines.push('echo 9Router Dashboard: http://127.0.0.1:20128/dashboard');
+          lines.push('echo Other reachable URLs: http://localhost:20128/dashboard');
+        }
         lines.push('echo [5/5] Khoi dong bot...');
         lines.push('call openclaw gateway run');
       }
@@ -3657,12 +3817,18 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
           'echo "=== OpenClaw Setup \u2014 macOS Native ==="',
           'command -v node > /dev/null 2>&1 || { echo "ERROR: Node.js chua cai! https://nodejs.org"; exit 1; }',
           '# User-local npm prefix (Homebrew-safe — no global npmrc mutation)',
-          'mkdir -p "$HOME/.local/bin"',
-          'export npm_config_prefix="$HOME/.local"',
-          'export PATH="$HOME/.local/bin:$PATH"',
-          'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.zshrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.zshrc"',
-          'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-          '# Install openclaw (user-local first, sudo fallback)',
+        'mkdir -p "$HOME/.local/bin"',
+        'export npm_config_prefix="$HOME/.local"',
+        'export PATH="$HOME/.local/bin:$PATH"',
+        `PROJECT_DIR="${projectDir.replace(/"/g, '\\"')}"`,
+        'mkdir -p "$PROJECT_DIR"',
+        'cd "$PROJECT_DIR"',
+        'export OPENCLAW_HOME="$PROJECT_DIR/.openclaw"',
+        'export OPENCLAW_STATE_DIR="$PROJECT_DIR/.openclaw"',
+        'export DATA_DIR="$PROJECT_DIR/.9router"',
+        'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.zshrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.zshrc"',
+        'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
+        '# Install openclaw (user-local first, sudo fallback)',
           'npm install -g openclaw@2026.4.5 || sudo npm install -g openclaw@2026.4.5',
         ];
         providerLines(sh, 'sh');
@@ -3693,6 +3859,12 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         'mkdir -p "$HOME/.local/bin"',
         'npm config set prefix "$HOME/.local"',
         'export PATH="$HOME/.local/bin:$PATH"',
+        `PROJECT_DIR="${projectDir.replace(/"/g, '\\"')}"`,
+        'mkdir -p "$PROJECT_DIR"',
+        'cd "$PROJECT_DIR"',
+        'export OPENCLAW_HOME="$PROJECT_DIR/.openclaw"',
+        'export OPENCLAW_STATE_DIR="$PROJECT_DIR/.openclaw"',
+        'export DATA_DIR="$PROJECT_DIR/.9router"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
         'npm install -g openclaw@2026.4.5 pm2@latest',
@@ -3705,7 +3877,8 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         appendShWriteCommands(vps, sharedNativeFileMap());
         vps.push('echo "--- Starting shared gateway via PM2 ---"');
         if (is9Router) {
-          vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$(npm root -g)/9router/app/server.js" --name openclaw-multibot-9router --interpreter "$(command -v node)"');
+          vps.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);
+          vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$NINE_ROUTER_ENTRY" --name openclaw-multibot-9router --interpreter "$(command -v node)"');
           vps.push('pm2 start --name openclaw-multibot-9router-sync -- sh -c "node ./.openclaw/9router-smart-route-sync.js"');
         }
         vps.push('pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"');
@@ -3718,7 +3891,8 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       } else {
         appendShWriteCommands(vps, botFiles(0));
         if (is9Router) {
-          vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$(npm root -g)/9router/app/server.js" --name openclaw-9router --interpreter "$(command -v node)"');
+          vps.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);
+          vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "$(command -v node)"');
           vps.push('pm2 start --name openclaw-9router-sync -- sh -c "node ./.openclaw/9router-smart-route-sync.js"');
         }
         vps.push('pm2 start --name openclaw -- sh -c "openclaw gateway run"');
@@ -3740,6 +3914,12 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         'mkdir -p "$HOME/.local/bin"',
         'npm config set prefix "$HOME/.local"',
         'export PATH="$HOME/.local/bin:$PATH"',
+        `PROJECT_DIR="${projectDir.replace(/"/g, '\\"')}"`,
+        'mkdir -p "$PROJECT_DIR"',
+        'cd "$PROJECT_DIR"',
+        'export OPENCLAW_HOME="$PROJECT_DIR/.openclaw"',
+        'export OPENCLAW_STATE_DIR="$PROJECT_DIR/.openclaw"',
+        'export DATA_DIR="$PROJECT_DIR/.9router"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
         'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
         'npm install -g openclaw@2026.4.5',
@@ -3802,6 +3982,8 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
 
 
   window.downloadNativeScript = function() {
+    // Regenerate output first so the downloaded script always matches the latest wizard state.
+    generateOutput();
     const script = window._nativeScript;
     if (!script) return;
     const blob = new Blob([script.content], { type: 'text/plain;charset=utf-8' });

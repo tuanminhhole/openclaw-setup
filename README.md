@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.14-0EA5E9?style=for-the-badge" alt="Version 5.1.14" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.1.15-0EA5E9?style=for-the-badge" alt="Version 5.1.15" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,7 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ---
 
-## 🆕 What's new in v5.1.14
+## 🆕 What's new in v5.1.15
 
 - 🔒 **Pinned OpenClaw version** — The OpenClaw update published on `April 8, 2026` is currently broken, so setup now stays on `openclaw@2026.4.5` for stability.
 - 🐳 **Dockerfile fixes** — Fixed the Windows Docker flow so startup no longer breaks on bad command escaping or invalid generated `allowedOrigins`.
@@ -109,7 +109,7 @@ Run in your terminal → follow the interactive prompts → startup script is ge
 2. Open this repo as your workspace
 3. Paste into chat:
    ```
-Read SETUP.md and set up OpenClaw v5.1.14 for me.
+Read SETUP.md and set up OpenClaw v5.1.15 for me.
    My bot token is X. Use 9Router (no API key).
    My project folder: <YOUR_PATH>
    ```

@@ -6,10 +6,11 @@ import path from 'path';
 import os from 'os';
 import chalk from 'chalk';
 import { spawn, execSync, execFileSync } from 'child_process';
-const TELEGRAM_RELAY_PLUGIN_ID = 'openclaw-telegram-multibot-relay';
+const TELEGRAM_RELAY_PLUGIN_RUNTIME_ID = 'telegram-multibot-relay';
+const TELEGRAM_RELAY_PLUGIN_PACKAGE = 'openclaw-telegram-multibot-relay';
 const OPENCLAW_NPM_SPEC = 'openclaw@2026.4.5';
 // Use plain npm package name — clawhub: protocol not supported in all OpenClaw versions
-const TELEGRAM_RELAY_PLUGIN_SPEC = TELEGRAM_RELAY_PLUGIN_ID;
+const TELEGRAM_RELAY_PLUGIN_SPEC = TELEGRAM_RELAY_PLUGIN_PACKAGE;
 
 // Install command: only use clawhub: spec (published to ClawHub)
 function buildRelayPluginInstallCommand(prefix = 'openclaw') {
@@ -22,7 +23,11 @@ function buildRelayPluginInstallCommandWin(prefix = 'openclaw') {
 
 function installRelayPluginForProject(projectDir, isVi) {
   try {
-    execSync(`openclaw plugins install ${TELEGRAM_RELAY_PLUGIN_SPEC}`, { cwd: projectDir, stdio: 'ignore' });
+    execSync(`openclaw plugins install ${TELEGRAM_RELAY_PLUGIN_SPEC}`, {
+      cwd: projectDir,
+      stdio: 'ignore',
+      env: getProjectRuntimeEnv(projectDir),
+    });
     return true;
   } catch {
     // silent fallback
@@ -121,10 +126,14 @@ function spawnBackgroundProcess(command, args, options = {}) {
   if (process.platform === 'win32') {
     const resolvedCommand = resolveWindowsCommand(command);
     const argList = args.map((arg) => quotePowerShellSingle(arg)).join(', ');
+    const envAssignments = Object.entries(env)
+      .map(([key, value]) => `$env:${key}=${quotePowerShellSingle(String(value))}`)
+      .join('; ');
     const startProcessScript = [
       `$filePath = ${quotePowerShellSingle(resolvedCommand)}`,
       `$workingDir = ${quotePowerShellSingle(cwd || process.cwd())}`,
       `$argList = @(${argList})`,
+      ...(envAssignments ? [envAssignments] : []),
       "Start-Process -WindowStyle Hidden -FilePath $filePath -WorkingDirectory $workingDir -ArgumentList $argList"
     ].join('; ');
 
@@ -147,9 +156,11 @@ function spawnBackgroundProcess(command, args, options = {}) {
 }
 
 function resolveNative9RouterDesktopLaunch() {
+  const serverEntry = get9RouterServerEntryCandidates().find((candidate) => fs.existsSync(candidate))
+    || get9RouterServerEntryCandidates()[0];
   return {
     command: process.execPath,
-    args: [path.join(getGlobalNpmRoot(), '9router', 'app', 'server.js')],
+    args: [serverEntry],
     env: {
       PORT: '20128',
       HOSTNAME: '0.0.0.0'
@@ -157,12 +168,22 @@ function resolveNative9RouterDesktopLaunch() {
   };
 }
 
-function getNative9RouterDataDir() {
-  if (process.platform === 'win32') {
-    return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), '9router');
-  }
+function getProjectOpenClawHome(projectDir) {
+  return path.join(projectDir, '.openclaw');
+}
 
-  return path.join(os.homedir(), '.9router');
+function getProject9RouterDataDir(projectDir) {
+  return path.join(projectDir, '.9router');
+}
+
+function getProjectRuntimeEnv(projectDir, extraEnv = {}) {
+  return {
+    ...process.env,
+    OPENCLAW_HOME: getProjectOpenClawHome(projectDir),
+    OPENCLAW_STATE_DIR: getProjectOpenClawHome(projectDir),
+    DATA_DIR: getProject9RouterDataDir(projectDir),
+    ...extraEnv,
+  };
 }
 
 function getGatewayAllowedOrigins(port) {
@@ -439,8 +460,52 @@ function getGlobalNpmRoot() {
     if (process.platform === 'win32') {
       return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'npm', 'node_modules');
     }
-    return path.join(os.homedir(), '.local', 'lib', 'node_modules');
+    return path.join(os.homedir(), '.local', 'share', 'npm', 'lib', 'node_modules');
   }
+}
+
+function getNativeOpenClawRootDir(projectDir = '.') {
+  return path.join(projectDir, '.openclaw').replace(/\\/g, '/');
+}
+
+function getGeneratedWorkspaceRoot(deployMode, projectDir = '.') {
+  return deployMode === 'native' ? getNativeOpenClawRootDir(projectDir) : '/root/.openclaw';
+}
+
+function get9RouterServerEntryCandidates() {
+  const homeDir = os.homedir();
+  const npmRoots = [];
+
+  try {
+    const root = execSync('npm root -g', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+      shell: true,
+      env: process.env
+    }).trim();
+    if (root) npmRoots.push(root);
+  } catch {
+    // handled by fallback candidates below
+  }
+
+  const prefixes = [
+    process.env.npm_config_prefix,
+    process.env.NPM_CONFIG_PREFIX,
+    process.env.PREFIX,
+    process.env.NPM_PREFIX,
+    path.join(homeDir, '.local'),
+    path.join(homeDir, '.npm-global'),
+    path.join(homeDir, '.local', 'share', 'npm')
+  ].filter(Boolean);
+
+  for (const prefix of prefixes) {
+    npmRoots.push(path.join(prefix, 'lib', 'node_modules'));
+  }
+
+  npmRoots.push(path.join(homeDir, '.local', 'lib', 'node_modules'));
+  npmRoots.push(getGlobalNpmRoot());
+
+  return [...new Set(npmRoots.map((root) => path.join(root, '9router', 'app', 'server.js')))];
 }
 
 function indentBlock(text, spaces) {
@@ -463,7 +528,7 @@ function build9RouterComposeEntrypointScript(syncScriptBase64) {
 async function writeNative9RouterSyncScript(projectDir) {
   const syncScriptPath = path.join(projectDir, '.openclaw', '9router-smart-route-sync.js');
   await fs.ensureDir(path.dirname(syncScriptPath));
-  await fs.writeFile(syncScriptPath, build9RouterSmartRouteSyncScript(path.join(getNative9RouterDataDir(), 'db.json')));
+  await fs.writeFile(syncScriptPath, build9RouterSmartRouteSyncScript(path.join(getProject9RouterDataDir(projectDir), 'db.json')));
   return syncScriptPath;
 }
 
@@ -476,7 +541,7 @@ function getTokenizedDashboardUrl(projectDir) {
   try {
     const output = execSync('openclaw dashboard', {
       cwd: projectDir,
-      env: process.env,
+      env: getProjectRuntimeEnv(projectDir),
       encoding: 'utf8',
       shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -613,7 +678,7 @@ function approveZaloPairingCode({ pairingCode, projectDir, isVi }) {
       cwd: projectDir,
       stdio: 'inherit',
       shell: true,
-      env: process.env
+      env: getProjectRuntimeEnv(projectDir)
     });
     console.log(chalk.green(isVi
       ? `✅ Da tu dong approve pairing code Zalo: ${pairingCode}`
@@ -648,7 +713,8 @@ async function runNativeZaloPersonalLoginFlow({ isVi, projectDir }) {
   const child = spawn('openclaw', ['channels', 'login', '--channel', 'zalouser', '--verbose'], {
     cwd: projectDir,
     stdio: ['inherit', 'pipe', 'pipe'],
-    shell: process.platform === 'win32'
+    shell: process.platform === 'win32',
+    env: getProjectRuntimeEnv(projectDir),
   });
 
   let loginSucceeded = false;
@@ -718,7 +784,7 @@ function runPm2Save({ projectDir, isVi }) {
       cwd: projectDir,
       stdio: 'inherit',
       shell: true,
-      env: process.env
+      env: getProjectRuntimeEnv(projectDir)
     });
   } catch {
     console.log(chalk.yellow(isVi
@@ -744,7 +810,7 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
   ], {
     cwd: projectDir,
     stdio: 'inherit',
-    env: { ...process.env, ...routerLaunch.env }
+    env: getProjectRuntimeEnv(projectDir, routerLaunch.env)
   });
   if (syncScriptPath) {
     const syncAppName = `${appName}-9router-sync`;
@@ -762,7 +828,7 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
       ], {
         cwd: projectDir,
         stdio: 'inherit',
-        env: process.env
+        env: getProjectRuntimeEnv(projectDir)
       });
     } catch {
       try {
@@ -770,7 +836,7 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
           cwd: projectDir,
           stdio: 'ignore',
           shell: true,
-          env: process.env
+          env: getProjectRuntimeEnv(projectDir)
         });
         console.log(chalk.yellow(isVi
           ? `⚠️  PM2 khong khoi dong duoc sync helper. Da fallback sang background node: /tmp/${syncAppName}.log`
@@ -787,21 +853,18 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
   console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${routerAppName}` : `   View logs: pm2 logs ${routerAppName}`));
 }
 
-async function syncLocalConfigToHome(projectDir, isVi) {
-  const homedir = os.homedir();
-  const globalClawDir = path.join(homedir, '.openclaw');
-  const localClawDir = path.join(projectDir, '.openclaw');
+async function ensureProjectRuntimeDirs(projectDir, isVi) {
   try {
-    await fs.ensureDir(globalClawDir);
-    await fs.copy(localClawDir, globalClawDir, { overwrite: true });
+    await fs.ensureDir(getProjectOpenClawHome(projectDir));
+    await fs.ensureDir(getProject9RouterDataDir(projectDir));
     console.log(chalk.green(`\n✅ ${isVi
-      ? 'Config đã được sync vào ~/.openclaw/ — openclaw sẵn sàng!'
-      : 'Config synced to ~/.openclaw/ — openclaw is ready!'}`));
+      ? 'Runtime project đã sẵn sàng trong thư mục đã chọn.'
+      : 'The project runtime directories are ready inside the chosen folder.'}`));
     return true;
   } catch {
     console.log(chalk.yellow(`\n⚠️  ${isVi
-      ? `Không thể tự sync config. Chạy thủ công:\n   cp -rn ${localClawDir}/. ${globalClawDir}/`
-      : `Could not auto-sync config. Run manually:\n   cp -rn ${localClawDir}/. ${globalClawDir}/`}`));
+      ? `Không thể tạo runtime folders trong project. Hãy tự kiểm tra: ${projectDir}`
+      : `Could not create the runtime folders inside the project. Check: ${projectDir}`}`));
     return false;
   }
 }
@@ -1776,8 +1839,8 @@ ${hasBrowserDesktop ? `    extra_hosts:
         list: agentMetas.map((meta) => ({
           id: meta.agentId,
           name: meta.name,
-          workspace: `/root/.openclaw/${meta.workspaceDir}`,
-          agentDir: `/root/.openclaw/agents/${meta.agentId}/agent`,
+          workspace: `${deployMode === 'native' ? getNativeOpenClawRootDir(projectDir) : '/root/.openclaw'}/${meta.workspaceDir}`,
+          agentDir: `${deployMode === 'native' ? getNativeOpenClawRootDir(projectDir) : '/root/.openclaw'}/agents/${meta.agentId}/agent`,
           model: { primary: modelsPrimary, fallbacks: [] },
         })),
       },
@@ -1846,7 +1909,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
     };
     sharedConfig.plugins = {
       entries: {
-        [TELEGRAM_RELAY_PLUGIN_ID]: { enabled: true },
+        [TELEGRAM_RELAY_PLUGIN_RUNTIME_ID]: { enabled: true },
       },
     };
 
@@ -1880,7 +1943,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
         `      interpreter: 'none',`,
         `      autorestart: true,`,
         `      watch: false,`,
-        `      env: { NODE_ENV: 'production' }`,
+        `      env: { NODE_ENV: 'production', OPENCLAW_HOME: '${path.join(projectDir, '.openclaw').replace(/\\/g, '/')}', DATA_DIR: '${path.join(projectDir, '.9router').replace(/\\/g, '/')}' }`,
         '    },',
         '    {',
         `      name: '${botName || 'openclaw-multibot'}-auto-approve',`,
@@ -1890,7 +1953,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
         `      interpreter: 'none',`,
         `      autorestart: true,`,
         `      watch: false,`,
-        `      env: { NODE_ENV: 'production' }`,
+        `      env: { NODE_ENV: 'production', OPENCLAW_HOME: '${path.join(projectDir, '.openclaw').replace(/\\/g, '/')}', DATA_DIR: '${path.join(projectDir, '.9router').replace(/\\/g, '/')}' }`,
         '    }',
       ].join('\n');
       const ecosystemContent = [
@@ -1956,7 +2019,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
       const relayTargetNames = otherAgents.length ? otherAgents.map((peer) => `\`${peer.name}\``).join(', ') : '`bot khac`';
       const relayTargetIds = otherAgents.length ? otherAgents.map((peer) => `\`${peer.agentId}\``).join(', ') : '`agent-khac`';
       const agentsMd = `# ${isVi ? 'Huong dan van hanh' : 'Operating Manual'}\n\n## ${isVi ? 'Vai tro' : 'Role'}\n${isVi ? `Ban la **${meta.name}**, chuyen ve ${meta.desc}.` : `You are **${meta.name}**, focused on ${meta.desc}.`}\n\n## ${isVi ? 'Khi nao nen tra loi' : 'When To Reply'}\n- ${isVi ? `Coi user dang goi ban neu tin nhan co mot trong cac alias: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')}.` : `Treat the message as addressed to you when it includes one of your aliases: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')}.`}\n- ${isVi ? 'Neu user tag username Telegram cua ban thi luon tra loi.' : 'Always reply when your Telegram username is tagged.'}\n- ${isVi ? 'Reaction xac nhan se duoc gateway tu dong tha bang `👍` ngay khi nhan tin; khong can tu tha bang tay neu da thay ack.' : 'The gateway will auto-ack with `👍` as soon as a message arrives; do not manually duplicate the reaction if the ack already appeared.'}\n- ${isVi ? `Neu user dang goi ro bot khac ${relayTargetNames} thi khong cuop loi.` : `If the message is clearly calling another bot such as ${relayTargetNames}, do not hijack it.`}\n\n## ${isVi ? 'Phoi hop' : 'Coordination'}\n- ${isVi ? 'Dung `TEAM.md` lam nguon su that cho vai tro cua ca doi.' : 'Use `TEAM.md` as the source of truth for team roles.'}\n- ${isVi ? `Neu user bao ban hoi, chuyen viec, xin y kien, hoac phoi hop voi ${otherAgents.length ? otherAgents.map((peer) => peer.name).join(', ') : 'bot khac'}, hay dung agent-to-agent noi bo ngay trong turn hien tai.` : `If the user asks you to consult, delegate to, or coordinate with ${otherAgents.length ? otherAgents.map((peer) => peer.name).join(', ') : 'another bot'}, use internal agent-to-agent messaging in the same turn.`}\n- ${isVi ? 'Neu ban la bot mo loi, chi gui 1 cau mo dau ngan roi handoff ngay. Khong tu noi thay bot dich tru khi handoff that bai ro rang.' : 'If you are the caller bot, send only one short opener then hand off immediately. Do not speak for the target bot unless the handoff clearly fails.'}\n- ${isVi ? `Khi handoff, phai goi dung agent id ky thuat ${relayTargetIds}, khong dung ten hien thi.` : `When handing off, use the exact technical agent id ${relayTargetIds}, not the display name.`}\n- ${isVi ? 'Neu ban la bot dich nhan handoff, hay tra loi cong khai ngay trong cung Telegram chat/thread bang chinh account cua minh. Uu tien tra loi co `[[reply_to_current]]`; neu can, dung Telegram send/sendMessage action thay vi chi output thuong.' : 'If you are the target bot receiving a handoff, publish the real answer immediately into the same Telegram chat/thread from your own account. Prefer replying with `[[reply_to_current]]`; if needed, use the Telegram send/sendMessage action instead of plain assistant output.'}\n- ${isVi ? 'Khong bao user phai tag lai bot kia neu ban co the hoi noi bo duoc.' : 'Do not ask the user to tag the other bot again if you can consult internally.'}\n`;
-      const toolsMd = `# ${isVi ? 'Huong dan dung tool' : 'Tool Usage Guide'}\n\n${skillListStr}\n\n- ${isVi ? 'Tom tat ket qua tool thay vi dump raw output.' : 'Summarize tool output instead of dumping raw output.'}\n- ${isVi ? `Workspace cua ban la \`/root/.openclaw/${meta.workspaceDir}/\`.` : `Your workspace is \`/root/.openclaw/${meta.workspaceDir}/\`.`}\n- ${isVi ? 'Telegram da bat `ackReaction`, `replyToMode:first`, `actions.sendMessage`, va `actions.reactions`.' : 'Telegram is configured with `ackReaction`, `replyToMode:first`, `actions.sendMessage`, and `actions.reactions`.'}\n- ${isVi ? 'Khi can relay public bang account cua minh sau internal handoff, uu tien dung chinh outbound Telegram action thay vi tra loi mo ho.' : 'When you need to publish a public relay from your own account after an internal handoff, prefer the Telegram outbound action over an ambiguous plain-text reply.'}\n`;
+      const toolsMd = `# ${isVi ? 'Huong dan dung tool' : 'Tool Usage Guide'}\n\n${skillListStr}\n\n- ${isVi ? 'Tom tat ket qua tool thay vi dump raw output.' : 'Summarize tool output instead of dumping raw output.'}\n- ${isVi ? `Workspace cua ban la \`${getGeneratedWorkspaceRoot(deployMode, projectDir)}/${meta.workspaceDir}/\`.` : `Your workspace is \`${getGeneratedWorkspaceRoot(deployMode, projectDir)}/${meta.workspaceDir}/\`.`}\n- ${isVi ? 'Telegram da bat `ackReaction`, `replyToMode:first`, `actions.sendMessage`, va `actions.reactions`.' : 'Telegram is configured with `ackReaction`, `replyToMode:first`, `actions.sendMessage`, and `actions.reactions`.'}\n- ${isVi ? 'Khi can relay public bang account cua minh sau internal handoff, uu tien dung chinh outbound Telegram action thay vi tra loi mo ho.' : 'When you need to publish a public relay from your own account after an internal handoff, prefer the Telegram outbound action over an ambiguous plain-text reply.'}\n`;
       const relayMd = isVi
         ? `# Telegram Relay Playbook\n\n## Muc tieu\n- Cho phep bot mo loi goi bot dich noi bo, sau do bot dich tra loi cong khai bang chinh account cua minh.\n\n## Protocol\n1. Bot mo loi gui 1 cau ngan xac nhan se hoi bot dich.\n2. Bot mo loi handoff noi bo bang dung agent id trong \`TEAM.md\`.\n3. Bot dich tra loi cong khai trong cung chat/thread hien tai.\n4. Neu thay \`[[reply_to_current]]\` hoac Telegram send/sendMessage action kha dung, uu tien dung de bam dung message goc.\n5. Neu handoff that bai ro rang, chi bot mo loi moi duoc fallback tom tat.\n`
         : `# Telegram Relay Playbook\n\n## Goal\n- Let the caller bot consult the target bot internally, then have the target bot publish the real answer with its own Telegram account.\n\n## Protocol\n1. The caller bot sends one short acknowledgement.\n2. The caller bot hands off internally using the exact agent id from \`TEAM.md\`.\n3. The target bot publishes the real answer into the same chat/thread.\n4. If \`[[reply_to_current]]\` or Telegram send/sendMessage is available, prefer it so the answer attaches to the original user turn.\n5. Only the caller bot may summarize as fallback when the handoff clearly fails.\n`;
@@ -2140,8 +2203,8 @@ ${hasBrowserDesktop ? `    extra_hosts:
     const skillListStr = selectedSkillNamesForMd.length > 0 ? selectedSkillNamesForMd.join('\n') : isVi ? '- _(Chưa có skill nào)_' : '- _(No skills installed)_';
   
     const toolsMd = isVi
-      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillListStr}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi → thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output\n\n## Quy ước\n- Web Search: chỉ dùng khi cần thông tin realtime hoặc user yêu cầu\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông vị tự nhiên, không cần user nhắc\n\n## ⏰ Cron / Lên lịch nhắc nhở\n- OpenClaw CÓ hỗ trợ tool hệ thống để chạy Cron Job.\n- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool hệ thống để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.\n- Ghi chú lỗi: Không điền "current" vào thư mục Session khi thao tác tool. Bỏ qua việc tra cứu file docs nội bộ ('cron-jobs.mdx') — hãy tin tưởng khả năng sử dụng tool của bạn.\n\n## 📁 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`/root/.openclaw/workspace/\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## 🛠️ Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround\n`
-      : `# Tool Usage Guide\n\n## Installed Skills\n${skillListStr}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error → retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data\n\n## Conventions\n- Web Search: only use when needing real-time info or user explicitly asks\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting\n\n## ⏰ Cron / Scheduled Tasks\n- OpenClaw natively supports system tools for Cron Jobs.\n- When the user asks to schedule tasks or reminders, use built-in tools automatically. Do NOT ask users to run manual crontab on the host.\n- Do NOT use "current" as a sessionKey for session tools.\n\n## 📁 File & Workspace\n- Bot can read/write files in workspace: \`/root/.openclaw/workspace/\`\n\n## 🛠️ Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround\n`;
+      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillListStr}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi → thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output\n\n## Quy ước\n- Web Search: chỉ dùng khi cần thông tin realtime hoặc user yêu cầu\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông vị tự nhiên, không cần user nhắc\n\n## ⏰ Cron / Lên lịch nhắc nhở\n- OpenClaw CÓ hỗ trợ tool hệ thống để chạy Cron Job.\n- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool hệ thống để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.\n- Ghi chú lỗi: Không điền "current" vào thư mục Session khi thao tác tool. Bỏ qua việc tra cứu file docs nội bộ ('cron-jobs.mdx') — hãy tin tưởng khả năng sử dụng tool của bạn.\n\n## 📁 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${getGeneratedWorkspaceRoot(deployMode, projectDir)}/workspace/\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## 🛠️ Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround\n`
+      : `# Tool Usage Guide\n\n## Installed Skills\n${skillListStr}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error → retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data\n\n## Conventions\n- Web Search: only use when needing real-time info or user explicitly asks\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting\n\n## ⏰ Cron / Scheduled Tasks\n- OpenClaw natively supports system tools for Cron Jobs.\n- When the user asks to schedule tasks or reminders, use built-in tools automatically. Do NOT ask users to run manual crontab on the host.\n- Do NOT use "current" as a sessionKey for session tools.\n\n## 📁 File & Workspace\n- Bot can read/write files in workspace: \`${getGeneratedWorkspaceRoot(deployMode, projectDir)}/workspace/\`\n\n## 🛠️ Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround\n`;
   
     const memoryMd = `# ${isVi ? 'Bộ nhớ dài hạn' : 'Long-term Memory'}\n\n> File này lưu những điều quan trọng cần nhớ xuyên suốt các phiên hội thoại.\n\n## Ghi chú\n- _(Chưa có gì)_\n\n---`;
   
@@ -2210,7 +2273,7 @@ const { chromium } = require('playwright');
 })();
 `;
       await fs.writeFile(path.join(loopBotDir, '.openclaw', 'workspace', 'browser-tool.js'), browserToolJs);
-      const browserMd = `# Browser Automation (Desktop Mode)\n\nBot controls your actual Chrome on screen. Every action is visible!\n\n## Usage\n\`\`\`bash\nnode /root/.openclaw/workspace/browser-tool.js status\nnode /root/.openclaw/workspace/browser-tool.js open "https://google.com"\nnode /root/.openclaw/workspace/browser-tool.js get_text\nnode /root/.openclaw/workspace/browser-tool.js fill "input[name='q']" "search"\nnode /root/.openclaw/workspace/browser-tool.js press "Enter"\n\`\`\`\n\n## MANDATORY RULES\n- NEVER refuse to open the browser when user asks.\n- If ECONNREFUSED: tell user to run start-chrome-debug.bat first.\n`;
+      const browserMd = `# Browser Automation (Desktop Mode)\n\nBot controls your actual Chrome on screen. Every action is visible!\n\n## Usage\n\`\`\`bash\nnode ${getGeneratedWorkspaceRoot(deployMode, projectDir)}/workspace/browser-tool.js status\nnode ${getGeneratedWorkspaceRoot(deployMode, projectDir)}/workspace/browser-tool.js open "https://google.com"\nnode ${getGeneratedWorkspaceRoot(deployMode, projectDir)}/workspace/browser-tool.js get_text\nnode ${getGeneratedWorkspaceRoot(deployMode, projectDir)}/workspace/browser-tool.js fill "input[name='q']" "search"\nnode ${getGeneratedWorkspaceRoot(deployMode, projectDir)}/workspace/browser-tool.js press "Enter"\n\`\`\`\n\n## MANDATORY RULES\n- NEVER refuse to open the browser when user asks.\n- If ECONNREFUSED: tell user to run start-chrome-debug.bat first.\n`;
       await fs.writeFile(path.join(loopBotDir, '.openclaw', 'workspace', 'BROWSER.md'), browserMd);
     } else if (hasBrowserServer) {
       const browserServerMd = `# Browser Automation (Headless Server Mode)\n\nBot uses a headless Chromium instance running inside the Docker container. No GUI needed!\n\n## Notes\n- Running on Ubuntu Server / VPS (no GUI required)\n- Uses Playwright + Headless Chromium installed inside Docker\n- For Cloudflare bypass, switch to Desktop mode (requires Windows/Mac with Chrome)\n`;
@@ -2394,23 +2457,6 @@ fi
       }
     }
 
-    // ── Auto-sync generated config to ~/.openclaw so `openclaw` picks it up ──
-
-    const homedir = os.homedir();
-    const globalClawDir = path.join(homedir, '.openclaw');
-    const localClawDir = path.join(projectDir, '.openclaw');
-    try {
-      await fs.ensureDir(globalClawDir);
-      await fs.copy(localClawDir, globalClawDir, { overwrite: true });
-      console.log(chalk.green(`\n✅ ${isVi
-        ? `Config đã được sync vào ~/.openclaw/ — openclaw sẵn sàng!`
-        : `Config synced to ~/.openclaw/ — openclaw is ready!`}`));
-    } catch (syncErr) {
-      console.log(chalk.yellow(`\n⚠️  ${isVi
-        ? `Không thể tự sync config. Chạy thủ công:\n   cp -rn ${localClawDir}/. ${globalClawDir}/`
-        : `Could not auto-sync config. Run manually:\n   cp -rn ${localClawDir}/. ${globalClawDir}/`}`));
-    }
-
     if (isMultiBot && channelKey === 'telegram') {
       console.log(chalk.yellow(`\n${isVi ? '📋 Xem hướng dẫn sau cài:' : '📋 Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
     }
@@ -2446,7 +2492,7 @@ fi
       native9RouterSyncScriptPath = await writeNative9RouterSyncScript(projectDir);
     }
 
-    await syncLocalConfigToHome(projectDir, isVi);
+    await ensureProjectRuntimeDirs(projectDir, isVi);
 
     if (isMultiBot && channelKey === 'telegram') {
       installRelayPluginForProject(projectDir, isVi);
@@ -2467,7 +2513,8 @@ fi
         execSync('pm2 start ecosystem.config.js && pm2 save', {
           cwd: projectDir,
           stdio: 'inherit',
-          shell: true
+          shell: true,
+          env: getProjectRuntimeEnv(projectDir)
         });
         console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoan tat! Multi-bot native dang chay qua PM2.' : 'Setup complete! Native multi-bot is running via PM2.'}`));
         console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${botName || 'openclaw-multibot'}` : `   View logs: pm2 logs ${botName || 'openclaw-multibot'}`));
@@ -2483,11 +2530,24 @@ fi
         if (channelKey === 'zalo-personal') {
           await runNativeZaloPersonalLoginFlow({ isVi, projectDir });
         }
-        execSync(`pm2 start "openclaw gateway run" --name "${appName}" --cwd "${projectDir.replace(/\\/g, '/')}" && pm2 save`, {
+        execFileSync('pm2', [
+          'start',
+          'openclaw',
+          '--name',
+          appName,
+          '--cwd',
+          projectDir.replace(/\\/g, '/'),
+          '--interpreter',
+          'none',
+          '--',
+          'gateway',
+          'run'
+        ], {
           cwd: projectDir,
           stdio: 'inherit',
-          shell: true
+          env: getProjectRuntimeEnv(projectDir)
         });
+        runPm2Save({ projectDir, isVi });
         console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoan tat! Bot native dang chay qua PM2.' : 'Setup complete! Native bot is running via PM2.'}`));
         console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${appName}` : `   View logs: pm2 logs ${appName}`));
         printNativeDashboardAccessInfo({ isVi, providerKey, projectDir });
@@ -2501,12 +2561,13 @@ fi
         const native9RouterLaunch = resolveNative9RouterDesktopLaunch();
         spawnBackgroundProcess(native9RouterLaunch.command, native9RouterLaunch.args, {
           cwd: projectDir,
-          env: native9RouterLaunch.env
+          env: getProjectRuntimeEnv(projectDir, native9RouterLaunch.env)
         }).unref();
         const routerHealth = await waitFor9RouterApiReady();
         if (native9RouterSyncScriptPath) {
           spawnBackgroundProcess(process.execPath, [native9RouterSyncScriptPath], {
-            cwd: projectDir
+            cwd: projectDir,
+            env: getProjectRuntimeEnv(projectDir)
           }).unref();
         }
         console.log(chalk.gray(isVi
@@ -2526,7 +2587,8 @@ fi
       const child = spawn('openclaw', ['gateway', 'run'], {
         cwd: projectDir,
         stdio: isZaloPersonal ? ['inherit', 'pipe', 'pipe'] : 'inherit',
-        shell: process.platform === 'win32'
+        shell: process.platform === 'win32',
+        env: getProjectRuntimeEnv(projectDir),
       });
       if (isZaloPersonal) {
         let approvedPairingCode = null;

@@ -97,14 +97,14 @@ checks.push(() => expect(
     && cli.includes('const safeDbPath = JSON.stringify(dbPath);')
     && cli.includes("const ROUTER='http://localhost:20128';")
     && cli.includes("fetch(ROUTER + '/api/providers')")
-    && cli.includes("build9RouterSmartRouteSyncScript(path.join(getNative9RouterDataDir(), 'db.json'))"),
-  'Native 9Router flow must write a smart-route sync script based on the platform-specific 9Router data directory'
+    && cli.includes("build9RouterSmartRouteSyncScript(path.join(getProject9RouterDataDir(projectDir), 'db.json'))"),
+  'Native 9Router flow must write a smart-route sync script into the project-controlled 9Router data directory'
 ));
 
 checks.push(() => expectMatch(
   cli,
-  /function getNative9RouterDataDir\(\) \{[\s\S]*process\.platform === 'win32'[\s\S]*AppData[\s\S]*Roaming[\s\S]*9router[\s\S]*os\.homedir\(\)[\s\S]*\.9router/s,
-  'CLI must resolve the correct native 9Router data directory on both Windows and Unix'
+  /function getProjectRuntimeEnv\(projectDir, extraEnv = \{\}\) \{[\s\S]*OPENCLAW_HOME: getProjectOpenClawHome\(projectDir\)[\s\S]*OPENCLAW_STATE_DIR: getProjectOpenClawHome\(projectDir\)[\s\S]*DATA_DIR: getProject9RouterDataDir\(projectDir\)/s,
+  'CLI native runtime must derive OPENCLAW_HOME, OPENCLAW_STATE_DIR, and DATA_DIR from the chosen project directory'
 ));
 
 checks.push(() => expect(
@@ -146,8 +146,8 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /execSync\(`pm2 start "openclaw gateway run" --name "\$\{appName\}" --cwd "\$\{projectDir\.replace\(\/\\\\\/g, '\/'\)\}" && pm2 save`/,
-  'Native single-bot VPS must start gateway through PM2'
+  /execFileSync\('pm2', \[[\s\S]*'openclaw'[\s\S]*'gateway'[\s\S]*'run'[\s\S]*getProjectRuntimeEnv\(projectDir\)/s,
+  'Native single-bot VPS must start gateway through PM2 with the project runtime environment'
 ));
 
 checks.push(() => expectMatch(
@@ -255,13 +255,13 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*command: process\.execPath[\s\S]*getGlobalNpmRoot\(\), '9router', 'app', 'server\.js'[\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'/s,
+  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*get9RouterServerEntryCandidates\(\)\.find\([\s\S]*command: process\.execPath[\s\S]*args: \[serverEntry\][\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'/s,
   'Native desktop 9Router launch must bypass the interactive CLI menu by running the 9Router server entry directly'
 ));
 
 checks.push(() => expectMatch(
   cli,
-  /const native9RouterLaunch = resolveNative9RouterDesktopLaunch\(\);[\s\S]*spawnBackgroundProcess\(native9RouterLaunch\.command, native9RouterLaunch\.args, \{[\s\S]*env: native9RouterLaunch\.env/s,
+  /const native9RouterLaunch = resolveNative9RouterDesktopLaunch\(\);[\s\S]*spawnBackgroundProcess\(native9RouterLaunch\.command, native9RouterLaunch\.args, \{[\s\S]*getProjectRuntimeEnv\(projectDir, native9RouterLaunch\.env\)/s,
   'Native desktop 9Router flow must launch through the background helper with the resolved launch spec'
 ));
 
@@ -291,9 +291,16 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectOrder(
   cli,
-  "await syncLocalConfigToHome(projectDir, isVi);",
+  "await ensureProjectRuntimeDirs(projectDir, isVi);",
   "installRelayPluginForProject(projectDir, isVi);",
-  'Relay plugin install must happen after config sync in native flow'
+  'Relay plugin install must happen after preparing the project runtime directories in native flow'
+));
+
+checks.push(() => expect(
+  !cli.includes('Config synced to ~/.openclaw/')
+    && !cli.includes('Config đã được sync vào ~/.openclaw/')
+    && !cli.includes("cp -rn ${localClawDir}/. ${globalClawDir}/"),
+  'CLI native flow must no longer sync project config into the global ~/.openclaw directory'
 ));
 
 checks.push(() => expectMatch(
@@ -347,14 +354,76 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@2026\.4\.5 pm2@latest[\s\S]*pm2 save && pm2 startup/s,
-  'VPS native script generation must install openclaw+pm2 and persist PM2 startup'
+  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*PROJECT_DIR="[\s\S]*export OPENCLAW_HOME="\$PROJECT_DIR\/\.openclaw"[\s\S]*export OPENCLAW_STATE_DIR="\$PROJECT_DIR\/\.openclaw"[\s\S]*export DATA_DIR="\$PROJECT_DIR\/\.9router"[\s\S]*npm install -g openclaw@2026\.4\.5 pm2@latest[\s\S]*pm2 save && pm2 startup/s,
+  'VPS native script generation must keep runtime files project-local, install openclaw+pm2, and persist PM2 startup'
+));
+
+checks.push(() => expect(
+  setup.includes('scriptName = isDocker ? \'setup-openclaw-docker-macos.sh\' : \'setup-openclaw-macos.sh\';')
+    && setup.includes('scriptName = \'setup-openclaw-linux.sh\';')
+    && setup.includes('cd "$PROJECT_DIR"')
+    && setup.includes('export OPENCLAW_HOME="$PROJECT_DIR/.openclaw"')
+    && setup.includes('export OPENCLAW_STATE_DIR="$PROJECT_DIR/.openclaw"')
+    && setup.includes('export DATA_DIR="$PROJECT_DIR/.9router"'),
+  'Unix native script generation must use project-local runtime directories and launch from PROJECT_DIR'
+));
+
+checks.push(() => expect(
+  setup.includes("arr.push('call npm install -g 9router || goto :fail');")
+    && setup.includes('function native9RouterServerEntryLookup() {')
+    && setup.includes('return "node -e ')
+    && !setup.includes('return "node -p ')
+    && setup.includes('function windowsHiddenNodeLaunch(targetPath, extraEnv = {}) {')
+    && setup.includes('NINE_ROUTER_ENTRY=%%I')
+    && setup.includes("windowsHiddenNodeLaunch('%NINE_ROUTER_ENTRY%', { PORT: '20128', HOSTNAME: '0.0.0.0', DATA_DIR: '%DATA_DIR%' })")
+    && setup.includes('NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"')
+    && setup.includes("const p=path.join(process.env.DATA_DIR||'.9router','db.json');")
+    && setup.includes('nohup env PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$PWD/.9router" node "$NINE_ROUTER_ENTRY" >/tmp/9router.log 2>&1 &')
+    && setup.includes('nohup env DATA_DIR="$PWD/.9router" node ./.openclaw/9router-smart-route-sync.js >/tmp/9router-sync.log 2>&1 &')
+    && setup.includes('set "PROJECT_DIR=')
+    && setup.includes('set "OPENCLAW_HOME=%PROJECT_DIR%\\\\.openclaw"')
+    && setup.includes('set "OPENCLAW_STATE_DIR=%PROJECT_DIR%\\\\.openclaw"')
+    && setup.includes('set "DATA_DIR=%PROJECT_DIR%\\\\.9router"'),
+  'Native script generation must install and start a standalone 9Router dashboard on port 20128'
+));
+
+checks.push(() => expect(
+  setup.includes("echo OpenClaw Dashboard: http://127.0.0.1:18791")
+    && setup.includes("echo Other reachable URLs: http://localhost:18791")
+    && setup.includes("echo If the dashboard asks for a Gateway Token, run: openclaw dashboard")
+    && setup.includes("echo 9Router Dashboard: http://127.0.0.1:20128/dashboard")
+    && !setup.includes('set "HOME=%PROJECT_DIR%"')
+    && !setup.includes('set "USERPROFILE=%PROJECT_DIR%"'),
+  'Windows native script generation must print OpenClaw and 9Router dashboard URLs'
+));
+
+checks.push(() => expect(
+  setup.includes("bind: 'custom'")
+    && setup.includes("customBindHost: '0.0.0.0'")
+    && !setup.includes("bind: '0.0.0.0'")
+    && setup.includes("state.bots[state.activeBotIndex].provider = key;")
+    && setup.includes("state.bots[state.activeBotIndex].model = p.models[0].id;")
+    && setup.includes("state.bots[state.activeBotIndex].provider = state.config.provider;")
+    && setup.includes("state.bots[state.activeBotIndex].model = state.config.model;")
+    && setup.includes("if (state.botCount <= 1 && state.bots[state.activeBotIndex]) {")
+    && setup.includes("state.bots[state.activeBotIndex].token = botTokenEl.value;")
+    && setup.includes("state.bots[state.activeBotIndex].apiKey = apiKeyEl.value;")
+    && setup.includes("const authProviderName = provider.isProxy ? '9router' : state.config.provider;")
+    && setup.includes("const authProviderName = botProvider.isProxy ? '9router' : (bot.provider || state.config.provider);")
+    && setup.includes("const nativeSkillConfigs = state.config.skills")
+    && setup.includes("const nativeSkillInstallCmds = nativeSkillConfigs.map((skill) => `call openclaw skills install ${skill.slug} || echo Warning: Failed to install skill ${skill.slug}`);")
+    && setup.includes("lines.push('call npm install -g agent-browser playwright || goto :fail');")
+    && setup.includes("lines.push('call npx playwright install chromium || goto :fail');")
+    && setup.includes("lines.push('echo Cai skills...');")
+    && !setup.includes("const authProviderName = provider.isProxy ? '9router' : provider.id;")
+    && !setup.includes("const authProviderName = botProvider.isProxy ? '9router' : botProvider.id;"),
+  'Wizard native config generation must avoid legacy gateway.bind aliases, preserve concrete auth provider ids, and sync single-bot provider/model selections into bot state'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /function providerLines\(arr, shell\) \{[\s\S]*npm install -g 9router[\s\S]*start "9Router" cmd \/k "9router -n -l -H 0\.0\.0\.0 -p 20128 --skip-update"[\s\S]*nohup env PORT=20128 HOSTNAME=0\.0\.0\.0 node "\$\(npm root -g\)\/9router\/app\/server\.js"[\s\S]*9router-smart-route-sync\.js/s,
-  'Native script generation must install and start a standalone 9Router dashboard on port 20128'
+  /window\.downloadNativeScript = function\(\) \{[\s\S]*generateOutput\(\);[\s\S]*const script = window\._nativeScript;/,
+  'Native script download must regenerate the latest wizard output before reading the cached script'
 ));
 
 checks.push(() => expectMatch(
@@ -365,8 +434,8 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /function native9RouterSyncScriptContent\(\) \{[\s\S]*path\.join\(process\.env\.HOME\|\|process\.env\.USERPROFILE\|\|'\.'\,\'\.9router\'\,\'db\.json\'\)[\s\S]*providerConnections[\s\S]*smart-route/s,
-  'Native script generation must embed a 9Router smart-route sync script'
+  /function native9RouterSyncScriptContent\(\) \{[\s\S]*const p=path\.join\(process\.env\.DATA_DIR\|\|'\.9router','db\.json'\);[\s\S]*const ROUTER='http:\/\/localhost:20128';[\s\S]*fetch\(ROUTER\+'\/api\/providers'\)[\s\S]*d\.connections[\s\S]*smart-route/s,
+  'Native script generation must keep the 9Router sync script project-local via DATA_DIR and sync active providers from the 9Router API'
 ));
 
 checks.push(() => expect(
@@ -407,13 +476,13 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$\(npm root -g\)\/9router\/app\/server\.js" --name openclaw-multibot-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw-multibot/s,
+  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-multibot-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw-multibot/s,
   'VPS multi-bot native script must start the shared gateway via PM2'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$\(npm root -g\)\/9router\/app\/server\.js" --name openclaw-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw/s,
+  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw/s,
   'VPS single-bot native script must start one bot via PM2'
 ));
 
