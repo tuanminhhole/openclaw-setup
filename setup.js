@@ -1076,18 +1076,22 @@
       }
       // Step 4 (api keys): require token/key
       if (state.currentStep === 4) {
-        const apiKeyEl = document.getElementById('key-api-key');
         const provider = PROVIDERS[state.config.provider];
         if (state.channel === 'telegram' && state.botCount > 1) {
-          // Multi-bot Telegram: require at least the first bot's token
+          // Multi-bot: check DOM first, fallback to state (works even before user types)
           const firstTokenEl = document.getElementById('key-bot-token-0');
-          if (!firstTokenEl || !firstTokenEl.value.trim()) isDisabled = true;
+          const firstTokenVal = firstTokenEl?.value?.trim() || state.bots[0]?.token?.trim() || '';
+          if (!firstTokenVal) isDisabled = true;
         } else if (state.channel === 'telegram' || state.channel === 'zalo-bot') {
           const botTokenEl = document.getElementById('key-bot-token');
-          if (!botTokenEl || !botTokenEl.value.trim()) isDisabled = true;
+          const botTokenVal = botTokenEl?.value?.trim() || state.config.botToken?.trim() || '';
+          if (!botTokenVal) isDisabled = true;
         }
-        if (provider && !provider.isProxy && !provider.isLocal && provider.envKey && apiKeyEl) {
-          if (!apiKeyEl.value.trim()) isDisabled = true;
+        // API key: check DOM first, fallback to state
+        if (provider && !provider.isProxy && !provider.isLocal && provider.envKey) {
+          const apiKeyEl = document.getElementById('key-api-key');
+          const apiKeyVal = apiKeyEl?.value?.trim() || state.config.apiKey?.trim() || '';
+          if (!apiKeyVal) isDisabled = true;
         }
       }
 
@@ -1510,10 +1514,11 @@
           cHtml += `</div>`;
           cHtml += `<p class="form-group__hint" style="margin-top:8px;">${isVi ? 'Lấy token cho từng bot từ <a href="https://t.me/BotFather" target="_blank">@BotFather</a> — mỗi bot cần 1 token riêng.' : 'Get each token from <a href="https://t.me/BotFather" target="_blank">@BotFather</a> — each bot needs its own token.'}</p>`;
         } else {
-          // Single bot
+          // Single bot — restore saved token value
+          const savedSingleToken = state.bots[0]?.token || state.config.botToken || '';
           cHtml += `<div class="form-group" style="margin: 0;">
             <label class="form-group__label" for="key-bot-token">🤖 Telegram Bot Token <span style="color: var(--danger, #ef4444);">*</span></label>
-            <input type="text" class="form-input" id="key-bot-token" placeholder="VD: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz" style="font-family: monospace; font-size: 13px;" oninput="window.__validateKeys()">
+            <input type="text" class="form-input" id="key-bot-token" value="${savedSingleToken}" placeholder="VD: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz" style="font-family: monospace; font-size: 13px;" oninput="window.__validateKeys()">
             <p class="form-group__hint">${isVi ? 'Lấy từ <a href="https://t.me/BotFather" target="_blank">@BotFather</a> trên Telegram' : 'Get from <a href="https://t.me/BotFather" target="_blank">@BotFather</a> on Telegram'}</p>
           </div>`;
         }
@@ -1560,12 +1565,9 @@
       skillsEl.innerHTML = sHtml;
     }
 
-    // ─── Restore persisted credential values (Bug 1 fix) ───
-    // Must run AFTER all innerHTML assignments above so elements exist
-    if (state.config.botToken) {
-      const btEl = document.getElementById('key-bot-token');
-      if (btEl) btEl.value = state.config.botToken;
-    }
+    // ─── Restore persisted credential values ───
+    // Single-bot token is now restored inline via value="" attr above.
+    // api-key and project-path still restored here (rendered in provider section).
     if (state.config.apiKey) {
       const akEl = document.getElementById('key-api-key');
       if (akEl) akEl.value = state.config.apiKey;
@@ -1575,6 +1577,9 @@
       const ppEl = document.getElementById('cfg-project-path');
       if (ppEl) ppEl.value = state.config.projectPath;
     }
+
+    // Re-run validation AFTER all fields are populated so button reflects correct state
+    updateNavButtons();
   }
   window.__validateKeys = function() { updateNavButtons(); };
   // 9Router API keys are managed via its dashboard — no client-side generation needed

@@ -1,6 +1,18 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.2.1] — 2026-04-09
+
+### 🐛 Sửa Lỗi Ubuntu/VPS Native
+
+- **Sửa `Bot-9router errored` (PM2 ↺ 15)**: `resolveNative9RouterDesktopLaunch` cố tìm file `9router/app/server.js` trong thư mục npm global — đường dẫn này không tồn tại sau `npm install -g 9router`. Giờ dùng trực tiếp binary `9router` CLI với các tham số đúng (`-n -l -H 0.0.0.0 -p 20128 --skip-update`), loại bỏ hoàn toàn vòng lặp restart.
+- **Sửa đường dẫn workspace bị double `.openclaw`**: `workspace` và `agentDir` trong `openclaw.json` được sinh ra dưới dạng đường dẫn tuyệt đối (ví dụ `/home/user/bot/.openclaw/workspace`). OpenClaw giải quyết các path này tương đối với `OPENCLAW_HOME`, gây ra double-prefix (`/home/user/bot/.openclaw/.openclaw/workspace`). Đã chuyển sang path tương đối (`workspace`, `agents/<id>/agent`) giống Docker mode.
+- **Sửa thiếu runtime packages khi cài native**: `grammy`, `@grammyjs/runner`, `@grammyjs/transformer-throttler`, `@buape/carbon`, `@larksuiteoapi/node-sdk`, `@slack/web-api` được cài trong Docker (Dockerfile) nhưng bỏ qua ở native. `installLatestOpenClaw` giờ cài toàn bộ `OPENCLAW_RUNTIME_PACKAGES` sau binary chính.
+- **Sửa `openclaw: command not found` sau khi cài**: Hướng dẫn login Zalo sau setup giờ có thêm gợi ý `source ~/.bashrc && source ~/.profile` cho terminal mới trên Linux.
+- **Sửa Zalo session lưu sai thư mục**: Lệnh login thủ công giờ bao gồm env vars `OPENCLAW_HOME` và `OPENCLAW_STATE_DIR` để session được lưu vào `<projectDir>/.openclaw/credentials/zalouser/` — đúng chỗ gateway PM2 đọc.
+- **Sửa đường dẫn project tương đối**: Input `projectDir` giờ được chuẩn hóa bằng `path.resolve()` để gõ `home/ubuntu/bot` (thiếu `/` đầu) tự động thành `/home/ubuntu/bot`.
+
+
 ## [5.2.0] — 2026-04-09
 
 ### Upgrade 1 Lệnh (Không Cần Chạy Lại Wizard)

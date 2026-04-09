@@ -268,8 +268,8 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*get9RouterServerEntryCandidates\(\)\.find\([\s\S]*command: process\.execPath[\s\S]*args: \[serverEntry\][\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'/s,
-  'Native desktop 9Router launch must bypass the interactive CLI menu by running the 9Router server entry directly'
+  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*resolveCommandOnPath\('9router'\)[\s\S]*command: routerBin[\s\S]*args: \['-n', '-l', '-H', '0\.0\.0\.0', '-p', '20128', '--skip-update'\][\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'/s,
+  'Native desktop 9Router launch must use the 9router CLI binary directly with server args to bypass the interactive menu'
 ));
 
 checks.push(() => expectMatch(

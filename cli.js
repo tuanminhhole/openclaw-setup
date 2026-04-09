@@ -6,6 +6,36 @@ import path from 'path';
 import os from 'os';
 import chalk from 'chalk';
 import { spawn, execSync, execFileSync } from 'child_process';
+import { existsSync } from 'fs';
+
+// ─── Guard: Detect if running from inside the source repo ───────────────────
+// Signs: cwd has setup.js + index.html + style.css (only exist in the dev repo,
+// not in a normal user project). If detected, npx used the LOCAL package without
+// node_modules installed → warn and exit clearly.
+{
+  const cwd = process.cwd();
+  const isInsideSourceRepo = (
+    existsSync(path.join(cwd, 'setup.js')) &&
+    existsSync(path.join(cwd, 'index.html')) &&
+    existsSync(path.join(cwd, 'style.css'))
+  );
+  if (isInsideSourceRepo) {
+    console.error('\n❌ Lỗi: Bạn đang chạy lệnh từ BÊN TRONG thư mục source code của OpenClaw Setup.');
+    console.error('   npx đang dùng bản local thay vì tải từ npm registry.');
+    console.error('\n✅ Cách fix: Thoát ra thư mục home trước, rồi chạy lại:\n');
+    console.error('   cd ~');
+    console.error('   npx create-openclaw-bot@latest\n');
+    console.error('─────────────────────────────────────────────────────────────');
+    console.error('❌ Error: You are running this command from INSIDE the OpenClaw Setup source folder.');
+    console.error('   npx is using the local copy instead of downloading from npm registry.');
+    console.error('\n✅ Fix: Go to your home directory first, then run again:\n');
+    console.error('   cd ~');
+    console.error('   npx create-openclaw-bot@latest\n');
+    process.exit(1);
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const TELEGRAM_RELAY_PLUGIN_RUNTIME_ID = 'telegram-multibot-relay';
 const TELEGRAM_RELAY_PLUGIN_PACKAGE = 'openclaw-telegram-multibot-relay';
 const OPENCLAW_NPM_SPEC = 'openclaw@2026.4.5';
@@ -157,11 +187,11 @@ function spawnBackgroundProcess(command, args, options = {}) {
 }
 
 function resolveNative9RouterDesktopLaunch() {
-  const serverEntry = get9RouterServerEntryCandidates().find((candidate) => fs.existsSync(candidate))
-    || get9RouterServerEntryCandidates()[0];
+  // Use installed 9router CLI directly (more reliable than finding server.js in npm dirs)
+  const routerBin = resolveCommandOnPath('9router') || '9router';
   return {
-    command: process.execPath,
-    args: [serverEntry],
+    command: routerBin,
+    args: ['-n', '-l', '-H', '0.0.0.0', '-p', '20128', '--skip-update'],
     env: {
       PORT: '20128',
       HOSTNAME: '0.0.0.0'
@@ -301,10 +331,14 @@ function ensureUserWritableGlobalNpm({ isVi, osChoice }) {
     // On macOS (darwin), skip mutating global .npmrc prefix — conflicts with Homebrew.
     // The npm_config_prefix env var set above is sufficient for this process.
     if (process.platform !== 'darwin') {
-      execSync(`npm config set prefix "${npmInfo.prefixDir.replace(/"/g, '\\"')}"`, {  
-        stdio: 'ignore',  
-        shell: true,  
-        env: process.env  
+      execSync(`npm config set prefix "${npmInfo.prefixDir.replace(/"/g, '\\"')}"`, {
+  
+        stdio: 'ignore',
+  
+        shell: true,
+  
+        env: process.env
+  
       });
     }
 
@@ -369,16 +403,31 @@ function installLatestOpenClaw({ isVi, osChoice }) {
   }
 
   console.log(chalk.cyan(isVi
-    ? `\n📦 Dang cai/cap nhat ${OPENCLAW_NPM_SPEC}...`
-    : `\n📦 Installing/updating ${OPENCLAW_NPM_SPEC}...`));
+    ? `\n📦 Dang cai/cap nhat ${OPENCLAW_NPM_SPEC} va runtime packages...`
+    : `\n📦 Installing/updating ${OPENCLAW_NPM_SPEC} and runtime packages...`));
 
+  // Install openclaw binary first
   if (!installGlobalPackage(OPENCLAW_NPM_SPEC, { isVi, osChoice, displayName: 'openclaw' })) {
     process.exit(1);
   }
 
+  // Install runtime packages required by openclaw channels (telegram, zalo, etc.)
+  // These are bundled in Docker but need to be installed separately for native mode.
+  const runtimePkgList = OPENCLAW_RUNTIME_PACKAGES.split(' ').filter(Boolean);
+  for (const pkg of runtimePkgList) {
+    try {
+      execSync(`npm install -g ${pkg}`, { stdio: 'ignore', shell: true, env: process.env });
+    } catch {
+      // Non-fatal: openclaw can still start, channel may have issues
+      console.log(chalk.yellow(isVi
+        ? `   ⚠️  Khong the cai ${pkg}. Bot co the bao loi khi dung channel nay.`
+        : `   ⚠️  Could not install ${pkg}. Bot may error when using this channel.`));
+    }
+  }
+
   console.log(chalk.green(isVi
-    ? '✅ openclaw da duoc cap nhat ban moi nhat!'
-    : '✅ openclaw is now on the latest version!'));
+    ? '✅ openclaw va runtime packages da duoc cap nhat!'
+    : '✅ openclaw and runtime packages are now up to date!'));
 }
 
 function build9RouterSmartRouteSyncScript(dbPath) {
@@ -637,8 +686,32 @@ function printZaloPersonalLoginInfo({ isVi, deployMode, projectDir }) {
       : `cp "${qrPath}" "${projectQrPath}"`)
     : `docker compose cp ai-bot:${qrPath} ./zalo-login-qr.png`;
 
+  const absProjectDir = path.resolve(projectDir);
+  const openclawHome = path.join(absProjectDir, '.openclaw');
+  // Native login must set OPENCLAW_HOME so session is saved to projectDir/.openclaw
+  // (same location the gateway reads from via getProjectRuntimeEnv)
+  const nativeEnvPrefix = process.platform === 'win32'
+    ? `$env:OPENCLAW_HOME='${openclawHome}'; $env:OPENCLAW_STATE_DIR='${openclawHome}'; `
+    : `OPENCLAW_HOME='${openclawHome}' OPENCLAW_STATE_DIR='${openclawHome}' `;
+  const nativeCmdFull = deployMode === 'native'
+    ? `${nativeEnvPrefix}${nativeCmd}`
+    : cmd;
+
   console.log(chalk.yellow(`\n📱 ${isVi ? 'Đăng nhập Zalo Personal (1 lần):' : 'Zalo Personal login (one time):'}`));
-  console.log(chalk.white(`   cd ${projectDir}${deployMode === 'native' ? '' : '/docker/openclaw'} ${process.platform === 'win32' ? ';' : '&&'} ${cmd}`));
+  if (process.platform !== 'win32' && deployMode === 'native') {
+    console.log(chalk.gray(isVi
+      ? `   ⚠️  Nếu terminal mới báo 'openclaw: command not found', chạy trước:`
+      : `   ⚠️  If a new terminal shows 'openclaw: command not found', run first:`));
+    console.log(chalk.white(`   source ~/.bashrc && source ~/.profile`));
+    console.log(chalk.gray(''));
+  }
+  const displayCmd = deployMode === 'native' ? nativeCmdFull : nativeCmdFull;
+  console.log(chalk.white(`   cd ${absProjectDir}${deployMode === 'native' ? '' : '/docker/openclaw'} ${process.platform === 'win32' ? ';' : '&&'} ${displayCmd}`));
+  if (deployMode === 'native') {
+    console.log(chalk.gray(isVi
+      ? `   → Session Zalo sẽ được lưu vào: ${openclawHome}/credentials/zalouser/`
+      : `   → Zalo session will be saved to: ${openclawHome}/credentials/zalouser/`));
+  }
   console.log(chalk.gray(isVi
     ? `   → OpenClaw sẽ tạo file QR tại: ${qrPath}`
     : `   → OpenClaw will generate a QR image at: ${qrPath}`));
@@ -1473,10 +1546,12 @@ async function main() {
   if (!defaultDir.endsWith('openclaw-setup') && !defaultDir.endsWith('openclaw')) {
     defaultDir = path.join(defaultDir, 'openclaw-setup');
   }
-  const projectDir = await input({
+  const projectDirRaw = await input({
     message: isVi ? 'Thư mục cài đặt project:' : 'Project install directory:',
     default: defaultDir
   });
+  // Normalize to absolute path - prevent relative paths like 'home/ubuntu/bot' missing leading '/'
+  const projectDir = path.resolve(projectDirRaw.trim());
 
   console.log(chalk.cyan(`\n🚀 ${isVi ? 'Đang tạo thư mục và file cấu hình...' : 'Generating directories and configurations...'}`));
   
@@ -1955,8 +2030,10 @@ ${hasBrowserDesktop ? `    extra_hosts:
         list: agentMetas.map((meta) => ({
           id: meta.agentId,
           name: meta.name,
-          workspace: `${deployMode === 'native' ? getNativeOpenClawRootDir(projectDir) : '/root/.openclaw'}/${meta.workspaceDir}`,
-          agentDir: `${deployMode === 'native' ? getNativeOpenClawRootDir(projectDir) : '/root/.openclaw'}/agents/${meta.agentId}/agent`,
+          // Use relative paths — openclaw resolves these relative to OPENCLAW_HOME/OPENCLAW_STATE_DIR
+          // Absolute paths cause double-prefix (e.g. /project/.openclaw/.openclaw/workspace)
+          workspace: meta.workspaceDir,
+          agentDir: `agents/${meta.agentId}/agent`,
           model: { primary: modelsPrimary, fallbacks: [] },
         })),
       },

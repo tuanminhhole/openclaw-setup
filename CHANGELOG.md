@@ -1,6 +1,18 @@
 # Changelog (English)
 
 
+## [5.2.1] — 2026-04-09
+
+### 🐛 Native Ubuntu/VPS Bug Fixes
+
+- **Fix `Bot-9router errored` (PM2)**: `resolveNative9RouterDesktopLaunch` was trying to locate `9router/app/server.js` inside npm global dirs — a path that doesn't exist after standard `npm install -g 9router`. Now uses the `9router` CLI binary directly with proper args (`-n -l -H 0.0.0.0 -p 20128 --skip-update`), preventing the `↺ 15` restart loop.
+- **Fix double `.openclaw` workspace path**: `workspace` and `agentDir` in generated `openclaw.json` were set as absolute paths (e.g. `/home/user/bot/.openclaw/workspace`). OpenClaw resolves these relative to `OPENCLAW_HOME`, causing a double-prefix (`/home/user/bot/.openclaw/.openclaw/workspace`). Changed to relative paths (`workspace`, `agents/<id>/agent`) matching Docker behavior.
+- **Fix missing runtime packages on native install**: `grammy`, `@grammyjs/runner`, `@grammyjs/transformer-throttler`, `@buape/carbon`, `@larksuiteoapi/node-sdk`, `@slack/web-api` were installed in Docker (Dockerfile) but skipped on native. `installLatestOpenClaw` now installs all `OPENCLAW_RUNTIME_PACKAGES` after the main binary.
+- **Fix `openclaw: command not found` after install**: Post-setup Zalo login instructions now include a `source ~/.bashrc && source ~/.profile` hint for new terminal sessions on Linux.
+- **Fix Zalo session stored in wrong directory**: Manual login hint now includes `OPENCLAW_HOME` and `OPENCLAW_STATE_DIR` env vars so sessions are saved to `<projectDir>/.openclaw/credentials/zalouser/` — the same path the PM2 gateway reads from.
+- **Fix relative project path**: `projectDir` input is now normalized with `path.resolve()` so typing `home/ubuntu/bot` (without leading `/`) correctly resolves to `/home/ubuntu/bot`.
+
+
 ## [5.2.0] — 2026-04-09
 
 ### One-Command Upgrade (No Wizard Required)

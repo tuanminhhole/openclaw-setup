@@ -1,6 +1,6 @@
 {
   "name": "create-openclaw-bot",
-  "version": "5.2.0",
+  "version": "5.2.1",
   "description": "Interactive CLI installer for OpenClaw Bot",
   "main": "cli.js",
   "bin": {
@@ -25,5 +25,10 @@
     "chalk": "^5.3.0",
     "fs-extra": "^11.2.0"
   },
+  "bundleDependencies": [
+    "@inquirer/prompts",
+    "chalk",
+    "fs-extra"
+  ],
   "type": "module"
 }
