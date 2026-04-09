@@ -1,6 +1,17 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.2.2] — 2026-04-10
+
+### 🐛 Sửa lỗi Docker & Native PM2
+
+- **Sửa crash loop Docker (xung đột port socat)**: `socat TCP-LISTEN:18791` chiếm port `0.0.0.0:18791` trước khi `openclaw gateway run` khởi động, gây `EADDRINUSE`. Đã xóa gateway bridge khỏi Dockerfile CMD trong `cli.js` và `setup.js`.
+- **Sửa Dashboard Docker không vào được từ host**: Gateway `bind` đặt là `'loopback'` — Docker port mapping không reach được loopback bên trong container. Khôi phục pattern đúng từ v5.0.9: `bind:'custom', customBindHost:'0.0.0.0'`.
+- **Sửa `delete c.gateway.customBindHost`**: Một lệnh `delete` thừa đang xóa key `customBindHost` ngay sau khi set. Đã xóa dòng đó.
+- **Sửa Docker tải lại npm mỗi lần build**: `ARG CACHEBUST=<timestamp>` bust cache layer `npm install -g openclaw` mỗi lần build dù chỉ đổi config. Thay bằng `ARG OPENCLAW_VER` ổn định theo version — Docker tái sử dụng cache giữa các lần rebuild.
+- **Sửa lồng đôi `.openclaw` trong native PM2**: `ecosystem.config.js` đang đặt `OPENCLAW_HOME: projectDir/.openclaw`, khiến OpenClaw resolve workspace thành `projectDir/.openclaw/.openclaw/workspace`. Đã xóa `OPENCLAW_HOME` khỏi PM2 env; OpenClaw tự tìm config qua `cwd` (khớp với v5.0.9).
+
+
 ## [5.2.1] — 2026-04-09
 
 ### 🐛 Sửa Lỗi Ubuntu/VPS Native

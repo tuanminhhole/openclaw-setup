@@ -241,11 +241,12 @@ checks.push(() => expectMatch(
 checks.push(() => expect(
   cli.includes("a.add('http://' + entry.address + ':18791')")
     && cli.includes('allowedOrigins:Array.from(a).filter(Boolean)')
-    && cli.includes("bind:'loopback'")
-    && cli.includes("delete c.gateway.customBindHost;")
-    && cli.includes("const gatewayBridge = 'socat TCP-LISTEN:18791,fork,reuseaddr TCP:127.0.0.1:18791 & ';")
+    && cli.includes("bind:'custom',customBindHost:'0.0.0.0'")
+    && !cli.includes("bind:'loopback'")
+    && !cli.includes("delete c.gateway.customBindHost;")
+    && !cli.includes("const gatewayBridge = 'socat TCP-LISTEN:18791")
     && !cli.includes("a.add(`http://${entry.address}:18791`)"),
-  'Docker CLI patch script must keep the gateway loopback-local behind a socat bridge and avoid shell-expanding ${entry.address}'
+  'Docker CLI patch script must use bind:custom+customBindHost:0.0.0.0, skip socat gateway bridge, and avoid shell-expanding ${entry.address}'
 ));
 
 checks.push(() => expectMatch(
@@ -361,11 +362,12 @@ checks.push(() => expectMatch(
 checks.push(() => expect(
   setup.includes("a.add('http://' + entry.address + ':18791')")
     && setup.includes('allowedOrigins:Array.from(a).filter(Boolean)')
-    && setup.includes("bind:'loopback'")
-    && setup.includes("delete c.gateway.customBindHost;")
-    && setup.includes("const gatewayBridgePrefix = 'socat TCP-LISTEN:18791,fork,reuseaddr TCP:127.0.0.1:18791 & ';")
+    && setup.includes("bind:'custom',customBindHost:'0.0.0.0'")
+    && !setup.includes("bind:'loopback'")
+    && !setup.includes("delete c.gateway.customBindHost;")
+    && !setup.includes("const gatewayBridgePrefix = 'socat TCP-LISTEN:18791")
     && !setup.includes("a.add(\\`http://\\${entry.address}:18791\\`)"),
-  'Wizard Docker patch command must keep the gateway loopback-local behind a socat bridge and avoid shell-expanding ${entry.address}'
+  'Wizard Docker patch command must use bind:custom+customBindHost:0.0.0.0, skip socat gateway bridge, and avoid shell-expanding ${entry.address}'
 ));
 
 checks.push(() => expectMatch(

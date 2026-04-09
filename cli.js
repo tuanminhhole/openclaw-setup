@@ -1624,7 +1624,7 @@ async function main() {
   }
   
   
-  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'loopback',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});delete c.gateway.customBindHost;fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+  const patchScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
   const b64Patch = Buffer.from(patchScript).toString('base64');
 
   // Browser Playwright (both desktop & server modes need chromium)
@@ -1639,7 +1639,9 @@ async function main() {
   // socat only for Desktop mode (bridge to host Chrome)
   const socatApt = ' socat';
   const socatBridge = hasBrowserDesktop ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 & ' : '';
-  const gatewayBridge = 'socat TCP-LISTEN:18791,fork,reuseaddr TCP:127.0.0.1:18791 & ';
+  // gatewayBridge removed: socat on 0.0.0.0:18791 conflicts with openclaw binding 127.0.0.1:18791.
+  // The openclaw gateway connects outbound to chat platforms — no inbound bridge needed.
+  const gatewayBridge = '';
 
   // Skills install at RUNTIME (not build-time — requires openclaw config + ClawHub auth)
   const skillSlugs = SKILLS
@@ -1662,7 +1664,7 @@ async function main() {
   if (browserDockerLines) dockerfileLines.push(browserDockerLines);
   dockerfileLines.push(
     '',
-    `ARG CACHEBUST=${Date.now()}`,
+    `ARG OPENCLAW_VER="${OPENCLAW_NPM_SPEC}"`,
     `RUN npm install -g ${OPENCLAW_NPM_SPEC} ${OPENCLAW_RUNTIME_PACKAGES}`,
     '',
     '# Fix chat.send dropping resolved agent timeout into reply pipeline.',
@@ -2138,7 +2140,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
         `      interpreter: 'none',`,
         `      autorestart: true,`,
         `      watch: false,`,
-        `      env: { NODE_ENV: 'production', OPENCLAW_HOME: '${path.join(projectDir, '.openclaw').replace(/\\/g, '/')}', DATA_DIR: '${path.join(projectDir, '.9router').replace(/\\/g, '/')}' }`,
+        `      env: { NODE_ENV: 'production', DATA_DIR: '${path.join(projectDir, '.9router').replace(/\\/g, '/')}' }`,
         '    },',
         '    {',
         `      name: '${botName || 'openclaw-multibot'}-auto-approve',`,
@@ -2148,7 +2150,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
         `      interpreter: 'none',`,
         `      autorestart: true,`,
         `      watch: false,`,
-        `      env: { NODE_ENV: 'production', OPENCLAW_HOME: '${path.join(projectDir, '.openclaw').replace(/\\/g, '/')}', DATA_DIR: '${path.join(projectDir, '.9router').replace(/\\/g, '/')}' }`,
+        `      env: { NODE_ENV: 'production', DATA_DIR: '${path.join(projectDir, '.9router').replace(/\\/g, '/')}' }`,
         '    }',
       ].join('\n');
       const ecosystemContent = [

@@ -1,6 +1,16 @@
 # Changelog (English)
 
 
+## [5.2.2] — 2026-04-10
+
+### 🐛 Docker & Native PM2 Bug Fixes
+
+- **Fix Docker crash loop (socat port conflict)**: `socat TCP-LISTEN:18791` was binding `0.0.0.0:18791` before `openclaw gateway run` started, causing `EADDRINUSE` on `127.0.0.1:18791`. Removed the broken gateway bridge from the generated Dockerfile CMD in both `cli.js` and `setup.js`.
+- **Fix Docker dashboard not accessible from host**: Gateway `bind` was set to `'loopback'` — Docker port mapping cannot route to container loopback. Restored the v5.0.9 working pattern: `bind:'custom', customBindHost:'0.0.0.0'`.
+- **Fix `delete c.gateway.customBindHost`**: A stray `delete` statement was erasing the `customBindHost` key right after setting it. Removed.
+- **Fix Docker build re-downloading npm packages on every rebuild**: `ARG CACHEBUST=<epoch>` was cache-busting the `npm install -g openclaw` layer on every build (even config-only changes). Replaced with a version-stable `ARG OPENCLAW_VER` so Docker layer cache is reused between rebuilds.
+- **Fix native PM2 double `.openclaw` nesting**: `ecosystem.config.js` was setting `OPENCLAW_HOME: projectDir/.openclaw`, causing OpenClaw to resolve workspace as `projectDir/.openclaw/.openclaw/workspace`. Removed `OPENCLAW_HOME` from PM2 env; OpenClaw discovers config via `cwd` (matching v5.0.9 behavior).
+
 ## [5.2.1] — 2026-04-09
 
 ### 🐛 Native Ubuntu/VPS Bug Fixes
