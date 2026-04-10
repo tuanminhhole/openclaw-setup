@@ -1,4 +1,4 @@
-/* ============================================
+﻿/* ============================================
    OpenClaw Setup Wizard — Logic v2
    Multi-model, Multi-plugin, Multi-channel
    ============================================ */
@@ -1061,7 +1061,7 @@
         if (state.botCount > 1) {
           // Multi-bot: require name for the currently active bot tab
           // Fallback to state.bots to handle re-render cases where DOM may not yet have the value
-          const activeTab = state._activeBotTab || 0;
+          const activeTab = state.activeBotIndex || 0;
           const tabNameVal = document.getElementById('cfg-bot-tab-name')?.value?.trim()
             || state.bots[activeTab]?.name?.trim();
           if (!tabNameVal) isDisabled = true;
@@ -1099,6 +1099,36 @@
       btnNextLabel.textContent = state.currentStep === 4
         ? (lang === 'vi' ? 'Generate Configs' : 'Generate Configs')
         : (lang === 'vi' ? 'Tiếp theo' : 'Next');
+
+      // Show inline hint when Generate Configs is blocked
+      let hintEl = document.getElementById('btn-next-hint');
+      if (state.currentStep === 4 && isDisabled) {
+        if (!hintEl) {
+          hintEl = document.createElement('p');
+          hintEl.id = 'btn-next-hint';
+          hintEl.style.cssText = 'font-size:12px;color:#ffc107;text-align:center;margin:6px 16px 0;';
+          const navEl = document.querySelector('.nav-buttons');
+          if (navEl && navEl.parentNode) navEl.parentNode.insertBefore(hintEl, navEl.nextSibling);
+        }
+        const missing = [];
+        const _prov = PROVIDERS[state.config.provider];
+        if (state.channel === 'telegram' && state.botCount > 1) {
+          const t0 = document.getElementById('key-bot-token-0')?.value?.trim() || state.bots[0]?.token?.trim() || '';
+          if (!t0) missing.push(lang === 'vi' ? 'Token Bot 1' : 'Bot 1 Token');
+        } else if (state.channel === 'telegram' || state.channel === 'zalo-bot') {
+          const bt = document.getElementById('key-bot-token')?.value?.trim() || state.config.botToken?.trim() || '';
+          if (!bt) missing.push('Bot Token');
+        }
+        if (_prov && !_prov.isProxy && !_prov.isLocal && _prov.envKey) {
+          const ak = document.getElementById('key-api-key')?.value?.trim() || state.config.apiKey?.trim() || '';
+          if (!ak) missing.push(_prov.envLabel || _prov.envKey);
+        }
+        if (missing.length) {
+          hintEl.textContent = (lang === 'vi' ? '⚠️ Còn thiếu: ' : '⚠️ Missing: ') + missing.join(', ');
+        }
+      } else if (hintEl) {
+        hintEl.remove();
+      }
     }
   }
 
@@ -1382,9 +1412,12 @@
     state.config.userInfo = document.getElementById('cfg-user-info')?.value?.trim() || state.config.userInfo || '';
     state.config.securityRules = document.getElementById('cfg-security')?.value || state.config.securityRules || DEFAULT_SECURITY_RULES['vi'];
     // Also save bot-tab-name → bots[0].name so both state locations stay in sync
+    // Save bot-tab-name to the ACTIVE bot (not always bots[0])
     const tabName = document.getElementById('cfg-bot-tab-name')?.value?.trim();
-    if (tabName && state.bots[0]) state.bots[0].name = tabName;
-    else if (state.config.botName && state.bots[0] && !state.bots[0].name) {
+    if (tabName && state.bots[state.activeBotIndex]) {
+      state.bots[state.activeBotIndex].name = tabName;
+      if (state.botCount <= 1) state.config.botName = tabName;
+    } else if (state.config.botName && state.bots[0] && !state.bots[0].name) {
       state.bots[0].name = state.config.botName;
     }
     if (state.bots[state.activeBotIndex]) {
@@ -1682,7 +1715,6 @@
 
     function buildTelegramPostInstallChecklist() {
       const groupId = state.groupId || '';
-      const nativeProjectOpenClawRoot = `${projectDir.replace(/\\/g, '/')}/.openclaw`;
       const botList = state.bots.slice(0, state.botCount).map((bot, idx) => `- **${bot?.name || `Bot ${idx + 1}`}**`).join('\n');
       const isVi = lang === 'vi';
       return isVi
@@ -4157,7 +4189,7 @@ Write-Host ""
 
 try {
 # [1/4] Create directories
-Write-Host "[1/4] ${isVi ? 'Tạo thư mục...' : 'Creating directories...'}" -ForegroundColor Yellow
+Write-Host "[1/4] ${isVi ? 'Tao thu muc...' : 'Creating directories...'}" -ForegroundColor Yellow
 
 # Ensure root directory exists first
 New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
@@ -4173,7 +4205,7 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
       const winDir = dir.replace(/\//g, '\\');
       ps += `New-Item -ItemType Directory -Force -Path "$projectDir\\${winDir}" | Out-Null\n`;
     });
-    ps += `Write-Host "  ✅ ${isVi ? 'Thư mục đã tạo' : 'Directories created'}" -ForegroundColor Green\n\n`;
+    ps += `Write-Host "  ✅ ${isVi ? 'Thu muc da tao' : 'Directories created'}" -ForegroundColor Green\n\n`;
 
     // [2/4] Write config files
     ps += `# [2/4] ${isVi ? 'Ghi config files...' : 'Writing config files...'}\nWrite-Host "[2/4] ${isVi ? 'Ghi config files...' : 'Writing config files...'}" -ForegroundColor Yellow\n`;
@@ -4187,50 +4219,50 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
       ps += `\n[IO.File]::WriteAllText("$projectDir\\${winPath}", @'\n${safeContent}\n'@, $utf8)\n`;
     });
 
-    ps += `\nWrite-Host "  ✅ ${isVi ? 'Config files đã ghi' : 'Config files written'}" -ForegroundColor Green\n\n`;
+    ps += `\nWrite-Host "  ✅ ${isVi ? 'Config files da ghi' : 'Config files written'}" -ForegroundColor Green\n\n`;
 
     // [3/4] Docker build
     ps += `# [3/4] Docker build
-Write-Host "[3/4] ${isVi ? 'Build Docker image (có thể mất vài phút)...' : 'Building Docker image (may take a few minutes)...'}" -ForegroundColor Yellow
+Write-Host "[3/4] ${isVi ? 'Build Docker image (co the mat vai phut)...' : 'Building Docker image (may take a few minutes)...'}" -ForegroundColor Yellow
 Set-Location "$projectDir\\docker\\openclaw"
 docker compose build
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "  ❌ ${isVi ? 'Docker build thất bại. Docker Desktop đã chạy chưa?' : 'Docker build failed. Is Docker Desktop running?'}" -ForegroundColor Red
-    Read-Host "${isVi ? 'Nhấn Enter để thoát' : 'Press Enter to exit'}"
+    Write-Host "  ❌ ${isVi ? 'Docker build that bai. Docker Desktop da chay chua?' : 'Docker build failed. Is Docker Desktop running?'}" -ForegroundColor Red
+    Read-Host "${isVi ? 'Nhan Enter de thoat' : 'Press Enter to exit'}"
     exit 1
 }
-Write-Host "  ✅ ${isVi ? 'Docker image đã build' : 'Docker image built'}" -ForegroundColor Green
+Write-Host "  ✅ ${isVi ? 'Docker image da build' : 'Docker image built'}" -ForegroundColor Green
 
 `;
 
     // [4/4] Docker up
     ps += `# [4/4] Start bot
-Write-Host "[4/4] ${isVi ? 'Khởi động bot...' : 'Starting bot...'}" -ForegroundColor Yellow
+Write-Host "[4/4] ${isVi ? 'Khoi dong bot...' : 'Starting bot...'}" -ForegroundColor Yellow
 docker compose up -d
-Write-Host "  ✅ ${isVi ? 'Bot đang chạy!' : 'Bot is running!'}" -ForegroundColor Green
+Write-Host "  ✅ ${isVi ? 'Bot dang chay!' : 'Bot is running!'}" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "  🎉 ${isVi ? 'Setup hoàn tất!' : 'Setup complete!'}" -ForegroundColor Cyan
+Write-Host "  🎉 ${isVi ? 'Setup hoan tat!' : 'Setup complete!'}" -ForegroundColor Cyan
 `;
 
     // Post-setup notes
     const is9Router = state.config.provider === '9router';
     if (is9Router) {
-      ps += `Write-Host "  ${isVi ? 'Mở http://localhost:30128/dashboard để login OAuth' : 'Open http://localhost:30128/dashboard to login OAuth'}" -ForegroundColor White\n`;
+      ps += `Write-Host "  ${isVi ? 'Mo http://localhost:30128/dashboard de login OAuth' : 'Open http://localhost:30128/dashboard to login OAuth'}" -ForegroundColor White\n`;
     }
     if (state.channel === 'zalo-personal') {
-      ps += `Write-Host "  ${isVi ? 'Chạy: docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose' : 'Run: docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose'}" -ForegroundColor White\n`;
-      ps += `Write-Host "  ${isVi ? 'QR sẽ nằm tại /tmp/openclaw/openclaw-zalouser-qr-default.png' : 'QR will be written to /tmp/openclaw/openclaw-zalouser-qr-default.png'}" -ForegroundColor DarkGray\n`;
-      ps += `Write-Host "  ${isVi ? 'Copy QR ra ngoài: docker compose cp ai-bot:/tmp/openclaw/openclaw-zalouser-qr-default.png ./zalo-login-qr.png' : 'Copy the QR out: docker compose cp ai-bot:/tmp/openclaw/openclaw-zalouser-qr-default.png ./zalo-login-qr.png'}" -ForegroundColor DarkGray\n`;
+      ps += `Write-Host "  ${isVi ? 'Chay: docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose' : 'Run: docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose'}" -ForegroundColor White\n`;
+      ps += `Write-Host "  ${isVi ? 'QR se nam tai /tmp/openclaw/openclaw-zalouser-qr-default.png' : 'QR will be written to /tmp/openclaw/openclaw-zalouser-qr-default.png'}" -ForegroundColor DarkGray\n`;
+      ps += `Write-Host "  ${isVi ? 'Copy QR ra ngoai: docker compose cp ai-bot:/tmp/openclaw/openclaw-zalouser-qr-default.png ./zalo-login-qr.png' : 'Copy the QR out: docker compose cp ai-bot:/tmp/openclaw/openclaw-zalouser-qr-default.png ./zalo-login-qr.png'}" -ForegroundColor DarkGray\n`;
     }
 
     ps += `Write-Host ""
 } catch {
     Write-Host ""
-    Write-Host "  ❌ LỖI / ERROR: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  ❌ LOI / ERROR: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host ""
 }
-Read-Host "${isVi ? 'Nhấn Enter để thoát' : 'Press Enter to exit'}"
+Read-Host "${isVi ? 'Nhan Enter de thoat' : 'Press Enter to exit'}"
 `;
 
     // Wrap in a .bat that extracts the PS section to a temp .ps1 then runs it.
@@ -4336,7 +4368,7 @@ ${ps}`;
 
     let script = `#!/bin/bash
 # 🦞 OpenClaw Setup Script${isMultiBot ? ` — Multi-Bot (${state.botCount} bots)` : ''}
-# ${isVi ? 'Tạo bởi OpenClaw Wizard — paste vào terminal trong thư mục project' : 'Generated by OpenClaw Wizard — paste into terminal in your project folder'}
+# ${isVi ? 'Tao boi OpenClaw Wizard — paste vao terminal trong thu muc project' : 'Generated by OpenClaw Wizard — paste into terminal in your project folder'}
 set -e
 echo "🦞 OpenClaw Setup${isMultiBot ? ` (${state.botCount} bots)` : ''}..."
 echo ""
@@ -4349,7 +4381,7 @@ echo ""
       if (dir) dirs.add(dir);
     });
 
-    script += `# \${isVi ? 'Tạo thư mục' : 'Create directories'}\n`;
+    script += `# \${isVi ? 'Tao thu muc' : 'Create directories'}\n`;
     Array.from(dirs).sort().forEach(dir => {
       script += `mkdir -p "${dir}"\n`;
     });
@@ -4365,16 +4397,16 @@ echo ""
     });
     
     script += `echo ""\n`;
-    script += `echo "\${isVi ? '✅ Tạo file xong!' : '✅ Files created!'}"\n`;
+    script += `echo "\${isVi ? '✅ Tao file xong!' : '✅ Files created!'}"\n`;
     script += `echo ""\n`;
-    script += `echo "\${isVi ? '🐳 Đang khởi động Docker (có thể mất vài phút)...' : '🐳 Starting Docker (may take a few minutes)...'}"\n`;
-    script += `if docker compose version > /dev/null 2>&1; then\n  COMPOSE_CMD="docker compose"\nelif docker-compose version > /dev/null 2>&1; then\n  COMPOSE_CMD="docker-compose"\nelse\n  echo "\${isVi ? '❌ Không tìm thấy Docker Compose! Cài bằng: sudo apt-get install docker-compose-plugin' : '❌ Docker Compose not found! Install: sudo apt-get install docker-compose-plugin'}"\n  exit 1\nfi\n`;
-    script += `# Check Docker daemon is actually running\nif ! docker info > /dev/null 2>&1; then\n  echo "${isVi ? '❌ Docker daemon chưa chạy! Hãy mở Docker Desktop rồi chạy lại.' : '❌ Docker daemon is not running! Open Docker Desktop first, then re-run this script.'}"; exit 1\nfi\n`;
+    script += `echo "\${isVi ? '🐳 Dang khoi dong Docker (co the mat vai phut)...' : '🐳 Starting Docker (may take a few minutes)...'}"\n`;
+    script += `if docker compose version > /dev/null 2>&1; then\n  COMPOSE_CMD="docker compose"\nelif docker-compose version > /dev/null 2>&1; then\n  COMPOSE_CMD="docker-compose"\nelse\n  echo "\${isVi ? '❌ Khong tim thay Docker Compose! Cai bang: sudo apt-get install docker-compose-plugin' : '❌ Docker Compose not found! Install: sudo apt-get install docker-compose-plugin'}"\n  exit 1\nfi\n`;
+    script += `# Check Docker daemon is actually running\nif ! docker info > /dev/null 2>&1; then\n  echo "${isVi ? '❌ Docker daemon chua chay! Hay mo Docker Desktop roi chay lai.' : '❌ Docker daemon is not running! Open Docker Desktop first, then re-run this script.'}"; exit 1\nfi\n`;
     
     if (isMultiBot) {
       script += `cd "docker/openclaw"\n`;
       script += `$COMPOSE_CMD up --detach --build\n`;
-      script += `if [ $? -ne 0 ]; then\n  echo "\${isVi ? '❌ Docker build thất bại.' : '❌ Docker build failed.'}"\n  exit 1\nfi\n`;
+      script += `if [ $? -ne 0 ]; then\n  echo "\${isVi ? '❌ Docker build that bai.' : '❌ Docker build failed.'}"\n  exit 1\nfi\n`;
       script += `echo ""\n`;
       script += `echo "${isVi ? 'OK: ${state.botCount} bot dang chay!' : 'OK: ${state.botCount} bots are running!'}"\n`;
       for (let i = 0; i < state.botCount; i++) {
@@ -4385,8 +4417,8 @@ echo ""
     } else {
       script += `cd "docker/openclaw"\n`;
       script += `$COMPOSE_CMD up --detach --build\n`;
-      script += `if [ $? -ne 0 ]; then\n  echo "\${isVi ? '❌ Docker build thất bại.' : '❌ Docker build failed.'}"\n  exit 1\nfi\n`;
-      script += `echo "\${isVi ? '🎉 Bot đang chạy! Xem log qua:' : '🎉 Bot is running! View logs:'}"\n`;
+      script += `if [ $? -ne 0 ]; then\n  echo "\${isVi ? '❌ Docker build that bai.' : '❌ Docker build failed.'}"\n  exit 1\nfi\n`;
+      script += `echo "\${isVi ? '🎉 Bot dang chay! Xem log qua:' : '🎉 Bot is running! View logs:'}"\n`;
       script += `echo "  docker logs -f openclaw-bot"\n`;
       script += `echo ""\n`;
     }

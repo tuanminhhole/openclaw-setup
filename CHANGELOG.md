@@ -1,7 +1,18 @@
 # Changelog (English)
 
 
+## [5.2.3] — 2026-04-10
+
+### 🐛 Bug Fixes & Encoding Improvements
+
+- **Fix: `ReferenceError: projectDir is not defined`** — Crash when clicking "Generate Configs" in multi-bot mode. `nativeProjectOpenClawRoot` in `buildTelegramPostInstallChecklist()` referenced an undefined `projectDir` variable and was dead code (unused in return value). Removed.
+- **Fix: Step 3 "Next" button validation** — `state._activeBotTab` was a typo of `state.activeBotIndex`, causing multi-bot validation to always read the wrong tab index.
+- **Fix: `saveFormData()` always saved bot tab name to `bots[0]`** — In multi-bot mode, the active bot name was always written to `bots[0]` regardless of which tab was active. Now correctly saves to `bots[state.activeBotIndex]`.
+- **UX: Inline hint for disabled "Generate Configs" button** — When the button is blocked, a warning now appears showing exactly which fields are still missing (e.g. "Missing: GOOGLE_API_KEY").
+- **Fix: Vietnamese diacritics in generated `.bat` and `.sh` scripts** — All Vietnamese echo/Write-Host strings in the generated Windows setup script and Linux/macOS bash script have been converted to ASCII (no diacritics) to prevent encoding errors on systems with non-UTF-8 codepages.
+
 ## [5.2.2] — 2026-04-10
+
 
 ### 🐛 Docker & Native PM2 Bug Fixes
 

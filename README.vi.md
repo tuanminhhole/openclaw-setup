@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.2.2-0EA5E9?style=for-the-badge" alt="Version 5.2.2" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.2.3-0EA5E9?style=for-the-badge" alt="Version 5.2.3" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,7 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
-## 🆕 Có gì mới trong v5.2.2
+## 🆕 Có gì mới trong v5.2.3
 
 - 🔄 **Upgrade 1 lệnh** — Chạy `npx create-openclaw-bot@latest upgrade` trong thư mục bot để cập nhật OpenClaw mà không cần chạy lại wizard. Tự động nhận diện Docker hay Native.
 - 🪟 **Windows: double-click để upgrade** — File `upgrade.ps1` có sẵn trong repo. Nhấp đúp là xong — không cần biết terminal.
@@ -32,7 +32,7 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 - 🛡️ **Dữ liệu cũ giữ nguyên hoàn toàn** — `.env`, memory, sessions, credentials, OAuth token 9Router không bao giờ bị xoá khi upgrade.
 
 <details>
-<summary><b>Trước đó: Có gì mới ở v5.2.2</b></summary>
+<summary><b>Trước đó: Có gì mới ở v5.2.3</b></summary>
 
 - 🔒 **Pin lại OpenClaw** — Bản OpenClaw cập nhật ngày `08/04/2026` đang lỗi, nên setup được fix để giữ ở `openclaw@2026.4.5` cho ổn định.
 - 🐳 **Fix Dockerfile** — Sửa luồng Docker cho Windows để không còn lỗi startup do command/escaping sai và tránh lỗi `allowedOrigins` bị sinh ra không hợp lệ.
@@ -110,7 +110,7 @@ Chạy lệnh trên trong Terminal → làm theo các prompt tương tác → sc
 2. Mở repo này làm workspace
 3. Paste vào chat:
    ```
-Read SETUP.md and set up OpenClaw v5.2.2 for me.
+Read SETUP.md and set up OpenClaw v5.2.3 for me.
    My bot token is X. Use 9Router (no API key).
    My project folder: <THƯ_MỤC_CỦA_BẠN>
    ```

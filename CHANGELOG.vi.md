@@ -1,7 +1,18 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.2.3] — 2026-04-10
+
+### 🐛 Sửa lỗi & Cải thiện encoding
+
+- **Fix: `ReferenceError: projectDir is not defined`** — Crash khi bấm "Generate Configs" ở chế độ multi-bot. Biến `projectDir` không được khai báo trong `buildTelegramPostInstallChecklist()` và là dead code (không dùng trong return). Đã xoá.
+- **Fix: Nút "Tiếp theo" ở Bước 3 bị validate sai** — `state._activeBotTab` là typo của `state.activeBotIndex`, khiến validation multi-bot luôn đọc sai tab index.
+- **Fix: `saveFormData()` luôn lưu tên bot vào `bots[0]`** — Trong multi-bot mode, tên bot đang active bị ghi đè cố định vào `bots[0]` thay vì `bots[state.activeBotIndex]`. Đã sửa.
+- **UX: Hiển thị gợi ý khi nút "Generate Configs" bị khoá** — Khi nút bị disable, một cảnh báo xuất hiện ngay bên dưới cho biết trường nào còn thiếu (ví dụ: "Còn thiếu: GOOGLE_API_KEY").
+- **Fix: Tiếng Việt có dấu trong file `.bat` và `.sh` được tạo ra** — Toàn bộ chuỗi echo/Write-Host tiếng Việt có dấu trong script cài đặt cho Windows và Linux/macOS đã được chuyển về dạng không dấu (ASCII thuần) để tránh lỗi encoding trên các máy không dùng UTF-8.
+
 ## [5.2.2] — 2026-04-10
+
 
 ### 🐛 Sửa lỗi Docker & Native PM2
 
