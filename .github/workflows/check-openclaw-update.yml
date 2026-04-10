@@ -1,0 +1,106 @@
+name: Check OpenClaw Version
+
+on:
+  schedule:
+    # Run daily at 08:00 UTC (15:00 Vietnam time)
+    - cron: '0 8 * * *'
+  workflow_dispatch:   # Allow manual trigger from GitHub Actions tab
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Get pinned vs latest version
+        id: versions
+        run: |
+          # Extract pinned version from cli.js  e.g. 'openclaw@2026.4.5'
+          PINNED=$(grep -oP "OPENCLAW_NPM_SPEC\s*=\s*'openclaw@\K[^']+" cli.js | head -1)
+          echo "pinned=$PINNED" >> $GITHUB_OUTPUT
+
+          # Get latest version from npm registry
+          LATEST=$(npm view openclaw version 2>/dev/null || echo "")
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+
+          echo "Pinned in repo : $PINNED"
+          echo "Latest on npm  : $LATEST"
+
+      - name: Check if update needed
+        id: check
+        run: |
+          PINNED="${{ steps.versions.outputs.pinned }}"
+          LATEST="${{ steps.versions.outputs.latest }}"
+
+          if [ -z "$LATEST" ]; then
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            echo "WARNING: Could not fetch latest version from npm"
+            exit 0
+          fi
+
+          if [ "$PINNED" = "$LATEST" ]; then
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            echo "OK: Already on $PINNED"
+          else
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+            echo "OUTDATED: pinned=$PINNED, latest=$LATEST"
+          fi
+
+      - name: Check if issue already exists
+        id: existing
+        if: steps.check.outputs.needs_update == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST="${{ steps.versions.outputs.latest }}"
+          EXISTING=$(gh issue list --label "openclaw-update" --state open --json title -q ".[].title" | grep "$LATEST" | head -1)
+          if [ -n "$EXISTING" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "Issue already exists for $LATEST"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Issue
+        if: steps.check.outputs.needs_update == 'true' && steps.existing.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PINNED="${{ steps.versions.outputs.pinned }}"
+          LATEST="${{ steps.versions.outputs.latest }}"
+
+          gh issue create \
+            --title "🔔 openclaw $LATEST available (pinned: $PINNED)" \
+            --label "openclaw-update" \
+            --body "## OpenClaw có phiên bản mới
+
+          | | Version |
+          |---|---|
+          | 📌 Đang dùng | \`$PINNED\` |
+          | 🆕 Mới nhất | \`$LATEST\` |
+
+          ## Việc cần làm
+
+          1. Xem changelog tại: https://www.npmjs.com/package/openclaw?activeTab=versions
+          2. Test upgrade thủ công: \`npx create-openclaw-bot@latest upgrade\` tại thư mục bot
+          3. Kiểm tra các API mới / breaking changes trong phiên bản mới
+          4. Cập nhật \`OPENCLAW_NPM_SPEC\` trong \`cli.js\` và \`setup.js\`:
+
+          \`\`\`
+          const OPENCLAW_NPM_SPEC = 'openclaw@$LATEST';
+          \`\`\`
+
+          5. Chạy \`npm test\`, chạy \`/update\` để release bản mới của \`create-openclaw-bot\`
+
+          ---
+          *Tự động phát hiện bởi [check-openclaw-update workflow](/.github/workflows/check-openclaw-update.yml)*"

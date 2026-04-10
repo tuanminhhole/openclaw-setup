@@ -1096,9 +1096,14 @@ const LOGO = `
 
 const CHANNELS = {
   'telegram': { name: 'Telegram', type: 'telegram', icon: '🤖' },
+  'telegram+zalo-personal': { name: 'Telegram + Zalo Personal (cùng lúc)', type: 'combo', icon: '🤖📱' },
+  'zalo-personal': { name: 'Zalo Personal (Quét QR)', type: 'zalo-personal', icon: '📱' },
   'zalo-bot': { name: 'Zalo OA (Bot Platform)', type: 'zalo-bot', icon: '🔑' },
-  'zalo-personal': { name: 'Zalo Personal (Quét QR)', type: 'zalo-personal', icon: '📱' }
 };
+
+// Helper predicates for multi-channel combos
+const hasTelegram = (ck) => ck === 'telegram' || ck === 'telegram+zalo-personal';
+const hasZaloPersonal = (ck) => ck === 'zalo-personal' || ck === 'telegram+zalo-personal';
 
 const PROVIDERS = {
   '9router': { name: '9Router Proxy (Khuyên dùng)', icon: '🔀', isProxy: true, supportsEmbeddings: false },
@@ -1146,10 +1151,33 @@ function getCliSkillChoices({ providerKey, isVi }) {
 // Auto-detects Docker vs Native, updates OpenClaw, rebuilds/restarts.
 // Does NOT touch .env, memory, sessions, credentials.
 async function runUpgrade() {
-  console.log(chalk.red('\n=================================='));
-  console.log(chalk.redBright(LOGO));
-  console.log(chalk.cyan('     🔄 OpenClaw Upgrade Mode     '));
-  console.log(chalk.red('==================================\n'));
+  process.stdout.write('\n');
+  const _logo = [
+    '████████╗██╗   ██╗ █████╗ ███╗   ██╗███╗   ███╗██╗███╗   ██╗██╗  ██╗██╗  ██╗ ██████╗ ██╗     ███████╗',
+    '╚══██╔══╝██║   ██║██╔══██╗████╗  ██║████╗ ████║██║████╗  ██║██║  ██║██║  ██║██╔═══██╗██║     ██╔════╝',
+    '   ██║   ██║   ██║███████║██╔██╗ ██║██╔████╔██║██║██╔██╗ ██║███████║███████║██║   ██║██║     █████╗  ',
+    '   ██║   ██║   ██║██╔══██║██║╚██╗██║██║╚██╔╝██║██║██║╚██╗██║██╔══██║██╔══██║██║   ██║██║     ██╔══╝  ',
+    '   ██║   ╚██████╔╝██║  ██║██║ ╚████║██║ ╚═╝ ██║██║██║ ╚████║██║  ██║██║  ██║╚██████╔╝███████╗███████╗',
+    '   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝'
+  ];
+  _logo.forEach(l => console.log('\x1b[31m' + l + '\x1b[0m'));
+  process.stdout.write('\n');
+  {
+    const RED = '\x1b[0;31m', NC = '\x1b[0m';
+    const isVps = process.platform !== 'win32' && process.platform !== 'darwin';
+    const osLabel = process.platform === 'win32' ? 'Windows' : process.platform === 'darwin' ? 'macOS' : 'Linux / VPS';
+    const L1 = '  \uD83E\uDD9E OpenClaw Setup | Upgrade Mode';
+    const L2 = '  ' + osLabel;
+    function _vw(s) { let w=0; for(const c of [...s]) { const cp=c.codePointAt(0); w+=(cp>=0x1F000&&cp<=0x1FFFF?2:1); } return w; }
+    const INNER = Math.max(_vw(L1), _vw(L2)) + 2;
+    const D = '\u2500'.repeat(INNER);
+    const pad = s => ' '.repeat(Math.max(0, INNER - _vw(s)));
+    console.log(RED + '\u256D' + D + '\u256E' + NC);
+    console.log(RED + '\u2502' + NC + L1 + pad(L1) + RED + '\u2502' + NC);
+    console.log(RED + '\u2502' + NC + L2 + pad(L2) + RED + '\u2502' + NC);
+    console.log(RED + '\u2570' + D + '\u256F' + NC);
+  }
+  process.stdout.write('\n');
 
   const projectDir        = process.cwd();
   const dockerComposePath = path.join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
@@ -1196,7 +1224,7 @@ async function runUpgrade() {
     }
     console.log(chalk.cyan('\n🐳 Dang rebuild container...'));
     try {
-      execSync('docker compose build --no-cache', { cwd: dockerDir, stdio: 'inherit', shell: true });
+      execSync('docker compose build', { cwd: dockerDir, stdio: 'inherit', shell: true });
       execSync('docker compose up -d', { cwd: dockerDir, stdio: 'inherit', shell: true });
       console.log(chalk.green('\n✅ Upgrade hoan tat! Bot dang chay voi phien ban moi.'));
     } catch {
@@ -1345,7 +1373,7 @@ async function main() {
   let bots = [];            // [{name, slashCmd, token}]
   let groupId = '';
 
-  if (channelKey === 'telegram') {
+  if (hasTelegram(channelKey)) {
     botCount = parseInt(await select({
       message: isVi ? 'Bạn muốn cài bao nhiêu Telegram bot?' : 'How many Telegram bots do you want to deploy?',
       choices: [
@@ -1407,7 +1435,7 @@ async function main() {
     }
     botToken = bots[0].token;
 
-  } else if (channelKey !== 'zalo-personal') {
+  } else if (!hasZaloPersonal(channelKey)) {
     const bName = await input({ message: isVi ? 'Tên Bot:' : 'Bot Name:', default: 'Chat Bot' });
     const bDesc = await input({ message: isVi ? 'Mô tả Bot:' : 'Bot Description:', default: isVi ? 'Trợ lý AI cá nhân' : 'Personal AI assistant' });
     const bPersona = await input({ message: isVi ? 'Tính cách & quy tắc (VD: gọn gàng, thân thiện):' : 'Persona & rules (e.g. concise, friendly):', default: '' });
@@ -1420,7 +1448,7 @@ async function main() {
     bots.push({ name: 'Bot', slashCmd: '', desc: '', persona: '', token: '' });
   }
 
-  const isMultiBot = botCount > 1 && channelKey === 'telegram';
+  const isMultiBot = botCount > 1 && hasTelegram(channelKey);
 
   // 3. User Info
   console.log(chalk.bold(`\n${isVi ? '─── Thông tin của bạn ───' : '─── About You ───'}`));
@@ -1569,7 +1597,7 @@ async function main() {
       env += `${provider.envKey}=${providerKeyVal}\n`;
     }
     const tok = bots[botIndex]?.token || botToken;
-    if (channelKey === 'telegram') {
+    if (hasTelegram(channelKey)) {
       env += `TELEGRAM_BOT_TOKEN=${tok}\n`;
       if (isMultiBot && groupId) env += `TELEGRAM_GROUP_ID=${groupId}\n`;
     } else if (channelKey === 'zalo-bot') {
@@ -1650,8 +1678,16 @@ async function main() {
   const skillInstallCmd = skillSlugs.length > 0
     ? skillSlugs.map(s => `openclaw skills install ${s} 2>/dev/null || true`).join(' && ') + ' && '
     : '';
-  const relayInstallCmd = (isMultiBot && channelKey === 'telegram')
+  const relayInstallCmd = (isMultiBot && hasTelegram(channelKey))
     ? buildRelayPluginInstallCommand('openclaw') + ' && '
+    : '';
+
+  // Zalo Personal cold-start fix for Docker:
+  // After 45s the Docker network is warm; touching channels.zalouser.historyLimit triggers
+  // chokidar file-watcher -> gateway hot-reload -> restartChannel('zalouser') -> channel starts.
+  // Native installs don't need this -- no Docker cold-start latency on bare metal.
+  const zalouserStartupFixCmd = hasZaloPersonal(channelKey)
+    ? `(sleep 45 && node -e 'try{const fs=require("fs"),p="/root/.openclaw/openclaw.json";if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,"utf-8"));if(c.channels&&c.channels.zalouser&&c.channels.zalouser.enabled){c.meta=c.meta||{};c.meta.lastTouchedAt=new Date().toISOString();const h=c.channels.zalouser.historyLimit;c.channels.zalouser.historyLimit=(h===50||h===undefined)?51:50;fs.writeFileSync(p,JSON.stringify(c,null,2));}}}catch{}' 2>/dev/null || true) & `
     : '';
 
   const dockerfileLines = [
@@ -1676,7 +1712,7 @@ async function main() {
     '',
     'EXPOSE 18791',
     '',
-    `CMD sh -c "node -e \\"eval(Buffer.from('${b64Patch}','base64').toString())\\" && ${skillInstallCmd}${relayInstallCmd}${socatBridge}${gatewayBridge}(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) & openclaw gateway run"`
+    `CMD sh -c "node -e \\"eval(Buffer.from('${b64Patch}','base64').toString())\\" && ${skillInstallCmd}${relayInstallCmd}${socatBridge}${gatewayBridge}${zalouserStartupFixCmd}(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) & openclaw gateway run"`
   );
   const dockerfile = dockerfileLines.join('\n');
 
@@ -2222,14 +2258,26 @@ ${hasBrowserDesktop ? `    extra_hosts:
         : `# Telegram Relay Playbook\n\n## Goal\n- Let the caller bot consult the target bot internally, then have the target bot publish the real answer with its own Telegram account.\n\n## Protocol\n1. The caller bot sends one short acknowledgement.\n2. The caller bot hands off internally using the exact agent id from \`TEAM.md\`.\n3. The target bot publishes the real answer into the same chat/thread.\n4. If \`[[reply_to_current]]\` or Telegram send/sendMessage is available, prefer it so the answer attaches to the original user turn.\n5. Only the caller bot may summarize as fallback when the handoff clearly fails.\n`;
       const memoryMd = `# ${isVi ? 'Bo nho dai han' : 'Long-term Memory'}\n\n- _(empty)_\n`;
 
+      // Preserve MEMORY.md + USER.md if they already have real content beyond scaffold
+      const _writeIfScaffold = async (fp, content, markers) => {
+        try {
+          if (await fs.pathExists(fp)) {
+            const existing = await fs.readFile(fp, "utf8");
+            if (!markers.some(m => existing.includes(m)) && existing.trim().length > 120) return;
+          }
+        } catch { /* ignore read/stat errors */ }
+        await fs.writeFile(fp, content);
+      };
+      const _MEMORY_SCAF = ["_(empty)_", "Chua co gi", "Nothing yet"];
+      const _USER_SCAF   = ["No info provided", "Chua co thong tin", "Preferred language"];
       await fs.writeFile(path.join(workspaceDir, 'IDENTITY.md'), identityMd);
       await fs.writeFile(path.join(workspaceDir, 'SOUL.md'), soulMd);
       await fs.writeFile(path.join(workspaceDir, 'AGENTS.md'), agentsMd);
       await fs.writeFile(path.join(workspaceDir, 'TEAM.md'), teamMd);
       await fs.writeFile(path.join(workspaceDir, 'RELAY.md'), relayMd);
-      await fs.writeFile(path.join(workspaceDir, 'USER.md'), userMd);
+      await _writeIfScaffold(path.join(workspaceDir, 'USER.md'), userMd, _USER_SCAF);
       await fs.writeFile(path.join(workspaceDir, 'TOOLS.md'), toolsMd);
-      await fs.writeFile(path.join(workspaceDir, 'MEMORY.md'), memoryMd);
+      await _writeIfScaffold(path.join(workspaceDir, 'MEMORY.md'), memoryMd, _MEMORY_SCAF);
 
       if (hasBrowserDesktop) {
         const browserToolJs = `const { chromium } = require('playwright');\n(async () => {\n  const [,, action, param1, param2] = process.argv;\n  if (!action) { console.log('Usage: node browser-tool.js open|get_text|click|fill|press|status [params]'); process.exit(0); }\n  let browser;\n  try {\n    browser = await chromium.connectOverCDP('http://127.0.0.1:9222');\n    const ctx = browser.contexts()[0] || await browser.newContext();\n    const page = ctx.pages()[0] || await ctx.newPage();\n    if (action === 'open') {\n      await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 20000 });\n      console.log('[Browser] Opened: ' + (await page.title()) + ' | ' + page.url());\n    } else if (action === 'get_text') {\n      const text = await page.evaluate(() => document.body.innerText.trim());\n      console.log(text.substring(0, 4000));\n    } else if (action === 'click') {\n      await page.locator(param1).first().click({ timeout: 5000 });\n      console.log('[Browser] Clicked: ' + param1);\n    } else if (action === 'fill') {\n      await page.locator(param1).first().fill(param2, { timeout: 5000 });\n      console.log('[Browser] Filled into: ' + param1);\n    } else if (action === 'press') {\n      await page.keyboard.press(param1);\n      console.log('[Browser] Pressed: ' + param1);\n    } else if (action === 'status') {\n      console.log('[Browser] Connected: ' + page.url());\n    }\n  } finally {\n    if (browser) await browser.close();\n  }\n})();\n`;
@@ -2369,7 +2417,7 @@ ${hasBrowserDesktop ? `    extra_hosts:
       botConfig.skills = { entries: skillEntries };
     }
 
-    if (channelKey === 'telegram') {
+    if (hasTelegram(channelKey)) {
       const telegramConfig = { enabled: true, dmPolicy: 'open', allowFrom: ['*'] };
       if (isMultiBot) {
         telegramConfig.groupPolicy = groupId ? 'allowlist' : 'open';
@@ -2379,13 +2427,20 @@ ${hasBrowserDesktop ? `    extra_hosts:
         };
       }
       botConfig.channels['telegram'] = telegramConfig;
-    } else if (channelKey === 'zalo-personal') {
+    }
+    if (hasZaloPersonal(channelKey)) {
       botConfig.channels['zalouser'] = {
         enabled: true,
         dmPolicy: 'open',
-        autoReply: true
+        allowFrom: ['*']
       };
-    } else if (channelKey === 'zalo-bot') {
+      // zalouser plugin must be explicitly listed in plugins.entries so the gateway
+      // loads the channel listener on startup (required for zalo-js runtime)
+      botConfig.plugins = botConfig.plugins || {};
+      botConfig.plugins.entries = botConfig.plugins.entries || {};
+      botConfig.plugins.entries['zalouser'] = { enabled: true };
+    }
+    if (channelKey === 'zalo-bot') {
       botConfig.channels['zalo'] = { enabled: true, provider: 'official_account' };
     }
 
@@ -2611,7 +2666,7 @@ fi
             : '   → After connecting providers, bot works automatically via "smart-route" combo'));
         }
         
-        if (channelKey === 'telegram') {
+        if (hasTelegram(channelKey)) {
           console.log(chalk.cyan(`\n💬 ${isVi
             ? 'Nhắn tin cho bot trên Telegram là dùng được ngay!'
             : 'Just message your bot on Telegram to start chatting!'}`));
@@ -2621,8 +2676,12 @@ fi
               ? '   → Chạy scripts/telegram-post-install-check.mjs để lấy link thật, kiểm tra group/privacy, rồi mới add bot và Disable privacy mode.'
               : '   → Run scripts/telegram-post-install-check.mjs to get the real links, verify group/privacy, then add the bots and disable privacy mode.'));
           }
-        } else if (channelKey === 'zalo-personal') {
+        }
+        if (hasZaloPersonal(channelKey)) {
           printZaloPersonalLoginInfo({ isVi, deployMode: 'docker', projectDir });
+          console.log(chalk.dim(isVi
+            ? '   ℹ️  Docker: Bot sẽ tự khởi động Zalo sau ~45 giây. Nếu chưa hoạt động, chạy lệnh login ở trên.'
+            : '   ℹ️  Docker: Bot auto-starts Zalo channel after ~45 seconds. If not working, run the login command above.'));
         }
       } else {
         console.log(chalk.red(`\n\u274c Docker exited with code ${code}`));
@@ -2638,7 +2697,7 @@ fi
 
   if (deployMode === 'docker') {
 
-    if (isMultiBot && channelKey === 'telegram') {
+    if (isMultiBot && hasTelegram(channelKey)) {
       console.log(chalk.yellow(`\n${isVi ? '📋 Xem hướng dẫn sau cài:' : '📋 Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
     }
     // ── Auto-install openclaw binary if not present ──────────────────────────
@@ -2657,7 +2716,7 @@ fi
       }
     }
 
-    if (isMultiBot && channelKey === 'telegram') {
+    if (isMultiBot && hasTelegram(channelKey)) {
       console.log(chalk.yellow(`\n${isVi ? '📋 Xem hướng dẫn sau cài:' : '📋 Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
     }
   } else {
@@ -2694,7 +2753,7 @@ fi
 
     await ensureProjectRuntimeDirs(projectDir, isVi);
 
-    if (isMultiBot && channelKey === 'telegram') {
+    if (isMultiBot && hasTelegram(channelKey)) {
       installRelayPluginForProject(projectDir, isVi);
     }
 
@@ -2706,7 +2765,7 @@ fi
         }
       }
 
-      if (isMultiBot && channelKey === 'telegram') {
+      if (isMultiBot && hasTelegram(channelKey)) {
         if (providerKey === '9router') {
           startNative9RouterPm2({ isVi, projectDir, appName: botName || 'openclaw-multibot', syncScriptPath: native9RouterSyncScriptPath });
         }
@@ -2719,7 +2778,7 @@ fi
         console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoan tat! Multi-bot native dang chay qua PM2.' : 'Setup complete! Native multi-bot is running via PM2.'}`));
         console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${botName || 'openclaw-multibot'}` : `   View logs: pm2 logs ${botName || 'openclaw-multibot'}`));
         printNativeDashboardAccessInfo({ isVi, providerKey, projectDir });
-        if (channelKey === 'zalo-personal') {
+        if (hasZaloPersonal(channelKey)) {
           printZaloPersonalLoginInfo({ isVi, deployMode: 'native', projectDir });
         }
       } else {
@@ -2727,7 +2786,7 @@ fi
         if (providerKey === '9router') {
           startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath: native9RouterSyncScriptPath });
         }
-        if (channelKey === 'zalo-personal') {
+        if (hasZaloPersonal(channelKey)) {
           await runNativeZaloPersonalLoginFlow({ isVi, projectDir });
         }
         execFileSync('pm2', [
@@ -2751,7 +2810,7 @@ fi
         console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoan tat! Bot native dang chay qua PM2.' : 'Setup complete! Native bot is running via PM2.'}`));
         console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${appName}` : `   View logs: pm2 logs ${appName}`));
         printNativeDashboardAccessInfo({ isVi, providerKey, projectDir });
-        if (channelKey === 'zalo-personal') {
+        if (hasZaloPersonal(channelKey)) {
           printZaloPersonalLoginInfo({ isVi, deployMode: 'native', projectDir });
         }
       }
@@ -2779,11 +2838,11 @@ fi
             : `   ⚠️  9Router opened port 20128 but the admin API is not ready yet. Check: ${routerHealth.url}`));
         }
       }
-      if (channelKey === 'zalo-personal') {
+      if (hasZaloPersonal(channelKey)) {
         await runNativeZaloPersonalLoginFlow({ isVi, projectDir });
       }
       console.log(chalk.yellow(`\n${isVi ? 'Khoi dong native bot (foreground)...' : 'Starting native bot (foreground)...'}`));
-      const isZaloPersonal = channelKey === 'zalo-personal';
+      const isZaloPersonal = hasZaloPersonal(channelKey);
       const child = spawn('openclaw', ['gateway', 'run'], {
         cwd: projectDir,
         stdio: isZaloPersonal ? ['inherit', 'pipe', 'pipe'] : 'inherit',
@@ -2810,7 +2869,7 @@ fi
     }
 
     console.log(chalk.cyan(`\n👉 ${isVi ? 'Native runtime da duoc cai san va khoi dong.' : 'Native runtime is installed and started.'}`));
-    if (isMultiBot && channelKey === 'telegram') {
+    if (isMultiBot && hasTelegram(channelKey)) {
       console.log(chalk.yellow(`\n📋 ${isVi ? 'Xem huong dan sau cai:' : 'Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
     }
   }

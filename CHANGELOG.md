@@ -1,6 +1,24 @@
 # Changelog (English)
 
 
+## [5.3.0] — 2026-04-11
+
+### 🆕 Multi-Channel: Telegram + Zalo Personal Simultaneously
+
+- **Combo channel option** — New `telegram+zalo-personal` option in both CLI wizard (`select`) and web wizard (channel card). Selecting it configures a single bot to receive messages from both Telegram and Zalo Personal at the same time.
+- **Auto-inject `plugins.entries.zalouser`** — When any Zalo Personal channel is selected, `openclaw.json` now automatically includes `plugins.entries.zalouser: { enabled: true }`, fixing the root cause of the "not configured" error on Zalo startup.
+- **Docker cold-start fix in Dockerfile CMD** — A background `(sleep 45 && node -e '...touch historyLimit...')` script is now baked into the generated `Dockerfile` CMD. Triggers chokidar → gateway hot-reload → `restartChannel('zalouser')` after Docker network warms up. No more manual `lastTouchedAt` workarounds.
+- **Helper predicates** — Added `hasTelegram(ck)` and `hasZaloPersonal(ck)` functions replacing all literal `channelKey === 'telegram/zalo-personal'` comparisons throughout `cli.js` for cleaner extensibility.
+- **Smoke tests updated** — `tests/smoke-cli-logic.mjs` updated to match the new predicate-based assertions (78 checks passing).
+
+## [5.2.4] — 2026-04-10
+
+### 🐛 Bug Fixes & Developer Tooling
+
+- **Fix: `docker compose build --no-cache` during upgrade** — Removed the `--no-cache` flag from the upgrade flow. Without it, Docker correctly reuses cached layers (including Playwright/Chromium ~300MB) and only rebuilds the `openclaw` layer that changed, making upgrades significantly faster.
+- **UX: Upgrade CLI banner now matches upgrade.ps1/sh style** — `runUpgrade()` in `cli.js` now renders the same ╭╮╰╯ box using visual-width calculation (`vw()`) instead of plain `===` separators.
+- **New: GitHub Actions workflow to auto-detect openclaw updates** — `.github/workflows/check-openclaw-update.yml` runs daily, compares the pinned `OPENCLAW_NPM_SPEC` in `cli.js` with the latest version on npm, and automatically creates a GitHub Issue with upgrade instructions if a new version is available.
+
 ## [5.2.3] — 2026-04-10
 
 ### 🐛 Bug Fixes & Encoding Improvements

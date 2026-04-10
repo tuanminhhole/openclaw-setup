@@ -1,6 +1,16 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.3.0] — 2026-04-11
+
+### 🆕 Đa Kênh: Telegram + Zalo Personal Cùng Lúc
+
+- **Tuỳ chọn kênh combo** — Thêm `telegram+zalo-personal` vào CLI wizard (menu `select`) và web wizard (channel card). Chọn option này để cấu hình 1 bot nhận tin nhắn từ cả Telegram **và** Zalo Personal cùng lúc trong 1 config duy nhất.
+- **Tự inject `plugins.entries.zalouser`** — Khi chọn bất kỳ kênh Zalo Personal nào, `openclaw.json` giờ tự thêm `plugins.entries.zalouser: { enabled: true }`, xử lý nguyên nhân gốc rễ của lỗi "not configured" khi Zalo khởi động.
+- **Fix cold-start Docker tích hợp sẵn** — Script nền `(sleep 45 && node -e '...touch historyLimit...')` giờ được baked thẳng vào Dockerfile CMD được generate. Kích hoạt chokidar → hot-reload gateway → `restartChannel('zalouser')` sau khi Docker network ổn định. Không cần hack `lastTouchedAt` thủ công nữa.
+- **Helper predicates** — Thêm `hasTelegram(ck)` và `hasZaloPersonal(ck)` thay thế tất cả so sánh literal `channelKey === 'telegram/zalo-personal'` trong `cli.js` để dễ mở rộng sau này.
+- **Cập nhật smoke tests** — `tests/smoke-cli-logic.mjs` cập nhật để match logic predicate mới (78 checks passing).
+
 ## [5.2.3] — 2026-04-10
 
 ### 🐛 Sửa lỗi & Cải thiện encoding

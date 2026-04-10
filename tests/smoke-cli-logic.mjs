@@ -251,7 +251,7 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   cli,
-  /channelKey === 'zalo-personal'\) \{\s*botConfig\.channels\['zalouser'\] = \{\s*enabled: true,\s*dmPolicy: 'open',\s*autoReply: true/s,
+  /hasZaloPersonal\(channelKey\)\) \{[\s\S]*botConfig\.channels\['zalouser'\] = \{\s*enabled: true,\s*dmPolicy: 'open',\s*allowFrom: \['\*'\]/s,
   'CLI must configure Zalo Personal under channels.zalouser'
 ));
 
@@ -299,7 +299,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /if \(channelKey === 'zalo-personal'\) \{\s*await runNativeZaloPersonalLoginFlow\(\{ isVi, projectDir \}\);\s*\}[\s\S]*const child = spawn\('openclaw', \['gateway', 'run'\], \{/s,
+  /if \(hasZaloPersonal\(channelKey\)\) \{\s*await runNativeZaloPersonalLoginFlow\(\{ isVi, projectDir \}\);\s*\}[\s\S]*const child = spawn\('openclaw', \['gateway', 'run'\], \{/s,
   'Native desktop flows must finish the Zalo login flow before starting openclaw in foreground'
 ));
 

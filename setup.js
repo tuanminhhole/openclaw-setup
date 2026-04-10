@@ -1,4 +1,4 @@
-﻿/* ============================================
+/* ============================================
    OpenClaw Setup Wizard — Logic v2
    Multi-model, Multi-plugin, Multi-channel
    ============================================ */
@@ -389,6 +389,21 @@
       },
       pluginInstall: '',
     },
+    'telegram+zalo-personal': {
+      name: 'Telegram + Zalo Personal',
+      envKeys: [],
+      envExtra: 'TELEGRAM_BOT_TOKEN=<your_bot_token>',
+      credSteps: [
+        { textVi: 'Mở Telegram → tìm <a href="https://t.me/BotFather" target="_blank">@BotFather</a> → gửi <code>/newbot</code> → copy token', textEn: 'Open Telegram → find <a href="https://t.me/BotFather" target="_blank">@BotFather</a> → send <code>/newbot</code> → copy token' },
+        { textVi: '⚠️ Zalo: chỉ dùng tài khoản Zalo phụ. Sau cài đặt chạy lệnh login để quét QR.', textEn: '⚠️ Zalo: use a secondary Zalo account. After install, run the login command to scan the QR.' },
+      ],
+      channelConfig: {
+        telegram: { enabled: true, dmPolicy: 'open', allowFrom: ['*'], groupPolicy: 'allowlist', streaming: 'partial' },
+        zalouser: { enabled: true, dmPolicy: 'open', allowFrom: ['*'] },
+      },
+      pluginInstall: '',
+      hasZaloPersonal: true,
+    },
     'zalo-personal': {
       name: 'Zalo Personal',
       envKeys: [],
@@ -599,10 +614,11 @@
         step2.querySelectorAll('.channel-card[data-channel]').forEach((c) => c.classList.remove('channel-card--selected'));
         card.classList.add('channel-card--selected');
 
-        // Show multi-bot panel only for Telegram
+        // Show multi-bot panel for Telegram and Telegram+Zalo combo
         const multibotPanel = document.getElementById('multibot-panel');
         if (multibotPanel) {
-          multibotPanel.style.display = state.channel === 'telegram' ? '' : 'none';
+          const showPanel = state.channel === 'telegram' || state.channel === 'telegram+zalo-personal';
+          multibotPanel.style.display = showPanel ? '' : 'none';
         }
 
         updateNavButtons();
@@ -1525,7 +1541,7 @@
     const channelEl = document.getElementById('key-section-channel');
     if (channelEl) {
       let cHtml = '';
-      const channelName = state.channel === 'telegram' ? 'Telegram' : (state.channel === 'zalo-personal' ? 'Zalo Personal' : 'Zalo Bot API');
+      const channelName = state.channel === 'telegram' ? 'Telegram' : state.channel === 'telegram+zalo-personal' ? 'Telegram + Zalo Personal' : (state.channel === 'zalo-personal' ? 'Zalo Personal' : 'Zalo Bot API');
       const channelIcon = state.channel === 'telegram' ? '📨' : '💬';
 
       cHtml += `<div style="padding: 16px 20px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; background: rgba(255,255,255,0.02);">`;
@@ -1561,7 +1577,7 @@
           <input type="text" class="form-input" id="key-bot-token" placeholder="Zalo Bot Token" style="font-family: monospace; font-size: 13px;" oninput="window.__validateKeys()">
           <p class="form-group__hint">${isVi ? 'Lấy từ <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a>' : 'Get from <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a>'}</p>
         </div>`;
-      } else if (state.channel === 'zalo-personal') {
+      } else if (state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal') {
         cHtml += `<div style="display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; font-size: 13px; color: var(--warning); margin: 0;">
           <span style="font-size: 16px; margin-top: -2px;">⚠️</span>
           <span style="line-height: 1.5;">${isVi
@@ -1802,7 +1818,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
 
     // Show/hide Zalo Personal login notice
     const zaloNotice = document.getElementById('zalo-onboard-notice');
-    const isZaloPersonal = state.channel === 'zalo-personal';
+    const isZaloPersonal = state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal';
     if (zaloNotice) {
       zaloNotice.style.display = isZaloPersonal ? '' : 'none';
       if (isZaloPersonal) generateZaloOnboardGuide();
@@ -1820,7 +1836,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
     const agentId = state.config.botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
 
     const hasBrowser = state.config.skills.includes('browser');
-    const isSharedMultiBot = state.botCount > 1 && state.channel === 'telegram';
+    const isSharedMultiBot = state.botCount > 1 && (state.channel === 'telegram' || state.channel === 'telegram+zalo-personal');
     const multiBotAgentMetas = isSharedMultiBot
       ? state.bots.slice(0, state.botCount).map((bot, idx) => {
           const name = bot?.name || `Bot ${idx + 1}`;
@@ -2007,12 +2023,13 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       clawConfig.plugins = {
         entries: {
           'telegram-multibot-relay': { enabled: true },
+          ...(ch.hasZaloPersonal ? { zalouser: { enabled: true } } : {}),
         },
       };
       if (!state.config.skills.includes('memory')) {
         clawConfig.plugins.slots = { ...(clawConfig.plugins.slots || {}), memory: 'none' };
       }
-    } else if (state.config.plugins.length > 0 || !state.config.skills.includes('memory')) {
+    } else if (state.config.plugins.length > 0 || !state.config.skills.includes('memory') || ch.hasZaloPersonal) {
       // Non-multibot: write selected visible plugins into openclaw.json
       const pluginEntries = {};
       state.config.plugins.forEach((pid) => {
@@ -2020,6 +2037,9 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         if (!plugin || plugin.hidden) return;
         pluginEntries[plugin.package || pid] = { enabled: true };
       });
+      if (ch.hasZaloPersonal) {
+        pluginEntries['zalouser'] = { enabled: true };
+      }
       clawConfig.plugins = { entries: pluginEntries };
       if (!state.config.skills.includes('memory')) {
         clawConfig.plugins.slots = { ...(clawConfig.plugins.slots || {}), memory: 'none' };
@@ -3564,7 +3584,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
             },
           };
         }
-      } else if (state.channel === 'zalo-personal') {
+      } else if (state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal') {
         cfg.channels.zalouser = {
           enabled: true,
           dmPolicy: 'open',
