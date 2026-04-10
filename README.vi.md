@@ -1,9 +1,9 @@
-<div align="center">
+﻿<div align="center">
 
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.3.0-0EA5E9?style=for-the-badge" alt="Version 5.3.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.3.1-0EA5E9?style=for-the-badge" alt="Version 5.3.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,15 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
-## 🆕 Có gì mới trong v5.3.0
+## 🆕 Có gì mới trong v5.3.1
+
+- 🐛 **Fix: Combo channel thiếu ô nhập Telegram Bot Token** — Khi chọn "Telegram + Zalo Personal", wizard giờ hiển thị cả ô nhập Telegram Token LẪN cảnh báo Zalo Personal.
+- 🐛 **Fix: Nút Next bị kẹt ở bước 4 khi chọn combo** — Validation giờ yêu cầu đúng Telegram token trước khi kích hoạt "Generate Configs" ở combo mode.
+- 🐛 **Fix: Script Windows Docker crash "docker not recognized"** — File `.ps1` được generate giờ dùng `Get-Command` để tìm Docker, kiểm tra Docker Desktop đang chạy, và gọi lệnh qua toán tử `&` — hoạt động kể cả khi Docker không có trong PATH mặc định của PowerShell.
+- 🐛 **Fix: Thiếu hướng dẫn login Zalo QR cho combo trong script Windows** — Phần hướng dẫn sau cài đặt giờ hiển thị lệnh `docker compose exec` login khi chọn combo channel.
+
+<details>
+<summary><b>Trước đó: Có gì mới ở v5.3.0</b></summary>
 
 - 📱 **Telegram + Zalo Personal cùng lúc** — Tuỳ chọn kênh combo mới cho phép chạy 1 bot trên cả Telegram **và** Zalo Personal cùng lúc, từ 1 config duy nhất. Không cần cài riêng.
 - 🔌 **Tự cấu hình plugin `zalouser`** — Khi chọn Zalo Personal, wizard tự động thêm `plugins.entries.zalouser` vào `openclaw.json`, xử lý lỗi "not configured" phổ biến nhất khi khởi động Zalo.
@@ -110,7 +118,7 @@ Chạy lệnh trên trong Terminal → làm theo các prompt tương tác → sc
 2. Mở repo này làm workspace
 3. Paste vào chat:
    ```
-Read SETUP.md and set up OpenClaw v5.3.0 for me.
+Read SETUP.md and set up OpenClaw v5.3.1 for me.
    My bot token is X. Use 9Router (no API key).
    My project folder: <THƯ_MỤC_CỦA_BẠN>
    ```

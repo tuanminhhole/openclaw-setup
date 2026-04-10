@@ -1,6 +1,13 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.3.1] — 2026-04-10
+
+### 🌟 Đổi Chính Sách Bảo Mật Zalo Personal
+
+- **Thả Ga Inbox Zalo Cầm Tay**: Lược bỏ rào cản duyệt bảo mật của Zalo Personal. Thông số `dmPolicy` trên cài đặt Zalo cá nhân đã được chuyển mặc định từ `pairing` sang `open`. Bây giờ bất cứ ai trên mạng lưới Zalo nhắn tin vào tài khoản của Bot đều sẽ được AI tự động tiếp đón ngay lập tức thay vì bị chặn lại chờ bạn duyệt lệnh kết nối E2E!
+
+
 ## [5.3.0] — 2026-04-11
 
 ### 🆕 Đa Kênh: Telegram + Zalo Personal Cùng Lúc

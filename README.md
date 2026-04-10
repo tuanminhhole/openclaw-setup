@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.3.0-0EA5E9?style=for-the-badge" alt="Version 5.3.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.3.1-0EA5E9?style=for-the-badge" alt="Version 5.3.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,19 +24,19 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ---
 
-## 🆕 What's new in v5.3.0
+## 🆕 What's new in v5.3.1
+
+- 🐛 **Fix: Telegram token input missing in combo channel** — When selecting "Telegram + Zalo Personal", the wizard now shows the Telegram Bot Token input field AND the Zalo Personal warning side by side.
+- 🐛 **Fix: Next button stuck on step 4 for combo** — Validation now correctly requires a Telegram token before enabling "Generate Configs" in combo mode.
+- 🐛 **Fix: Windows Docker script crashes with "docker not recognized"** — The generated `.ps1` now uses `Get-Command` to locate Docker, checks that Docker Desktop is running, and calls it via `&` operator — works even when Docker isn't in the default PowerShell PATH.
+- 🐛 **Fix: Zalo QR login instructions missing for combo in Windows script** — Post-install notes now show the `docker compose exec` login command when the combo channel is selected.
+
+<details>
+<summary><b>Previous: What's new in v5.3.0</b></summary>
 
 - 📱 **Telegram + Zalo Personal together** — New combo channel option lets you run one bot on both Telegram **and** Zalo Personal simultaneously, from a single config. No separate setup needed.
 - 🔌 **Auto-inject `zalouser` plugin** — When Zalo Personal is selected, the wizard now automatically adds `plugins.entries.zalouser` to `openclaw.json`, eliminating the most common Zalo "not configured" startup error.
 - ⏱️ **Docker cold-start fix baked in** — Dockerfile CMD now includes a background 45-second trigger that forces Zalo channel initialization after Docker network is warm. No more manual `lastTouchedAt` hacks.
-
-<details>
-<summary><b>Previous: What's new in v5.2.3</b></summary>
-
-- 🔄 **One-command upgrade** — Run `npx create-openclaw-bot@latest upgrade` in your bot folder to update OpenClaw without re-running the wizard. Auto-detects Docker vs Native mode.
-- 🪟 **Windows upgrade shortcut** — `upgrade.ps1` ships with the repo. Double-click it to upgrade instantly (no terminal knowledge required).
-- 🐧 **Linux / macOS / Ubuntu upgrade** — `upgrade.sh` for Unix users. Run `bash upgrade.sh` locally or pipe via `curl` / `wget` directly from GitHub.
-- 🛡️ **All user data preserved** — `.env`, memory, sessions, credentials, and 9Router OAuth tokens are never touched during upgrade.
 
 </details>
 
@@ -110,7 +110,7 @@ Run in your terminal → follow the interactive prompts → startup script is ge
 2. Open this repo as your workspace
 3. Paste into chat:
    ```
-Read SETUP.md and set up OpenClaw v5.3.0 for me.
+Read SETUP.md and set up OpenClaw v5.3.1 for me.
    My bot token is X. Use 9Router (no API key).
    My project folder: <YOUR_PATH>
    ```

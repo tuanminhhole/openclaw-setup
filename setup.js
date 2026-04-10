@@ -614,11 +614,34 @@
         step2.querySelectorAll('.channel-card[data-channel]').forEach((c) => c.classList.remove('channel-card--selected'));
         card.classList.add('channel-card--selected');
 
-        // Show multi-bot panel for Telegram and Telegram+Zalo combo
         const multibotPanel = document.getElementById('multibot-panel');
-        if (multibotPanel) {
-          const showPanel = state.channel === 'telegram' || state.channel === 'telegram+zalo-personal';
-          multibotPanel.style.display = showPanel ? '' : 'none';
+        if (state.channel === 'telegram+zalo-personal') {
+          // Combo: hide the bot-count selector (fixed 1 Telegram bot), show 2 per-channel tabs
+          if (multibotPanel) multibotPanel.style.display = 'none';
+          // Reset to single-bot and ensure 2 bots in array (index 0 = Telegram, index 1 = Zalo)
+          state.botCount = 1;
+          while (state.bots.length < 2) {
+            state.bots.push({ name: '', slashCmd: '', desc: '', provider: state.bots[0]?.provider || 'google', model: state.bots[0]?.model || 'google/gemini-2.5-flash', token: '', apiKey: '' });
+          }
+          // Hide global identity-grid (each tab has own name/desc)
+          const identityGrid = document.querySelector('.identity-grid');
+          if (identityGrid) {
+            const nameField = identityGrid.querySelector('.form-group:has(#cfg-name)');
+            const descField = identityGrid.querySelector('.form-group:has(#cfg-desc)');
+            if (nameField) nameField.style.display = 'none';
+            if (descField) descField.style.display = 'none';
+          }
+        } else {
+          // Not combo: show multibot panel for telegram only
+          if (multibotPanel) multibotPanel.style.display = state.channel === 'telegram' ? '' : 'none';
+          // Restore global identity-grid visibility if was hidden by combo
+          const identityGrid = document.querySelector('.identity-grid');
+          if (identityGrid) {
+            const nameField = identityGrid.querySelector('.form-group:has(#cfg-name)');
+            const descField = identityGrid.querySelector('.form-group:has(#cfg-desc)');
+            if (nameField) nameField.style.display = '';
+            if (descField) descField.style.display = '';
+          }
         }
 
         updateNavButtons();
@@ -737,8 +760,40 @@
     const slashGroup = document.getElementById('slash-cmd-group');
     if (!tabBar || !tabsEl) return;
 
+    const isCombo = state.channel === 'telegram+zalo-personal';
+
     tabBar.style.display = 'block';
 
+    // ── Combo mode: 2 fixed tabs (Telegram / Zalo Personal) ─────────────────
+    if (isCombo) {
+      tabsEl.style.display = 'flex';
+      if (labelEl) { labelEl.style.display = 'block'; labelEl.textContent = ''; }
+      if (slashGroup) slashGroup.style.display = 'none'; // slash cmd not relevant for Zalo
+
+      const COMBO_TABS = [
+        { icon: '📨', labelVi: 'Telegram', labelEn: 'Telegram' },
+        { icon: '💬', labelVi: 'Zalo Personal', labelEn: 'Zalo Personal' },
+      ];
+      const lang = document.getElementById('cfg-language')?.value || 'vi';
+
+      tabsEl.innerHTML = COMBO_TABS.map((tab, i) => {
+        const isActive = i === state.activeBotIndex;
+        const customName = state.bots[i]?.name;
+        const labelText = customName ? customName : (lang === 'vi' ? tab.labelVi : tab.labelEn);
+        const label = `${tab.icon} ${labelText}`;
+        return `<button onclick="window.__switchBotTab(${i})" style="
+          padding:7px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;
+          border:1px solid ${isActive ? 'rgba(99,102,241,0.6)' : 'rgba(255,255,255,0.12)'};
+          background:${isActive ? 'rgba(99,102,241,0.2)' : 'transparent'};
+          color:${isActive ? 'var(--text-primary)' : 'var(--text-secondary)'};
+          transition:all 0.15s;">${label}</button>`;
+      }).join('');
+
+      syncBotTabMeta();
+      return;
+    }
+
+    // ── Normal mode ──────────────────────────────────────────────────────────
     if (state.botCount <= 1) {
       tabsEl.style.display = 'none';
       if (labelEl) labelEl.style.display = 'none';
@@ -1074,16 +1129,15 @@
       if (state.currentStep === 2 && !state.channel) isDisabled = true;
       // Step 3 (bot config): require at least one bot name
       if (state.currentStep === 3) {
-        if (state.botCount > 1) {
-          // Multi-bot: require name for the currently active bot tab
-          // Fallback to state.bots to handle re-render cases where DOM may not yet have the value
+        const isCombo = state.channel === 'telegram+zalo-personal';
+        if (state.botCount > 1 || isCombo) {
+          // Multi-bot or combo: require name for the currently active bot tab
           const activeTab = state.activeBotIndex || 0;
           const tabNameVal = document.getElementById('cfg-bot-tab-name')?.value?.trim()
             || state.bots[activeTab]?.name?.trim();
           if (!tabNameVal) isDisabled = true;
         } else {
           // Single bot: require cfg-name or the shared tab name field
-          // Fallback to state.config.botName for cases where the DOM field was cleared on re-render
           const nameVal = document.getElementById('cfg-name')?.value?.trim()
             || document.getElementById('cfg-bot-tab-name')?.value?.trim()
             || state.config.botName?.trim();
@@ -1093,12 +1147,13 @@
       // Step 4 (api keys): require token/key
       if (state.currentStep === 4) {
         const provider = PROVIDERS[state.config.provider];
-        if (state.channel === 'telegram' && state.botCount > 1) {
+        const hasTelegramCh = state.channel === 'telegram' || state.channel === 'telegram+zalo-personal';
+        if (hasTelegramCh && state.botCount > 1) {
           // Multi-bot: check DOM first, fallback to state (works even before user types)
           const firstTokenEl = document.getElementById('key-bot-token-0');
           const firstTokenVal = firstTokenEl?.value?.trim() || state.bots[0]?.token?.trim() || '';
           if (!firstTokenVal) isDisabled = true;
-        } else if (state.channel === 'telegram' || state.channel === 'zalo-bot') {
+        } else if (hasTelegramCh || state.channel === 'zalo-bot') {
           const botTokenEl = document.getElementById('key-bot-token');
           const botTokenVal = botTokenEl?.value?.trim() || state.config.botToken?.trim() || '';
           if (!botTokenVal) isDisabled = true;
@@ -1430,9 +1485,13 @@
     // Also save bot-tab-name → bots[0].name so both state locations stay in sync
     // Save bot-tab-name to the ACTIVE bot (not always bots[0])
     const tabName = document.getElementById('cfg-bot-tab-name')?.value?.trim();
+    const isCombo = state.channel === 'telegram+zalo-personal';
     if (tabName && state.bots[state.activeBotIndex]) {
       state.bots[state.activeBotIndex].name = tabName;
-      if (state.botCount <= 1) state.config.botName = tabName;
+      // For single-bot or combo (use Telegram tab = index 0 as primary name)
+      if (state.botCount <= 1 || isCombo) {
+        if (!isCombo || state.activeBotIndex === 0) state.config.botName = tabName;
+      }
     } else if (state.config.botName && state.bots[0] && !state.bots[0].name) {
       state.bots[0].name = state.config.botName;
     }
@@ -1450,9 +1509,9 @@
     if (botTokenEl) state.config.botToken = botTokenEl.value;
     if (apiKeyEl) state.config.apiKey = apiKeyEl.value;
     if (pathEl) state.config.projectPath = pathEl.value;
-    if (state.botCount <= 1 && state.bots[state.activeBotIndex]) {
-      if (botTokenEl) state.bots[state.activeBotIndex].token = botTokenEl.value;
-      if (apiKeyEl) state.bots[state.activeBotIndex].apiKey = apiKeyEl.value;
+    if (state.botCount <= 1 && state.bots[0]) {
+      if (botTokenEl) state.bots[0].token = botTokenEl.value;
+      if (apiKeyEl) state.bots[0].apiKey = apiKeyEl.value;
     }
 
     // Also save multi-bot tokens individually
@@ -1547,7 +1606,10 @@
       cHtml += `<div style="padding: 16px 20px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; background: rgba(255,255,255,0.02);">`;
       cHtml += `<h3 style="margin: 0 0 12px; font-size: 15px; font-weight: 700; color: var(--text-primary);">${channelIcon} ${isVi ? 'Kênh chat' : 'Chat Channel'} — ${channelName}</h3>`;
 
-      if (state.channel === 'telegram') {
+      const hasTelegramChKey = state.channel === 'telegram' || state.channel === 'telegram+zalo-personal';
+      const hasZaloPersonalChKey = state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal';
+
+      if (hasTelegramChKey) {
         if (state.botCount > 1) {
           // Multi-bot: one token per bot
           cHtml += `<div style="display:flex;flex-direction:column;gap:12px;">`;
@@ -1571,14 +1633,16 @@
             <p class="form-group__hint">${isVi ? 'Lấy từ <a href="https://t.me/BotFather" target="_blank">@BotFather</a> trên Telegram' : 'Get from <a href="https://t.me/BotFather" target="_blank">@BotFather</a> on Telegram'}</p>
           </div>`;
         }
-      } else if (state.channel === 'zalo-bot') {
+      }
+      if (state.channel === 'zalo-bot') {
         cHtml += `<div class="form-group" style="margin: 0;">
           <label class="form-group__label" for="key-bot-token">🔑 Zalo Bot Token <span style="color: var(--danger, #ef4444);">*</span></label>
           <input type="text" class="form-input" id="key-bot-token" placeholder="Zalo Bot Token" style="font-family: monospace; font-size: 13px;" oninput="window.__validateKeys()">
           <p class="form-group__hint">${isVi ? 'Lấy từ <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a>' : 'Get from <a href="https://developers.zalo.me" target="_blank">Zalo Bot Platform</a>'}</p>
         </div>`;
-      } else if (state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal') {
-        cHtml += `<div style="display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; font-size: 13px; color: var(--warning); margin: 0;">
+      }
+      if (hasZaloPersonalChKey) {
+        cHtml += `<div style="display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; font-size: 13px; color: var(--warning); margin: ${hasTelegramChKey ? '12px 0 0' : '0'};">
           <span style="font-size: 16px; margin-top: -2px;">⚠️</span>
           <span style="line-height: 1.5;">${isVi
             ? '<strong>Zalo Personal</strong> sử dụng unofficial API (zca-js). Tài khoản Zalo của bạn có thể bị hạn chế hoặc khóa. Chỉ nên dùng với tài khoản phụ.'
@@ -1657,7 +1721,8 @@
     }
 
     // Bot tokens
-    if (state.channel === 'telegram' && state.botCount > 1) {
+    const hasTelegramForEnv = state.channel === 'telegram' || state.channel === 'telegram+zalo-personal';
+    if (hasTelegramForEnv && state.botCount > 1) {
       // Multi-bot: one env var per bot
       lines.push('');
       lines.push('# Multi-bot Telegram tokens');
@@ -1702,6 +1767,8 @@
   }
 
 
+  const openClawRuntimePackages = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
+
   // ========== Step 4: Generate Output ==========
   function generateOutput() {
     const ch = CHANNELS[state.channel];
@@ -1717,9 +1784,8 @@
 
     const is9Router = provider.isProxy;
     const isLocal = provider.isLocal;
-    const isTelegramMultiBot = state.botCount > 1 && state.channel === 'telegram';
+    const isTelegramMultiBot = state.botCount > 1 && (state.channel === 'telegram' || state.channel === 'telegram+zalo-personal');
     const relayPluginSpec = 'openclaw-telegram-multibot-relay';
-    const openClawRuntimePackages = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
 
     function buildRelayPluginInstallCommand(prefix) {
       return `${prefix} plugins install ${relayPluginSpec} 2>/dev/null || true`;
@@ -2159,7 +2225,7 @@ ${finalCmd}`;
 
     setOutput('out-dockerfile', dockerfile);
 
-    const isMultiBotWizard = state.botCount > 1 && state.channel === 'telegram';
+    const isMultiBotWizard = state.botCount > 1 && (state.channel === 'telegram' || state.channel === 'telegram+zalo-personal');
 
     // 4. docker-compose.yml
     // extra_hosts always needed for browser (socat → host Chrome)
@@ -2490,12 +2556,13 @@ docker logs -f openclaw-bot${approveNote}`);
     // 7. Generate ALL workspace Markdown files
     // OpenClaw auto-injects these into agent context at the start of every session.
     // Hierarchy: per-agent files → global workspace files → config defaults.
-    const botName = isMultiBotWizard
+    const isComboChannel = state.channel === 'telegram+zalo-personal';
+    const botName = (isMultiBotWizard || isComboChannel)
       ? (state.bots[0]?.name || state.config.botName || 'Chat Bot')
       : (state.config.botName || 'Chat Bot');
     const lang = state.config.language || 'vi';
     const userPrompt = state.config.systemPrompt || '';
-    const descText = isMultiBotWizard
+    const descText = (isMultiBotWizard || isComboChannel)
       ? (state.bots[0]?.desc || state.config.description || (lang === 'vi' ? 'Trợ lý AI cá nhân' : 'Personal AI assistant'))
       : (state.config.description || (lang === 'vi' ? 'Trợ lý AI cá nhân' : 'Personal AI assistant'));
 
@@ -3201,14 +3268,14 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       return "node -e \"const fs=require('fs'),path=require('path'),os=require('os'),cp=require('child_process');const home=os.homedir();const roots=[];try{const root=cp.execSync('npm root -g',{stdio:['ignore','pipe','ignore'],encoding:'utf8'}).trim();if(root)roots.push(root);}catch{}for(const prefix of [process.env.npm_config_prefix,process.env.NPM_CONFIG_PREFIX,process.env.PREFIX,process.env.NPM_PREFIX,path.join(home,'.local'),path.join(home,'.npm-global'),path.join(home,'.local','share','npm')].filter(Boolean)){roots.push(path.join(prefix,'lib','node_modules'));}roots.push(path.join(home,'.local','share','npm','lib','node_modules'));roots.push(path.join(home,'.local','lib','node_modules'));const seen=new Set();const found=roots.map(root=>path.join(root,'9router','app','server.js')).find(candidate=>{if(seen.has(candidate))return false;seen.add(candidate);return fs.existsSync(candidate);});if(!found)process.exit(1);console.log(found);\"";
     }
 
-    function windowsHiddenNodeLaunch(targetPath, extraEnv = {}) {
-      function quotePowerShellSingle(value) {
-        return `'${String(value).replace(/'/g, "''")}'`;
-      }
+    function windowsHiddenNodeLaunch(targetPath, extraEnv = {}, extraArgs = []) {
+      // Set env vars via $env: prefix (PS5/PS7 compatible, -Environment flag is PS7+ only)
       const envAssignments = Object.entries(extraEnv)
-        .map(([key, value]) => `$env:${key}=${quotePowerShellSingle(String(value))}`)
-        .join('; ');
-      return `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "${envAssignments ? `${envAssignments}; ` : ''}Start-Process -WindowStyle Hidden -FilePath (Get-Command node).Source -ArgumentList @('${targetPath.replace(/'/g, "''")}')"`;
+        .map(([k, v]) => `$env:${k}='${String(v).replace(/'/g, "''")}'; `)
+        .join('');
+      const safePath = targetPath.replace(/\\/g, '\\\\').replace(/'/g, "''");
+      const argList = [`'${safePath}'`, ...extraArgs.map(a => `'${String(a).replace(/'/g, "''")}' `)].join(',');
+      return `powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "${envAssignments}Start-Process -WindowStyle Hidden -FilePath (Get-Command node).Source -ArgumentList @(${argList})"`;
     }
 
     // ─── Shared initializer (provider install) ───────────────────────────────
@@ -3216,13 +3283,14 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       if (is9Router) {
         if (shell === 'bat') {
           arr.push('call npm install -g 9router || goto :fail');
-          arr.push(`for /f "usebackq delims=" %%I in (\`${native9RouterServerEntryLookup()}\`) do set "NINE_ROUTER_ENTRY=%%I"`);
-          arr.push(windowsHiddenNodeLaunch('%NINE_ROUTER_ENTRY%', { PORT: '20128', HOSTNAME: '0.0.0.0', DATA_DIR: '%DATA_DIR%' }));
+          // 9router v0.3+ shows interactive menu even with -n; pipe Enter to auto-select "Web UI" (first option)
+          // Explicitly pass DATA_DIR so 9router knows where to store db.json
+          arr.push('start "9Router Dashboard" /min cmd /c "set DATA_DIR=%DATA_DIR% && echo. | 9router -n -l -H 0.0.0.0 -p 20128 --skip-update"');
           arr.push('timeout /t 5 /nobreak >nul');
         } else {
           arr.push('npm install -g 9router');
-          arr.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);
-          arr.push('nohup env PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$PWD/.9router" node "$NINE_ROUTER_ENTRY" >/tmp/9router.log 2>&1 &');
+          arr.push('NINE_ROUTER_BIN="$(command -v 9router)"');
+          arr.push('nohup env PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$PWD/.9router" "$NINE_ROUTER_BIN" -n -l -H 0.0.0.0 -p 20128 --skip-update >/tmp/9router.log 2>&1 &');
           arr.push('nohup env DATA_DIR="$PWD/.9router" node ./.openclaw/9router-smart-route-sync.js >/tmp/9router-sync.log 2>&1 &');
           arr.push('sleep 3');
         }
@@ -3461,7 +3529,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
     // ─── Per-bot ENV content ──────────────────────────────────────────────────
     function botEnvContent(botIndex) {
       const bot = state.bots[botIndex] || {};
-      const botProvider = PROVIDERS[bot.provider] || provider;
+      const botProvider = (provider && provider.isProxy) ? provider : (PROVIDERS[bot.provider] || provider);
       const lines = [];
       if (botProvider.isProxy) {
         lines.push('# 9Router: no API key needed');
@@ -3485,12 +3553,16 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const basePort = 18791 + botIndex;
       const groupId = state.groupId || '';
-      const botProvider = PROVIDERS[bot.provider] || provider;
+      
+      // Force use global provider if proxy mode is chosen globally, else use bot specific provider
+      const botProvider = (provider && provider.isProxy) ? provider : (PROVIDERS[bot.provider] || provider);
+      const actualModel = botProvider.isProxy ? provider.models[0].id : (bot.model || state.config.model);
+
       const cfg = {
         meta: { lastTouchedVersion: '2026.3.24' },
         agents: {
           defaults: {
-            model: { primary: bot.model || state.config.model },
+            model: { primary: actualModel },
             compaction: { mode: 'safeguard' },
             timeoutSeconds: botProvider.isLocal ? 900 : 120,
             ...(botProvider.isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
@@ -3499,7 +3571,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
             id: agentId,
             workspace: 'workspace',
             agentDir: `agents/${agentId}/agent`,
-            model: { primary: bot.model || state.config.model }
+            model: { primary: actualModel }
           }],
         },
         ...(botProvider.isProxy ? {
@@ -3568,7 +3640,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
         cfg.plugins = { ...(cfg.plugins || {}), slots: { ...((cfg.plugins && cfg.plugins.slots) || {}), memory: 'none' } };
       }
 
-      if (state.channel === 'telegram') {
+      if (state.channel === 'telegram' || state.channel === 'telegram+zalo-personal') {
         cfg.channels.telegram = {
           enabled: true,
           dmPolicy: 'open',
@@ -3584,7 +3656,9 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
             },
           };
         }
-      } else if (state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal') {
+      }
+      
+      if (state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal') {
         cfg.channels.zalouser = {
           enabled: true,
           dmPolicy: 'open',
@@ -3913,6 +3987,8 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         'set "OPENCLAW_STATE_DIR=%PROJECT_DIR%\\.openclaw"',
         'set "DATA_DIR=%PROJECT_DIR%\\.9router"',
         'set "PATH=%APPDATA%\\npm;%PATH%"',
+        ':: Fix PowerShell ExecutionPolicy so .ps1 wrappers (openclaw, 9router) can run',
+        'powershell -NoProfile -Command "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force" >nul 2>&1',
         `echo === OpenClaw Setup — Windows${isDocker ? ' Docker' : ' Native'} ===`,
         'echo.',
         'echo [1/5] Kiem tra Node.js...',
@@ -3948,8 +4024,35 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
           lines.push('echo 9Router Dashboard: http://127.0.0.1:20128/dashboard');
           lines.push('echo Other reachable URLs: http://localhost:20128/dashboard');
         }
-        lines.push('echo [5/5] Khoi dong gateway multi-bot...');
-        lines.push('call openclaw gateway run');
+        const needsZaloLoginMulti = state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal';
+        if (needsZaloLoginMulti) {
+          lines.push('echo [5/6] Khoi dong gateway (cua so moi) de chuan bi dang nhap Zalo...');
+          // Use BAT-native `start` which inherits current env vars - no PS escaping needed
+          lines.push('start "OpenClaw Gateway" cmd /c "openclaw gateway run"');
+          lines.push('echo Cho gateway khoi dong (15 giay)...');
+          lines.push('timeout /t 15 /nobreak >nul');
+          lines.push('echo [6/6] Dang nhap Zalo - dang tao ma QR...');
+          lines.push('openclaw channels login --channel zalouser --verbose');
+          lines.push('echo.');
+          // Copy QR PNG from TEMP to project dir so user can open it easily
+          lines.push('set "QR_TMP=%TEMP%\\openclaw\\openclaw-zalouser-qr-default.png"');
+          lines.push('if exist "%QR_TMP%" (');
+          lines.push('  copy /y "%QR_TMP%" "%PROJECT_DIR%\\zalo-login-qr.png" >nul');
+          lines.push('  echo ===================================================');
+          lines.push('  echo Ma QR Zalo da duoc luu tai:');
+          lines.push('  echo   %PROJECT_DIR%\zalo-login-qr.png');
+          lines.push('  echo Mo file anh tren r dung Zalo quet de dang nhap!');
+          lines.push('  echo ===================================================');
+          lines.push('  start "" "%PROJECT_DIR%\\zalo-login-qr.png"');
+          lines.push(') else (');
+          lines.push('  echo Khong tim thay file QR. Vui long kiem tra cua so Gateway.');
+          lines.push(')');
+          lines.push('echo Gateway dang chay trong cua so rieng.');
+          lines.push('echo De khoi dong lai: openclaw gateway run');
+        } else {
+          lines.push('echo [5/5] Khoi dong gateway multi-bot...');
+          lines.push('call openclaw gateway run');
+        }
       } else {
         lines.push('echo [4/5] Tao file cau hinh...');
         appendBatWriteCommands(lines, mapWindowsNativeFiles(botFiles(0)));
@@ -3964,8 +4067,28 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
           lines.push('echo 9Router Dashboard: http://127.0.0.1:20128/dashboard');
           lines.push('echo Other reachable URLs: http://localhost:20128/dashboard');
         }
-        lines.push('echo [5/5] Khoi dong bot...');
-        lines.push('call openclaw gateway run');
+        const needsZaloLogin = state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal';
+        if (needsZaloLogin) {
+          lines.push('echo [5/6] Khoi dong gateway (cua so moi) de chuan bi dang nhap Zalo...');
+          lines.push('start "OpenClaw Gateway" cmd /c "cd /d %PROJECT_DIR% && set OPENCLAW_HOME=%OPENCLAW_HOME% && set OPENCLAW_STATE_DIR=%OPENCLAW_HOME% && openclaw gateway run"');
+          lines.push('echo Cho gateway khoi dong (15 giay)...');
+          lines.push('timeout /t 15 /nobreak >nul');
+          lines.push('echo [6/6] Dang nhap Zalo...');
+          lines.push('echo.');
+          lines.push('echo ============================================================');
+          lines.push('echo  Cua so CMD moi se mo de dang nhap Zalo.');
+          lines.push('echo  Hay lam theo huong dan trong cua so do:');
+          lines.push('echo    1. Chon "Install Zalo Personal plugin?" (Enter)');
+          lines.push('echo    2. Doi QR hien ra - mo app Zalo quet ma QR');
+          lines.push('echo    3. Doi den khi thay "Login success" hoac token');
+          lines.push('echo ============================================================');
+          lines.push('start "Zalo Login" cmd /k "cd /d \"%PROJECT_DIR%\" && set OPENCLAW_HOME=%OPENCLAW_HOME% && set OPENCLAW_STATE_DIR=%OPENCLAW_HOME% && openclaw channels login --channel zalouser --verbose"');
+          lines.push('echo Gateway dang chay trong cua so rieng.');
+          lines.push('echo De khoi dong lai: openclaw gateway run');
+        } else {
+          lines.push('echo [5/5] Khoi dong bot...');
+          lines.push('call openclaw gateway run');
+        }
       }
 
       lines.push('goto :end');
@@ -4244,10 +4367,23 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
     // [3/4] Docker build
     ps += `# [3/4] Docker build
 Write-Host "[3/4] ${isVi ? 'Build Docker image (co the mat vai phut)...' : 'Building Docker image (may take a few minutes)...'}" -ForegroundColor Yellow
+\$dockerExe = \$null
+try { \$dockerExe = (Get-Command 'docker' -ErrorAction Stop).Source } catch {}
+if (-not \$dockerExe) {
+    Write-Host "  ${isVi ? 'Khong tim thay Docker. Tai Docker Desktop tai: https://www.docker.com/products/docker-desktop' : 'Docker not found. Download Docker Desktop at: https://www.docker.com/products/docker-desktop'}" -ForegroundColor Red
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+& \$dockerExe info 2>&1 | Out-Null
+if (\$LASTEXITCODE -ne 0) {
+    Write-Host "  ${isVi ? 'Docker Desktop chua chay. Mo Docker Desktop roi thu lai.' : 'Docker Desktop is not running. Start Docker Desktop, then re-run this script.'}" -ForegroundColor Red
+    Read-Host "Press Enter to exit"
+    exit 1
+}
 Set-Location "$projectDir\\docker\\openclaw"
-docker compose build
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  ❌ ${isVi ? 'Docker build that bai. Docker Desktop da chay chua?' : 'Docker build failed. Is Docker Desktop running?'}" -ForegroundColor Red
+& \$dockerExe compose build
+if (\$LASTEXITCODE -ne 0) {
+    Write-Host "  ❌ ${isVi ? 'Docker build that bai. Xem log phia tren.' : 'Docker build failed. Check the log above.'}" -ForegroundColor Red
     Read-Host "${isVi ? 'Nhan Enter de thoat' : 'Press Enter to exit'}"
     exit 1
 }
@@ -4258,7 +4394,7 @@ Write-Host "  ✅ ${isVi ? 'Docker image da build' : 'Docker image built'}" -For
     // [4/4] Docker up
     ps += `# [4/4] Start bot
 Write-Host "[4/4] ${isVi ? 'Khoi dong bot...' : 'Starting bot...'}" -ForegroundColor Yellow
-docker compose up -d
+& \$dockerExe compose up -d
 Write-Host "  ✅ ${isVi ? 'Bot dang chay!' : 'Bot is running!'}" -ForegroundColor Green
 
 Write-Host ""
@@ -4270,7 +4406,7 @@ Write-Host "  🎉 ${isVi ? 'Setup hoan tat!' : 'Setup complete!'}" -ForegroundC
     if (is9Router) {
       ps += `Write-Host "  ${isVi ? 'Mo http://localhost:30128/dashboard de login OAuth' : 'Open http://localhost:30128/dashboard to login OAuth'}" -ForegroundColor White\n`;
     }
-    if (state.channel === 'zalo-personal') {
+    if (state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal') {
       ps += `Write-Host "  ${isVi ? 'Chay: docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose' : 'Run: docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose'}" -ForegroundColor White\n`;
       ps += `Write-Host "  ${isVi ? 'QR se nam tai /tmp/openclaw/openclaw-zalouser-qr-default.png' : 'QR will be written to /tmp/openclaw/openclaw-zalouser-qr-default.png'}" -ForegroundColor DarkGray\n`;
       ps += `Write-Host "  ${isVi ? 'Copy QR ra ngoai: docker compose cp ai-bot:/tmp/openclaw/openclaw-zalouser-qr-default.png ./zalo-login-qr.png' : 'Copy the QR out: docker compose cp ai-bot:/tmp/openclaw/openclaw-zalouser-qr-default.png ./zalo-login-qr.png'}" -ForegroundColor DarkGray\n`;
