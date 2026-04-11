@@ -188,10 +188,12 @@ function spawnBackgroundProcess(command, args, options = {}) {
 
 function resolveNative9RouterDesktopLaunch() {
   // Use installed 9router CLI directly (more reliable than finding server.js in npm dirs)
+  // NOTE: -l (stdin listen mode) is intentionally omitted — it causes hangs when there is
+  // no interactive TTY (background spawned process, wizard-generated bat, etc.)
   const routerBin = resolveCommandOnPath('9router') || '9router';
   return {
     command: routerBin,
-    args: ['-n', '-l', '-H', '0.0.0.0', '-p', '20128', '--skip-update'],
+    args: ['-n', '-H', '0.0.0.0', '-p', '20128', '--skip-update'],
     env: {
       PORT: '20128',
       HOSTNAME: '0.0.0.0'
@@ -449,31 +451,57 @@ const sync = async () => {
     let db = {};
     try { db = JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e) {}
     if (!db.combos) db.combos = [];
-    const removeSmartRoute = () => {
+    const resCombo = await fetch(ROUTER + '/api/combos').catch(() => null);
+    let memoryCombos = [];
+    if (resCombo && resCombo.ok) {
+      const cData = await resCombo.json();
+      memoryCombos = cData.combos || [];
+    }
+    const removeSmartRoute = async () => {
       const next = db.combos.filter(x => x.id !== 'smart-route');
       if (next.length !== db.combos.length) {
         db.combos = next;
         fs.writeFileSync(p, JSON.stringify(db, null, 2));
-        console.log('[sync-combo] Removed smart-route (no active providers)');
+        console.log('[sync-combo] Removed smart-route from db.json (no active providers)');
+      }
+      if (memoryCombos.find(x => x.id === 'smart-route')) {
+        await fetch(ROUTER + '/api/combos/smart-route', { method: 'DELETE' }).catch(()=>{});
+        console.log('[sync-combo] Removed smart-route from 9Router memory');
       }
     };
-    if (!a.length) { removeSmartRoute(); return; }
+    if (!a.length) { await removeSmartRoute(); return; }
     const PREF = ['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];
     a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
     const m = a.flatMap(pv => PM[pv] || []);
-    if (!m.length) { removeSmartRoute(); return; }
+    if (!m.length) { await removeSmartRoute(); return; }
     const c = { id: 'smart-route', name: 'smart-route', alias: 'smart-route', models: m };
     const i = db.combos.findIndex(x => x.id === 'smart-route');
+    let dbUpdated = false;
     if (i >= 0) {
       if (JSON.stringify(db.combos[i].models) !== JSON.stringify(c.models)) {
         db.combos[i] = c;
         fs.writeFileSync(p, JSON.stringify(db, null, 2));
-        console.log('[sync-combo] Updated smart-route: ' + c.models.length + ' models from: ' + a.join(','));
+        dbUpdated = true;
       }
     } else {
       db.combos.push(c);
       fs.writeFileSync(p, JSON.stringify(db, null, 2));
-      console.log('[sync-combo] Created smart-route: ' + c.models.length + ' models from: ' + a.join(','));
+      dbUpdated = true;
+    }
+    const inMemory = memoryCombos.find(x => x.id === 'smart-route');
+    let memUpdated = false;
+    if (inMemory) {
+      if (JSON.stringify(inMemory.models) !== JSON.stringify(c.models)) {
+        await fetch(ROUTER + '/api/combos/smart-route', { method: 'DELETE' }).catch(()=>{});
+        await fetch(ROUTER + '/api/combos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) }).catch(()=>{});
+        memUpdated = true;
+      }
+    } else {
+      await fetch(ROUTER + '/api/combos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) }).catch(()=>{});
+      memUpdated = true;
+    }
+    if (dbUpdated || memUpdated) {
+      console.log('[sync-combo] Synced smart-route (Memory+Disk): ' + c.models.length + ' models from: ' + a.join(','));
     }
   } catch(e) { console.log('[sync-combo] Error:', e.message); }
 };
@@ -576,7 +604,9 @@ function build9RouterComposeEntrypointScript(syncScriptBase64) {
 }
 
 async function writeNative9RouterSyncScript(projectDir) {
-  const syncScriptPath = path.join(projectDir, '.openclaw', '9router-smart-route-sync.js');
+  // Write to .9router/ (DATA_DIR) so 9router's own data dir has the sync helper,
+  // keeping .openclaw/ focused on openclaw configs only.
+  const syncScriptPath = path.join(projectDir, '.9router', '9router-smart-route-sync.js');
   await fs.ensureDir(path.dirname(syncScriptPath));
   await fs.writeFile(syncScriptPath, build9RouterSmartRouteSyncScript(path.join(getProject9RouterDataDir(projectDir), 'db.json')));
   return syncScriptPath;
@@ -2537,6 +2567,357 @@ const { chromium } = require('playwright');
   } // END FOR LOOP
   }
 
+  // ── Uninstall scripts — generated per OS / deploy mode ─────────────────────
+  {
+    const absProjectDir = projectDir.replace(/\\/g, '\\\\');
+    const unixProjectDir = projectDir.replace(/\\/g, '/');
+
+    if (deployMode === 'native') {
+      // ── Windows .bat uninstall ──────────────────────────────────────────────
+      if (osChoice === 'windows') {
+        const winUninstall = `@echo off
+setlocal EnableExtensions
+chcp 65001 >nul
+echo.
+echo ============================================================
+echo   OpenClaw Uninstaller - Windows Native
+echo   Project: ${absProjectDir}
+echo ============================================================
+echo.
+echo [WARNING] This will:
+echo   1. Kill openclaw and 9router background processes
+echo   2. Uninstall global npm packages (openclaw, 9router, pm2)
+echo   3. Delete the project folder and all its data
+echo.
+set /p CONFIRM=Nhap YES de xac nhan xoa toan bo: 
+if /i not "%CONFIRM%"=="YES" (
+  echo Huy bo. Khong xoa gi ca.
+  pause
+  exit /b 0
+)
+echo.
+echo [1/4] Dang dung cac tien trinh openclaw va 9router...
+taskkill /F /IM openclaw.exe >nul 2>&1
+taskkill /F /IM 9router.exe  >nul 2>&1
+:: Kill Node.js processes spawned from project dir
+powershell -NoProfile -Command "Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*${absProjectDir}*' } | Stop-Process -Force" >nul 2>&1
+:: Kill processes listening on ports 18791 and 20128
+powershell -NoProfile -Command "& { $p=@(18791,20128); foreach($port in $p){ $id=(netstat -ano | Select-String \":$port \").Line -split ' +' | Select-Object -Last 1; if($id -and $id -ne '0'){ Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } } }" >nul 2>&1
+echo    OK: Tien trinh da dung.
+echo.
+echo [2/4] Dang go cai npm packages toan cau...
+set "PATH=%APPDATA%\\npm;%PATH%"
+call npm uninstall -g openclaw 9router grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>nul
+echo    OK: npm packages da duoc go cai.
+echo.
+echo [3/4] Xoa thu muc project...
+set "TARGET=${absProjectDir}"
+if exist "%TARGET%" (
+  rd /s /q "%TARGET%"
+  echo    OK: Da xoa %TARGET%
+) else (
+  echo    INFO: Thu muc khong ton tai: %TARGET%
+)
+echo.
+echo [4/4] Xoa thu muc .9router va .openclaw trong Home (neu co)...
+if exist "%USERPROFILE%\\.9router" (
+  set /p CLEAN_HOME=Xoa ca %USERPROFILE%\\.9router? [YES/no]: 
+  if /i "%CLEAN_HOME%"=="YES" rd /s /q "%USERPROFILE%\\.9router" >nul 2>&1
+)
+echo.
+echo ============================================================
+echo   Go cai hoan tat!
+echo   De cai lai: chay lai file setup hoac npx create-openclaw-bot
+echo ============================================================
+pause
+`;
+        await fs.writeFile(path.join(projectDir, 'uninstall-openclaw-win.bat'), winUninstall);
+        console.log(chalk.gray(isVi
+          ? `   📄 File go cai: ${path.join(projectDir, 'uninstall-openclaw-win.bat')}`
+          : `   📄 Uninstall script: ${path.join(projectDir, 'uninstall-openclaw-win.bat')}`));
+      }
+
+      // ── Linux/macOS desktop .sh uninstall ──────────────────────────────────
+      if (osChoice === 'macos' || osChoice === 'ubuntu') {
+        const desktopUninstall = `#!/usr/bin/env bash
+# ====== OpenClaw Uninstaller — macOS / Linux Desktop ======
+set -e
+PROJECT_DIR="${unixProjectDir}"
+
+echo ""
+echo "============================================================"
+echo "  OpenClaw Uninstaller — Native (macOS/Linux Desktop)"
+echo "  Project: $PROJECT_DIR"
+echo "============================================================"
+echo ""
+echo "WARNING: This will:"
+echo "  1. Kill openclaw and 9router processes"
+echo "  2. Uninstall global npm packages (openclaw, 9router)"
+echo "  3. Delete the project folder and all its data"
+echo ""
+read -rp "Type YES to confirm full removal: " CONFIRM
+if [ "$CONFIRM" != "YES" ]; then
+  echo "Cancelled. Nothing was deleted."
+  exit 0
+fi
+
+echo ""
+echo "[1/4] Stopping openclaw and 9router processes..."
+pkill -f "openclaw gateway run" 2>/dev/null || true
+pkill -f "9router.*20128"       2>/dev/null || true
+pkill -f "9router-smart-route"  2>/dev/null || true
+# Kill any node process inside the project dir
+pkill -f "$PROJECT_DIR"         2>/dev/null || true
+# Kill processes on port 18791 and 20128
+for port in 18791 20128; do
+  pid=$(lsof -ti tcp:$port 2>/dev/null || true)
+  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true
+done
+echo "   OK: Processes stopped."
+
+echo ""
+echo "[2/4] Uninstalling global npm packages..."
+npm uninstall -g openclaw 9router grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true
+# Also try with sudo if the above fails (system npm prefix)
+sudo npm uninstall -g openclaw 9router 2>/dev/null || true
+echo "   OK: npm packages removed."
+
+echo ""
+echo "[3/4] Removing project directory..."
+if [ -d "$PROJECT_DIR" ]; then
+  rm -rf "$PROJECT_DIR"
+  echo "   OK: Deleted $PROJECT_DIR"
+else
+  echo "   INFO: Directory not found: $PROJECT_DIR"
+fi
+
+echo ""
+echo "[4/4] Checking for home-level .9router / .openclaw..."
+for dir in "$HOME/.9router" "$HOME/.openclaw"; do
+  if [ -d "$dir" ]; then
+    read -rp "Delete $dir ? [YES/no]: " CLEAN
+    if [ "$CLEAN" = "YES" ]; then
+      rm -rf "$dir"
+      echo "   OK: Deleted $dir"
+    else
+      echo "   Kept: $dir"
+    fi
+  fi
+done
+
+echo ""
+echo "============================================================"
+echo "  Uninstall complete!"
+echo "  To reinstall: run the setup script or npx create-openclaw-bot"
+echo "============================================================"
+`;
+        const desktopShPath = path.join(projectDir, 'uninstall-openclaw.sh');
+        await fs.writeFile(desktopShPath, desktopUninstall);
+        try { await fs.chmod(desktopShPath, 0o755); } catch (_) {}
+        console.log(chalk.gray(isVi
+          ? `   📄 File go cai: ${desktopShPath}`
+          : `   📄 Uninstall script: ${desktopShPath}`));
+      }
+
+      // ── VPS / PM2 .sh uninstall ─────────────────────────────────────────────
+      if (osChoice === 'vps') {
+        const vpsUninstall = `#!/usr/bin/env bash
+# ====== OpenClaw Uninstaller — VPS / Ubuntu Server (PM2) ======
+set -e
+PROJECT_DIR="${unixProjectDir}"
+APP_NAME="${(botName || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-')}"
+
+echo ""
+echo "============================================================"
+echo "  OpenClaw Uninstaller — VPS / Ubuntu Server"
+echo "  Project: $PROJECT_DIR"
+echo "  PM2 app: $APP_NAME"
+echo "============================================================"
+echo ""
+echo "WARNING: This will:"
+echo "  1. Stop and delete all PM2 processes for this bot"
+echo "  2. Uninstall global npm packages (openclaw, 9router, pm2)"
+echo "  3. Delete the project folder and all its data"
+echo ""
+read -rp "Type YES to confirm full removal: " CONFIRM
+if [ "$CONFIRM" != "YES" ]; then
+  echo "Cancelled. Nothing was deleted."
+  exit 0
+fi
+
+echo ""
+echo "[1/5] Stopping and deleting PM2 processes..."
+if command -v pm2 &>/dev/null; then
+  pm2 delete "$APP_NAME"               2>/dev/null || true
+  pm2 delete "$APP_NAME-9router"       2>/dev/null || true
+  pm2 delete "$APP_NAME-9router-sync"  2>/dev/null || true
+  pm2 delete "openclaw"                2>/dev/null || true
+  pm2 delete "openclaw-multibot"       2>/dev/null || true
+  pm2 save --force                     2>/dev/null || true
+  echo "   OK: PM2 processes removed."
+else
+  echo "   INFO: PM2 not found — skipping."
+fi
+
+echo ""
+echo "[2/5] Killing any remaining processes on port 18791 / 20128..."
+for port in 18791 20128; do
+  pid=$(lsof -ti tcp:$port 2>/dev/null || true)
+  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true
+done
+echo "   OK: Ports cleared."
+
+echo ""
+echo "[3/5] Uninstalling global npm packages..."
+npm uninstall -g openclaw 9router pm2 grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true
+echo "   OK: npm packages removed."
+
+echo ""
+echo "[4/5] Removing project directory..."
+if [ -d "$PROJECT_DIR" ]; then
+  rm -rf "$PROJECT_DIR"
+  echo "   OK: Deleted $PROJECT_DIR"
+else
+  echo "   INFO: Directory not found: $PROJECT_DIR"
+fi
+
+echo ""
+echo "[5/5] Checking for home-level .9router / .openclaw..."
+for dir in "$HOME/.9router" "$HOME/.openclaw"; do
+  if [ -d "$dir" ]; then
+    read -rp "Delete $dir ? [YES/no]: " CLEAN
+    if [ "$CLEAN" = "YES" ]; then
+      rm -rf "$dir"
+      echo "   OK: Deleted $dir"
+    else
+      echo "   Kept: $dir"
+    fi
+  fi
+done
+
+echo ""
+echo "============================================================"
+echo "  Uninstall complete!"
+echo "  To reinstall: npx create-openclaw-bot@latest"
+echo "============================================================"
+`;
+        const vpsShPath = path.join(projectDir, 'uninstall-openclaw-vps.sh');
+        await fs.writeFile(vpsShPath, vpsUninstall);
+        try { await fs.chmod(vpsShPath, 0o755); } catch (_) {}
+        console.log(chalk.gray(isVi
+          ? `   📄 File go cai VPS: ${vpsShPath}`
+          : `   📄 VPS uninstall script: ${vpsShPath}`));
+      }
+
+    } else {
+      // ── Docker uninstall .sh ────────────────────────────────────────────────
+      const dockerUninstall = `#!/usr/bin/env bash
+# ====== OpenClaw Uninstaller — Docker ======
+set -e
+PROJECT_DIR="${unixProjectDir}"
+DOCKER_DIR="$PROJECT_DIR/docker/openclaw"
+
+echo ""
+echo "============================================================"
+echo "  OpenClaw Uninstaller — Docker"
+echo "  Project: $PROJECT_DIR"
+echo "============================================================"
+echo ""
+echo "WARNING: This will:"
+echo "  1. Stop and remove all Docker containers + volumes"
+echo "  2. Delete the project folder and all its data"
+echo ""
+read -rp "Type YES to confirm full removal: " CONFIRM
+if [ "$CONFIRM" != "YES" ]; then
+  echo "Cancelled. Nothing was deleted."
+  exit 0
+fi
+
+echo ""
+echo "[1/3] Stopping Docker containers and removing volumes..."
+if [ -d "$DOCKER_DIR" ] && command -v docker &>/dev/null; then
+  cd "$DOCKER_DIR"
+  docker compose down --volumes --remove-orphans 2>/dev/null || docker-compose down --volumes --remove-orphans 2>/dev/null || true
+  echo "   OK: Containers + volumes removed."
+else
+  echo "   INFO: Docker dir not found or docker not installed — skipping."
+fi
+
+echo ""
+echo "[2/3] Removing project directory..."
+if [ -d "$PROJECT_DIR" ]; then
+  rm -rf "$PROJECT_DIR"
+  echo "   OK: Deleted $PROJECT_DIR"
+else
+  echo "   INFO: Directory not found: $PROJECT_DIR"
+fi
+
+echo ""
+echo "[3/3] Checking for home-level .openclaw..."
+if [ -d "$HOME/.openclaw" ]; then
+  read -rp "Delete $HOME/.openclaw? [YES/no]: " CLEAN
+  if [ "$CLEAN" = "YES" ]; then
+    rm -rf "$HOME/.openclaw"
+    echo "   OK: Deleted $HOME/.openclaw"
+  else
+    echo "   Kept: $HOME/.openclaw"
+  fi
+fi
+
+echo ""
+echo "============================================================"
+echo "  Uninstall complete!"
+echo "  To reinstall: npx create-openclaw-bot@latest"
+echo "============================================================"
+`;
+      const dockerShPath = path.join(projectDir, 'uninstall-openclaw-docker.sh');
+      await fs.writeFile(dockerShPath, dockerUninstall);
+      try { await fs.chmod(dockerShPath, 0o755); } catch (_) {}
+
+      // Windows .bat for docker uninstall
+      const dockerWinUninstall = `@echo off
+setlocal EnableExtensions
+chcp 65001 >nul
+echo.
+echo ============================================================
+echo   OpenClaw Uninstaller - Docker (Windows)
+echo   Project: ${absProjectDir}
+echo ============================================================
+echo.
+echo [WARNING] This will stop Docker containers and delete the project folder.
+echo.
+set /p CONFIRM=Nhap YES de xac nhan xoa toan bo: 
+if /i not "%CONFIRM%"=="YES" (
+  echo Huy bo. Khong xoa gi ca.
+  pause
+  exit /b 0
+)
+echo.
+echo [1/2] Dang dung Docker containers...
+cd /d "${absProjectDir}\\docker\\openclaw" 2>nul && (
+  docker compose down --volumes --remove-orphans 2>nul || docker-compose down --volumes --remove-orphans 2>nul
+  echo    OK: Containers da dung.
+) || echo    INFO: Khong tim thay docker compose.
+echo.
+echo [2/2] Xoa thu muc project...
+cd /d "%USERPROFILE%"
+if exist "${absProjectDir}" (
+  rd /s /q "${absProjectDir}"
+  echo    OK: Da xoa ${absProjectDir}
+)
+echo.
+echo ============================================================
+echo   Go cai hoan tat! De cai lai: npx create-openclaw-bot@latest
+echo ============================================================
+pause
+`;
+      await fs.writeFile(path.join(projectDir, 'uninstall-openclaw-docker.bat'), dockerWinUninstall);
+      console.log(chalk.gray(isVi
+        ? `   📄 File go cai Docker: ${dockerShPath}`
+        : `   📄 Docker uninstall script: ${dockerShPath}`));
+    }
+  }
+
   // ── Chrome Debug scripts — always created (user may need browser later)
   const batPath = path.join(projectDir, 'start-chrome-debug.bat');
   await fs.writeFile(batPath, `@echo off
@@ -2817,6 +3198,44 @@ fi
     } else {
       if (providerKey === '9router') {
         console.log(chalk.yellow(`\n${isVi ? 'Khoi dong 9Router native (background)...' : 'Starting native 9Router (background)...'}`));
+
+        // ── Pre-seed DATA_DIR + db.json BEFORE launching 9Router ──────────────
+        // 9Router reads DATA_DIR on startup to find its db. If we don't set this
+        // first it falls back to its own default (~/.9router) and requireLogin
+        // defaults to true, causing the dashboard login wall.
+        const routerDataDir = getProject9RouterDataDir(projectDir);
+        try {
+          await fs.ensureDir(routerDataDir);
+          const dbPath = path.join(routerDataDir, 'db.json');
+          if (!fs.existsSync(dbPath)) {
+            await fs.writeJson(dbPath, {
+              providerConnections: [],
+              providerNodes: [],
+              proxyPools: [],
+              modelAliases: {},
+              mitmAlias: {},
+              combos: [],
+              apiKeys: [],
+              settings: {
+                requireLogin: false,
+                cloudEnabled: false,
+                tunnelEnabled: false,
+                comboStrategy: 'fallback',
+                mitmRouterBaseUrl: 'http://localhost:20128'
+              },
+              pricing: {}
+            }, { spaces: 2 });
+            console.log(chalk.gray(isVi
+              ? `   ✅ Pre-seeded db.json (requireLogin: false) tại: ${dbPath}`
+              : `   ✅ Pre-seeded db.json (requireLogin: false) at: ${dbPath}`));
+          }
+        } catch (err) {
+          console.log(chalk.yellow(isVi
+            ? `   ⚠️  Khong the pre-seed db.json: ${err?.message}. 9Router van se khoi dong.`
+            : `   ⚠️  Could not pre-seed db.json: ${err?.message}. 9Router will still start.`));
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         const native9RouterLaunch = resolveNative9RouterDesktopLaunch();
         spawnBackgroundProcess(native9RouterLaunch.command, native9RouterLaunch.args, {
           cwd: projectDir,

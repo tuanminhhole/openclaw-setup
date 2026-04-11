@@ -269,7 +269,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*resolveCommandOnPath\('9router'\)[\s\S]*command: routerBin[\s\S]*args: \['-n', '-l', '-H', '0\.0\.0\.0', '-p', '20128', '--skip-update'\][\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'/s,
+  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*resolveCommandOnPath\('9router'\)[\s\S]*command: routerBin[\s\S]*args: \['-n', '-H', '0\.0\.0\.0', '-p', '20128', '--skip-update'\][\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'/s,
   'Native desktop 9Router launch must use the 9router CLI binary directly with server args to bypass the interactive menu'
 ));
 
@@ -392,9 +392,9 @@ checks.push(() => expect(
     && setup.includes('return "node -e ')
     && !setup.includes('return "node -p ')
     && setup.includes("start \"9Router Dashboard\" /min cmd /c")
-    && setup.includes("9router -n -l -H 0.0.0.0 -p 20128 --skip-update")
+    && setup.includes("9router -n -H 0.0.0.0 -p 20128 --skip-update")
     && setup.includes('NINE_ROUTER_BIN="$(command -v 9router)"')
-    && setup.includes('"$NINE_ROUTER_BIN" -n -l -H 0.0.0.0 -p 20128 --skip-update')
+    && setup.includes('"$NINE_ROUTER_BIN" -n -H 0.0.0.0 -p 20128 --skip-update')
     && setup.includes("const p=path.join(process.env.DATA_DIR||'.9router','db.json');")
     && setup.includes('nohup env DATA_DIR="$PWD/.9router" node ./.openclaw/9router-smart-route-sync.js >/tmp/9router-sync.log 2>&1 &')
     && setup.includes('set "PROJECT_DIR=')

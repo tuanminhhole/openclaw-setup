@@ -1933,7 +1933,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         },
         list: [{
           id: agentId,
-          workspace: 'workspace',
+          workspace: '.openclaw/workspace',
           agentDir: `agents/${agentId}/agent`,
           model: { primary: state.config.model, fallbacks: [] },
         }],
@@ -2050,7 +2050,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       clawConfig.agents.list = multiBotAgentMetas.map((meta) => ({
         id: meta.agentId,
         name: meta.name,
-        workspace: meta.workspaceDir,
+        workspace: '.openclaw/' + meta.workspaceDir,
         agentDir: `agents/${meta.agentId}/agent`,
         model: { primary: state.config.model, fallbacks: [] },
       }));
@@ -3022,7 +3022,7 @@ fi
         botConfig.agents.defaults.model = { primary: state.config.model, fallbacks: [] };
         botConfig.agents.list = [{
           id: botAgentId,
-          workspace: 'workspace',
+          workspace: '.openclaw/workspace',
           agentDir: `agents/${botAgentId}/agent`,
           model: { primary: state.config.model, fallbacks: [] },
         }];
@@ -3240,6 +3240,7 @@ I am **${botName}**. When asked my name, I answer: _"I'm ${botName}"_.`;
       .filter((skill) => skill && skill.id !== 'scheduler' && skill.slug && skill.slug !== 'browser-automation');
     const selectedModel = (state.config.model || 'ollama/gemma4:e2b').replace('ollama/', '');
     const isMultiBot = state.botCount > 1 && state.channel === 'telegram';
+    const isComboChannel = state.channel === 'telegram+zalo-personal';
     const projectDir = state.config.projectPath || '.';
     const todayStamp = new Date().toISOString().slice(0, 10);
 
@@ -3283,16 +3284,51 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       if (is9Router) {
         if (shell === 'bat') {
           arr.push('call npm install -g 9router || goto :fail');
-          // 9router v0.3+ shows interactive menu even with -n; pipe Enter to auto-select "Web UI" (first option)
-          // Explicitly pass DATA_DIR so 9router knows where to store db.json
-          arr.push('start "9Router Dashboard" /min cmd /c "set DATA_DIR=%DATA_DIR% && echo. | 9router -n -l -H 0.0.0.0 -p 20128 --skip-update"');
-          arr.push('timeout /t 5 /nobreak >nul');
+          // Pre-create DATA_DIR and seed db.json with requireLogin:false BEFORE starting 9router.
+          // If db.json is missing when 9router boots, it defaults to ~/.9router and requireLogin:true,
+          // blocking the dashboard. Must be done BEFORE the `start` command below.
+          arr.push('if not exist "%DATA_DIR%" mkdir "%DATA_DIR%"');
+          arr.push('if not exist "%DATA_DIR%\\db.json" (');
+          arr.push('> "%DATA_DIR%\\db.json" (');
+          arr.push('echo({');
+          arr.push('echo(  "providerConnections": [],');
+          arr.push('echo(  "providerNodes": [],');
+          arr.push('echo(  "proxyPools": [],');
+          arr.push('echo(  "modelAliases": {},');
+          arr.push('echo(  "mitmAlias": {},');
+          arr.push('echo(  "combos": [],');
+          arr.push('echo(  "apiKeys": [],');
+          arr.push('echo(  "settings": {');
+          arr.push('echo(    "requireLogin": false,');
+          arr.push('echo(    "cloudEnabled": false,');
+          arr.push('echo(    "tunnelEnabled": false,');
+          arr.push('echo(    "comboStrategy": "fallback",');
+          arr.push('echo(    "mitmRouterBaseUrl": "http://localhost:20128"');
+          arr.push('echo(  },');
+          arr.push('echo(  "pricing": {}');
+          arr.push('echo(}');
+          arr.push(')');
+          arr.push(')');
+          // Launch 9Router as a fully detached process via PowerShell Start-Process -WindowStyle Hidden.
+          // Using `start ... cmd /c "...--tray"` caused 9Router to die when the CMD window was closed
+          // because cmd /c is a child of the started CMD, which is killed when that window closes.
+          // Start-Process with WindowStyle Hidden creates a truly independent process that survives
+          // even if all visible terminal windows are closed.
+          // Use -ArgumentList as a single string (not array) to avoid
+          // "Cannot convert System.Object[] to System.String" when passed via inline CMD → PS.
+          arr.push('echo Khoi dong 9Router (background)...');
+          arr.push('powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:DATA_DIR=\'%DATA_DIR%\'; $r=(Get-Command 9router).Source; Start-Process -WindowStyle Hidden -FilePath $r -ArgumentList \'-n -H 0.0.0.0 -p 20128 --skip-update\' -WorkingDirectory \'%PROJECT_DIR%\'"');
+          arr.push('timeout /t 8 /nobreak >nul');
         } else {
           arr.push('npm install -g 9router');
+          // Pre-seed .9router/db.json before starting 9router (prevents requireLogin:true on first boot)
+          arr.push('mkdir -p ".9router"');
+          arr.push('if [ ! -f ".9router/db.json" ]; then cat > ".9router/db.json" << \'DBJSON\'\n{\n  "providerConnections": [],\n  "providerNodes": [],\n  "proxyPools": [],\n  "modelAliases": {},\n  "mitmAlias": {},\n  "combos": [],\n  "apiKeys": [],\n  "settings": {\n    "requireLogin": false,\n    "cloudEnabled": false,\n    "tunnelEnabled": false,\n    "comboStrategy": "fallback",\n    "mitmRouterBaseUrl": "http://localhost:20128"\n  },\n  "pricing": {}\n}\nDBJSON\nfi');
           arr.push('NINE_ROUTER_BIN="$(command -v 9router)"');
-          arr.push('nohup env PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$PWD/.9router" "$NINE_ROUTER_BIN" -n -l -H 0.0.0.0 -p 20128 --skip-update >/tmp/9router.log 2>&1 &');
-          arr.push('nohup env DATA_DIR="$PWD/.9router" node ./.openclaw/9router-smart-route-sync.js >/tmp/9router-sync.log 2>&1 &');
-          arr.push('sleep 3');
+          // NOTE: -l (stdin listen mode) intentionally omitted — causes hangs in non-TTY environments
+          arr.push('nohup env PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$PWD/.9router" "$NINE_ROUTER_BIN" -n -H 0.0.0.0 -p 20128 --skip-update > /tmp/9router.log 2>&1 &');
+          arr.push('nohup env DATA_DIR="$PWD/.9router" node ./.9router/9router-smart-route-sync.js > /tmp/9router-sync.log 2>&1 &');
+          arr.push('sleep 5');
         }
       } else if (isOllama) {
         if (shell === 'bat') {
@@ -3408,7 +3444,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
           list: multiBotAgentMetas.map((meta) => ({
             id: meta.agentId,
             name: meta.name,
-            workspace: meta.workspaceDir,
+            workspace: '.openclaw/' + meta.workspaceDir,
             agentDir: `agents/${meta.agentId}/agent`,
             model: { primary: state.config.model, fallbacks: [] },
           })),
@@ -3475,7 +3511,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
         '.openclaw/auth-profiles.json': sharedNativeAuthProfilesContent(),
         'TELEGRAM-POST-INSTALL.md': buildTelegramPostInstallChecklist(),
       };
-      if (is9Router) files['.openclaw/9router-smart-route-sync.js'] = native9RouterSyncScriptContent();
+      if (is9Router) files['.9router/9router-smart-route-sync.js'] = native9RouterSyncScriptContent();
       const teamMd = isVi
         ? `# Doi Bot\n\n${multiBotAgentMetas.map((meta) => `## ${meta.name}\n- Vai tro: ${meta.desc}\n- Agent ID: \`${meta.agentId}\`\n- Telegram accountId: \`${meta.accountId}\`\n- Slash command: ${meta.slashCmd || '_(chua co)_'}\n- Tinh cach: ${meta.persona || '_(khong ghi ro)_'}`).join('\n\n')}\n\n## Quy uoc phoi hop\n- Tat ca bot trong doi biet ro vai tro cua nhau.\n- Neu user bao ban hoi mot bot khac, hay dung agent-to-agent noi bo thay vi doi Telegram chuyen tin cua bot.\n- Bot mo loi chi noi 1 cau ngan, sau do chuyen turn noi bo cho bot dich.\n- Bot dich phai tra loi cong khai bang chinh Telegram account cua minh trong cung chat/thread hien tai.\n- Neu can fallback, chi bot mo loi moi duoc phep tom tat thay.`
         : `# Bot Team\n\n${multiBotAgentMetas.map((meta) => `## ${meta.name}\n- Role: ${meta.desc}\n- Agent ID: \`${meta.agentId}\`\n- Telegram accountId: \`${meta.accountId}\`\n- Slash command: ${meta.slashCmd || '_(not set)_'}\n- Persona: ${meta.persona || '_(not specified)_'}`).join('\n\n')}\n\n## Coordination Rules\n- Every bot knows the full roster.\n- If the user asks you to consult another bot, use internal agent-to-agent handoff instead of waiting for Telegram bot-to-bot delivery.\n- The caller bot only sends one short opener, then hands off internally.\n- The target bot must publish the real answer with its own Telegram account in the same chat/thread.\n- If a fallback is needed, only the caller bot may summarize on behalf of the target.`;
@@ -3569,7 +3605,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
           },
           list: [{
             id: agentId,
-            workspace: 'workspace',
+            workspace: '.openclaw/workspace',
             agentDir: `agents/${agentId}/agent`,
             model: { primary: actualModel }
           }],
@@ -3841,6 +3877,7 @@ You are **${botName}**, ${botDesc.toLowerCase()}.
 - Prefer English unless user uses another language
 - When asked your name: _"I'm ${botName}"_
 - Never fabricate information`;
+      const _secRules = state.config.securityRules || DEFAULT_SECURITY_RULES[isVi ? 'vi' : 'en'];
       const extraAgentsMd = isVi
         ? `\n\n## Khi nao nen tra loi\n- Trong group, chi tra loi khi tin nhan co alias cua ban: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')} hoac username Telegram cua ban.\n- Neu tin nhan khong goi ban, hay im lang hoan toan.\n- Neu tin nhan chi goi ro bot khac ${otherBotNames.length ? otherBotNames.map((name) => `\`${name}\``).join(', ') : '`bot khac`'} thi khong cuop loi.\n- Khi da biet user dang goi ban, hay tha reaction co dinh \`👍\` truoc roi moi tra loi bang text. Khong dung emoji khac.\n- Khi can phoi hop noi bo, dung dung agent id ky thuat trong \`TEAM.md\`, khong dung ten hien thi.\n- Khi hoi ve vai tro cac bot, dung \`TEAM.md\` lam nguon su that.`
         : `\n\n## When To Reply\n- In group chats, only reply when the message contains one of your aliases: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')} or your Telegram username.\n- If the message is not calling you, stay completely silent.\n- If the message is clearly calling another bot such as ${otherBotNames.length ? otherBotNames.map((name) => `\`${name}\``).join(', ') : '`another bot`'}, do not hijack it.\n- Once you know the user is calling you, add the fixed reaction \`👍\` first, then send the text reply. Do not use any other reaction emoji.\n- When you need internal coordination, use the exact technical agent id from \`TEAM.md\`, not the display name.\n- Use \`TEAM.md\` as the source of truth for team roles.`;
@@ -3891,7 +3928,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       const files = {
         'IDENTITY.md': identityMd,
         'SOUL.md': soulMd,
-        'AGENTS.md': agentsMd + extraAgentsMd,
+        'AGENTS.md': agentsMd + extraAgentsMd + '\n\n' + _secRules,
         'TEAM.md': teamMd,
         'USER.md': userMd,
         'TOOLS.md': toolsMd,
@@ -3916,7 +3953,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       files[`${base}/.openclaw/openclaw.json`] = botConfigContent(botIndex);
       files[`${base}/.openclaw/exec-approvals.json`] = botExecApprovalsContent(botIndex);
       files[`${base}/.openclaw/auth-profiles.json`] = botAuthProfilesContent(botIndex);
-      if (is9Router) files[`${base}/.openclaw/9router-smart-route-sync.js`] = native9RouterSyncScriptContent();
+      if (is9Router) files[`${base}/.9router/9router-smart-route-sync.js`] = native9RouterSyncScriptContent();
       files[`${base}/.openclaw/agents/${agentId}.yaml`] = botAgentYamlContent(botIndex);
       files[`${base}/.openclaw/agents/${agentId}/agent/auth-profiles.json`] = botAuthProfilesContent(botIndex);
       Object.entries(botWorkspaceFiles(botIndex)).forEach(([name, content]) => {
@@ -3962,6 +3999,9 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       return Object.fromEntries(Object.entries(files).map(([relPath, content]) => {
         const normalized = relPath.replace(/\\/g, '/');
         if (normalized === '.env') return ['%PROJECT_DIR%\\.env', content];
+        if (normalized.startsWith('.9router/')) {
+          return [`%DATA_DIR%\\${normalized.slice('.9router/'.length).replace(/\//g, '\\')}`, content];
+        }
         if (normalized.startsWith('.openclaw/')) {
           return [`%OPENCLAW_HOME%\\${normalized.slice('.openclaw/'.length).replace(/\//g, '\\')}`, content];
         }
@@ -4008,12 +4048,14 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       }
       if (pluginCmd) { lines.push('echo Cai plugins...'); lines.push(pluginCmd); }
       lines.push('if not exist "%OPENCLAW_HOME%" mkdir "%OPENCLAW_HOME%"');
-      lines.push('if not exist "%DATA_DIR%" mkdir "%DATA_DIR%"');
+      // DATA_DIR creation + db.json pre-seeding is handled inside providerLines() for 9Router.
+      // For non-9Router providers we still ensure the folder exists.
+      if (!is9Router) lines.push('if not exist "%DATA_DIR%" mkdir "%DATA_DIR%"');
 
       if (isMultiBot) {
         lines.push('echo [4/5] Tao runtime multi-agent dung chung...');
         appendBatWriteCommands(lines, mapWindowsNativeFiles(sharedNativeFileMap()));
-        if (is9Router) lines.push(windowsHiddenNodeLaunch('%OPENCLAW_HOME%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
+        if (is9Router) lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
         lines.push('if not exist "%OPENCLAW_HOME%\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\openclaw.json" && goto :fail)');
         lines.push('echo.');
         lines.push('echo OpenClaw Dashboard: http://127.0.0.1:18791');
@@ -4032,7 +4074,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
           lines.push('echo Cho gateway khoi dong (15 giay)...');
           lines.push('timeout /t 15 /nobreak >nul');
           lines.push('echo [6/6] Dang nhap Zalo - dang tao ma QR...');
-          lines.push('openclaw channels login --channel zalouser --verbose');
+          lines.push('openclaw channels login --channel zalouser --instance default --verbose');
           lines.push('echo.');
           // Copy QR PNG from TEMP to project dir so user can open it easily
           lines.push('set "QR_TMP=%TEMP%\\openclaw\\openclaw-zalouser-qr-default.png"');
@@ -4040,7 +4082,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
           lines.push('  copy /y "%QR_TMP%" "%PROJECT_DIR%\\zalo-login-qr.png" >nul');
           lines.push('  echo ===================================================');
           lines.push('  echo Ma QR Zalo da duoc luu tai:');
-          lines.push('  echo   %PROJECT_DIR%\zalo-login-qr.png');
+          lines.push('  echo   %PROJECT_DIR%\\zalo-login-qr.png');
           lines.push('  echo Mo file anh tren r dung Zalo quet de dang nhap!');
           lines.push('  echo ===================================================');
           lines.push('  start "" "%PROJECT_DIR%\\zalo-login-qr.png"');
@@ -4053,10 +4095,80 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
           lines.push('echo [5/5] Khoi dong gateway multi-bot...');
           lines.push('call openclaw gateway run');
         }
-      } else {
-        lines.push('echo [4/5] Tao file cau hinh...');
-        appendBatWriteCommands(lines, mapWindowsNativeFiles(botFiles(0)));
-        if (is9Router) lines.push(windowsHiddenNodeLaunch('%OPENCLAW_HOME%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
+      } else if (isComboChannel) {
+        // ── Combo: Telegram + Zalo Personal — 2 bots, 1 gateway ─────────────
+        lines.push('echo [4/5] Tao file cau hinh cho 2 bot (Telegram + Zalo Personal)...');
+        // Bot 0 = Telegram bot
+        const bot0Files = botFiles(0);
+        // Bot 1 = Zalo bot (same workspace root, separate agent/workspace dirs)
+        const bot1 = state.bots[1] || {};
+        const zaloName = bot1.name || 'Zalo Bot';
+        const zaloDesc = bot1.desc || (isVi ? 'Tro ly Zalo ca nhan' : 'Personal Zalo assistant');
+        const zaloPersona = bot1.persona || '';
+        const zaloAgentId = zaloName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'zalo-bot';
+        const bot0Name = (state.bots[0] || {}).name || 'Bot 1';
+        const bot0AgentId = bot0Name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'bot-1';
+        // Merge bot0's config to also include zalo agent in agents.list + bindings
+        const mergedConfig = JSON.parse(bot0Files['./.openclaw/openclaw.json'] || '{}');
+        if (!mergedConfig.agents) mergedConfig.agents = { defaults: {}, list: [] };
+        if (!Array.isArray(mergedConfig.agents.list)) mergedConfig.agents.list = [];
+        // Add Zalo agent to list if not already there
+        const hasZaloInList = mergedConfig.agents.list.some(a => a.id === zaloAgentId);
+        if (!hasZaloInList) {
+          mergedConfig.agents.list.push({
+            id: zaloAgentId,
+            name: zaloName,
+            workspace: `.openclaw/workspace-${zaloAgentId}`,
+            agentDir: `agents/${zaloAgentId}/agent`,
+            model: { primary: (bot1.model || state.config.model) },
+          });
+        }
+        // Ensure bindings exist
+        if (!Array.isArray(mergedConfig.bindings)) mergedConfig.bindings = [];
+        // Bind Telegram bot to bot0
+        const hasTelegramBinding = mergedConfig.bindings.some(b => b && b.match && b.match.channel === 'telegram');
+        if (!hasTelegramBinding) {
+          mergedConfig.bindings.push({ agentId: bot0AgentId, match: { channel: 'telegram', accountId: 'default' } });
+        }
+        // Bind Zalo channel to zalo agent
+        const hasZaloBinding = mergedConfig.bindings.some(b => b && b.match && b.match.channel === 'zalouser');
+        if (!hasZaloBinding) {
+          mergedConfig.bindings.push({ agentId: zaloAgentId, match: { channel: 'zalouser', accountId: 'default' } });
+        }
+        // Ensure zalouser channel is in config
+        if (!mergedConfig.channels) mergedConfig.channels = {};
+        if (!mergedConfig.channels.zalouser) {
+          mergedConfig.channels.zalouser = { enabled: true, dmPolicy: 'open', autoReply: true };
+        }
+        bot0Files['./.openclaw/openclaw.json'] = JSON.stringify(mergedConfig, null, 2);
+        appendBatWriteCommands(lines, mapWindowsNativeFiles(bot0Files));
+        // Zalo agent YAML
+        const zaloAgentYaml = `name: ${zaloAgentId}\ndescription: "${zaloDesc}"\n\nmodel:\n  primary: ${bot1.model || state.config.model}`;
+        const zaloWorkspaceDir = `workspace-${zaloAgentId}`;
+        const zaloFiles = {
+          [`.openclaw/agents/${zaloAgentId}.yaml`]: zaloAgentYaml,
+          [`.openclaw/agents/${zaloAgentId}/agent/auth-profiles.json`]: sharedNativeAuthProfilesContent(),
+          [`.openclaw/${zaloWorkspaceDir}/IDENTITY.md`]: isVi
+            ? `# Danh tinh\n\n- **Ten:** ${zaloName}\n- **Vai tro:** ${zaloDesc}\n\n---\n\nMinh la **${zaloName}**. Khi ai hoi ten, minh tra loi: _"Minh la ${zaloName}"_.`
+            : `# Identity\n\n- **Name:** ${zaloName}\n- **Role:** ${zaloDesc}\n\n---\n\nI am **${zaloName}**. When asked my name, I answer: _"I'm ${zaloName}"_.`,
+          [`.openclaw/${zaloWorkspaceDir}/SOUL.md`]: isVi
+            ? `# Tinh cach\n\n**Huu ich that su.** Bo qua cau ne, cu giup thang.\n**Co ca tinh.** Tro ly khong co ca tinh thi chi la cong cu.\n\n## Phong cach\n- Tu nhien, gan gui\n- Truc tiep, ngan gon${zaloPersona ? `\n\n## Custom Rules\n${zaloPersona}` : ''}`
+            : `# Soul\n\n**Be genuinely helpful.** Skip filler and just help.\n**Have personality.** An assistant with no personality is just a tool.\n\n## Style\n- Natural and concise\n- Direct and practical${zaloPersona ? `\n\n## Custom Rules\n${zaloPersona}` : ''}`,
+          [`.openclaw/${zaloWorkspaceDir}/AGENTS.md`]: isVi
+            ? `# Huong dan van hanh\n\n## Vai tro\nBan la **${zaloName}**, ${zaloDesc.toLowerCase()}.\n\n## Kenh Zalo Personal\n- Ban hoat dong tren kenh Zalo Personal (zca-js).\n- Tra loi moi tin nhan DM theo chinh sach dmPolicy: open.\n- Khong can duoc goi ten moi tra loi (DM la rieng tu).\n\n## Quy tac tra loi\n- Tra loi ngan gon, suc tich\n- Uu tien tieng Viet\n- Khi hoi ten: _"Minh la ${zaloName}"_\n- Khong bia thong tin`
+            : `# Operating Manual\n\n## Role\nYou are **${zaloName}**, ${zaloDesc.toLowerCase()}.\n\n## Zalo Personal Channel\n- You operate on the Zalo Personal channel (zca-js).\n- Reply to all DMs with dmPolicy: open.\n- DMs are private — no need to be mentioned to reply.\n\n## Reply Rules\n- Be concise\n- Prefer Vietnamese\n- When asked your name: _"I'm ${zaloName}"_\n- Never fabricate information`,
+          [`.openclaw/${zaloWorkspaceDir}/TEAM.md`]: isVi
+            ? `# Doi Bot\n\n## ${bot0Name}\n- Vai tro: ${(state.bots[0] || {}).desc || 'Tro ly Telegram'}\n- Kenh: Telegram\n\n## ${zaloName}\n- Vai tro: ${zaloDesc}\n- Kenh: Zalo Personal`
+            : `# Bot Team\n\n## ${bot0Name}\n- Role: ${(state.bots[0] || {}).desc || 'Telegram assistant'}\n- Channel: Telegram\n\n## ${zaloName}\n- Role: ${zaloDesc}\n- Channel: Zalo Personal`,
+          [`.openclaw/${zaloWorkspaceDir}/USER.md`]: isVi
+            ? `# Thong tin nguoi dung\n\n## Tong quan\n- **Ngon ngu uu tien:** Tieng Viet\n\n## Thong tin ca nhan\n${state.config.userInfo || '- _(Chua co gi)_'}`
+            : `# User Profile\n\n## Overview\n- **Preferred language:** Vietnamese\n\n## Notes\n${state.config.userInfo || '- _(Nothing yet)_'}`,
+          [`.openclaw/${zaloWorkspaceDir}/MEMORY.md`]: isVi
+            ? `# Bo nho dai han\n\n## Ghi chu\n- _(Chua co gi)_`
+            : `# Long-term Memory\n\n## Notes\n- _(Nothing yet)_`,
+        };
+        appendBatWriteCommands(lines, mapWindowsNativeFiles(zaloFiles));
+        if (is9Router) lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
         lines.push('if not exist "%OPENCLAW_HOME%\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\openclaw.json" && goto :fail)');
         lines.push('echo.');
         lines.push('echo OpenClaw Dashboard: http://127.0.0.1:18791');
@@ -4067,7 +4179,31 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
           lines.push('echo 9Router Dashboard: http://127.0.0.1:20128/dashboard');
           lines.push('echo Other reachable URLs: http://localhost:20128/dashboard');
         }
-        const needsZaloLogin = state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal';
+        lines.push('echo [5/6] Khoi dong gateway (cua so moi) de chuan bi dang nhap Zalo...');
+        lines.push('start "OpenClaw Gateway" cmd /c "cd /d %PROJECT_DIR% && set OPENCLAW_HOME=%OPENCLAW_HOME% && set OPENCLAW_STATE_DIR=%OPENCLAW_HOME% && openclaw gateway run"');
+        lines.push('echo Cho gateway khoi dong (15 giay)...');
+        lines.push('timeout /t 15 /nobreak >nul');
+        lines.push('echo [6/6] Dang nhap Zalo - dang tao ma QR...');
+        lines.push('echo.');
+        lines.push('set "QR_TMP=%TEMP%\\openclaw\\openclaw-zalouser-qr-default.png"');
+        lines.push('start "Zalo Login" cmd /k "cd /d \"%PROJECT_DIR%\" && set OPENCLAW_HOME=%OPENCLAW_HOME% && set OPENCLAW_STATE_DIR=%OPENCLAW_HOME% && openclaw channels login --channel zalouser --verbose"');
+        lines.push('echo Doi QR hien ra trong cua so Zalo Login roi dung app Zalo quet.');
+        lines.push('echo Sau khi quet thanh cong, dong cua so Zalo Login va gateway roi chay lai: openclaw gateway run');
+      } else {
+        lines.push('echo [4/5] Tao file cau hinh...');
+        appendBatWriteCommands(lines, mapWindowsNativeFiles(botFiles(0)));
+        if (is9Router) lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
+        lines.push('if not exist "%OPENCLAW_HOME%\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\openclaw.json" && goto :fail)');
+        lines.push('echo.');
+        lines.push('echo OpenClaw Dashboard: http://127.0.0.1:18791');
+        lines.push('echo Other reachable URLs: http://localhost:18791');
+        lines.push('echo If the dashboard asks for a Gateway Token, run: openclaw dashboard');
+        if (is9Router) {
+          lines.push('echo.');
+          lines.push('echo 9Router Dashboard: http://127.0.0.1:20128/dashboard');
+          lines.push('echo Other reachable URLs: http://localhost:20128/dashboard');
+        }
+        const needsZaloLogin = state.channel === 'zalo-personal';
         if (needsZaloLogin) {
           lines.push('echo [5/6] Khoi dong gateway (cua so moi) de chuan bi dang nhap Zalo...');
           lines.push('start "OpenClaw Gateway" cmd /c "cd /d %PROJECT_DIR% && set OPENCLAW_HOME=%OPENCLAW_HOME% && set OPENCLAW_STATE_DIR=%OPENCLAW_HOME% && openclaw gateway run"');
@@ -4298,17 +4434,294 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
 
 
 
+  // ========== Generate Uninstall Script ==========
+  function generateUninstallScript() {
+    const os = state.nativeOs || 'win';
+    const isDocker = state.deployMode === 'docker';
+    const projectDirRaw = document.getElementById('cfg-project-path')?.value?.trim() || '.';
+    // Normalise to a sensible display path
+    const projectDir = projectDirRaw;
+    const absWin = projectDir.replace(/\//g, '\\');
+    const absUnix = projectDir.replace(/\\/g, '/');
+    const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    // ── Windows native .bat ────────────────────────────────────────────────────
+    if (os === 'win' && !isDocker) {
+      return {
+        name: 'uninstall-openclaw-win.bat',
+        content: `@echo off
+setlocal EnableExtensions
+chcp 65001 >nul
+echo.
+echo ============================================================
+echo   OpenClaw Uninstaller - Windows Native
+echo   Project: ${absWin}
+echo ============================================================
+echo.
+echo [WARNING] This will:
+echo   1. Kill openclaw and 9router background processes
+echo   2. Uninstall global npm packages (openclaw, 9router)
+echo   3. Delete the project folder and all its data
+echo.
+set /p CONFIRM=Nhap YES de xac nhan xoa toan bo: 
+if /i not "%CONFIRM%"=="YES" (
+  echo Huy bo. Khong xoa gi ca.
+  pause
+  exit /b 0
+)
+echo.
+echo [1/4] Dang dung cac tien trinh openclaw va 9router...
+taskkill /F /IM openclaw.exe >nul 2>&1
+taskkill /F /IM 9router.exe  >nul 2>&1
+powershell -NoProfile -Command "Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*${absWin.split('\\').join('\\\\')}*' } | Stop-Process -Force" >nul 2>&1
+powershell -NoProfile -Command "& { $p=@(18791,20128); foreach($port in $p){ $id=(netstat -ano | Select-String \\\":\\$($port) \\\").Line -split ' +' | Select-Object -Last 1; if($id -and $id -ne '0'){ Stop-Process -Id $id -Force -ErrorAction SilentlyContinue } } }" >nul 2>&1
+echo    OK: Tien trinh da dung.
+echo.
+echo [2/4] Dang go cai npm packages toan cau...
+set "PATH=%APPDATA%\\npm;%PATH%"
+call npm uninstall -g openclaw 9router grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>nul
+echo    OK: npm packages da duoc go cai.
+echo.
+echo [3/4] Xoa thu muc project...
+set "TARGET=${absWin}"
+if exist "%TARGET%" (
+  rd /s /q "%TARGET%"
+  echo    OK: Da xoa %TARGET%
+) else (
+  echo    INFO: Thu muc khong ton tai: %TARGET%
+)
+echo.
+echo [4/4] Xoa thu muc .9router trong Home (neu co)...
+if exist "%USERPROFILE%\\.9router" (
+  set /p CLEAN_HOME=Xoa ca %USERPROFILE%\\.9router? [YES/no]: 
+  if /i "%CLEAN_HOME%"=="YES" rd /s /q "%USERPROFILE%\\.9router" >nul 2>&1
+)
+echo.
+echo ============================================================
+echo   Go cai hoan tat!
+echo   De cai lai: chay lai file setup hoac npx create-openclaw-bot
+echo ============================================================
+pause
+endlocal
+`
+      };
+    }
+
+    // ── Windows Docker .bat ────────────────────────────────────────────────────
+    if (os === 'win' && isDocker) {
+      return {
+        name: 'uninstall-openclaw-docker.bat',
+        content: `@echo off
+setlocal EnableExtensions
+chcp 65001 >nul
+echo.
+echo ============================================================
+echo   OpenClaw Uninstaller - Docker (Windows)
+echo   Project: ${absWin}
+echo ============================================================
+echo.
+echo [WARNING] This will stop Docker containers and delete the project folder.
+echo.
+set /p CONFIRM=Nhap YES de xac nhan xoa toan bo: 
+if /i not "%CONFIRM%"=="YES" (
+  echo Huy bo. Khong xoa gi ca.
+  pause
+  exit /b 0
+)
+echo.
+echo [1/2] Dang dung Docker containers...
+cd /d "${absWin}\docker\openclaw" 2>nul && (
+  docker compose down --volumes --remove-orphans 2>nul || docker-compose down --volumes --remove-orphans 2>nul
+  echo    OK: Containers da dung.
+) || echo    INFO: Khong tim thay docker compose.
+echo.
+echo [2/2] Xoa thu muc project...
+cd /d "%USERPROFILE%"
+if exist "${absWin}" (
+  rd /s /q "${absWin}"
+  echo    OK: Da xoa ${absWin}
+)
+echo.
+echo ============================================================
+echo   Go cai hoan tat! De cai lai: npx create-openclaw-bot@latest
+echo ============================================================
+pause
+endlocal
+`
+      };
+    }
+
+    // ── VPS / PM2 .sh ─────────────────────────────────────────────────────────
+    if (os === 'vps') {
+      return {
+        name: 'uninstall-openclaw-vps.sh',
+        content: `#!/usr/bin/env bash
+# ====== OpenClaw Uninstaller — VPS / Ubuntu Server (PM2) ======
+set -e
+PROJECT_DIR="${absUnix}"
+APP_NAME="${botName}"
+
+echo ""
+echo "============================================================"
+echo "  OpenClaw Uninstaller — VPS / Ubuntu Server"
+echo "  Project: $PROJECT_DIR"
+echo "  PM2 app: $APP_NAME"
+echo "============================================================"
+echo ""
+read -rp "Type YES to confirm full removal: " CONFIRM
+if [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi
+
+echo "[1/5] Stopping PM2 processes..."
+if command -v pm2 &>/dev/null; then
+  pm2 delete "$APP_NAME" "$APP_NAME-9router" "$APP_NAME-9router-sync" openclaw openclaw-multibot 2>/dev/null || true
+  pm2 save --force 2>/dev/null || true
+fi
+
+echo "[2/5] Killing leftover processes on ports 18791 / 20128..."
+for port in 18791 20128; do
+  pid=$(lsof -ti tcp:\$port 2>/dev/null || true)
+  [ -n "\$pid" ] && kill -9 \$pid 2>/dev/null || true
+done
+
+echo "[3/5] Uninstalling npm packages..."
+npm uninstall -g openclaw 9router pm2 grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true
+
+echo "[4/5] Removing project directory..."
+[ -d "\$PROJECT_DIR" ] && rm -rf "\$PROJECT_DIR" && echo "   OK: Deleted \$PROJECT_DIR" || echo "   INFO: Not found."
+
+echo "[5/5] Checking home-level .9router / .openclaw..."
+for dir in "\$HOME/.9router" "\$HOME/.openclaw"; do
+  if [ -d "\$dir" ]; then
+    read -rp "Delete \$dir ? [YES/no]: " CLEAN
+    [ "\$CLEAN" = "YES" ] && rm -rf "\$dir" && echo "   OK: Deleted \$dir" || echo "   Kept: \$dir"
+  fi
+done
+
+echo ""
+echo "============================================================"
+echo "  Uninstall complete! Re-install: npx create-openclaw-bot@latest"
+echo "============================================================"
+`
+      };
+    }
+
+    // ── macOS / Linux Desktop .sh ──────────────────────────────────────────────
+    if (os === 'linux' || os === 'linux-desktop') {
+      const label = os === 'linux' ? 'macOS' : 'Linux Desktop';
+      return {
+        name: 'uninstall-openclaw.sh',
+        content: `#!/usr/bin/env bash
+# ====== OpenClaw Uninstaller — ${label} (Native) ======
+set -e
+PROJECT_DIR="${absUnix}"
+
+echo ""
+echo "============================================================"
+echo "  OpenClaw Uninstaller — ${label} Native"
+echo "  Project: $PROJECT_DIR"
+echo "============================================================"
+echo ""
+read -rp "Type YES to confirm full removal: " CONFIRM
+if [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi
+
+echo "[1/4] Stopping openclaw and 9router processes..."
+pkill -f "openclaw gateway run" 2>/dev/null || true
+pkill -f "9router.*20128"       2>/dev/null || true
+pkill -f "9router-smart-route"  2>/dev/null || true
+pkill -f "\$PROJECT_DIR"         2>/dev/null || true
+for port in 18791 20128; do
+  pid=$(lsof -ti tcp:\$port 2>/dev/null || true)
+  [ -n "\$pid" ] && kill -9 \$pid 2>/dev/null || true
+done
+
+echo "[2/4] Uninstalling npm packages..."
+npm uninstall -g openclaw 9router grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true
+sudo npm uninstall -g openclaw 9router 2>/dev/null || true
+
+echo "[3/4] Removing project directory..."
+[ -d "\$PROJECT_DIR" ] && rm -rf "\$PROJECT_DIR" && echo "   OK: Deleted \$PROJECT_DIR" || echo "   INFO: Not found."
+
+echo "[4/4] Checking home-level .9router / .openclaw..."
+for dir in "\$HOME/.9router" "\$HOME/.openclaw"; do
+  if [ -d "\$dir" ]; then
+    read -rp "Delete \$dir ? [YES/no]: " CLEAN
+    [ "\$CLEAN" = "YES" ] && rm -rf "\$dir" && echo "   OK: Deleted \$dir" || echo "   Kept: \$dir"
+  fi
+done
+
+echo ""
+echo "============================================================"
+echo "  Uninstall complete! Re-install: run setup script or npx create-openclaw-bot"
+echo "============================================================"
+`
+      };
+    }
+
+    // ── Docker macOS/Linux/VPS .sh ─────────────────────────────────────────────
+    if (isDocker) {
+      return {
+        name: 'uninstall-openclaw-docker.sh',
+        content: `#!/usr/bin/env bash
+# ====== OpenClaw Uninstaller — Docker ======
+set -e
+PROJECT_DIR="${absUnix}"
+DOCKER_DIR="$PROJECT_DIR/docker/openclaw"
+
+echo ""
+echo "============================================================"
+echo "  OpenClaw Uninstaller — Docker"
+echo "  Project: $PROJECT_DIR"
+echo "============================================================"
+echo ""
+read -rp "Type YES to confirm full removal: " CONFIRM
+if [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi
+
+echo "[1/3] Stopping Docker containers and removing volumes..."
+if [ -d "\$DOCKER_DIR" ] && command -v docker &>/dev/null; then
+  cd "\$DOCKER_DIR"
+  docker compose down --volumes --remove-orphans 2>/dev/null || docker-compose down --volumes --remove-orphans 2>/dev/null || true
+fi
+
+echo "[2/3] Removing project directory..."
+[ -d "\$PROJECT_DIR" ] && rm -rf "\$PROJECT_DIR" && echo "   OK: Deleted \$PROJECT_DIR" || echo "   INFO: Not found."
+
+echo "[3/3] Checking home-level .openclaw..."
+if [ -d "\$HOME/.openclaw" ]; then
+  read -rp "Delete \$HOME/.openclaw? [YES/no]: " CLEAN
+  [ "\$CLEAN" = "YES" ] && rm -rf "\$HOME/.openclaw" && echo "   OK." || echo "   Kept."
+fi
+
+echo ""
+echo "============================================================"
+echo "  Uninstall complete! Re-install: npx create-openclaw-bot@latest"
+echo "============================================================"
+`
+      };
+    }
+
+    return null;
+  }
+
+  function _triggerDownload(filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType || 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.style.display = 'none';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+  }
+
   window.downloadNativeScript = function() {
     // Regenerate output first so the downloaded script always matches the latest wizard state.
     generateOutput();
     const script = window._nativeScript;
     if (!script) return;
-    const blob = new Blob([script.content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = script.name; a.style.display = 'none';
-    document.body.appendChild(a); a.click();
-    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    _triggerDownload(script.name, script.content, 'text/plain;charset=utf-8');
+    // Also download the matching uninstall script right after
+    const uninstall = generateUninstallScript();
+    if (uninstall) {
+      setTimeout(() => _triggerDownload(uninstall.name, uninstall.content, 'text/plain;charset=utf-8'), 600);
+    }
   };
 
   // ========== Generate Windows Auto Setup .bat ==========
@@ -4407,7 +4820,7 @@ Write-Host "  🎉 ${isVi ? 'Setup hoan tat!' : 'Setup complete!'}" -ForegroundC
       ps += `Write-Host "  ${isVi ? 'Mo http://localhost:30128/dashboard de login OAuth' : 'Open http://localhost:30128/dashboard to login OAuth'}" -ForegroundColor White\n`;
     }
     if (state.channel === 'zalo-personal' || state.channel === 'telegram+zalo-personal') {
-      ps += `Write-Host "  ${isVi ? 'Chay: docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose' : 'Run: docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose'}" -ForegroundColor White\n`;
+      ps += `Write-Host "  ${isVi ? 'Chay: docker compose exec -it ai-bot openclaw channels login --channel zalouser --instance default --verbose' : 'Run: docker compose exec -it ai-bot openclaw channels login --channel zalouser --instance default --verbose'}" -ForegroundColor White\n`;
       ps += `Write-Host "  ${isVi ? 'QR se nam tai /tmp/openclaw/openclaw-zalouser-qr-default.png' : 'QR will be written to /tmp/openclaw/openclaw-zalouser-qr-default.png'}" -ForegroundColor DarkGray\n`;
       ps += `Write-Host "  ${isVi ? 'Copy QR ra ngoai: docker compose cp ai-bot:/tmp/openclaw/openclaw-zalouser-qr-default.png ./zalo-login-qr.png' : 'Copy the QR out: docker compose cp ai-bot:/tmp/openclaw/openclaw-zalouser-qr-default.png ./zalo-login-qr.png'}" -ForegroundColor DarkGray\n`;
     }
@@ -4588,7 +5001,7 @@ echo ""
 
   function generateZaloOnboardGuide() {
     const lang = document.getElementById('cfg-language')?.value || 'vi';
-    setOutput('out-zalo-onboard-cmd', `docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose`);
+    setOutput('out-zalo-onboard-cmd', `docker compose exec -it ai-bot openclaw channels login --channel zalouser --instance default --verbose`);
 
     if (lang === 'vi') {
       setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
@@ -4659,6 +5072,18 @@ echo ""
     Object.entries(state._generatedFiles).forEach(([path, content]) => {
       zip.file(path, content);
     });
+
+    // Include the native setup script (if native mode)
+    const nativeScript = window._nativeScript;
+    if (nativeScript && nativeScript.name && nativeScript.content) {
+      zip.file(nativeScript.name, nativeScript.content);
+    }
+
+    // Include the matching uninstall script
+    const uninstall = generateUninstallScript();
+    if (uninstall && uninstall.name && uninstall.content) {
+      zip.file(uninstall.name, uninstall.content);
+    }
 
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);

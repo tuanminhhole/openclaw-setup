@@ -1,6 +1,23 @@
 # Changelog (English)
 
 
+## [5.3.3] — 2026-04-11
+
+### 🧹 Automated Uninstall Scripts
+
+- **Wizard UI Generation**: The HTML setup wizard now generates a matching `uninstall-openclaw-*.bat/sh` script when downloading the configuration for Native or Docker deployments.
+- **Complete Cleanup**: The generated scripts cleanly kill 9Router/OpenClaw background processes, uninstall global npm packages, and safely remove the project and `.9router` data directories, allowing for a fresh start whenever needed.
+
+
+
+## [5.3.2] — 2026-04-11
+
+### 🐛 Windows Native — 9Router Launch Stability
+
+- **Fix: Remove `-l` (stdin listen) flag from native 9Router launch** — `resolveNative9RouterDesktopLaunch()` previously passed `-l` which puts 9Router into interactive REPL mode. When spawned as a background process (no TTY), this caused the process to hang waiting for stdin input. Removed the flag; 9Router now starts reliably in the background on Windows, macOS desktop, and any non-VPS native flow.
+- **Fix: Pre-seed `DATA_DIR/.9router/db.json` with `requireLogin: false` before 9Router starts** — If `db.json` does not exist when 9Router boots, it uses its own default path (`~/.9router`) and defaults `requireLogin` to `true`, causing the dashboard login wall. The CLI wizard now creates the `.9router` directory and writes a minimal `db.json` (with `requireLogin: false`) **before** spawning 9Router, matching the behavior of the fixed `setup-openclaw-win.bat` batch file.
+- **No change to PM2/VPS flow** — The fix applies only to the desktop/background spawn path (`osChoice !== 'vps'`). VPS users still use the existing PM2-managed `startNative9RouterPm2` flow which is unaffected.
+
 ## [5.3.1] — 2026-04-10
 
 ### 🌟 Zalo Personal DM Policy
