@@ -1,6 +1,23 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.3.3] — 2026-04-11
+
+### 🧹 Tự Động Tạo Script Gỡ Cài Đặt
+
+- **Tính Năng Wizard UI**: Giao diện HTML wizard giờ đây sẽ tự động tải thêm một file script dọn dẹp hệ thống (`uninstall-openclaw-*.bat/sh`) mỗi khi tải file cài đặt cho Native hoặc Docker.
+- **Dọn Dẹp Triệt Để**: Các script này giúp dừng sạch sẽ các tiến trình nền của 9Router/OpenClaw, gỡ cài đặt các gói npm toàn cầu và xoá an toàn thư mục project cũng như data `.9router`, giúp bạn làm sạch máy để cài đặt lại dễ dàng.
+
+
+
+## [5.3.2] — 2026-04-11
+
+### 🐛 Windows Native — Sửa Lỗi Khởi Động 9Router
+
+- **Sửa: Bỏ flag `-l` (chế độ đọc stdin) khỏi lệnh launch 9Router** — `resolveNative9RouterDesktopLaunch()` trước đây truyền `-l` khiến 9Router chạy ở chế độ REPL tương tác. Khi chạy ẩn (không có TTY), tiến trình bị treo chờ stdin mà không bao giờ nhận được. Đã bỏ flag; 9Router giờ khởi động ổn định ở nền trên Windows, macOS desktop và mọi luồng native không phải VPS.
+- **Sửa: Pre-seed `DATA_DIR/.9router/db.json` với `requireLogin: false` trước khi 9Router khởi động** — Nếu `db.json` chưa tồn tại khi 9Router khởi chạy, nó dùng đường dẫn mặc định của riêng mình (`~/.9router`) và đặt `requireLogin` là `true`, gây ra màn hình login khi mở dashboard. CLI wizard giờ tạo thư mục `.9router` và ghi sẵn `db.json` (với `requireLogin: false`) **trước** khi spawn 9Router, khớp với hành vi của file `setup-openclaw-win.bat` đã được sửa.
+- **Không thay đổi luồng PM2/VPS** — Fix chỉ áp dụng cho path spawn nền của desktop (`osChoice !== 'vps'`). Người dùng VPS vẫn dùng luồng PM2 `startNative9RouterPm2` hiện tại, không bị ảnh hưởng.
+
 ## [5.3.1] — 2026-04-10
 
 ### 🌟 Đổi Chính Sách Bảo Mật Zalo Personal

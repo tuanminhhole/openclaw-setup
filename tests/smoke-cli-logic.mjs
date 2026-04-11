@@ -269,7 +269,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*resolveCommandOnPath\('9router'\)[\s\S]*command: routerBin[\s\S]*args: \['-n', '-l', '-H', '0\.0\.0\.0', '-p', '20128', '--skip-update'\][\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'/s,
+  /function resolveNative9RouterDesktopLaunch\(\) \{[\s\S]*resolveCommandOnPath\('9router'\)[\s\S]*command: routerBin[\s\S]*args: \['-n', '-H', '0\.0\.0\.0', '-p', '20128', '--skip-update'\][\s\S]*PORT: '20128'[\s\S]*HOSTNAME: '0\.0\.0\.0'/s,
   'Native desktop 9Router launch must use the 9router CLI binary directly with server args to bypass the interactive menu'
 ));
 
@@ -391,12 +391,11 @@ checks.push(() => expect(
     && setup.includes('function native9RouterServerEntryLookup() {')
     && setup.includes('return "node -e ')
     && !setup.includes('return "node -p ')
-    && setup.includes("start \"9Router Dashboard\" /min cmd /c")
-    && setup.includes("9router -n -l -H 0.0.0.0 -p 20128 --skip-update")
+    && setup.includes("oc-start9r.ps1")  // Windows: writes temp PS1 launcher to avoid CMD→PS quoting issues
     && setup.includes('NINE_ROUTER_BIN="$(command -v 9router)"')
-    && setup.includes('"$NINE_ROUTER_BIN" -n -l -H 0.0.0.0 -p 20128 --skip-update')
+    && setup.includes('"$NINE_ROUTER_BIN" -n -H 0.0.0.0 -p 20128 --skip-update')
     && setup.includes("const p=path.join(process.env.DATA_DIR||'.9router','db.json');")
-    && setup.includes('nohup env DATA_DIR="$PWD/.9router" node ./.openclaw/9router-smart-route-sync.js >/tmp/9router-sync.log 2>&1 &')
+    && setup.includes('nohup env DATA_DIR="$PWD/.9router" node ./.9router/9router-smart-route-sync.js > /tmp/9router-sync.log 2>&1 &')
     && setup.includes('set "PROJECT_DIR=')
     && setup.includes('set "OPENCLAW_HOME=%PROJECT_DIR%\\\\.openclaw"')
     && setup.includes('set "OPENCLAW_STATE_DIR=%PROJECT_DIR%\\\\.openclaw"')
@@ -434,8 +433,8 @@ checks.push(() => expect(
     && setup.includes("lines.push('echo Cai skills...');")
     && setup.includes("const openClawRuntimePackages = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';")
     && setup.includes("memory: 'none'")
-    && setup.includes("workspace: 'workspace'")
-    && setup.includes("workspace: meta.workspaceDir")
+    && setup.includes("workspace: '.openclaw/workspace'")
+    && setup.includes("workspace: '.openclaw/' + meta.workspaceDir")
     && !setup.includes("const authProviderName = provider.isProxy ? '9router' : provider.id;")
     && !setup.includes("const authProviderName = botProvider.isProxy ? '9router' : botProvider.id;"),
   'Wizard native config generation must keep gateway loopback-local, preserve concrete auth provider ids, disable memory search by default, and sync single-bot provider/model selections into bot state'
@@ -479,7 +478,7 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /\.openclaw\/9router-smart-route-sync\.js[\s\S]*pm2 start --name openclaw-9router-sync/s,
+  /\.9router\/9router-smart-route-sync\.js[\s\S]*pm2 start --name openclaw-9router-sync/s,
   'VPS native script generation must write and run the 9Router smart-route sync loop'
 ));
 
@@ -537,8 +536,8 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /Native setup now auto-runs the login flow and copies the QR into the project folder[\s\S]*docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*docker compose cp ai-bot:\/tmp\/openclaw\/openclaw-zalouser-qr-default\.png \.\/zalo-login-qr\.png/s,
-  'Wizard copy must mention native auto-login and still show the dedicated Docker QR login command'
+  /docker compose exec -it ai-bot openclaw channels login --channel zalouser[\s\S]*docker compose cp ai-bot:\/tmp\/openclaw\/openclaw-zalouser-qr-default\.png \.\/zalo-login-qr\.png/s,
+  'Wizard must show dedicated Docker Zalo login and QR copy commands'
 ));
 
 checks.push(() => expect(
@@ -565,6 +564,17 @@ checks.push(() => expectMatch(
   setup,
   /const patchCmd = `node -e \\\\"const fs=require\('fs'\),os=require\('os'\),p='\/root\/\.openclaw\/openclaw\.json';if\(fs\.existsSync\(p\)\)\{[\s\S]*allowedOrigins:Array\.from\(a\)/s,
   'Web wizard Docker patch command must add interface-based control UI allowed origins'
+));
+
+checks.push(() => expect(
+  setup.includes("echo [OK] OpenClaw da duoc cai dat thanh cong.")
+    && setup.includes("echo [OK] 9Router da duoc cai dat thanh cong."),
+  'Windows BAT must print install success messages after openclaw and 9router are installed'
+));
+
+checks.push(() => expect(
+  setup.includes("openclaw gateway stop 2>nul"),
+  'Windows Zalo flow must clear stale gateway lock (from channels login mini-runtime) before starting the main gateway'
 ));
 
 for (const check of checks) {
