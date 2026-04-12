@@ -1,6 +1,22 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.3.5] — 2026-04-12
+
+### 🐛 Sửa: Lỗi Syntax MEMORY.md trong Workspace Zalo
+
+- **Sửa: `SyntaxError: Unexpected token ':'` trong `setup.js`** — Patch TOOLS.md trước đó được chèn sau nhánh `vi` của ternary MEMORY.md, khiến nhánh `: en-value` bị bỏ lơ phía dưới. VS Code hiển thị badge đỏ số "7" trên `setup.js`. Đã fix; hai nhánh MEMORY.md nay liền kề nhau, TOOLS.md theo sau như property riêng biệt.
+
+### 🐟 Cải Tiến: Script Gỡ Cài Đặt Nằm Trong Thư Mục Project
+
+- **Tất cả 4 luồng native OS + Docker ZIP** giờ đều có sẵn file `uninstall-*.{bat,sh}` **trong thư mục project** ngay sau khi setup chạy xong. Trước đây uninstall chỉ có thể tải riêng từ trình duyệt. Pattern giống `start-chrome-debug.bat` / `.sh`:
+  - Windows native: `uninstall-openclaw-win.bat` viết qua `appendBatWriteCommands`
+  - macOS native: `uninstall-openclaw.sh` viết qua `appendShWriteCommands`
+  - VPS/Ubuntu: `uninstall-openclaw-vps.sh` viết qua `appendShWriteCommands`
+  - Linux Desktop: `uninstall-openclaw.sh` viết qua `appendShWriteCommands`
+  - Docker (mọi OS): uninstall script có trong ZIP generatedFiles
+
+
 ## [5.3.4] — 2026-04-12
 
 ### 🐛 Windows Native — Ổn Định Gateway & Workspace

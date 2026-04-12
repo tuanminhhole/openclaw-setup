@@ -1,7 +1,22 @@
 # Changelog (English)
 
 
-## [5.3.4] — 2026-04-12
+## [5.3.5] — 2026-04-12
+
+### 🐛 Fix: MEMORY.md Syntax Error in Zalo Workspace Files
+
+- **Fix: `SyntaxError: Unexpected token ':'` in `setup.js`** — the previous TOOLS.md patch was inserted after the `vi` ternary arm of MEMORY.md, orphaning the `: en-value` colon arm below it. VS Code showed this as 7 error badges on `setup.js`. Now fixed; both MEMORY.md arms are contiguous, then TOOLS.md follows as a clean separate property.
+
+### 🐟 Improvement: Uninstall Script Written to Project Folder
+
+- **All 4 OS native flows + Docker ZIP** now include the matching `uninstall-*.{bat,sh}` script **in the project folder** during setup. Previously the uninstall was only available as a separate browser download. Pattern mirrors `start-chrome-debug.bat` / `.sh`:
+  - Windows native: `uninstall-openclaw-win.bat` written via `appendBatWriteCommands`
+  - macOS native: `uninstall-openclaw.sh` written via `appendShWriteCommands`
+  - VPS/Ubuntu: `uninstall-openclaw-vps.sh` written via `appendShWriteCommands`
+  - Linux Desktop: `uninstall-openclaw.sh` written via `appendShWriteCommands`
+  - Docker (all OS): uninstall script included in the generatedFiles ZIP
+
+
 
 ### 🐛 Windows Native — Gateway & Workspace Stability
 

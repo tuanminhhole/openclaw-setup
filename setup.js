@@ -3086,6 +3086,9 @@ I am **${botName}**. When asked my name, I answer: _"I'm ${botName}"_.`;
         generatedFiles['start-chrome-debug.bat'] = chromeBatContent;
         generatedFiles['start-chrome-debug.sh'] = chromeShContent;
       }
+      // Include uninstall script in downloaded project files (same as start-chrome-debug pattern)
+      const _uninstallForZip = generateUninstallScript();
+      if (_uninstallForZip) generatedFiles[_uninstallForZip.name] = _uninstallForZip.content;
 
       state._generatedFiles = generatedFiles;
       if (isSharedMultiBot) {
@@ -4066,6 +4069,9 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       if (isMultiBot) {
         lines.push('echo [4/5] Tao runtime multi-agent dung chung...');
         appendBatWriteCommands(lines, mapWindowsNativeFiles(sharedNativeFileMap()));
+        // Write uninstall script to project folder
+        const _uninstallWinMulti = generateUninstallScript();
+        if (_uninstallWinMulti) appendBatWriteCommands(lines, mapWindowsNativeFiles({ [_uninstallWinMulti.name]: _uninstallWinMulti.content }));
         if (is9Router) lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
         lines.push('if not exist "%OPENCLAW_HOME%\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\openclaw.json" && goto :fail)');
         lines.push('echo.');
@@ -4252,6 +4258,9 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       } else {
         lines.push('echo [4/5] Tao file cau hinh...');
         appendBatWriteCommands(lines, mapWindowsNativeFiles(botFiles(0)));
+        // Write uninstall script to project folder
+        const _uninstallWin = generateUninstallScript();
+        if (_uninstallWin) appendBatWriteCommands(lines, mapWindowsNativeFiles({ [_uninstallWin.name]: _uninstallWin.content }));
         if (is9Router) lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
         lines.push('if not exist "%OPENCLAW_HOME%\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\openclaw.json" && goto :fail)');
         lines.push('echo.');
@@ -4376,10 +4385,14 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
 
         if (isMultiBot) {
           appendShWriteCommands(sh, sharedNativeFileMap());
+          const _uninstallMacMulti = generateUninstallScript();
+          if (_uninstallMacMulti) appendShWriteCommands(sh, { [_uninstallMacMulti.name]: _uninstallMacMulti.content });
           sh.push('echo "Starting shared multi-bot gateway..."');
           sh.push('openclaw gateway run');
         } else {
           appendShWriteCommands(sh, botFiles(0));
+          const _uninstallMac = generateUninstallScript();
+          if (_uninstallMac) appendShWriteCommands(sh, { [_uninstallMac.name]: _uninstallMac.content });
           sh.push('openclaw gateway run');
         }
         scriptContent = sh.filter(Boolean).join('\n');
@@ -4415,6 +4428,8 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       if (isMultiBot) {
         vps.push('echo "--- Creating shared multi-agent runtime ---"');
         appendShWriteCommands(vps, sharedNativeFileMap());
+        const _uninstallVpsMulti = generateUninstallScript();
+        if (_uninstallVpsMulti) appendShWriteCommands(vps, { [_uninstallVpsMulti.name]: _uninstallVpsMulti.content });
         vps.push('echo "--- Starting shared gateway via PM2 ---"');
         if (is9Router) {
           vps.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);
@@ -4430,6 +4445,8 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         vps.push(`echo "  pm2 logs openclaw-multibot"`);
       } else {
         appendShWriteCommands(vps, botFiles(0));
+        const _uninstallVps = generateUninstallScript();
+        if (_uninstallVps) appendShWriteCommands(vps, { [_uninstallVps.name]: _uninstallVps.content });
         if (is9Router) {
           vps.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);
           vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "$(command -v node)"');
@@ -4469,10 +4486,14 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
 
       if (isMultiBot) {
         appendShWriteCommands(lnx, sharedNativeFileMap());
+        const _uninstallLnxMulti = generateUninstallScript();
+        if (_uninstallLnxMulti) appendShWriteCommands(lnx, { [_uninstallLnxMulti.name]: _uninstallLnxMulti.content });
         lnx.push('echo "Starting shared multi-bot gateway..."');
         lnx.push('openclaw gateway run');
       } else {
         appendShWriteCommands(lnx, botFiles(0));
+        const _uninstallLnx = generateUninstallScript();
+        if (_uninstallLnx) appendShWriteCommands(lnx, { [_uninstallLnx.name]: _uninstallLnx.content });
         lnx.push('openclaw gateway run');
       }
       scriptContent = lnx.filter(Boolean).join('\n');
