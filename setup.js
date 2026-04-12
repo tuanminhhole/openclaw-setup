@@ -4189,10 +4189,10 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
             : `# User Profile\n\n## Overview\n- **Preferred language:** Vietnamese\n\n## Notes\n${state.config.userInfo || '- _(Nothing yet)_'}`,
           [`.openclaw/${zaloWorkspaceDir}/MEMORY.md`]: isVi
             ? `# Bo nho dai han\n\n## Ghi chu\n- _(Chua co gi)_`
+            : `# Long-term Memory\n\n## Notes\n- _(Nothing yet)_`,
           [`.openclaw/${zaloWorkspaceDir}/TOOLS.md`]: isVi
             ? `# Hướng dẫn sử dụng Tools\n\n## Skills đã cài\n${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(Chưa có skill nào)_'}\n\n## Quy ước\n- Ưu tiên dùng tool thay vì đoán\n- Browser: dùng khi user yêu cầu thao tác web\n- Memory: cập nhật khi biết thông tin quan trọng\n\n## Ghi chú thiết lập của bạn\n\nGhi lại cấu hình riêng của môi trường bạn, ví dụ:\n- Tên thiết bị, camera, SSH hosts\n- Giọng nói ưa thích (TTS)\n\n---\n\nThêm ghi chú nào giúp ích cho công việc của bạn.`
             : `# Tool Usage Guide\n\n## Installed Skills\n${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills installed)_'}\n\n## Conventions\n- Prefer tools over guessing\n- Use Browser for explicit web tasks\n- Update Memory when important user info appears\n\n## Your Setup Notes\n\nRecord environment-specific config, e.g.:\n- Device names, cameras, SSH hosts\n- Preferred TTS voice\n\n---\n\nAdd whatever helps you do your job.`,
-            : `# Long-term Memory\n\n## Notes\n- _(Nothing yet)_`,
         };
         appendBatWriteCommands(lines, mapWindowsNativeFiles(zaloFiles));
         if (is9Router) lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
