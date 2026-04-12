@@ -1933,7 +1933,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         },
         list: [{
           id: agentId,
-          workspace: '.openclaw/workspace',
+          workspace: `.openclaw/workspace-${agentId}`,
           agentDir: `agents/${agentId}/agent`,
           model: { primary: state.config.model, fallbacks: [] },
         }],
@@ -3022,7 +3022,7 @@ fi
         botConfig.agents.defaults.model = { primary: state.config.model, fallbacks: [] };
         botConfig.agents.list = [{
           id: botAgentId,
-          workspace: '.openclaw/workspace',
+          workspace: `.openclaw/workspace-${botAgentId}`,
           agentDir: `agents/${botAgentId}/agent`,
           model: { primary: state.config.model, fallbacks: [] },
         }];
@@ -3615,7 +3615,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
           },
           list: [{
             id: agentId,
-            workspace: '.openclaw/workspace',
+            workspace: `.openclaw/workspace-${agentId}`,
             agentDir: `agents/${agentId}/agent`,
             model: { primary: actualModel }
           }],
@@ -3916,7 +3916,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(Chưa có ski
 ## Quy ước
 - Ưu tiên dùng tool thay vì đoán
 - Browser: dùng khi user yêu cầu thao tác web
-- Memory: cập nhật khi biết thông tin quan trọng`
+- Memory: cập nhật khi biết thông tin quan trọng\n\n## Ghi chú thiết lập của bạn\n\nGhi lại cấu hình riêng của môi trường bạn, ví dụ:\n- Tên thiết bị, camera, SSH hosts\n- Giọng nói ưa thích (TTS)\n- Alias và shortcut\n\n---\n\nThêm ghi chú nào giúp ích cho công việc của bạn.`
         : `# Tool Usage Guide
 
 ## Installed Skills
@@ -3925,7 +3925,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
 ## Conventions
 - Prefer tools over guessing
 - Use Browser for explicit web tasks
-- Update Memory when important user info appears`;
+- Update Memory when important user info appears\n\n## Your Setup Notes\n\nRecord environment-specific config, e.g.:\n- Device names, cameras, SSH hosts\n- Preferred TTS voice\n- Aliases and shortcuts\n\n---\n\nAdd whatever helps you do your job.`;
       const memoryMd = isVi
         ? `# Bộ nhớ dài hạn
 
@@ -3967,7 +3967,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
       files[`${base}/.openclaw/agents/${agentId}.yaml`] = botAgentYamlContent(botIndex);
       files[`${base}/.openclaw/agents/${agentId}/agent/auth-profiles.json`] = botAuthProfilesContent(botIndex);
       Object.entries(botWorkspaceFiles(botIndex)).forEach(([name, content]) => {
-        files[`${base}/.openclaw/workspace/${name}`] = content;
+        files[`${base}/.openclaw/workspace-${agentId}/${name}`] = content;
       });
       return files;
     }
@@ -4168,6 +4168,7 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
         // Zalo agent YAML
         const zaloAgentYaml = `name: ${zaloAgentId}\ndescription: "${zaloDesc}"\n\nmodel:\n  primary: ${bot1.model || state.config.model}`;
         const zaloWorkspaceDir = `workspace-${zaloAgentId}`;
+        const _zaloSecRules = state.config.securityRules || DEFAULT_SECURITY_RULES[isVi ? 'vi' : 'en'];
         const zaloFiles = {
           [`.openclaw/agents/${zaloAgentId}.yaml`]: zaloAgentYaml,
           [`.openclaw/agents/${zaloAgentId}/agent/auth-profiles.json`]: sharedNativeAuthProfilesContent(),
@@ -4178,8 +4179,8 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
             ? `# Tinh cach\n\n**Huu ich that su.** Bo qua cau ne, cu giup thang.\n**Co ca tinh.** Tro ly khong co ca tinh thi chi la cong cu.\n\n## Phong cach\n- Tu nhien, gan gui\n- Truc tiep, ngan gon${zaloPersona ? `\n\n## Custom Rules\n${zaloPersona}` : ''}`
             : `# Soul\n\n**Be genuinely helpful.** Skip filler and just help.\n**Have personality.** An assistant with no personality is just a tool.\n\n## Style\n- Natural and concise\n- Direct and practical${zaloPersona ? `\n\n## Custom Rules\n${zaloPersona}` : ''}`,
           [`.openclaw/${zaloWorkspaceDir}/AGENTS.md`]: isVi
-            ? `# Huong dan van hanh\n\n## Vai tro\nBan la **${zaloName}**, ${zaloDesc.toLowerCase()}.\n\n## Kenh Zalo Personal\n- Ban hoat dong tren kenh Zalo Personal (zca-js).\n- Tra loi moi tin nhan DM theo chinh sach dmPolicy: open.\n- Khong can duoc goi ten moi tra loi (DM la rieng tu).\n\n## Quy tac tra loi\n- Tra loi ngan gon, suc tich\n- Uu tien tieng Viet\n- Khi hoi ten: _"Minh la ${zaloName}"_\n- Khong bia thong tin`
-            : `# Operating Manual\n\n## Role\nYou are **${zaloName}**, ${zaloDesc.toLowerCase()}.\n\n## Zalo Personal Channel\n- You operate on the Zalo Personal channel (zca-js).\n- Reply to all DMs with dmPolicy: open.\n- DMs are private — no need to be mentioned to reply.\n\n## Reply Rules\n- Be concise\n- Prefer Vietnamese\n- When asked your name: _"I'm ${zaloName}"_\n- Never fabricate information`,
+            ? `# Huong dan van hanh\n\n## Vai tro\nBan la **${zaloName}**, ${zaloDesc.toLowerCase()}.\n\n## Kenh Zalo Personal\n- Ban hoat dong tren kenh Zalo Personal (zca-js).\n- Tra loi moi tin nhan DM theo chinh sach dmPolicy: open.\n- Khong can duoc goi ten moi tra loi (DM la rieng tu).\n\n## Quy tac tra loi\n- Tra loi ngan gon, suc tich\n- Uu tien tieng Viet\n- Khi hoi ten: _"Minh la ${zaloName}"_\n- Khong bia thong tin\n\n${_zaloSecRules}`
+            : `# Operating Manual\n\n## Role\nYou are **${zaloName}**, ${zaloDesc.toLowerCase()}.\n\n## Zalo Personal Channel\n- You operate on the Zalo Personal channel (zca-js).\n- Reply to all DMs with dmPolicy: open.\n- DMs are private — no need to be mentioned to reply.\n\n## Reply Rules\n- Be concise\n- Prefer Vietnamese\n- When asked your name: _"I'm ${zaloName}"_\n- Never fabricate information\n\n${_zaloSecRules}`,
           [`.openclaw/${zaloWorkspaceDir}/TEAM.md`]: isVi
             ? `# Doi Bot\n\n## ${bot0Name}\n- Vai tro: ${(state.bots[0] || {}).desc || 'Tro ly Telegram'}\n- Kenh: Telegram\n\n## ${zaloName}\n- Vai tro: ${zaloDesc}\n- Kenh: Zalo Personal`
             : `# Bot Team\n\n## ${bot0Name}\n- Role: ${(state.bots[0] || {}).desc || 'Telegram assistant'}\n- Channel: Telegram\n\n## ${zaloName}\n- Role: ${zaloDesc}\n- Channel: Zalo Personal`,
@@ -4188,6 +4189,9 @@ ${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills ins
             : `# User Profile\n\n## Overview\n- **Preferred language:** Vietnamese\n\n## Notes\n${state.config.userInfo || '- _(Nothing yet)_'}`,
           [`.openclaw/${zaloWorkspaceDir}/MEMORY.md`]: isVi
             ? `# Bo nho dai han\n\n## Ghi chu\n- _(Chua co gi)_`
+          [`.openclaw/${zaloWorkspaceDir}/TOOLS.md`]: isVi
+            ? `# Hướng dẫn sử dụng Tools\n\n## Skills đã cài\n${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(Chưa có skill nào)_'}\n\n## Quy ước\n- Ưu tiên dùng tool thay vì đoán\n- Browser: dùng khi user yêu cầu thao tác web\n- Memory: cập nhật khi biết thông tin quan trọng\n\n## Ghi chú thiết lập của bạn\n\nGhi lại cấu hình riêng của môi trường bạn, ví dụ:\n- Tên thiết bị, camera, SSH hosts\n- Giọng nói ưa thích (TTS)\n\n---\n\nThêm ghi chú nào giúp ích cho công việc của bạn.`
+            : `# Tool Usage Guide\n\n## Installed Skills\n${selectedSkillNames.length ? selectedSkillNames.join('\n') : '- _(No skills installed)_'}\n\n## Conventions\n- Prefer tools over guessing\n- Use Browser for explicit web tasks\n- Update Memory when important user info appears\n\n## Your Setup Notes\n\nRecord environment-specific config, e.g.:\n- Device names, cameras, SSH hosts\n- Preferred TTS voice\n\n---\n\nAdd whatever helps you do your job.`,
             : `# Long-term Memory\n\n## Notes\n- _(Nothing yet)_`,
         };
         appendBatWriteCommands(lines, mapWindowsNativeFiles(zaloFiles));

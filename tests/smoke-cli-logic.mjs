@@ -433,7 +433,7 @@ checks.push(() => expect(
     && setup.includes("lines.push('echo Cai skills...');")
     && setup.includes("const openClawRuntimePackages = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';")
     && setup.includes("memory: 'none'")
-    && setup.includes("workspace: '.openclaw/workspace'")
+    && setup.includes("workspace-\${agentId}\`")
     && setup.includes("workspace: '.openclaw/' + meta.workspaceDir")
     && !setup.includes("const authProviderName = provider.isProxy ? '9router' : provider.id;")
     && !setup.includes("const authProviderName = botProvider.isProxy ? '9router' : botProvider.id;"),

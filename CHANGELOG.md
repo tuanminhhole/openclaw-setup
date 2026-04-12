@@ -1,6 +1,18 @@
 # Changelog (English)
 
 
+## [5.3.4] — 2026-04-12
+
+### 🐛 Windows Native — Gateway & Workspace Stability
+
+- **Fix: Gateway terminal auto-closing** — `call openclaw gateway run` was blocking the setup terminal indefinitely; closing the window killed the gateway process. The gateway is now launched in a **dedicated, visible CMD window** via a PS1 background launcher (same pattern as 9Router), so the setup terminal closes cleanly while the gateway keeps running.
+- **Fix: `call` missing from `openclaw gateway stop`** — The gateway stop command before relaunch was missing the `call` keyword, which could prevent the bat script from returning control after the stop completes. Added `call openclaw gateway stop 2>nul` in all affected paths.
+- **Fix: Workspace naming** — Single-bot deployments previously used a generic `.openclaw/workspace` path. All agents (single-bot and multi-bot) now use a named directory matching their agent ID: `.openclaw/workspace-{agentId}` (e.g. `workspace-williams`, `workspace-luna`). This prevents workspace collisions and aligns the folder structure with the `agents/{agentId}` directory convention.
+- **Improve: TOOLS.md enriched for all bots** — The generated `TOOLS.md` now includes both the custom skills & conventions section AND a "Local Notes" template section adapted from the OpenClaw workspace default, giving users a clear starting point for documenting environment-specific config.
+- **Improve: Zalo bot AGENTS.md now includes security rules** — The generated `AGENTS.md` for Zalo Personal bots (Luna-pattern) now appends the same `🔐 Security Rules — MANDATORY` block that Telegram bots receive (file-system boundaries, credential hygiene, crypto wallet protection, Docker mount rules).
+- **Improve: Zalo bot TOOLS.md added** — Zalo bot workspaces now receive a `TOOLS.md` file with the same skills list and conventions structure as Telegram bots.
+
+
 ## [5.3.3] — 2026-04-11
 
 ### 🧹 Automated Uninstall Scripts

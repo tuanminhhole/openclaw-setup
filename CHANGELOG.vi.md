@@ -1,6 +1,18 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.3.4] — 2026-04-12
+
+### 🐛 Windows Native — Ổn Định Gateway & Workspace
+
+- **Sửa: Terminal tự đóng sau khi khởi động gateway** — `call openclaw gateway run` chặn terminal vô thời hạn; đóng cửa sổ khiến gateway chết theo. Gateway giờ được mở trong **cửa sổ CMD riêng biệt** qua PS1 launcher (giống 9Router), setup terminal đóng gọn mà gateway vẫn chạy độc lập.
+- **Sửa: Thiếu `call` trước `openclaw gateway stop`** — Lệnh dừng gateway trước khi khởi động lại thiếu từ khóa `call`, có thể khiến bat script không trả quyền điều hành sau khi stop. Đã thêm `call openclaw gateway stop 2>nul` cho tất cả luồng.
+- **Sửa: Tên workspace** — Single-bot deployment trước đây dùng chung `.openclaw/workspace`. Giờ tất cả agent đều có thư mục riêng theo tên agent ID: `.openclaw/workspace-{agentId}` (ví dụ `workspace-williams`, `workspace-luna`). Tránh xung đột và đồng bộ với cấu trúc `agents/{agentId}`.
+- **Cải tiến: TOOLS.md đầy đủ hơn cho mọi bot** — File `TOOLS.md` được tạo ra giờ bao gồm cả mục danh sách skills + quy ước VÀ section "Ghi chú thiết lập của bạn" theo chuẩn OpenClaw, giúp người dùng có điểm xuất phát rõ ràng để ghi lại cấu hình môi trường riêng.
+- **Cải tiến: AGENTS.md cho Zalo bot bổ sung quy tắc bảo mật** — `AGENTS.md` sinh ra cho bot Zalo Personal (kiểu Luna) giờ có thêm block `🔐 Quy Tắc Bảo Mật — BẮT BUỘC` giống hệt bot Telegram (giới hạn file-system, bảo vệ credentials, ví crypto, mount Docker).
+- **Cải tiến: Thêm TOOLS.md cho Zalo bot** — Workspace của bot Zalo giờ cũng có file `TOOLS.md` cùng cấu trúc với bot Telegram.
+
+
 ## [5.3.3] — 2026-04-11
 
 ### 🧹 Tự Động Tạo Script Gỡ Cài Đặt
