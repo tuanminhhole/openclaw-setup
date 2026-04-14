@@ -1,6 +1,13 @@
 # Changelog (English)
 
 
+## [5.4.2] — 2026-04-14
+
+### 🐛 Native Script Wizard Fixes
+
+- **Deduplicate Plugin Installations**: Fixed an issue where the Telegram Multi-Bot Relay plugin was being appended twice to the installation payload in the HTML web wizard (`setup-openclaw-*.bat/sh`). This eliminates the "plugin already exists" crash during `npm exec` plugin installations.
+
+
 ## [5.4.1] — 2026-04-14
 
 ### 🐛 Docker CLI Generation Fixes

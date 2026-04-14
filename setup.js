@@ -2157,7 +2157,8 @@
       if (p) allPlugins.push(p.package);
     });
     if (isMultiBot && state.channel === 'telegram') allPlugins.push(relayPluginSpec);
-    const pluginCmd = allPlugins.length > 0 ? allPlugins.map(function(pkg) { return 'call npm exec -- openclaw plugins install ' + pkg + ' || goto :fail'; }).join('\r\n') : '';
+    const uniquePlugins = [...new Set(allPlugins)];
+    const pluginCmd = uniquePlugins.length > 0 ? uniquePlugins.map(function(pkg) { return 'call npm exec -- openclaw plugins install ' + pkg + ' || echo [WARN] Plugin ' + pkg + ' cai dat that bai (co the do rate limit). Ban co the cai thu cong sau.'; }).join('\r\n') : '';
     const nativeSkillInstallCmds = nativeSkillConfigs.map((skill) => `call openclaw skills install ${skill.slug} || echo Warning: Failed to install skill ${skill.slug}`);
 
     Object.assign(globalThis, {
@@ -2379,6 +2380,26 @@
             'telegram-multibot-relay': { enabled: true },
           },
         },
+        ...(provider.isProxy ? {
+          models: {
+            mode: 'merge',
+            providers: {
+              '9router': {
+                baseUrl: 'http://localhost:20128/v1',
+                apiKey: 'sk-no-key',
+                api: 'openai-completions',
+                models: [
+                  {
+                    id: 'smart-route',
+                    name: 'Smart Proxy (Auto Route)',
+                    contextWindow: 200000,
+                    maxTokens: 8192,
+                  }
+                ]
+              }
+            }
+          }
+        } : {}),
         gateway: {
           port: 18791,
           mode: 'local',
@@ -2592,10 +2613,23 @@
         }
 
         if (state.channel === 'telegram') {
+          const tok = (bot.token || state.config.botToken || '').trim();
           cfg.channels.telegram = {
             enabled: true,
             dmPolicy: 'open',
             allowFrom: ['*'],
+            replyToMode: 'first',
+            reactionLevel: 'ack',
+            actions: {
+              sendMessage: true,
+              reactions: true,
+            },
+            accounts: {
+              default: {
+                botToken: tok || '<your_bot_token>',
+                ackReaction: '👍',
+              },
+            },
           };
           if (isMultiBot) {
             cfg.channels.telegram.groupPolicy = groupId ? 'allowlist' : 'open';
@@ -2711,6 +2745,7 @@
         }));
         const ownAliases = [botName, bot.slashCmd || '', `bot ${botIndex + 1}`].filter(Boolean);
         const otherBotNames = teamRoster.filter((peer) => peer.idx !== botIndex).map((peer) => peer.name);
+        const otherAgentIds = teamRoster.filter((peer) => peer.idx !== botIndex).map((peer) => (peer.name || `Bot ${peer.idx + 1}`).toLowerCase().replace(/[^a-z0-9]+/g, '-'));
         const userInfoText = state.config.userInfo || '';
         const selectedSkillNames = state.config.skills.map((sid) => {
           const skill = SKILLS.find((s) => s.id === sid);
@@ -2741,8 +2776,8 @@
   - Never fabricate information`;
         const _secRules = state.config.securityRules || DEFAULT_SECURITY_RULES[isVi ? 'vi' : 'en'];
         const extraAgentsMd = isVi
-          ? `\n\n## Khi nao nen tra loi\n- Trong group, chi tra loi khi tin nhan co alias cua ban: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')} hoac username Telegram cua ban.\n- Neu tin nhan khong goi ban, hay im lang hoan toan.\n- Neu tin nhan chi goi ro bot khac ${otherBotNames.length ? otherBotNames.map((name) => `\`${name}\``).join(', ') : '`bot khac`'} thi khong cuop loi.\n- Khi da biet user dang goi ban, neu can thi gui ack reaction truoc roi moi tra loi bang text. Khong dung reaction tuy y.\n- Khi can phoi hop noi bo, dung dung agent id ky thuat duoc liet ke trong chinh file nay, khong dung ten hien thi.\n- Khi hoi ve vai tro cac bot, dung \`AGENTS.md\` lam nguon su that.`
-          : `\n\n## When To Reply\n- In group chats, only reply when the message contains one of your aliases: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')} or your Telegram username.\n- If the message is not calling you, stay completely silent.\n- If the message is clearly calling another bot such as ${otherBotNames.length ? otherBotNames.map((name) => `\`${name}\``).join(', ') : '`another bot`'}, do not hijack it.\n- Once you know the user is calling you, send the expected ack reaction first when needed, then send the text reply. Do not use arbitrary reaction emojis.\n- When you need internal coordination, use the exact technical agent id listed in this file, not the display name.\n- Use \`AGENTS.md\` as the source of truth for team roles.`;
+          ? `\n\n## Khi nao nen tra loi\n- Trong group, chi tra loi khi tin nhan co alias cua ban: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')} hoac username Telegram cua ban.\n- Neu tin nhan khong goi ban, hay im lang hoan toan.\n- Neu tin nhan chi goi ro bot khac ${otherBotNames.length ? otherBotNames.map((name) => `\`${name}\``).join(', ') : '`bot khac`'} thi khong cuop loi.\n- Khi da biet user dang goi ban, neu can thi gui ack reaction truoc roi moi tra loi bang text. Khong dung reaction tuy y.\n- Neu user bao ban hoi hoac lay y kien tu ${otherBotNames.length ? otherBotNames.map((n) => `\`${n}\``).join(', ') : '`bot khac`'}, hay dung agent-to-agent handoff noi bo ngay trong turn hien tai (goi dung agent id ky thuat ${otherAgentIds.length ? otherAgentIds.map((id) => `\`${id}\``).join(', ') : '`agent-khac`'}). KHONG doi Telegram chuyen tin giua cac bot.\n- Neu ban la bot mo loi, chi gui 1 cau mo dau ngan roi handoff ngay. Khong tu noi thay bot dich tru khi handoff that bai ro rang.\n- Neu ban la bot dich nhan handoff, phai tra loi cong khai vao cung Telegram chat/thread bang chinh account cua minh. Su dung [[reply_to_current]] neu ho tro.\n- Khi hoi ve vai tro cac bot, dung \`AGENTS.md\` lam nguon su that.`
+          : `\n\n## When To Reply\n- In group chats, only reply when the message contains one of your aliases: ${ownAliases.map((alias) => `\`${alias}\``).join(', ')} or your Telegram username.\n- If the message is not calling you, stay completely silent.\n- If the message is clearly calling another bot such as ${otherBotNames.length ? otherBotNames.map((name) => `\`${name}\``).join(', ') : '`another bot`'}, do not hijack it.\n- Once you know the user is calling you, send the expected ack reaction first when needed, then send the text reply. Do not use arbitrary reaction emojis.\n- If the user asks you to consult ${otherBotNames.length ? otherBotNames.map((n) => `\`${n}\``).join(', ') : '`another bot`'}, use internal agent-to-agent handoff in the same turn (call the exact technical agent id ${otherAgentIds.length ? otherAgentIds.map((id) => `\`${id}\``).join(', ') : '`other-agent`'}). Do NOT wait for Telegram bot-to-bot delivery.\n- If you are the caller bot, send only one short opener then hand off immediately. Do not speak for the target bot unless the handoff clearly fails.\n- If you are the target bot receiving a handoff, publish the real answer into the same Telegram chat/thread from your own account. Use [[reply_to_current]] if supported.\n- Use \`AGENTS.md\` as the source of truth for team roles.`;
         const teamRosterMd = isVi
           ? `\n\n## Team roster\n${teamRoster.map((peer) => `- \`${(peer.name || `Bot ${peer.idx + 1}`).toLowerCase().replace(/[^a-z0-9]+/g, '-')}\`: ${peer.name || `Bot ${peer.idx + 1}`}${peer.desc ? ` - ${peer.desc}` : ''}`).join('\n')}`
           : `\n\n## Team Roster\n${teamRoster.map((peer) => `- \`${(peer.name || `Bot ${peer.idx + 1}`).toLowerCase().replace(/[^a-z0-9]+/g, '-')}\`: ${peer.name || `Bot ${peer.idx + 1}`}${peer.desc ? ` - ${peer.desc}` : ''}`).join('\n')}`;
@@ -3491,6 +3526,10 @@
       if (uninstallWinMulti) {
         appendBatWriteCommands(lines, mapWindowsNativeFiles({ [uninstallWinMulti.name]: uninstallWinMulti.content }));
       }
+      const startScriptMulti = generateStartScript();
+      if (startScriptMulti) {
+        appendBatWriteCommands(lines, mapWindowsNativeFiles({ [startScriptMulti.name]: startScriptMulti.content }));
+      }
       if (is9Router) {
         lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
       }
@@ -3506,6 +3545,10 @@
       const uninstallWin = generateUninstallScript();
       if (uninstallWin) {
         appendBatWriteCommands(lines, mapWindowsNativeFiles({ [uninstallWin.name]: uninstallWin.content }));
+      }
+      const startScript = generateStartScript();
+      if (startScript) {
+        appendBatWriteCommands(lines, mapWindowsNativeFiles({ [startScript.name]: startScript.content }));
       }
       if (is9Router) {
         lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
