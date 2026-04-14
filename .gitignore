@@ -55,16 +55,43 @@ Thumbs.db
 
 # ===== Developer-only scripts (local use, not for repo) =====
 bump-version.mjs
+build.mjs
 test-cli-output.mjs
 patch_cli.py
 patch-cli.mjs
 *.test.mjs
-PLANS.md
 ARCHITECTURE.md
+PLANS.md
+implementation_plan.md
+
+# ===== AI Planning Artifacts =====
+walkthrough.md
+
+# ===== Dev-only source & tools (setup.js / cli.js are the built artifacts) =====
+setup/
+tests/
+scripts/
+
+# ===== CLI source (cli.js is the deployed artifact) =====
+cli/
 
 # ===== API Doc Scrapes =====
 *_doc*.md
 tele_docs*.md
+zalo_docs*.md
+
+# ===== IDE / Editor =====
+.vscode/
 
 # ===== Agent =====
 .agent
+
+dist/
+
+# ===== Generated helper scripts (created in project dir by setup) =====
+start-chrome-debug.bat
+start-chrome-debug.sh
+start-bot.bat
+start-bot.sh
+uninstall-openclaw*.bat
+uninstall-openclaw*.sh

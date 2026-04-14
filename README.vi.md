@@ -1,9 +1,9 @@
-﻿<div align="center">
+<div align="center">
 
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.3.1-0EA5E9?style=for-the-badge" alt="Version 5.3.1" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.4.0-0EA5E9?style=for-the-badge" alt="Version 5.4.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,27 +24,20 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
-## 🆕 Có gì mới trong v5.3.1
+## 🆕 Có gì mới trong v5.4.0
 
-- 🐛 **Fix: Combo channel thiếu ô nhập Telegram Bot Token** — Khi chọn "Telegram + Zalo Personal", wizard giờ hiển thị cả ô nhập Telegram Token LẪN cảnh báo Zalo Personal.
-- 🐛 **Fix: Nút Next bị kẹt ở bước 4 khi chọn combo** — Validation giờ yêu cầu đúng Telegram token trước khi kích hoạt "Generate Configs" ở combo mode.
-- 🐛 **Fix: Script Windows Docker crash "docker not recognized"** — File `.ps1` được generate giờ dùng `Get-Command` để tìm Docker, kiểm tra Docker Desktop đang chạy, và gọi lệnh qua toán tử `&` — hoạt động kể cả khi Docker không có trong PATH mặc định của PowerShell.
+- 🏗️ **Tái cấu trúc kiến trúc multi-bot** — Các flag `isTelegramMultiBot`, `isSharedMultiBot`, `isMultiBotWizard` được gộp thành một biến `isMultiBot` duy nhất. Đường dẫn `agentDir` trong `openclaw.json` được tạo ra nay đúng chuẩn `.openclaw/agents/{slug}/agent` (tương đối với `OPENCLAW_HOME`).
+- 🗑️ **Xóa hoàn toàn kênh combo Telegram + Zalo** — Combo mode đã được gỡ bỏ khỏi cả Web Wizard lẫn CLI. Sẽ được thiết kế lại trong bản phát hành sau.
+- 🤝 **Quy tắc cross-workspace trong `AGENTS.md`** — Ở chế độ multi-bot, `AGENTS.md` của mỗi bot có thêm mục liệt kê đường dẫn workspace của các bot anh em và quy tắc phối hợp.
+- 🧹 **Config sạch hơn** — Không còn tạo `auth-profiles.json` per-agent cho 9Router; không còn tạo `.env` cho native scripts; không còn tạo `models.json` per-agent cho Ollama.
+
+<details>
+<summary><b>Trước đó: Có gì mới ở v5.3.5</b></summary>
+
+- 🐛 **Fix: Lỗi Syntax MEMORY.md trong Workspace Zalo** — Patch TOOLS.md trước đó được chèn sai vị trí, gây `SyntaxError` trên `setup.js`. Đã sửa.
+- 🐟 **Cải tiến: Script gỡ cài đặt nằm trong thư mục project** — Tất cả 4 OS native + Docker ZIP đều có `uninstall-*.{bat,sh}` ngay trong thư mục project sau khi setup xong.
+- 🐛 **Fix: Windows Docker script crashes với "docker not recognized"** — File `.ps1` được tạo giờ dùng `Get-Command` để tìm Docker, kiểm tra Docker Desktop đang chạy, và gọi lệnh qua toán tử `&` — hoạt động kể cả khi Docker không có trong PATH mặc định của PowerShell.
 - 🐛 **Fix: Thiếu hướng dẫn login Zalo QR cho combo trong script Windows** — Phần hướng dẫn sau cài đặt giờ hiển thị lệnh `docker compose exec` login khi chọn combo channel.
-
-<details>
-<summary><b>Trước đó: Có gì mới ở v5.3.0</b></summary>
-
-- 📱 **Telegram + Zalo Personal cùng lúc** — Tuỳ chọn kênh combo mới cho phép chạy 1 bot trên cả Telegram **và** Zalo Personal cùng lúc, từ 1 config duy nhất. Không cần cài riêng.
-- 🔌 **Tự cấu hình plugin `zalouser`** — Khi chọn Zalo Personal, wizard tự động thêm `plugins.entries.zalouser` vào `openclaw.json`, xử lý lỗi "not configured" phổ biến nhất khi khởi động Zalo.
-- ⏱️ **Fix cold-start Docker tích hợp sẵn** — Dockerfile CMD giờ có script nền chạy sau 45 giây để kích hoạt kênh Zalo khi Docker network đã ổn định. Không cần hack `lastTouchedAt` thủ công nữa.
-
-<details>
-<summary><b>Trước đó: Có gì mới ở v5.2.3</b></summary>
-
-- 🔄 **Upgrade 1 lệnh** — Chạy `npx create-openclaw-bot@latest upgrade` trong thư mục bot để cập nhật OpenClaw mà không cần chạy lại wizard. Tự động nhận diện Docker hay Native.
-- 🪟 **Windows: double-click để upgrade** — File `upgrade.ps1` có sẵn trong repo. Nhấp đúp là xong — không cần biết terminal.
-- 🐧 **Linux / macOS / Ubuntu** — `upgrade.sh` cho người dùng Unix. Chạy `bash upgrade.sh` hoặc pipe trực tiếp qua `curl` / `wget` từ GitHub.
-- 🛡️ **Dữ liệu cũ giữ nguyên hoàn toàn** — `.env`, memory, sessions, credentials, OAuth token 9Router không bao giờ bị xoá khi upgrade.
 
 </details>
 
@@ -58,176 +51,176 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 - 🧩 **Skills** — Web Search, Browser Automation, Memory, RAG, Code Interpreter, Image Gen
 - 🔌 **Plugins** — Voice Call, Matrix, MS Teams, Nostr
 - 🔀 **9Router** — AI proxy miễn phí với đăng nhập OAuth. Không cần API key. Hỗ trợ Claude Code, Codex, Gemini CLI.
-- 🧙 **Setup Wizard** — Giao diện web 5 bước (`index.html`). Không cần terminal.
+- 🧙 **Setup Wizard** — 5 bước trực quan trên trình duyệt (`index.html`). Không cần terminal.
 - 💻 **CLI tương tác** — `npx create-openclaw-bot` — phù hợp cho Ubuntu, VPS, kỹ sư.
-- 🆓 **100% Miễn phí** — 9Router + Gemini free tier đủ để bắt đầu
-- 🔒 **Riêng tư** — API key lưu local, không bao giờ bị lộ ra ngoài
-- ⚡ **Nhanh** — Từ zero đến bot hoạt động trong dưới 5 phút
+- 🆓 **Miễn phí hoàn toàn để bắt đầu** — 9Router + Gemini free tier không tốn đồng nào
+- 🔒 **Riêng tư** — API key chỉ lưu trên máy bạn, không gửi đi đâu
+- ⚡ **Nhanh** — Từ zero đến bot chạy được trong dưới 5 phút
 
 ---
 
-## 🗺️ Chọn lộ trình phù hợp với bạn
+## 🗺️ Chọn cách triển khai
 
-> **Không biết nên chọn cách nào?** Đọc bảng dưới đây:
+> **Không biết nên dùng cách nào?** Bảng dưới đây sẽ giúp bạn:
 
-| Bạn là ai           | Môi trường      | Lộ trình khuyên dùng                  |
-| ------------------- | --------------- | ------------------------------------- |
-| Không quen terminal | Windows / macOS | **Web Wizard** (`index.html`)         |
-| Không quen terminal | Ubuntu Desktop  | **Web Wizard** → chọn Native          |
-| Quen terminal       | Ubuntu / VPS    | **CLI** (`npx create-openclaw-bot`)   |
-| Muốn tự động hóa    | Bất kỳ          | **AI Agent** (Antigravity + SETUP.md) |
+| Bạn là ai | Môi trường | Cách được đề xuất |
+| --- | --- | --- |
+| Không quen terminal | Windows / macOS | **Web Wizard** (`index.html`) |
+| Không quen terminal | Ubuntu Desktop | **Web Wizard** → chọn Native |
+| Quen terminal | Ubuntu / VPS | **CLI** (`npx create-openclaw-bot`) |
+| Muốn tự động hóa hoàn toàn | Bất kỳ | **AI Agent** (Antigravity + SETUP.md) |
 
-### 1️⃣ Cách A — Web Wizard (Không cần terminal)
+### 1️⃣ Tùy chọn A — Web Wizard (không cần terminal)
 
-Dành cho **Windows và macOS**. Không gõ lệnh gì cả.
+Phù hợp nhất cho **Windows và macOS**. Không cần dòng lệnh.
 
-1. [Tải về ZIP](https://github.com/tuanminhhole/openclaw-setup/archive/refs/heads/main.zip) hoặc clone repo này.
+1. [Tải ZIP](https://github.com/tuanminhhole/openclaw-setup/archive/refs/heads/main.zip) hoặc clone repo này.
 2. Mở `index.html` trong trình duyệt.
-3. Làm theo **5 bước** trong wizard:
-   - **Bước 1:** Chọn hệ điều hành (Windows / macOS / Ubuntu / VPS)
+3. Làm theo **wizard 5 bước**:
+   - **Bước 1:** Chọn OS (Windows / macOS / Ubuntu / VPS)
    - **Bước 2:** Chọn kênh bot (Telegram / Zalo)
    - **Bước 3:** Chọn AI provider và model
-   - **Bước 4:** Nhập Bot Token và cấu hình bot
+   - **Bước 4:** Nhập bot token và cấu hình
    - **Bước 5:** Tải script và chạy — xong!
-4. Script được tạo ra sẽ tự động cài đặt các thứ cần thiết (9Router, Ollama, Docker v.v.) theo lựa chọn của bạn.
+4. Script tải về sẽ tự cài đặt mọi thứ cần thiết (9Router, Ollama, Docker, v.v.) dựa trên lựa chọn của bạn.
 
-> **Nên chọn Docker hay không?**
+> **Docker hay không Docker?**
 >
-> - **Windows / macOS** → Nên dùng **Docker** (cô lập hoàn toàn, dễ quản lý)
-> - **Ubuntu / VPS** → Nên chọn **Không dùng Docker** (tiết kiệm RAM, ổn định hơn)
+> - **Windows / macOS** → Dùng **Docker** (cô lập hoàn toàn, dễ quản lý)
+> - **Ubuntu / VPS** → Dùng **Native (không Docker)** (ít RAM hơn, ổn định hơn)
 
-### 2️⃣ Cách B — CLI tương tác (`npx`)
+### 2️⃣ Tùy chọn B — CLI tương tác (`npx`)
 
-Dành cho **kỹ sư, Ubuntu Desktop, VPS**. Nhanh và mạnh nhất.
+Phù hợp nhất cho **kỹ sư, Ubuntu Desktop, VPS**. Nhanh và mạnh nhất.
 
 ```bash
 npx create-openclaw-bot
 ```
 
-Chạy lệnh trên trong Terminal → làm theo các prompt tương tác → script khởi động được tạo tự động.
+Chạy trong terminal → làm theo hướng dẫn → script khởi động được tạo tự động.
 
 > Yêu cầu: **Node.js 20/22/24**. Kiểm tra: `node -v`
 >
-> Lưu ý: **tạm tránh Node.js 25**. Đã có báo cáo OpenClaw lỗi với Node 25.
+> Lưu ý: **tránh Node.js 25 hiện tại**. Có báo cáo OpenClaw gặp lỗi trên Node 25.
 
 <details>
-<summary><b>3️⃣ Cách C — AI Agent (Antigravity)</b></summary>
+<summary><b>3️⃣ Tùy chọn C — AI Agent (Antigravity)</b></summary>
 <br>
 
 1. Mở [Antigravity IDE](https://antigravity.dev/)
 2. Mở repo này làm workspace
 3. Paste vào chat:
    ```
-Read SETUP.md and set up OpenClaw v5.3.1 for me.
-   My bot token is X. Use 9Router (no API key).
-   My project folder: <THƯ_MỤC_CỦA_BẠN>
+   Đọc SETUP.md và cài đặt OpenClaw v5.4.0 cho tôi.
+   Bot token của tôi là X. Dùng 9Router (không cần API key).
+   Thư mục project: <ĐƯỜNG_DẪN_CỦA_BẠN>
    ```
 
 </details>
 
 ---
 
-## 📋 Yêu cầu chuẩn bị
+## 📋 Yêu cầu
 
-### Không dùng Docker (Native — khuyên dùng cho Ubuntu/VPS)
+### Không dùng Docker (Native — khuyến nghị cho Ubuntu/VPS)
 
-| Yêu cầu                 | Ghi chú                                                             |
-| ----------------------- | ------------------------------------------------------------------- |
-| **Node.js 20/22/24**   | [Tải về](https://nodejs.org/) · Kiểm tra: `node -v` · Tạm tránh Node 25 |
-| **Một AI provider**     | 9Router (miễn phí) hoặc Gemini/Claude/GPT-4o                        |
-| **Bot Token**           | Từ Telegram BotFather hoặc Zalo Developer                           |
-| **Ollama** _(tuỳ chọn)_ | Chỉ cần nếu muốn chạy Gemma 4 local · [Tải về](https://ollama.com/) |
+| Yêu cầu | Ghi chú |
+| --- | --- |
+| **Node.js 20/22/24** | [Tải](https://nodejs.org/) · Kiểm tra: `node -v` · Tránh Node 25 hiện tại |
+| **AI provider** | 9Router (miễn phí) hoặc Gemini/Claude/GPT-4o |
+| **Bot Token** | Từ Telegram BotFather hoặc Zalo Developer |
+| **Ollama** _(tùy chọn)_ | Chỉ cần nếu muốn chạy Gemma 4 locally · [Tải](https://ollama.com/) |
 
-### Dùng Docker (khuyên dùng cho Windows/macOS)
+### Dùng Docker (khuyến nghị cho Windows/macOS)
 
-| Yêu cầu                         | Ghi chú                                                                                        |
-| ------------------------------- | ---------------------------------------------------------------------------------------------- |
-| **Node.js 20/22/24**           | [Tải về](https://nodejs.org/) · Kiểm tra: `node -v` · Tạm tránh Node 25                         |
-| **Docker Desktop + Compose V2** | [Tải về](https://www.docker.com/products/docker-desktop/) · Kiểm tra: `docker compose version` |
-| **Một AI provider**             | 9Router chạy như sidecar container — không cần cài riêng                                       |
-| **Bot Token**                   | Từ Telegram BotFather hoặc Zalo Developer                                                      |
-
----
-
-## 🧠 AI Provider được hỗ trợ
-
-| Provider             | Chi phí       | API Key      | Ghi chú                                                                                   |
-| -------------------- | ------------- | ------------ | ----------------------------------------------------------------------------------------- |
-| **9Router**          | 🆓 Miễn phí   | ❌ OAuth     | Khuyên dùng cho người mới. Tự route đến model tốt nhất. Hỗ trợ Claude CLI, Codex, Gemini. |
-| **Google Gemini**    | 🆓 Free tier  | ✅ Có        | Chất lượng cao. Free tier rất rộng rãi.                                                   |
-| **Ollama / Gemma 4** | 🏠 Miễn phí   | ❌ Không cần | Chạy 100% offline. Tự pull model khi khởi động.                                           |
-| **Anthropic Claude** | 💰 Trả phí    | ✅ Có        | Lý luận và viết tốt nhất.                                                                 |
-| **OpenAI / Codex**   | 💰 Trả phí    | ✅ Có        | GPT-4o, Codex Mini.                                                                       |
-| **OpenRouter**       | 🆓/💰 Hỗn hợp | ✅ Có        | Nhiều model dưới một key. Một số miễn phí.                                                |
-
-> 🔀 **9Router v0.3.75+** hỗ trợ lossless passthrough cho Claude Code, Codex, Gemini CLI, Antigravity — tức là các AI tool ngoài đều có thể dùng 9Router làm endpoint mà không mất thông tin. Xem [docs/ai-providers.vi.md](docs/ai-providers.vi.md) để biết cách cấu hình.
+| Yêu cầu | Ghi chú |
+| --- | --- |
+| **Node.js 20/22/24** | [Tải](https://nodejs.org/) · Kiểm tra: `node -v` · Tránh Node 25 hiện tại |
+| **Docker Desktop + Compose V2** | [Tải](https://www.docker.com/products/docker-desktop/) · Kiểm tra: `docker compose version` |
+| **AI provider** | 9Router chạy như container sidecar — không cần cài riêng |
+| **Bot Token** | Từ Telegram BotFather hoặc Zalo Developer |
 
 ---
 
-## 🔌 Kênh chat được hỗ trợ
+## 🧠 Các Provider AI được hỗ trợ
 
-- **Telegram** (✅ API chính thức) — Tìm **@BotFather** → `/newbot` → Copy token.
-- **Zalo Bot API** (✅ API chính thức) — [developers.zalo.me](https://developers.zalo.me) → Tạo bot → Copy token.
-- **Zalo Cá nhân** (⚠️ Unofficial) — Quét QR sau khi setup (không cần token). Dùng tài khoản phụ.
+| Provider | Chi phí | API Key | Ghi chú |
+| --- | --- | --- | --- |
+| **9Router** | 🆓 Miễn phí | ❌ OAuth | Khuyến nghị cho người mới. Tự route đến model tốt nhất. Hỗ trợ Claude CLI, Codex, Gemini. |
+| **Google Gemini** | 🆓 Free tier | ✅ Có | Chất lượng cao. Free tier rất rộng rãi. |
+| **Ollama / Gemma 4** | 🏠 Miễn phí | ❌ Không | Chạy 100% offline. Tự pull model khi khởi động lần đầu. |
+| **Anthropic Claude** | 💰 Trả phí | ✅ Có | Chất lượng suy luận và viết tốt nhất. |
+| **OpenAI / Codex** | 💰 Trả phí | ✅ Có | GPT-4o, Codex Mini. |
+| **OpenRouter** | 🆓/💰 Hỗn hợp | ✅ Có | Nhiều model chung một key. Một số miễn phí. |
 
-> ⚠️ **Zalo Cá nhân** dùng unofficial API. Tài khoản Zalo có thể bị hạn chế. Chỉ nên dùng tài khoản phụ.
+> 🔀 **9Router v0.3.75+** hỗ trợ passthrough cho Claude Code, Codex, Gemini CLI, và Antigravity. Xem [docs/ai-providers.md](docs/ai-providers.md) để biết chi tiết.
 
 ---
 
-## 📁 Cấu trúc repo
+## 🔌 Các kênh được hỗ trợ
+
+- **Telegram** (✅ Chính thức) — Tìm **@BotFather** → `/newbot` → Copy token.
+- **Zalo Bot API** (✅ Chính thức) — Vào [developers.zalo.me](https://developers.zalo.me) → Tạo bot → Copy token.
+- **Zalo Cá nhân** (⚠️ Không chính thức) — Quét QR sau khi cài (không cần token). Dùng tài khoản phụ.
+
+> ⚠️ **Zalo Cá nhân** dùng API không chính thức. Tài khoản có thể bị hạn chế. Chỉ dùng tài khoản phụ.
+
+---
+
+## 📁 Cấu trúc Repo
 
 ```
-index.html           ← Setup Wizard UI (mở bằng trình duyệt)
-style.css            ← Giao diện wizard
-setup.js             ← Logic wizard
+index.html           ← Wizard UI (mở trên trình duyệt)
+style.css            ← Giao diện Wizard
+setup.js             ← Logic Wizard
 cli.js               ← CLI tương tác (npx create-openclaw-bot)
 CHANGELOG.md/.vi.md  ← Lịch sử phiên bản
-README.md            ← Hướng dẫn (English)
-README.vi.md         ← Hướng dẫn (Tiếng Việt) — Bạn đang đọc
+README.md            ← Tiếng Anh
+README.vi.md         ← Bạn đang đọc (Tiếng Việt)
 SETUP.md/.vi.md      ← Hướng dẫn kỹ thuật cho AI Agent
 docs/
-  install-docker.md/.vi.md     ← Cài Docker theo từng OS
-  install-native.md/.vi.md     ← Cài Native/PM2 theo từng OS
-  ai-providers.md/.vi.md       ← Cấu hình từng AI provider
-  hardware-guide.md/.vi.md     ← Chọn RAM cho Ollama/Gemma 4
+  install-docker.md/.vi.md     ← Cài Docker theo OS
+  install-native.md/.vi.md     ← Cài Native/PM2 theo OS
+  ai-providers.md/.vi.md       ← Cấu hình AI provider
+  hardware-guide.md/.vi.md     ← Yêu cầu RAM cho Ollama/Gemma 4
   faq.md/.vi.md                ← Câu hỏi thường gặp
 ```
 
-> **Lưu ý:** Các script khởi động (`.bat`, `.sh`) **không có sẵn** trong repo — chúng được tạo ra bởi Web Wizard hoặc CLI dựa trên cấu hình bạn chọn.
+> **Lưu ý:** Script khởi động (`.bat`, `.sh`) **không có trong repo** — chúng được tạo bởi Web Wizard hoặc CLI dựa trên cấu hình của bạn.
 
 ---
 
 ## ❓ Câu hỏi thường gặp
 
 <details>
-<summary><b>Thật sự miễn phí?</b></summary>
+<summary><b>Có thực sự miễn phí không?</b></summary>
 
-Đúng. Docker, Google Gemini free tier, và bot token Telegram/Zalo đều miễn phí. Chỉ tốn tiền nếu bạn chọn provider trả phí như Claude hoặc GPT-4o.
+Có. Docker, Google Gemini API (free tier), và token bot Telegram/Zalo đều miễn phí. Bạn chỉ trả tiền nếu chọn AI provider trả phí như Claude hoặc GPT-4o.
 
 </details>
 
 <details>
 <summary><b>Bot chạy ở đâu?</b></summary>
 
-Trên máy hoặc server của bạn. Nếu dùng Docker thì trong container. Nếu dùng Native thì là một process được PM2 quản lý. Tắt máy thì bot tắt — muốn 24/7 thì cần VPS.
+Trên máy tính hoặc server của bạn. Với Docker thì chạy trong container; với Native thì chạy như tiến trình PM2. Nếu máy tắt thì bot cũng tắt. Dùng VPS để bot chạy 24/7.
 
 </details>
 
 <details>
-<summary><b>Cần Docker không?</b></summary>
+<summary><b>Tôi có cần Docker không?</b></summary>
 
-Không bắt buộc. Windows/macOS khuyên dùng Docker vì cô lập tốt. Ubuntu/VPS khuyên dùng Native với PM2 — ít overhead hơn và OpenClaw đã bảo mật sẵn.
+Không bắt buộc. Docker chỉ là một tùy chọn. Người dùng Windows/macOS nên dùng Docker để cô lập sạch sẽ. Người dùng Ubuntu/VPS nên cài native với PM2 — ít tốn RAM hơn và OpenClaw đã bảo mật sẵn.
 
 </details>
 
 <details>
-<summary><b>Làm sao tắt/khởi động lại?</b></summary>
+<summary><b>Làm sao dừng/khởi động lại bot?</b></summary>
 
 **Docker:**
 
 ```bash
-docker compose down      # Tắt
-docker compose up -d     # Bật
+docker compose down      # Dừng
+docker compose up -d     # Chạy
 docker compose restart   # Khởi động lại
 ```
 
@@ -242,66 +235,66 @@ pm2 restart openclaw-bot
 </details>
 
 <details>
-<summary><b>Có thể đổi AI model sau không?</b></summary>
+<summary><b>Tôi có thể đổi AI model sau không?</b></summary>
 
-Có. Chạy lại `npx create-openclaw-bot` trong thư mục bot, hoặc sửa trực tiếp `.openclaw/openclaw.json` → khởi động lại bot.
+Có. Chạy lại `npx create-openclaw-bot` trong thư mục bot, hoặc sửa trực tiếp `.openclaw/openclaw.json` và restart bot.
 
 </details>
 
 <details>
-<summary><b>An toàn không?</b></summary>
+<summary><b>Có an toàn không?</b></summary>
 
-API key chỉ lưu trên máy bạn trong file `.env`. OpenClaw không bao giờ truyền key ra ngoài. Khi dùng Ollama, toàn bộ AI inference chạy offline hoàn toàn.
+API key của bạn chỉ được lưu trên máy trong file `.env` cục bộ. OpenClaw không gửi chúng đi đâu. Khi dùng Ollama, toàn bộ AI chạy hoàn toàn offline.
 
 </details>
 
 <details>
 <summary><b>9Router là gì?</b></summary>
 
-9Router là AI proxy mã nguồn mở. Thay vì quản lý nhiều API key, bạn đăng nhập một lần qua OAuth tại `localhost:20128/dashboard`. Nó tự route request đến model tốt nhất. Bản v0.3.75+ còn hỗ trợ lossless passthrough cho Claude Code, Codex, Gemini CLI và Antigravity.
+9Router là AI proxy mã nguồn mở. Thay vì quản lý API key từ nhiều provider, bạn đăng nhập một lần qua OAuth tại `localhost:20128/dashboard`. Nó tự route request đến model AI tốt nhất hiện có. Từ v0.3.75, hỗ trợ passthrough cho Claude Code, Codex, Gemini CLI, và Antigravity.
 
 </details>
 
 <details>
 <summary><b>Skills và Plugins khác nhau thế nào?</b></summary>
 
-**Skills** thêm kỹ năng cho bot (Web Search, Browser Automation, Memory, RAG, Code Interpreter...) — cài qua `openclaw skills install` từ ClawHub.
+**Skills** thêm khả năng cho agent (Web Search, Browser Automation, Memory, RAG, Code Interpreter...) — cài qua `openclaw skills install` từ ClawHub.
 
-**Plugins** thêm kênh hoặc tính năng runtime (Voice Call, Matrix, MS Teams) — cài qua `openclaw plugins install` từ npm.
+**Plugins** thêm kênh hoặc extension runtime (Voice Call, Matrix, MS Teams...) — cài qua `openclaw plugins install` từ npm.
 
 </details>
 
 <details>
-<summary><b>Cần bao nhiêu RAM để chạy Gemma 4?</b></summary>
+<summary><b>Cần bao nhiêu RAM cho Gemma 4?</b></summary>
 
-| Model        | RAM tối thiểu (Native) | RAM tối thiểu (Docker) |
-| ------------ | ---------------------- | ---------------------- |
-| `gemma4:e2b` | ~4 GB                  | ~5 GB                  |
-| `gemma4:e4b` | ~8 GB                  | ~9 GB                  |
-| `gemma4:26b` | ~18 GB                 | ~20 GB                 |
-| `gemma4:31b` | ~24 GB                 | ~26 GB                 |
+| Model | RAM tối thiểu (Native) | RAM tối thiểu (Docker) |
+| --- | --- | --- |
+| `gemma4:e2b` | ~4 GB | ~5 GB |
+| `gemma4:e4b` | ~8 GB | ~9 GB |
+| `gemma4:26b` | ~18 GB | ~20 GB |
+| `gemma4:31b` | ~24 GB | ~26 GB |
 
-Xem chi tiết tại [docs/hardware-guide.vi.md](docs/hardware-guide.vi.md).
+Xem [docs/hardware-guide.md](docs/hardware-guide.md) để biết thêm chi tiết kể cả cách cấu hình swap cho VPS.
 
 </details>
 
 ---
 
-## 🔗 Links hữu ích
+## 🔗 Liên kết
 
 - [OpenClaw Docs](https://openclaw.ai/docs)
 - [9Router](https://github.com/decolua/9router)
-- [Google AI Studio (Gemini Key)](https://aistudio.google.com/)
+- [Google AI Studio](https://aistudio.google.com/)
 - [Telegram BotFather](https://t.me/BotFather)
 - [Zalo Developer Platform](https://developers.zalo.me)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Ollama](https://ollama.com)
 - [OpenRouter](https://openrouter.ai)
-- [ClawHub (Skills Registry)](https://clawhub.com)
+- [ClawHub (Skills)](https://clawhub.com)
 
 ---
 
-## 📈 Lịch sử Star
+## 📈 Star History
 
 <div align="center">
 
@@ -311,13 +304,13 @@ Xem chi tiết tại [docs/hardware-guide.vi.md](docs/hardware-guide.vi.md).
 
 ---
 
-## 🙏 Ghi công
+## 🙏 Lời cảm ơn
 
 - [OpenClaw](https://openclaw.ai) — AI Gateway framework
-- [9Router](https://github.com/decolua/9router) — AI proxy mã nguồn mở (OAuth, không cần API key)
-- [Playwright](https://playwright.dev) — Engine trình duyệt tự động
+- [9Router](https://github.com/decolua/9router) — Open-source AI proxy (OAuth-based, no API keys)
+- [Playwright](https://playwright.dev) — Browser automation engine
 - [ClawHub](https://clawhub.com) — Skills registry
-- [TheSVG](https://thesvg.org) — Bộ icon SVG vector chất lượng cao
+- [TheSVG](https://thesvg.org) — High-quality SVG brand icons
 
 ---
 

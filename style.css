@@ -711,8 +711,8 @@ body::after {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px 10px;
+  gap: 6px;
+  padding: 20px 12px 16px;
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -721,6 +721,8 @@ body::after {
   cursor: pointer;
   transition: all var(--duration-normal) var(--ease-out);
   text-align: center;
+  min-height: 130px;
+  justify-content: flex-start;
 }
 
 .provider-card:hover {
@@ -746,10 +748,24 @@ body::after {
 }
 
 .provider-card__name {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
+  margin-top: 2px;
+}
+
+.provider-card__desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  text-align: center;
+  margin-top: 2px;
+  max-width: 140px;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  white-space: normal;
+  min-height: 28px;
 }
 
 .cred-step a, .prompt-notice a, .form-group__hint a, .form-group__label a {
@@ -796,7 +812,7 @@ body::after {
 
 .plugin-card {
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
   gap: 0;
   padding: 12px;
   background: var(--bg-glass);
@@ -807,7 +823,7 @@ body::after {
   cursor: pointer;
   transition: all var(--duration-normal) var(--ease-out);
   position: relative;
-  min-height: 88px;
+  min-height: 60px;
   height: 100%;
   min-width: 0;
   overflow: visible;
@@ -879,10 +895,11 @@ body::after {
 .plugin-card__subline {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  padding-left: 5px;
-  gap: 10px;
-  min-height: 22px;
+  justify-content: space-between;
+  padding-left: 0;
+  gap: 6px;
+  min-height: 26px;
+  margin-top: 4px;
 }
 
 .plugin-card__badge-slot {
@@ -1515,6 +1532,19 @@ body::after {
 }
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(20px);
+}
+
+/* Plugin card visual-only toggle (no input inside — state driven by plugin-card--selected) */
+.plugin-card--selected .plugin-card__switch .toggle-slider {
+  background: var(--claw-coral);
+}
+.plugin-card--selected .plugin-card__switch .toggle-slider::before {
+  transform: translateX(20px);
+}
+.plugin-card__switch {
+  pointer-events: none;
+  flex-shrink: 0;
+  cursor: default;
 }
 
 /* ============================================================

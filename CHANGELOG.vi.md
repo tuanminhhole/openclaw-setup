@@ -1,6 +1,33 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.4.0] — 2026-04-14
+
+### 🗑️ Xóa: Kênh Combo Telegram + Zalo
+
+- **Tạm ngưng và xóa chế độ `telegram+zalo-personal` khỏi cả Web Wizard lẫn CLI.** Card kênh bị ẩn trong `index.html`, xóa khỏi `channels.js` và `data/index.js`, toàn bộ logic điều kiện liên quan đã được dọn sạch khỏi `controller.js`, `output.js`, `steps.js`, `multi-bot.js`, `win-bat.js`, `macos-sh.js`, `linux-sh.js`, `vps-sh.js`, `native-helpers-gen.js` và `cli.src.js`. Combo mode sẽ được thiết kế lại trong bản phát hành tương lai.
+
+### 🏗️ Tái cấu trúc: Kiến Trúc Multi-Bot
+
+- **Gộp flag multi-bot** — `isTelegramMultiBot`, `isSharedMultiBot` và `isMultiBotWizard` đã được hợp nhất thành một biến `isMultiBot` duy nhất xuyên suốt codebase. Giảm độ phức tạp và loại bỏ các nhánh code phân kỳ.
+- **Sửa đường dẫn `agentDir`** — `agentDir` trong `openclaw.json` được tạo ra nay được đặt đúng là `.openclaw/agents/{slug}/agent` (tương đối với `OPENCLAW_HOME`). Trước đây dùng đường dẫn sai ở root project gây lỗi double-prefix khi runtime.
+- **Xóa thư mục `agents/` thừa ở gốc project** — OS scripts không còn cố tạo `mkdir agents/` ở root; toàn bộ file agent được tạo trong `.openclaw/agents/`.
+
+### 🧹 Dọn Dẹp Config Generation
+
+- **Xóa `auth-profiles.json` per-agent khi dùng 9Router/proxy** — Khi provider là proxy, không còn sinh per-agent `auth-profiles.json` nữa. File này chỉ được tạo cho các provider API trực tiếp khi cần xác thực riêng từng agent.
+- **Xóa `.env` trong native deployment** — Token bot và API key cho native mode giờ được quản lý qua `openclaw channels login` / 9Router dashboard. Không còn tự sinh `.env` trong native scripts để tránh rò rỉ credentials.
+- **Xóa `models.json` per-agent cho Ollama (CLI)** — Config model Ollama đã khai báo trong `openclaw.json → agents.defaults.model`. File `models.json` thừa trong `agents/{id}/agent/` không còn được sinh nữa.
+
+### 🤝 Quy Tắc Cross-Workspace trong AGENTS.md
+
+- **`AGENTS.md` multi-bot có thêm mục "Workspace Chéo"** — Ở chế độ multi-bot (relay), `AGENTS.md` của mỗi bot có thêm mục `🤝 Workspace Chéo (Multi-Agent)` liệt kê đường dẫn workspace của các bot anh em. Quy tắc: bot được phép đọc `IDENTITY`, `SOUL`, `MEMORY` của bot khác để hiểu ngữ cảnh chung; không được xóa hoặc ghi đè file workspace của bot khác trừ khi user yêu cầu rõ ràng.
+
+### 🔧 Tái Cấu Trúc win-bat.js
+
+- **Tách `appendGatewayStart()` và `appendDashboardInfo()` thành helper riêng** — Các đoạn code khởi động gateway PowerShell và in URL dashboard được lặp đi lặp lại đã được đóng gói vào 2 hàm helper cục bộ trong `generateWinBat`, giảm khoảng 50 dòng code.
+
+
 ## [5.3.5] — 2026-04-12
 
 ### 🐛 Sửa: Lỗi Syntax MEMORY.md trong Workspace Zalo

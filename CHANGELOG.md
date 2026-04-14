@@ -1,6 +1,33 @@
 # Changelog (English)
 
 
+## [5.4.0] — 2026-04-14
+
+### 🗑️ Remove: Telegram + Zalo Combo Channel
+
+- **Deprecated and removed `telegram+zalo-personal` combo mode** from both the Web Wizard and CLI. The channel card is hidden in `index.html`, removed from `channels.js` and `data/index.js`, and all conditional logic has been purged from `controller.js`, `output.js`, `steps.js`, `multi-bot.js`, `win-bat.js`, `macos-sh.js`, `linux-sh.js`, `vps-sh.js`, `native-helpers-gen.js`, and `cli.src.js`. Combo mode will be redesigned in a future release.
+
+### 🏗️ Refactor: Multi-Bot Architecture
+
+- **Unified multi-bot flag** — `isTelegramMultiBot`, `isSharedMultiBot`, and `isMultiBotWizard` have all been merged into a single `isMultiBot` boolean throughout the codebase. Reduces complexity and eliminates divergent code paths.
+- **Fixed `agentDir` path resolution** — `agentDir` in generated `openclaw.json` is now correctly set as `.openclaw/agents/{slug}/agent` (relative to `OPENCLAW_HOME`). Previously used an incorrect project-root-level `agents/{slug}/agent` path that caused double-prefix errors at runtime.
+- **Removed redundant `agents/` root folder creation** — OS scripts no longer attempt to `mkdir agents/` at the project root; all agent files are created under `.openclaw/agents/`.
+
+### 🧹 Config Generation Cleanup
+
+- **Removed per-agent `auth-profiles.json` for 9Router/proxy mode** — When the provider is a proxy (9Router), per-agent `auth-profiles.json` is no longer generated. This file is only created for direct API providers where per-agent authentication is required.
+- **Removed `.env` generation for native deployments** — Bot tokens and API keys for native mode are now managed via `openclaw channels login` / the 9Router dashboard. No `.env` is auto-generated in native scripts to avoid credential sprawl.
+- **Removed per-agent `models.json` for Ollama (CLI)** — Ollama model config is already declared in `openclaw.json → agents.defaults.model`. The redundant per-agent `models.json` in `agents/{id}/agent/` is no longer generated.
+
+### 🤝 Cross-Workspace Rules in AGENTS.md
+
+- **Multi-bot `AGENTS.md` now includes a "Cross-Workspace" section** — In multi-bot (relay) mode, each bot's `AGENTS.md` receives a `🤝 Workspace Chéo (Multi-Agent)` / `🤝 Cross-Workspace (Multi-Agent)` section listing the workspace paths of sibling bots. Rules: bots may read each other's `IDENTITY`, `SOUL`, and `MEMORY` files for shared context; they must not delete or overwrite each other's workspace files without explicit user instruction.
+
+### 🔧 win-bat.js Refactor
+
+- **Extracted `appendGatewayStart()` and `appendDashboardInfo()` helpers** — Repeated PowerShell gateway launch and dashboard URL blocks are now deduplicated into two local helper functions inside `generateWinBat`, reducing the Windows batch generator by ~50 lines.
+
+
 ## [5.3.5] — 2026-04-12
 
 ### 🐛 Fix: MEMORY.md Syntax Error in Zalo Workspace Files
