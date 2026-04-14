@@ -2157,7 +2157,8 @@
       if (p) allPlugins.push(p.package);
     });
     if (isMultiBot && state.channel === 'telegram') allPlugins.push(relayPluginSpec);
-    const pluginCmd = allPlugins.length > 0 ? allPlugins.map(function(pkg) { return 'call npm exec -- openclaw plugins install ' + pkg + ' || goto :fail'; }).join('\r\n') : '';
+    const uniquePlugins = [...new Set(allPlugins)];
+    const pluginCmd = uniquePlugins.length > 0 ? uniquePlugins.map(function(pkg) { return 'call npm exec -- openclaw plugins install ' + pkg + ' || echo [WARN] Plugin ' + pkg + ' cai dat that bai (co the do rate limit). Ban co the cai thu cong sau.'; }).join('\r\n') : '';
     const nativeSkillInstallCmds = nativeSkillConfigs.map((skill) => `call openclaw skills install ${skill.slug} || echo Warning: Failed to install skill ${skill.slug}`);
 
     Object.assign(globalThis, {
@@ -2379,6 +2380,26 @@
             'telegram-multibot-relay': { enabled: true },
           },
         },
+        ...(provider.isProxy ? {
+          models: {
+            mode: 'merge',
+            providers: {
+              '9router': {
+                baseUrl: 'http://localhost:20128/v1',
+                apiKey: 'sk-no-key',
+                api: 'openai-completions',
+                models: [
+                  {
+                    id: 'smart-route',
+                    name: 'Smart Proxy (Auto Route)',
+                    contextWindow: 200000,
+                    maxTokens: 8192,
+                  }
+                ]
+              }
+            }
+          }
+        } : {}),
         gateway: {
           port: 18791,
           mode: 'local',

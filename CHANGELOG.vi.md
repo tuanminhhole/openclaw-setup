@@ -1,6 +1,13 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.4.2] — 2026-04-14
+
+### 🐛 Sửa lỗi Script Cài Tự Động (Web Wizard)
+
+- **Trùng lặp cài đặt Plugin**: Đã sửa thuật toán bị lỗi khiến plugin Telegram Multi-Bot Relay bị tiêm vào lệnh cài đặt terminal tận hai lần trong các script `setup-openclaw-*.bat/sh`. Điều này khắc phục lỗi crash "plugin already exists" do vòng lặp cài cùng một gói package.
+
+
 ## [5.4.1] — 2026-04-14
 
 ### 🐛 Sửa Lỗi Build Dockerfile
