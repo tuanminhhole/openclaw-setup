@@ -48,6 +48,8 @@ node_modules/
 *.txt
 !SETUP*.txt
 *.log
+scratch/
+patch-*.js
 
 # ===== OS =====
 .DS_Store
@@ -68,12 +70,11 @@ implementation_plan.md
 walkthrough.md
 
 # ===== Dev-only source & tools (setup.js / cli.js are the built artifacts) =====
-setup/
-tests/
-scripts/
+# Ignoring src/ to protect proprietary development files from public git repository.
+src/
 
 # ===== CLI source (cli.js is the deployed artifact) =====
-cli/
+# (moved to src/)
 
 # ===== API Doc Scrapes =====
 *_doc*.md
@@ -86,7 +87,8 @@ zalo_docs*.md
 # ===== Agent =====
 .agent
 
-dist/
+# dist is intentionally NOT ignored so GitHub Pages can serve dist/setup.js
+# dist/
 
 # ===== Generated helper scripts (created in project dir by setup) =====
 start-chrome-debug.bat

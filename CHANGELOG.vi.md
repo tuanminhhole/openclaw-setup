@@ -1,5 +1,16 @@
 # Changelog (Tiếng Việt)
 
+## [5.5.0] — 2026-04-15
+
+### 📄 Tái Cấu Trúc Workspace Docs & OpenClaw 2026.4.14
+
+- **Scaffold-based generation** — Cả Wizard lẫn CLI giờ gọi chung scaffold builders từ `scaffold-gen.js` thay vì viết inline, đảm bảo workspace docs đồng nhất trên mọi nền tảng và chế độ cài đặt.
+- **Tách file workspace docs** — Triển khai multi-bot (Telegram relay) giờ sinh `TEAM.md` (roster đội + quy tắc phối hợp) và `RELAY.md` (sổ tay chuyển tiếp) thành file riêng. Single-bot không tạo các file này.
+- **Quy tắc bảo mật đầy đủ mọi nơi** — Tất cả `AGENTS.md` giờ có đủ 4 section bảo mật (File hệ thống, API Key, Ví Crypto, Docker) bất kể OS, chế độ cài đặt hay kênh chat.
+- **Xóa file `.yaml` agent** — OpenClaw Core chỉ đọc config từ `openclaw.json → agents.list`. File `.yaml` orphan không còn được sinh ra.
+- **Chống ảo giác handoff** — `AGENTS.md` variant relay bắt buộc `react` action (👍 mỗi tin nhắn đến) và cấm từ chối chuyển tiếp giữa các agent.
+- **Nâng OpenClaw lên 2026.4.14** — Bao gồm hệ thống Dreaming (thử nghiệm), cải thiện active-memory, sửa deadlock nút approve Telegram, ổn định WebSocket keepalive.
+
 
 ## [5.4.2] — 2026-04-14
 

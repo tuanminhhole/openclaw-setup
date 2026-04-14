@@ -11,42 +11,32 @@ import { createRequire } from 'module';
 // ─── Shared generators (dual-mode IIFE + CJS) ────────────────────────────────
 // These modules export via module.exports when required from Node.js
 const _require = createRequire(import.meta.url);
+
+function loadSharedModule(modulePath, globalName) {
+  const loaded = _require(modulePath);
+  if (loaded && Object.keys(loaded).length > 0) {
+    return loaded;
+  }
+  return globalThis[globalName] || loaded || {};
+}
+
 const {
   OPENCLAW_NPM_SPEC,
   OPENCLAW_RUNTIME_PACKAGES,
   TELEGRAM_RELAY_PLUGIN_SPEC,
   buildRelayPluginInstallCommand,
-  buildRelayPluginInstallCommandWin,
   buildTelegramPostInstallChecklist,
-  buildAuthProfilesString,
-  buildAuthProfilesJson,
-} = _require('./setup/shared/common-gen.js');
+} = loadSharedModule('./setup/shared/common-gen.js', '__openclawCommon');
 
 const {
-  build9RouterSmartRouteSyncScript: build9RouterSmartRouteSyncScriptShared,
-  build9RouterComposeEntrypointScript,
-  buildGatewayPatchCmd,
-  indentBlock,
   buildDockerArtifacts,
-  encodeBase64Utf8,
-} = _require('./setup/shared/docker-gen.js');
+} = loadSharedModule('./setup/shared/docker-gen.js', '__openclawDockerGen');
 
 const {
-  buildIdentityDoc,
-  buildSoulDoc,
-  buildTeamDoc,
-  buildUserDoc,
-  buildMemoryDoc,
-  buildBrowserToolJs,
-  buildBrowserDoc,
-  buildSecurityRules,
-  buildAgentsDoc,
-  buildToolsDoc,
-  buildRelayDoc,
-} = _require('./setup/shared/scaffold-gen.js');
+  buildWorkspaceFileMap,
+} = loadSharedModule('./setup/shared/workspace-gen.js', '__openclawWorkspace');
 
-let dataExport = _require('./setup/data/index.js');
-if (!dataExport.CHANNELS) dataExport = globalThis.__openclawData || {};
+const dataExport = loadSharedModule('./setup/data/index.js', '__openclawData');
 
 const {
   PROVIDERS: _PROVIDERS,
@@ -56,39 +46,12 @@ const {
 } = dataExport;
 
 const {
-  buildChromeDebugBat,
-  buildChromeDebugSh,
-} = _require('./setup/shared/runtime-gen.js');
+  buildCliChromeDebugArtifacts,
+  buildCliUninstallArtifacts,
+  buildCliUpgradeArtifacts,
+  buildCliStartBotArtifacts,
+} = loadSharedModule('./setup/shared/install-gen.js', '__openclawInstall');
 
-function buildCLIUninstallScript({ os, projectDir, botName = 'openclaw', isDocker = false }) {
-  const absWin = projectDir.replace(/\//g, '\\');
-  const absUnix = projectDir.replace(/\\/g, '/');
-  if (os === 'win' && !isDocker) {
-    return {
-      name: 'uninstall-openclaw-win.bat',
-      content: `@echo off\r\nsetlocal EnableExtensions\r\nchcp 65001 >nul\r\necho.\r\necho ============================================================\r\necho   OpenClaw Uninstaller - Windows Native\r\necho   Project: ${absWin}\r\necho ============================================================\r\necho.\r\necho [WARNING] This will:\r\necho   1. Kill openclaw and 9router background processes\r\necho   2. Uninstall global npm packages (openclaw, 9router)\r\necho   3. Delete the project folder and all its data\r\necho.\r\nset /p CONFIRM=Nhap YES de xac nhan xoa toan bo: \r\nif /i not "%CONFIRM%"=="YES" (\r\n  echo Huy bo. Khong xoa gi ca.\r\n  pause\r\n  exit /b 0\r\n)\r\necho.\r\necho [1/4] Dang dung cac tien trinh openclaw va 9router...\r\nwmic process where "Name='node.exe' and CommandLine like '%%9router%%'" delete >nul 2>&1\r\nwmic process where "Name='cmd.exe' and CommandLine like '%%9router%%'" delete >nul 2>&1\r\nwmic process where "Name='node.exe' and CommandLine like '%%openclaw.mjs%%'" delete >nul 2>&1\r\ntimeout /t 2 /nobreak >nul\r\necho    OK: Tien trinh da dung.\r\necho.\r\necho [2/4] Dang go cai npm packages toan cau...\r\nset "PATH=%APPDATA%\\npm;%PATH%"\r\ncall npm uninstall -g openclaw 9router grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>nul\r\necho    OK: npm packages da duoc go cai.\r\necho.\r\necho [3/4] Xoa thu muc project...\r\nset "TARGET=${absWin}"\r\nif exist "%TARGET%" (\r\n  rd /s /q "%TARGET%"\r\n  echo    OK: Da xoa %TARGET%\r\n) else (\r\n  echo    INFO: Thu muc khong ton tai: %TARGET%\r\n)\r\necho.\r\necho [4/4] Xoa thu muc .9router trong Home (neu co)...\r\nif exist "%USERPROFILE%\\.9router" (\r\n  set /p CLEAN_HOME=Xoa ca %USERPROFILE%\\.9router? [YES/no]: \r\n  if /i "%CLEAN_HOME%"=="YES" rd /s /q "%USERPROFILE%\\.9router" >nul 2>&1\r\n)\r\necho.\r\necho ============================================================\r\necho   Go cai hoan tat!\r\necho   De cai lai: chay lai file setup hoac npx create-openclaw-bot\r\necho ============================================================\r\npause\r\nendlocal\r\n`,
-    };
-  }
-  if (os === 'win' && isDocker) {
-    return {
-      name: 'uninstall-openclaw-docker.bat',
-      content: `@echo off\r\nsetlocal EnableExtensions\r\nchcp 65001 >nul\r\necho.\r\necho ============================================================\r\necho   OpenClaw Uninstaller - Docker (Windows)\r\necho   Project: ${absWin}\r\necho ============================================================\r\necho.\r\nset /p CONFIRM=Nhap YES de xac nhan xoa toan bo: \r\nif /i not "%CONFIRM%"=="YES" ( echo Huy bo. & pause & exit /b 0 )\r\necho.\r\necho [1/2] Dang dung Docker containers...\r\ncd /d "${absWin}\\docker\\openclaw" 2>nul && ( docker compose down --volumes --remove-orphans 2>nul || docker-compose down --volumes --remove-orphans 2>nul )\r\necho [2/2] Xoa thu muc project...\r\ncd /d "%USERPROFILE%"\r\nif exist "${absWin}" rd /s /q "${absWin}"\r\necho.\r\necho Go cai hoan tat! De cai lai: npx create-openclaw-bot@latest\r\npause\r\nendlocal\r\n`,
-    };
-  }
-  // macOS / Linux
-  const label = os === 'linux' ? 'macOS' : 'Linux Desktop';
-  const scriptName = isDocker ? 'uninstall-openclaw-docker.sh' : 'uninstall-openclaw.sh';
-  if (!isDocker) {
-    return {
-      name: scriptName,
-      content: `#!/usr/bin/env bash\n# ====== OpenClaw Uninstaller — ${label} (Native) ======\nset -e\nPROJECT_DIR="${absUnix}"\necho ""\necho "============================================================"\necho "  OpenClaw Uninstaller — ${label} Native"\necho "  Project: $PROJECT_DIR"\necho "============================================================"\necho ""\nread -rp "Type YES to confirm full removal: " CONFIRM\nif [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi\necho "[1/4] Stopping openclaw and 9router..."\nopenclaw gateway stop 2>/dev/null || true\npkill -f "9router" 2>/dev/null || true\nfor port in 18791 20128; do\n  pid=$(lsof -ti tcp:$port 2>/dev/null || true)\n  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true\ndone\necho "[2/4] Uninstalling npm packages..."\nnpm uninstall -g openclaw 9router grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true\nsudo npm uninstall -g openclaw 9router 2>/dev/null || true\necho "[3/4] Removing project directory..."\n[ -d "$PROJECT_DIR" ] && rm -rf "$PROJECT_DIR" && echo "   OK: Deleted $PROJECT_DIR" || echo "   INFO: Not found."\necho "[4/4] Checking home-level dirs..."\nfor dir in "$HOME/.9router" "$HOME/.openclaw"; do\n  if [ -d "$dir" ]; then\n    read -rp "Delete $dir? [YES/no]: " CLEAN\n    [ "$CLEAN" = "YES" ] && rm -rf "$dir" && echo "   OK." || echo "   Kept."\n  fi\ndone\necho ""\necho "============================================================"\necho "  Uninstall complete! Re-install: run setup or npx create-openclaw-bot"\necho "============================================================"\n`,
-    };
-  }
-  return {
-    name: scriptName,
-    content: `#!/usr/bin/env bash\n# ====== OpenClaw Uninstaller — Docker ======\nset -e\nPROJECT_DIR="${absUnix}"\nread -rp "Type YES to confirm: " CONFIRM\n[ "$CONFIRM" = "YES" ] || exit 0\ncd "$PROJECT_DIR/docker/openclaw" 2>/dev/null && docker compose down --volumes --remove-orphans 2>/dev/null || true\nrm -rf "$PROJECT_DIR"\necho "Uninstall complete!"\n`,
-  };
-}
 
 // TELEGRAM_RELAY_PLUGIN_SPEC đã được import từ common-gen
 const TELEGRAM_RELAY_PLUGIN_ID = TELEGRAM_RELAY_PLUGIN_SPEC;
@@ -609,6 +572,16 @@ async function waitForFile(filePath, timeoutMs = 15000, intervalMs = 500) {
   return fs.pathExists(filePath);
 }
 
+async function writeGeneratedArtifacts(targetDir, artifacts = []) {
+  for (const artifact of artifacts.filter(Boolean)) {
+    const artifactPath = path.join(targetDir, artifact.name);
+    await fs.writeFile(artifactPath, artifact.content, 'utf8');
+    if (artifact.executable || artifact.name.endsWith('.sh')) {
+      try { await fs.chmod(artifactPath, 0o755); } catch (_) {}
+    }
+  }
+}
+
 function extractZaloPairingCode(text) {
   const value = String(text || '');
   const explicitCommandMatch = value.match(/openclaw pairing approve zalouser\s+([A-Z0-9-]+)/i);
@@ -888,50 +861,42 @@ async function writeWorkspaceFiles({
     })
     .join('\n') || (isVi ? '- _(Chưa có skill nào)_' : '- _(No skills installed)_');
 
-  const workspacePath = `/root/.openclaw/${agentWorkspaceDir}/`;
+  const workspacePath = `.openclaw/${agentWorkspaceDir}/`;
+  const teamRosterFormatted = teamRoster
+    .map((peer, idx) => {
+      const agentId = peer.agentId || String(peer.name || `Bot ${idx + 1}`).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const desc = peer.desc || (isVi ? 'Tro ly AI ca nhan' : 'Personal AI assistant');
+      const accountId = peer.accountId ? `, accountId: ${peer.accountId}` : '';
+      const slashCmd = peer.slashCmd ? `, slash: ${peer.slashCmd}` : '';
+      return `- \`${agentId}\`: ${peer.name || `Bot ${idx + 1}`} - ${desc}${accountId}${slashCmd}`;
+    })
+    .join('\n');
 
-  const identityMd = buildIdentityDoc({ isVi, name: botName, desc: botDesc, richAiNote: false });
-  const soulMd = buildSoulDoc({ isVi, persona, variant: isRelayBot ? 'cli-simple' : 'cli-rich' });
-  const userMd = buildUserDoc({ isVi, userInfo, variant: isRelayBot ? 'cli-multi' : 'cli-single' });
-  const memoryMd = buildMemoryDoc({ isVi, variant: isRelayBot ? 'cli-multi' : 'cli-single' });
-  const agentsMd = buildAgentsDoc({
-    isVi, botName, botDesc, ownAliases, otherAgents,
+  const files = buildWorkspaceFileMap({
+    isVi,
+    variant: isRelayBot ? 'relay' : 'single',
+    botName,
+    botDesc,
+    ownAliases,
+    otherAgents,
+    skillListStr,
     workspacePath,
-    variant: isRelayBot ? 'relay' : 'single',
-    includeSecurity: !isRelayBot,
-  });
-  const toolsMd = buildToolsDoc({
-    isVi, skillListStr, workspacePath,
-    variant: isRelayBot ? 'relay' : 'single',
     agentWorkspaceDir,
+    persona,
+    userInfo,
+    hasBrowser: isDesktop || isServer,
+    soulVariant: isRelayBot ? 'cli-simple' : 'cli-rich',
+    userVariant: isRelayBot ? 'cli-multi' : 'cli-single',
+    memoryVariant: isRelayBot ? 'cli-multi' : 'cli-single',
+    browserDocVariant: isServer ? 'cli-server' : 'cli-desktop',
+    browserToolVariant: 'cli',
+    includeBrowserTool: isDesktop,
+    teamRosterFormatted,
   });
-  const teamSection = teamRoster.length > 0
-    ? `\n\n${buildTeamDoc({
-      isVi,
-      teamRoster,
-      includeAgentIds: isRelayBot,
-      includeAccountIds: isRelayBot && teamRoster.some((p) => p.accountId),
-      relayMode: isRelayBot && otherAgents.length > 0,
-    })}`
-    : '';
-  const relaySection = isRelayBot
-    ? `\n\n${buildRelayDoc(isVi)}`
-    : '';
 
   await fs.ensureDir(workspaceDir);
-  await fs.writeFile(path.join(workspaceDir, 'IDENTITY.md'), identityMd);
-  await fs.writeFile(path.join(workspaceDir, 'SOUL.md'), soulMd);
-  await fs.writeFile(path.join(workspaceDir, 'AGENTS.md'), `${agentsMd}${teamSection}`);
-  await fs.writeFile(path.join(workspaceDir, 'USER.md'), userMd);
-  await fs.writeFile(path.join(workspaceDir, 'TOOLS.md'), `${toolsMd}${relaySection}`);
-  await fs.writeFile(path.join(workspaceDir, 'MEMORY.md'), memoryMd);
-
-  // Browser files
-  if (isDesktop) {
-    await fs.writeFile(path.join(workspaceDir, 'browser-tool.js'), buildBrowserToolJs('cli'));
-    await fs.writeFile(path.join(workspaceDir, 'BROWSER.md'), buildBrowserDoc({ isVi, variant: 'cli-desktop', workspaceRoot: '/root/.openclaw' }));
-  } else if (isServer) {
-    await fs.writeFile(path.join(workspaceDir, 'BROWSER.md'), buildBrowserDoc({ isVi, variant: 'cli-server' }));
+  for (const [name, content] of Object.entries(files)) {
+    await fs.writeFile(path.join(workspaceDir, name), content, 'utf8');
   }
 }
 
@@ -1458,7 +1423,7 @@ async function main() {
         [groupId || '*']: { enabled: true, requireMention: false },
       },
       replyToMode: 'first',
-      reactionLevel: 'ack',
+      reactionLevel: 'minimal',
       actions: {
         sendMessage: true,
         reactions: true,
@@ -1484,8 +1449,8 @@ async function main() {
         list: agentMetas.map((meta) => ({
           id: meta.agentId,
           name: meta.name,
-          workspace: `/root/.openclaw/${meta.workspaceDir}`,
-          agentDir: `/root/.openclaw/agents/${meta.agentId}/agent`,
+          workspace: `.openclaw/${meta.workspaceDir}`,
+          agentDir: `agents/${meta.agentId}/agent`,
           model: { primary: modelsPrimary, fallbacks: [] },
         })),
       },
@@ -1621,8 +1586,7 @@ async function main() {
         .map((peer) => ({ name: peer.name, agentId: peer.agentId }));
 
       // agentYaml & auth still needed, keep non-workspace writes here
-      const agentYaml = `name: ${meta.agentId}\ndescription: "${meta.desc}"\n\nmodel:\n  primary: ${modelsPrimary}`;
-      await fs.writeFile(path.join(rootClawDir, 'agents', `${meta.agentId}.yaml`), agentYaml);
+      // .yaml removed — OpenClaw reads config exclusively from openclaw.json
       if (Object.keys(authProfilesJson).length > 0) {
         await fs.writeJson(path.join(rootClawDir, 'agents', meta.agentId, 'agent', 'auth-profiles.json'), authProfilesJson, { spaces: 2 });
       }
@@ -1654,7 +1618,8 @@ async function main() {
     }));
     const ownAliases = [loopBotName, bots[bIndex]?.slashCmd || '', `bot ${bIndex + 1}`].filter(Boolean);
     const otherBotNames = teamRoster.filter((peer) => peer.idx !== bIndex).map((peer) => peer.name);
-    const loopAgentId = loopBotName.replace(/\s+/g, '-').toLowerCase();
+    const loopAgentId = loopBotName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `bot${bIndex + 1}`;
+    const loopWorkspaceDir = `workspace-${loopAgentId}`;
     const loopBotDir = isMultiBot ? path.join(projectDir, `bot${bIndex+1}`) : projectDir;
     
     await fs.ensureDir(path.join(loopBotDir, '.openclaw', 'agents', loopAgentId, 'agent'));
@@ -1675,6 +1640,8 @@ async function main() {
         },
         list: [{
           id: loopAgentId,
+          workspace: `.openclaw/${loopWorkspaceDir}`,
+          agentDir: `agents/${loopAgentId}/agent`,
           model: { primary: modelsPrimary, fallbacks: [] }
         }]
       },
@@ -1760,7 +1727,7 @@ async function main() {
     await fs.writeJson(path.join(loopBotDir, '.openclaw', 'openclaw.json'), botConfig, { spaces: 2 });
     
     // ── Workspace files: use shared writeWorkspaceFiles() ──────────────────────
-    const dockerWorkspaceDir = path.join(loopBotDir, '.openclaw', 'workspace');
+    const dockerWorkspaceDir = path.join(loopBotDir, '.openclaw', loopWorkspaceDir);
     const dockerOwnAliases = [loopBotName, bots[bIndex]?.slashCmd || '', `bot ${bIndex + 1}`].filter(Boolean);
     const dockerOtherAgents = teamRoster
       .filter((peer) => peer.idx !== bIndex)
@@ -1781,7 +1748,7 @@ async function main() {
       otherAgents: dockerOtherAgents,
       teamRoster,
       userInfo,
-      agentWorkspaceDir: 'workspace',
+      agentWorkspaceDir: loopWorkspaceDir,
       isRelayBot: isMultiBot,
     });
 
@@ -1797,52 +1764,25 @@ async function main() {
   }
 
   // ── Chrome Debug scripts — via shared builder (same content as wizard ZIP) ─
-  const batPath = path.join(projectDir, 'start-chrome-debug.bat');
-  await fs.writeFile(batPath, buildChromeDebugBat(), 'utf8');
-  const shPath = path.join(projectDir, 'start-chrome-debug.sh');
-  await fs.writeFile(shPath, buildChromeDebugSh(), 'utf8');
-  try { await fs.chmod(shPath, 0o755); } catch (_) {}
+  await writeGeneratedArtifacts(projectDir, buildCliChromeDebugArtifacts());
 
-  // ── Uninstall script — write to project dir (native only) ─────────────────
-  if (deployMode !== 'docker') {
-    const _nativeOs = process.platform === 'win32' ? 'win'
-      : process.platform === 'darwin' ? 'linux'
-      : 'linux-desktop';
-    const _uninstallScript = buildCLIUninstallScript({
-      os: _nativeOs, projectDir, botName, isDocker: false,
-    });
-    if (_uninstallScript) {
-      await fs.writeFile(path.join(projectDir, _uninstallScript.name), _uninstallScript.content, 'utf8');
-      if (_uninstallScript.name.endsWith('.sh')) {
-        try { await fs.chmod(path.join(projectDir, _uninstallScript.name), 0o755); } catch (_) {}
-      }
-    }
-  }
+  // ── Uninstall scripts ───────────────────────────────────────────────────────
+  await writeGeneratedArtifacts(projectDir, buildCliUninstallArtifacts({
+    deployMode, osChoice: detectedOS, projectDir, botName,
+  }));
+
+  // ── Upgrade scripts ─────────────────────────────────────────────────────────
+  await writeGeneratedArtifacts(projectDir, buildCliUpgradeArtifacts());
 
   // ── start-bot.bat / start-bot.sh — one-click restart scripts ─────────────
   // Generated for native deployments only (docker has docker compose up)
   if (deployMode !== 'docker') {
-    const { generateStartBotBat, generateStartBotSh } = _require('./setup/generators/gateway-start-gen.js');
-
-    // Windows: start-bot.bat
-    const startBotBatPath = path.join(projectDir, 'start-bot.bat');
-    const startBotBatContent = generateStartBotBat({
+    await writeGeneratedArtifacts(projectDir, buildCliStartBotArtifacts({
       projectDir,
       openclawHome: path.join(projectDir, '.openclaw'),
       is9Router: providerKey === '9router',
       isVi,
-    });
-    await fs.writeFile(startBotBatPath, startBotBatContent, 'utf8');
-
-    // macOS/Linux: start-bot.sh
-    const startBotShPath = path.join(projectDir, 'start-bot.sh');
-    const startBotShContent = generateStartBotSh({
-      projectDir,
-      is9Router: providerKey === '9router',
-      isVi,
-    });
-    await fs.writeFile(startBotShPath, startBotShContent, 'utf8');
-    try { await fs.chmod(startBotShPath, 0o755); } catch (_) {}
+    }));
 
     console.log(chalk.cyan(
       isVi
