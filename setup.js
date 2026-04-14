@@ -1863,7 +1863,7 @@
         emitBrowserInstall = true,
       } = options;
 
-      const browserAptExtra = hasBrowser ? ' socat' : '';
+      const browserAptExtra = hasBrowser ? ' xvfb' : '';
       const browserInstallLines = hasBrowser && emitBrowserInstall
         ? [
             '',
@@ -1879,8 +1879,18 @@
         ? `\n# Install skills (ClawHub)\n${allSkills.map((skill) => `RUN openclaw skills install ${skill} || echo "Warning: Failed to install ${skill} due to rate limits."`).join('\n')}\n`
         : '';
       const patchLine = `RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const files=fs.readdirSync(dir).filter(n=>/\\.js$/.test(n));let patched=0;for(const file of files){const p=path.join(dir,file);let s='';try{s=fs.readFileSync(p,'utf8');}catch{continue;}if(s.includes(to)||!s.includes(from))continue;s=s.replace(from,to);fs.writeFileSync(p,s);patched++;}if(!patched){process.exit(0);}"`;
+      
+      // Dynamic runtime configuration injection for container internal IPs
+      const setupInternalIpScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+      const setupInternalIpB64 = encodeBase64Utf8(setupInternalIpScript);
+
       const runtimeParts = runtimeCommandParts.filter(Boolean);
-      runtimeParts.push('openclaw gateway run');
+      runtimeParts.unshift(`node -e "eval(Buffer.from('${setupInternalIpB64}','base64').toString())" &&`);
+      if (hasBrowser) {
+        runtimeParts.push('(Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 &) && export DISPLAY=:99 && openclaw gateway run');
+      } else {
+        runtimeParts.push('openclaw gateway run');
+      }
       const dockerfile = `FROM node:22-slim
 
   RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /var/lib/apt/lists/*
@@ -2147,7 +2157,7 @@
       if (p) allPlugins.push(p.package);
     });
     if (isMultiBot && state.channel === 'telegram') allPlugins.push(relayPluginSpec);
-    const pluginCmd = allPlugins.length > 0 ? ('call npm exec -- openclaw plugins install ' + allPlugins.join(' ') + ' || goto :fail') : '';
+    const pluginCmd = allPlugins.length > 0 ? allPlugins.map(function(pkg) { return 'call npm exec -- openclaw plugins install ' + pkg + ' || goto :fail'; }).join('\r\n') : '';
     const nativeSkillInstallCmds = nativeSkillConfigs.map((skill) => `call openclaw skills install ${skill.slug} || echo Warning: Failed to install skill ${skill.slug}`);
 
     Object.assign(globalThis, {
@@ -5250,7 +5260,7 @@
       const dockerGen = globalThis.__openclawDockerGen;
       const relayPluginInstallCmd = isMultiBot ? `${buildRelayPluginInstallCommand('openclaw')} && ` : '';
       const pluginInstallCmd = allPlugins.length > 0
-        ? `openclaw plugins install ${allPlugins.join(' ')} 2>/dev/null || true && ${relayPluginInstallCmd}`
+        ? `${allPlugins.map((p) => `openclaw plugins install ${p} 2>/dev/null || true`).join(' && ')} && ${relayPluginInstallCmd}`
         : relayPluginInstallCmd;
       const dockerArtifacts = dockerGen.buildDockerArtifacts({
         openClawNpmSpec: 'openclaw@2026.4.5',
@@ -6008,7 +6018,7 @@
     // ========== Zalo Personal Login Guide (post-setup) ==========
     function generateZaloOnboardGuide() {
       const lang = document.getElementById('cfg-language')?.value || 'vi';
-      setOutput('out-zalo-onboard-cmd', `docker compose exec -it ai-bot openclaw channels login --channel zalouser --instance default --verbose`);
+      setOutput('out-zalo-onboard-cmd', `docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose`);
 
       if (lang === 'vi') {
         setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐

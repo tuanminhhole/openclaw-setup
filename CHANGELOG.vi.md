@@ -1,6 +1,19 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.4.1] — 2026-04-14
+
+### 🐛 Sửa Lỗi Build Dockerfile
+
+- **Phục hồi hỗ trợ Trình duyệt**: Đưa trở lại gói lệnh cài đặt `xvfb` APT và việc thực thi Xvfb quay trong nền (`Xvfb :99 -screen...`) vào Dockerfile `CMD`. Nó giúp các bot chạy Playwright có giao diện headful khởi động mà không bị crash vì thiếu khung màn hình.
+- **Sửa lỗi REST API CORS**: Khôi phục script tiêm dải IP nội bộ lúc runtime. Script này tự động lấy các bridge IP nội bộ của Docker (`172...`) để cấp phép vào mục `allowedOrigins` cho `openclaw.json` ngay lúc container khởi động, sửa hoàn toàn lỗi bị block CORS 403 không vào được Web UI.
+
+### 🧹 Tự Động Tạo Script Gỡ Cài Đặt
+
+- **Tính Năng Wizard UI**: Giao diện HTML wizard giờ đây sẽ tự động tải thêm một file script dọn dẹp hệ thống (`uninstall-openclaw-*.bat/sh`) mỗi khi tải file cài đặt cho Native hoặc Docker.
+- **Dọn Dẹp Triệt Để**: Các script này giúp dừng sạch sẽ các tiến trình nền của 9Router/OpenClaw, gỡ cài đặt các gói npm toàn cầu và xoá an toàn thư mục project cũng như data `.9router`, giúp bạn làm sạch máy để cài đặt lại dễ dàng.
+
+
 ## [5.4.0] — 2026-04-14
 
 ### 🗑️ Xóa: Kênh Combo Telegram + Zalo

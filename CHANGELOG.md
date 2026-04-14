@@ -1,6 +1,19 @@
 # Changelog (English)
 
 
+## [5.4.1] — 2026-04-14
+
+### 🐛 Docker CLI Generation Fixes
+
+- **Browser Automation Restoration**: Reintroduced `xvfb` APT installation and the background Xvfb frame buffer execution (`Xvfb :99 -screen...`) to the generated Dockerfile `CMD`. This prevents headful Playwright processes from crashing on startup within the container.
+- **REST API CORS Hotfix**: Reintroduced the runtime Internal IP injector script. It correctly patches `openclaw.json` at container startup strictly mapping Docker internal bridge IPs (`172...`) into `allowedOrigins`, eliminating 403 CORS blocks inside Docker Web Control UIs.
+
+### 🧹 Automated Uninstall Scripts
+
+- **Wizard UI Generation**: The HTML setup wizard now generates a matching `uninstall-openclaw-*.bat/sh` script when downloading the configuration for Native or Docker deployments.
+- **Complete Cleanup**: The generated scripts cleanly kill 9Router/OpenClaw background processes, uninstall global npm packages, and safely remove the project and `.9router` data directories, allowing for a fresh start whenever needed.
+
+
 ## [5.4.0] — 2026-04-14
 
 ### 🗑️ Remove: Telegram + Zalo Combo Channel

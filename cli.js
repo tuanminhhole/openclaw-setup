@@ -45,23 +45,21 @@ const {
   buildRelayDoc,
 } = _require('./setup/shared/scaffold-gen.js');
 
+let dataExport = _require('./setup/data/index.js');
+if (!dataExport.CHANNELS) dataExport = globalThis.__openclawData || {};
+
 const {
   PROVIDERS: _PROVIDERS,
   SKILLS: _SKILLS,
   CHANNELS: _CHANNELS,
   OLLAMA_MODELS,
-} = _require('../setup/data/index.js');
+} = dataExport;
 
 const {
   buildChromeDebugBat,
   buildChromeDebugSh,
 } = _require('./setup/shared/runtime-gen.js');
 
-/**
- * Pure uninstall script generator for CLI (no DOM dependency).
- * @param {{os:'win'|'linux'|'linux-desktop', projectDir:string, botName:string, isDocker?:boolean}} opts
- * @returns {{name:string, content:string}|null}
- */
 function buildCLIUninstallScript({ os, projectDir, botName = 'openclaw', isDocker = false }) {
   const absWin = projectDir.replace(/\//g, '\\');
   const absUnix = projectDir.replace(/\\/g, '/');
@@ -1824,7 +1822,7 @@ async function main() {
   // ── start-bot.bat / start-bot.sh — one-click restart scripts ─────────────
   // Generated for native deployments only (docker has docker compose up)
   if (deployMode !== 'docker') {
-    const { generateStartBotBat, generateStartBotSh } = _require('../setup/generators/gateway-start-gen.js');
+    const { generateStartBotBat, generateStartBotSh } = _require('./setup/generators/gateway-start-gen.js');
 
     // Windows: start-bot.bat
     const startBotBatPath = path.join(projectDir, 'start-bot.bat');

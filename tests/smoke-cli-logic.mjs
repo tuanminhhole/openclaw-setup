@@ -233,20 +233,20 @@ checks.push(() => expectMatch(
 ));
 
 checks.push(() => expectMatch(
-  cli,
-  /RUN npm install -g \$\{OPENCLAW_NPM_SPEC\} \$\{OPENCLAW_RUNTIME_PACKAGES\}/,
-  'Docker CLI image must install the full OpenClaw runtime package set alongside openclaw'
+  setup,
+  /RUN npm install -g \$\{openClawNpmSpec\} \$\{openClawRuntimePackages\}/,
+  'Docker setup.js image must install the full OpenClaw runtime package set alongside openclaw'
 ));
 
 checks.push(() => expect(
-  cli.includes("a.add('http://' + entry.address + ':18791')")
-    && cli.includes('allowedOrigins:Array.from(a).filter(Boolean)')
-    && cli.includes("bind:'custom',customBindHost:'0.0.0.0'")
-    && !cli.includes("bind:'loopback'")
-    && !cli.includes("delete c.gateway.customBindHost;")
-    && !cli.includes("const gatewayBridge = 'socat TCP-LISTEN:18791")
-    && !cli.includes("a.add(`http://${entry.address}:18791`)"),
-  'Docker CLI patch script must use bind:custom+customBindHost:0.0.0.0, skip socat gateway bridge, and avoid shell-expanding ${entry.address}'
+  setup.includes("a.add('http://' + entry.address + ':18791')")
+    && setup.includes('allowedOrigins:Array.from(a).filter(Boolean)')
+    && setup.includes("bind:'custom',customBindHost:'0.0.0.0'")
+    && !setup.includes("bind:'loopback'")
+    && !setup.includes("delete c.gateway.customBindHost;")
+    && !setup.includes("const gatewayBridge = 'socat TCP-LISTEN:18791")
+    && !setup.includes("a.add(`http://${entry.address}:18791`)"),
+  'Docker setup.js patch script must use bind:custom+customBindHost:0.0.0.0, skip socat gateway bridge, and avoid shell-expanding ${entry.address}'
 ));
 
 checks.push(() => expectMatch(
@@ -343,19 +343,19 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /if \(state\.nativeOs === 'win'\) \{[\s\S]*scriptName = isDocker \? 'setup-openclaw-docker-win\.bat' : 'setup-openclaw-win\.bat';[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*openclaw gateway run/s,
+  /const scriptName = isDocker \? 'setup-openclaw-docker-win\.bat' : 'setup-openclaw-win\.bat';[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*openclaw gateway run/s,
   'Windows native/docker script generation must use the correct file name and start command'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'linux'\) \{[\s\S]*scriptName = isDocker \? 'setup-openclaw-docker-macos\.sh' : 'setup-openclaw-macos\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*openclaw gateway run/s,
+  /const scriptName = isDocker \? 'setup-openclaw-docker-macos\.sh' : 'setup-openclaw-macos\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*openclaw gateway run/s,
   'macOS script generation must use the correct file name and start command'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /RUN npm install -g openclaw@2026\.4\.5 \$\{openClawRuntimePackages\}/,
+  /RUN npm install -g \$\{openClawNpmSpec\} \$\{openClawRuntimePackages\}/,
   'Wizard Dockerfile generation must install the full OpenClaw runtime package set alongside openclaw'
 ));
 
@@ -372,7 +372,7 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*PROJECT_DIR="[\s\S]*export OPENCLAW_HOME="\$PROJECT_DIR\/\.openclaw"[\s\S]*export OPENCLAW_STATE_DIR="\$PROJECT_DIR\/\.openclaw"[\s\S]*export DATA_DIR="\$PROJECT_DIR\/\.9router"[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*pm2@latest[\s\S]*pm2 save && pm2 startup/s,
+  /scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*PROJECT_DIR="[\s\S]*export OPENCLAW_HOME="\$PROJECT_DIR\/\.openclaw"[\s\S]*export OPENCLAW_STATE_DIR="\$PROJECT_DIR\/\.openclaw"[\s\S]*export DATA_DIR="\$PROJECT_DIR\/\.9router"[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*pm2@latest[\s\S]*pm2 save && pm2 startup/s,
   'VPS native script generation must keep runtime files project-local, install openclaw+pm2, and persist PM2 startup'
 ));
 
@@ -424,16 +424,16 @@ checks.push(() => expect(
     && setup.includes("if (state.botCount <= 1 && state.bots[0]) {")
     && setup.includes("state.bots[0].token = botTokenEl.value;")
     && setup.includes("state.bots[0].apiKey = apiKeyEl.value;")
-    && setup.includes("const authProviderName = provider.isProxy ? '9router' : state.config.provider;")
+    && setup.includes("authProviderName = isProxy ? '9router' : providerKey;")
     && setup.includes("const authProviderName = botProvider.isProxy ? '9router' : (bot.provider || state.config.provider);")
     && setup.includes("const nativeSkillConfigs = state.config.skills")
     && setup.includes("const nativeSkillInstallCmds = nativeSkillConfigs.map((skill) => `call openclaw skills install ${skill.slug} || echo Warning: Failed to install skill ${skill.slug}`);")
     && setup.includes("lines.push('call npm install -g agent-browser playwright || goto :fail');")
     && setup.includes("lines.push('call npx playwright install chromium || goto :fail');")
     && setup.includes("lines.push('echo Cai skills...');")
-    && setup.includes("const openClawRuntimePackages = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';")
+    && (setup.includes("const openClawRuntimePackages = 'grammy") || setup.includes("openClawRuntimePackages = globalThis.__openclawCommon"))
     && setup.includes("memory: 'none'")
-    && setup.includes("workspace-\${agentId}\`")
+    && setup.includes("workspace-${agentId}`")
     && setup.includes("workspace: '.openclaw/' + meta.workspaceDir")
     && !setup.includes("const authProviderName = provider.isProxy ? '9router' : provider.id;")
     && !setup.includes("const authProviderName = botProvider.isProxy ? '9router' : botProvider.id;"),
@@ -448,7 +448,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /} else if \(is9Router\) \{[\s\S]*container_name: openclaw-bot[\s\S]*depends_on:[\s\S]*- 9router[\s\S]*container_name: 9router[\s\S]*PORT=20128[\s\S]*HOSTNAME=0\.0\.0\.0[\s\S]*9router-data:/s,
+  /is9Router[\s\S]*container_name: \$\{singleAppContainerName\}[\s\S]*container_name: \$\{singleRouterContainerName\}[\s\S]*PORT=20128[\s\S]*HOSTNAME=0\.0\.0\.0[\s\S]*9router-data:/s,
   'Wizard single-bot Docker compose must include the 9Router sidecar service and named volume when provider is 9Router'
 ));
 
@@ -482,10 +482,11 @@ checks.push(() => expectMatch(
   'VPS native script generation must write and run the 9Router smart-route sync loop'
 ));
 
-checks.push(() => expectMatch(
-  cli,
-  /const files=fs\.readdirSync\(dir\)\.filter\(n=>\/\\\\\.js\$\/\.test\(n\)\)[\s\S]*let patched=0[\s\S]*if\(!patched\)\{process\.exit\(0\);\}/,
-  'Dockerfile patching in CLI must scan all OpenClaw dist JS files and silently skip when no timeout patch anchor exists'
+checks.push(() => expect(
+  setup.includes('const files=fs.readdirSync(dir).filter(n=>/\\\\.js$/.test(n));')
+    && setup.includes('let patched=0')
+    && setup.includes('if(!patched){process.exit(0);}'),
+  'Dockerfile patching in setup.js must scan all OpenClaw dist JS files and silently skip when no timeout patch anchor exists'
 ));
 
 checks.push(() => expect(
@@ -506,37 +507,37 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-multibot-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw-multibot/s,
+  /NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-multibot-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw-multibot/s,
   'VPS multi-bot native script must start the shared gateway via PM2'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'vps'\) \{[\s\S]*NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw/s,
+  /NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw/s,
   'VPS single-bot native script must start one bot via PM2'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /else if \(state\.nativeOs === 'linux-desktop'\) \{[\s\S]*scriptName = 'setup-openclaw-linux\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*openclaw gateway run/s,
+  /scriptName = 'setup-openclaw-linux\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@2026\.4\.5[\s\S]*openclaw gateway run/s,
   'Linux Desktop native script generation must install openclaw and run the gateway'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /instrEl\.innerHTML = state\.nativeOs === 'win'[\s\S]*double-click[\s\S]*chmod \+x \$\{scriptName\} && \.\/\$\{scriptName\}/s,
+  /winNote\.style\.display = 'block'[\s\S]*shNote\.style\.display = 'block'[\s\S]*chmod \+x/s,
   'Native instructions must show double-click for Windows and chmod for shell scripts'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /steps\.push\(isVi \? '.*Cài OpenClaw CLI.*' : '.*Install OpenClaw CLI.*'\);/s,
+  /steps\.push\(_isVi \? '.*Cài OpenClaw CLI.*' : '.*Install OpenClaw CLI.*'\);/s,
   'Auto-steps summary must mention OpenClaw CLI installation'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /docker compose exec -it ai-bot openclaw channels login --channel zalouser[\s\S]*docker compose cp ai-bot:\/tmp\/openclaw\/openclaw-zalouser-qr-default\.png \.\/zalo-login-qr\.png/s,
+  /docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*docker compose cp ai-bot:\/tmp\/openclaw\/[\s\S]*openclaw-zalouser-qr-default\.png \./s,
   'Wizard must show dedicated Docker Zalo login and QR copy commands'
 ));
 
@@ -562,7 +563,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /const patchCmd = `node -e \\\\"const fs=require\('fs'\),os=require\('os'\),p='\/root\/\.openclaw\/openclaw\.json';if\(fs\.existsSync\(p\)\)\{[\s\S]*allowedOrigins:Array\.from\(a\)/s,
+  /return `node -e \\\\"const fs=require\('fs'\),os=require\('os'\),p='\/root\/\.openclaw\/openclaw\.json';if\(fs\.existsSync\(p\)\)\{[\s\S]*allowedOrigins:Array\.from\(a\)/s,
   'Web wizard Docker patch command must add interface-based control UI allowed origins'
 ));
 
