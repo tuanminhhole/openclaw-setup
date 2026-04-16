@@ -69,10 +69,6 @@ implementation_plan.md
 # ===== AI Planning Artifacts =====
 walkthrough.md
 
-# ===== Dev-only source & tools (setup.js / cli.js are the built artifacts) =====
-# Ignoring src/ to protect proprietary development files from public git repository.
-src/
-
 # ===== CLI source (cli.js is the deployed artifact) =====
 # (moved to src/)
 

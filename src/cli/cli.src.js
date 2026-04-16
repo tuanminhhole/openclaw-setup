@@ -26,17 +26,17 @@ const {
   TELEGRAM_RELAY_PLUGIN_SPEC,
   buildRelayPluginInstallCommand,
   buildTelegramPostInstallChecklist,
-} = loadSharedModule('./setup/shared/common-gen.js', '__openclawCommon');
+} = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 
 const {
   buildDockerArtifacts,
-} = loadSharedModule('./setup/shared/docker-gen.js', '__openclawDockerGen');
+} = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
 
 const {
   buildWorkspaceFileMap,
-} = loadSharedModule('./setup/shared/workspace-gen.js', '__openclawWorkspace');
+} = loadSharedModule('../setup/shared/workspace-gen.js', '__openclawWorkspace');
 
-const dataExport = loadSharedModule('./setup/data/index.js', '__openclawData');
+const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
 
 const {
   PROVIDERS: _PROVIDERS,
@@ -50,7 +50,7 @@ const {
   buildCliUninstallArtifacts,
   buildCliUpgradeArtifacts,
   buildCliStartBotArtifacts,
-} = loadSharedModule('./setup/shared/install-gen.js', '__openclawInstall');
+} = loadSharedModule('../setup/shared/install-gen.js', '__openclawInstall');
 
 function installRelayPluginForProject(projectDir, isVi) {
   try {
@@ -1284,6 +1284,10 @@ async function main() {
       default: 'gemma4:e2b'
     });
   }
+
+  const modelsPrimary = providerKey === 'ollama' ? selectedOllamaModel
+    : providerKey === '9router' ? 'smart-route'
+    : provider.models?.[0]?.id || 'gpt-4o-mini';
 
   // 4. Skills
   const selectedSkills = await checkbox({

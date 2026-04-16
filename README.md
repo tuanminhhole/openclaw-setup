@@ -24,22 +24,23 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ---
 
-## 🆕 What's new in v5.5.0
+## 🆕 What's new in v5.6.0
 
-- 📦 **OpenClaw 2026.4.14** — Bumped from 2026.4.5. Includes the new experimental Dreaming memory system, active-memory improvements, Telegram approval button deadlock fix, and WebSocket keepalive stability.
-- 📄 **Modular workspace docs** — Multi-bot deployments now generate `TEAM.md` (team roster & coordination) and `RELAY.md` (relay playbook) as separate files, giving clearer separation of concerns.
-- 🔐 **Full security rules everywhere** — All `AGENTS.md` files now include the complete 4-section security ruleset (File System, API Key, Crypto Wallet, Docker) regardless of OS, mode, or channel.
-- 🗑️ **Removed `.yaml` agent files** — OpenClaw Core reads config exclusively from `openclaw.json`. Orphaned `.yaml` files are no longer generated.
-- 🤖 **Anti-hallucination handoff** — Relay-variant `AGENTS.md` now mandates tool-first `react` actions and forbids LLM refusal of cross-agent handoffs.
-- 🏗️ **Scaffold-based generation** — Both Wizard and CLI now call shared scaffold builders from `scaffold-gen.js`, ensuring consistent doc generation across all platforms.
+- 🧠 **Memory & Dreaming enabled by default** — Long-term Memory skill is now pre-selected for all new installations. The `memory-core` plugin with `dreaming.enabled: true` is auto-injected into `openclaw.json`, and `DREAMS.md` is seeded in every workspace.
+- 🤝 **Relay plugin card auto-shows** — When selecting Telegram multi-bot (≥2 bots), the Relay plugin card appears with an "Auto-enabled" badge and locked checkbox. Switching back to 1 bot hides it.
+- 🔑 **Relay trigger keywords in TEAMS.md** — `TEAMS.md` now documents all relay trigger keywords (question/task/reminder patterns) from the v5.0.9 relay plugin, helping bots understand and coordinate cross-bot communication.
+- 🌍 **Proper Vietnamese diacritics** — All workspace `.md` files now use proper UTF-8 Vietnamese with full diacritics, eliminating mojibake.
+- 👍 **Tool-based reaction** — `TOOLS.md` mandates bots call the `react` action with 👍 before replying, replacing unreliable gateway auto-ack.
 
 <details>
 <summary><b>Previous: What's new in v5.5.0</b></summary>
 
-- 🏗️ **Multi-bot architecture refactored** — All duplicate flags (`isTelegramMultiBot`, `isSharedMultiBot`, `isMultiBotWizard`) merged into a single `isMultiBot`. Generated `agentDir` paths now correctly point to `.openclaw/agents/{slug}/agent` relative to `OPENCLAW_HOME`.
-- 🗑️ **Telegram + Zalo combo channel removed** — Combo mode has been deprecated and removed from both the Web Wizard and CLI. It will be redesigned in a future release.
-- 🤝 **Cross-workspace rules in `AGENTS.md`** — In multi-bot mode, each bot's `AGENTS.md` now includes a dedicated section describing which sibling workspace paths may be read and what write restrictions apply.
-- 🧹 **Cleaner config generation** — Per-agent `auth-profiles.json` is no longer created for 9Router/proxy setups. Native scripts no longer generate `.env` files; credentials are managed via `openclaw channels login`.
+- 📦 **OpenClaw 2026.4.14** — Bumped from 2026.4.5. Includes the new experimental Dreaming memory system, active-memory improvements, Telegram approval button deadlock fix, and WebSocket keepalive stability.
+- 📄 **Modular workspace docs** — Multi-bot deployments now generate `TEAM.md` and `RELAY.md` as separate files.
+- 🔐 **Full security rules everywhere** — All `AGENTS.md` files now include the complete 4-section security ruleset.
+- 🗑️ **Removed `.yaml` agent files** — OpenClaw Core reads config exclusively from `openclaw.json`.
+- 🤖 **Anti-hallucination handoff** — Relay-variant `AGENTS.md` now mandates tool-first `react` actions.
+- 🏗️ **Scaffold-based generation** — Both Wizard and CLI now call shared scaffold builders.
 
 </details>
 

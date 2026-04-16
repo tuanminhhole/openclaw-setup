@@ -24,22 +24,23 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
-## 🆕 Có gì mới trong v5.5.0
+## 🆕 Có gì mới trong v5.6.0
 
-- 📦 **OpenClaw 2026.4.14** — Nâng từ 2026.4.5. Bao gồm hệ thống Dreaming (thử nghiệm), cải thiện active-memory, sửa deadlock nút approve Telegram, ổn định WebSocket keepalive.
-- 📄 **Tách file workspace docs** — Multi-bot giờ sinh `TEAM.md` (roster đội + phối hợp) và `RELAY.md` (sổ tay chuyển tiếp) thành file riêng, rõ ràng hơn.
-- 🔐 **Quy tắc bảo mật đầy đủ mọi nơi** — Tất cả `AGENTS.md` giờ có đủ 4 section bảo mật (File hệ thống, API Key, Ví Crypto, Docker) bất kể OS, mode hay kênh.
-- 🗑️ **Xóa file `.yaml` agent** — OpenClaw Core chỉ đọc từ `openclaw.json`. File `.yaml` orphan không còn được sinh ra.
-- 🤖 **Chống ảo giác handoff** — `AGENTS.md` relay bắt buộc `react` action và cấm từ chối chuyển tiếp giữa các agent.
-- 🏗️ **Scaffold-based generation** — Cả Wizard lẫn CLI gọi chung scaffold builders, đồng nhất trên mọi platform.
+- 🧠 **Memory & Dreaming bật mặc định** — Long-term Memory skill giờ được bật sẵn cho mọi cài đặt mới. Plugin `memory-core` với `dreaming.enabled: true` được inject tự động vào `openclaw.json`, `DREAMS.md` được tạo sẵn trong workspace.
+- 🤝 **Card Relay plugin tự động hiển thị** — Khi chọn Telegram multi-bot (≥2 bots), card Relay plugin hiện ra với badge "Tự động bật" và checkbox bị khóa. Chuyển về 1 bot sẽ ẩn card.
+- 🔑 **Từ khóa relay trong TEAMS.md** — `TEAMS.md` giờ liệt kê đầy đủ từ khóa kích hoạt relay (hỏi/giao việc/nhắc nhở) từ plugin v5.0.9, giúp bot hiểu và phối hợp tốt hơn.
+- 🌍 **Tiếng Việt có dấu chuẩn** — Tất cả file `.md` workspace giờ dùng UTF-8 chuẩn với dấu tiếng Việt đầy đủ, hết lỗi mojibake.
+- 👍 **Tool-based reaction** — `TOOLS.md` bắt buộc bot gọi action `react` thả 👍 trước khi trả lời, thay vì dùng gateway auto-ack không ổn định.
 
 <details>
 <summary><b>Trước đó: Có gì mới ở v5.5.0</b></summary>
 
-- 🏗️ **Tái cấu trúc kiến trúc multi-bot** — Các flag `isTelegramMultiBot`, `isSharedMultiBot`, `isMultiBotWizard` được gộp thành một biến `isMultiBot` duy nhất. Đường dẫn `agentDir` trong `openclaw.json` được tạo ra nay đúng chuẩn `.openclaw/agents/{slug}/agent` (tương đối với `OPENCLAW_HOME`).
-- 🗑️ **Xóa hoàn toàn kênh combo Telegram + Zalo** — Combo mode đã được gỡ bỏ khỏi cả Web Wizard lẫn CLI. Sẽ được thiết kế lại trong bản phát hành sau.
-- 🤝 **Quy tắc cross-workspace trong `AGENTS.md`** — Ở chế độ multi-bot, `AGENTS.md` của mỗi bot có thêm mục liệt kê đường dẫn workspace của các bot anh em và quy tắc phối hợp.
-- 🧹 **Config sạch hơn** — Không còn tạo `auth-profiles.json` per-agent cho 9Router; không còn tạo `.env` cho native scripts; không còn tạo `models.json` per-agent cho Ollama.
+- 📦 **OpenClaw 2026.4.14** — Nâng từ 2026.4.5. Bao gồm hệ thống Dreaming, cải thiện active-memory, sửa deadlock nút approve Telegram, ổn định WebSocket keepalive.
+- 📄 **Tách file workspace docs** — Multi-bot giờ sinh `TEAM.md` và `RELAY.md` thành file riêng.
+- 🔐 **Quy tắc bảo mật đầy đủ mọi nơi** — Tất cả `AGENTS.md` giờ có đủ 4 section bảo mật.
+- 🗑️ **Xóa file `.yaml` agent** — OpenClaw Core chỉ đọc từ `openclaw.json`.
+- 🤖 **Chống ảo giác handoff** — `AGENTS.md` relay bắt buộc `react` action.
+- 🏗️ **Scaffold-based generation** — Cả Wizard lẫn CLI gọi chung scaffold builders.
 
 </details>
 

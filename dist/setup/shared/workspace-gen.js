@@ -139,6 +139,7 @@ I am **${name}**. When asked my name, I answer: _"I'm ${name}"_.${richAiNote ? "
       botDesc = '',
       ownAliases = [],
       otherAgents = [],    // [{ name, agentId }]
+      replyToDirectMessages = true,
       workspacePath = '/root/.openclaw/workspace/',
       variant = 'single', // 'single' | 'relay'
       includeSecurity = true,
@@ -152,9 +153,15 @@ I am **${name}**. When asked my name, I answer: _"I'm ${name}"_.${richAiNote ? "
     const security = includeSecurity ? buildSecurityRules(isVi) : '';
 
     if (variant === 'relay') {
+      const directMessageRuleVi = replyToDirectMessages
+        ? '- Nếu metadata không nói rõ đây là group/supergroup, mặc định xem là chat riêng/DM và trả lời bình thường.\n'
+        : '';
+      const directMessageRuleEn = replyToDirectMessages
+        ? '- If metadata does not clearly say this is a group/supergroup, treat it as a private DM and reply normally.\n'
+        : '';
       return isVi
-        ? `# Hướng dẫn vận hành\n\n## Vai trò\nBạn là **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'trợ lý AI'}.\n\n## Quy tắc trả lời\n- Trả lời ngắn gọn, súc tích\n- Ưu tiên tiếng Việt\n- Khi hỏi tên: _"Mình là ${botName}"_\n- Không bịa thông tin\n\n## Khi nào nên trả lời\n- Coi user đang gọi bạn nếu tin nhắn có một trong các alias: ${aliasStr}.\n- Nếu user tag username Telegram của bạn thì luôn trả lời.\n- Nếu user đang gọi rõ bot khác ${relayTargetNames} thì không cướp lời.\n- Nếu tin nhắn không gọi cụ thể ai, im lặng.\n\n## Tài liệu tham chiếu\n- 📋 **TOOLS.md** — Danh sách skill/tool đã cài và cách sử dụng\n- 🤝 **TEAMS.md** — Quy tắc phối hợp team, handoff protocol, và anti-pattern\n- 💭 **MEMORY.md** — Bộ nhớ dài hạn\n- 🎭 **IDENTITY.md** — Danh tính và tính cách${security}`
-        : `# Operating Manual\n\n## Role\nYou are **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'an AI assistant'}.\n\n## Reply Rules\n- Reply concisely\n- Prefer English\n- When asked your name: _"I'm ${botName}"_\n- Do not fabricate information\n\n## When To Reply\n- Treat the message as addressed to you when it includes one of your aliases: ${aliasStr}.\n- Always reply when your Telegram username is tagged.\n- If the message is clearly calling another bot such as ${relayTargetNames}, do not hijack it.\n- If no one is specifically called, stay silent.\n\n## Reference Docs\n- 📋 **TOOLS.md** — Installed skills/tools and usage guide\n- 🤝 **TEAMS.md** — Team coordination rules, handoff protocol, and anti-patterns\n- 💭 **MEMORY.md** — Long-term memory\n- 🎭 **IDENTITY.md** — Identity and personality${security}`;
+        ? `# Hướng dẫn vận hành\n\n## Vai trò\nBạn là **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'trợ lý AI'}.\n\n## Quy tắc trả lời\n- Trả lời ngắn gọn, súc tích\n- Ưu tiên tiếng Việt\n- Khi hỏi tên: _"Mình là ${botName}"_\n- Không bịa thông tin\n\n## Khi nào nên trả lời\n${directMessageRuleVi}- Trong group, coi user đang gọi bạn nếu tin nhắn có một trong các alias: ${aliasStr}.\n- Nếu user tag username Telegram của bạn thì luôn trả lời.\n- Nếu group message đang gọi rõ bot khác ${relayTargetNames} thì không cướp lời.\n- Quy tắc im lặng khi không ai được gọi chỉ áp dụng cho group chat, không áp dụng cho DM/chat riêng.\n\n## Tài liệu tham chiếu\n- 📋 **TOOLS.md** — Danh sách skill/tool đã cài và cách sử dụng\n- 🤝 **TEAMS.md** — Quy tắc phối hợp team, handoff protocol, và anti-pattern\n- 💭 **MEMORY.md** — Bộ nhớ dài hạn\n- 🎭 **IDENTITY.md** — Danh tính và tính cách${security}`
+        : `# Operating Manual\n\n## Role\nYou are **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'an AI assistant'}.\n\n## Reply Rules\n- Reply concisely\n- Prefer English\n- When asked your name: _"I'm ${botName}"_\n- Do not fabricate information\n\n## When To Reply\n${directMessageRuleEn}- In groups, treat the message as addressed to you when it includes one of your aliases: ${aliasStr}.\n- Always reply when your Telegram username is tagged.\n- If a group message is clearly calling another bot such as ${relayTargetNames}, do not hijack it.\n- The stay-silent rule for unaddressed messages applies only to group chats, never to DMs/private chats.\n\n## Reference Docs\n- 📋 **TOOLS.md** — Installed skills/tools and usage guide\n- 🤝 **TEAMS.md** — Team coordination rules, handoff protocol, and anti-patterns\n- 💭 **MEMORY.md** — Long-term memory\n- 🎭 **IDENTITY.md** — Identity and personality${security}`;
     }
 
     // Single-bot variant
@@ -171,33 +178,134 @@ I am **${name}**. When asked my name, I answer: _"I'm ${name}"_.${richAiNote ? "
       variant = 'single', // 'single' | 'relay'
       agentWorkspaceDir = 'workspace',
       hasBrowser = false,
+      hasScheduler = false,
     } = options;
 
-    const skillsSection = skillListStr || (isVi ? '- _(Chưa có skill nào)_' : '- _(No skills installed)_');
+    const skillsSection = skillListStr || (isVi ? '- _(Ch??a c?? skill n??o)_' : '- _(No skills installed)_');
 
     const browserRef = hasBrowser
       ? (isVi
-        ? `\n\n## 🌐 Browser Automation\n- Xem hướng dẫn chi tiết tại **BROWSER.md**\n- Script điều khiển: \`browser-tool.js\`\n- Kết nối Chrome debug: \`http://127.0.0.1:9222\``
-        : `\n\n## 🌐 Browser Automation\n- See detailed guide at **BROWSER.md**\n- Control script: \`browser-tool.js\`\n- Chrome debug endpoint: \`http://127.0.0.1:9222\``)
+        ? `
+
+## ???? Browser Automation
+- Xem h?????ng d???n chi ti???t t???i **BROWSER.md**
+- Script ??i???u khi???n: \`browser-tool.js\`
+- K???t n???i Chrome debug: \`http://127.0.0.1:9222\``
+        : `
+
+## ???? Browser Automation
+- See detailed guide at **BROWSER.md**
+- Control script: \`browser-tool.js\`
+- Chrome debug endpoint: \`http://127.0.0.1:9222\``)
       : '';
 
     const telegramSection = (variant === 'relay')
       ? (isVi
-        ? `\n\n## Telegram\n- Đã bật \`reactionLevel:minimal\`, \`replyToMode:first\`, \`actions.sendMessage\`, và \`actions.reactions\`.\n- LUÔN dùng action \`react\` để thả 👍 lên tin nhắn user TRƯỚC khi trả lời.\n- Khi nhận handoff từ bot khác: trả lời công khai bằng chính account Telegram của mình, ưu tiên dùng outbound Telegram action.\n- Plugin \`telegram-multibot-relay\` đã được bật — hỗ trợ chuyển tin giữa các bot.`
-        : `\n\n## Telegram\n- Configured with \`reactionLevel:minimal\`, \`replyToMode:first\`, \`actions.sendMessage\`, and \`actions.reactions\`.\n- ALWAYS use the \`react\` action to send a 👍 reaction on the user's message BEFORE replying.\n- When receiving a handoff from another bot: reply publicly from your own Telegram account, prefer outbound Telegram action.\n- Plugin \`telegram-multibot-relay\` is enabled — supports message relay between bots.`)
+        ? `
+
+## Telegram
+- ???? b???t \`reactionLevel:minimal\`, \`replyToMode:first\`, \`actions.sendMessage\`, v?? \`actions.reactions\`.
+- Gateway t??? ?????ng th??? ack reaction khi nh???n tin; kh??ng g???i action \`react\` th??? c??ng tr??? khi user y??u c???u.
+- Khi nh???n handoff t??? bot kh??c: tr??? l???i c??ng khai b???ng ch??nh account Telegram c???a m??nh, ??u ti??n d??ng outbound Telegram action.`
+        : `
+
+## Telegram
+- Configured with \`reactionLevel:minimal\`, \`replyToMode:first\`, \`actions.sendMessage\`, and \`actions.reactions\`.
+- The gateway automatically sends the ack reaction on inbound messages; do not call \`react\` manually unless the user asks.
+- When receiving a handoff from another bot: reply publicly from your own Telegram account, prefer outbound Telegram action.`)
+      : '';
+
+    const cronSection = hasScheduler
+      ? (isVi
+        ? `
+
+## ? Cron / L?n l?ch nh?c nh?
+- OpenClaw C? h? tr? tool h? th?ng ?? ch?y Cron Job.
+- Khi user y?u c?u t?o nh?c nh? / l?nh t? ??ng ??nh k?, b?n h?y T? ??NG d?ng tool h? th?ng ?? t?o. **Tuy?t ??i kh?ng** b?t user d?ng crontab hay Task Scheduler ch?y tay tr?n host.
+- Khi thao t?c tool cho cron/scheduler, **kh?ng ?i?n \`current\` v?o th? m?c Session**.
+- B? qua vi?c tra c?u docs n?i b? nh? \`cron-jobs.mdx\`; tin t??ng kh? n?ng d?ng tool hi?n c? ?? ho?n th?nh y?u c?u.`
+        : `
+
+## ? Cron / Scheduled Tasks
+- OpenClaw natively supports system tools for Cron Jobs.
+- When the user asks to schedule tasks or reminders, use the built-in tools automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.
+- When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.
+- Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`)
       : '';
 
     if (variant === 'relay') {
       return isVi
-        ? `# Hướng dẫn dùng tool\n\n## Tools có sẵn\n${skillsSection}\n\n## Quy tắc chung\n- Tóm tắt kết quả tool thay vì dump raw output.\n- Mọi bot đều có quyền sử dụng tất cả tool (scheduler, browser, exec). Vai trò (dev/marketing/...) chỉ là persona, KHÔNG giới hạn quyền dùng tool.\n- Workspace của bạn là \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}\n`
-        : `# Tool Usage Guide\n\n## Available Tools\n${skillsSection}\n\n## General Rules\n- Summarize tool output instead of dumping raw output.\n- All bots have equal access to all tools (scheduler, browser, exec). Roles (dev/marketing/...) are persona only, NOT tool permissions.\n- Your workspace is \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}\n`;
+        ? `# H?????ng d???n d??ng tool
+
+## Tools c?? s???n
+${skillsSection}
+
+## Quy t???c chung
+- T??m t???t k???t qu??? tool thay v?? dump raw output.
+- M???i bot ?????u c?? quy???n s??? d???ng t???t c??? tool (scheduler, browser, exec). Vai tr?? (dev/marketing/...) ch??? l?? persona, KH??NG gi???i h???n quy???n d??ng tool.
+- Workspace c???a b???n l?? \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}
+`
+        : `# Tool Usage Guide
+
+## Available Tools
+${skillsSection}
+
+## General Rules
+- Summarize tool output instead of dumping raw output.
+- All bots have equal access to all tools (scheduler, browser, exec). Roles (dev/marketing/...) are persona only, NOT tool permissions.
+- Your workspace is \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}
+`;
     }
 
     return isVi
-      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillsSection}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi → thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output${browserRef}\n\n## Quy ước\n- Web Search: chỉ dùng khi cần thông tin realtime hoặc user yêu cầu\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông tin tự nhiên, không cần user nhắc\n\n## ⏰ Cron / Lên lịch nhắc nhở\n- OpenClaw CÓ hỗ trợ tool hệ thống để chạy Cron Job.\n- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool hệ thống để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.\n\n## 📁 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## 🛠️ Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround\n`
-      : `# Tool Usage Guide\n\n## Installed Skills\n${skillsSection}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error → retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data${browserRef}\n\n## Conventions\n- Web Search: only use when needing real-time info or user explicitly asks\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting\n\n## ⏰ Cron / Scheduled Tasks\n- OpenClaw natively supports system tools for Cron Jobs.\n- When the user asks to schedule tasks or reminders, use built-in tools automatically. Do NOT ask users to run manual crontab on the host.\n\n## 📁 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## 🛠️ Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround\n`;
-  }
+      ? `# H?????ng d???n s??? d???ng Tools
 
+## Danh s??ch skills ???? c??i
+${skillsSection}
+
+## Nguy??n t???c chung
+- ??u ti??n d??ng tool/skill ph?? h???p thay v?? t??? suy ??o??n
+- N???u tool tr??? v??? l???i ??? th??? l???i 1 l???n, sau ???? b??o user
+- Kh??ng ch???y tool li??n t???c m?? kh??ng c?? m???c ????ch r?? r??ng
+- Lu??n t??m t???t k???t qu??? tool cho user thay v?? dump raw output${browserRef}
+
+## Quy ?????c
+- Web Search: ch??? d??ng khi c???n th??ng tin realtime ho???c user y??u c???u
+- Browser: ch??? m??? trang khi user y??u c???u c??? th???
+- Memory: t??? ghi nh??? th??ng tin t??? nhi??n, kh??ng c???n user nh???c${cronSection}
+
+## ???? File & Workspace
+- Bot c?? th??? ?????c/ghi file trong th?? m???c workspace: \`${workspacePath}\`
+- D??ng ????? l??u notes, scripts, c???u h??nh t???m
+
+## ??????? Tool Error Handling
+- Retry t???i ??a 2 l???n n???u tool l???i network
+- N???u v???n l???i: b??o user k??m m?? t??? l???i c??? th??? v?? g???i ?? workaround
+`
+      : `# Tool Usage Guide
+
+## Installed Skills
+${skillsSection}
+
+## General Principles
+- Prefer using the right tool/skill over guessing
+- If a tool returns an error ??? retry once, then report to user
+- Don't run tools repeatedly without a clear purpose
+- Always summarize tool output for user instead of dumping raw data${browserRef}
+
+## Conventions
+- Web Search: only use when needing real-time info or user explicitly asks
+- Browser: only open pages when user specifically requests
+- Memory: proactively remember important info without user prompting${cronSection}
+
+## ???? File & Workspace
+- Bot can read/write files in workspace: \`${workspacePath}\`
+
+## ??????? Tool Error Handling
+- Retry up to 2 times on network errors
+- If still failing: report to user with specific error description and workaround
+`;
+  }
   function buildTeamsDoc(options = {}) {
     const {
       isVi = true,
@@ -210,8 +318,8 @@ I am **${name}**. When asked my name, I answer: _"I'm ${name}"_.${richAiNote ? "
       : (isVi ? '- _(Chưa có)_' : '- _(None)_'));
 
     return isVi
-      ? `# Phối hợp Team\n\n## Team Roster\n${rosterSection}\n\n## Quy tắc vàng\n- **KHÔNG BAO GIỜ giao ngược lại** cho bot đã giao việc cho mình. Nhận handoff = PHẢI thực hiện trực tiếp.\n- Mọi bot đều có đủ tool (scheduler, browser, exec). Vai trò (dev/marketing/...) chỉ là persona, KHÔNG giới hạn quyền dùng tool.\n- Khi nhận handoff, dùng chính tool mình có để hoàn thành. Đừng nói "đây không phải chuyên môn của mình".\n\n## Handoff Protocol\n1. Bot mở lời gửi 1 câu ngắn xác nhận ("Để mình chuyển cho Luna nhé").\n2. Bot mở lời gọi tool \`agent_handoff\` với đúng \`agentId\` từ Team Roster bên trên.\n3. Bot đích nhận handoff → thực hiện trực tiếp → trả lời công khai bằng chính account Telegram của mình.\n4. Ưu tiên dùng \`[[reply_to_current]]\` hoặc Telegram sendMessage action để bám đúng message gốc.\n5. Nếu handoff thất bại rõ ràng (tool báo lỗi), chỉ bot mở lời mới được fallback tóm tắt.\n\n## Anti-pattern (KHÔNG ĐƯỢC LÀM)\n- ❌ Nhận handoff rồi delegate ngược lại ("nhờ Williams set kỹ thuật cho chắc")\n- ❌ Tự trả lời thay bot đích khi handoff chưa thất bại\n- ❌ Bỏ qua handoff và bảo user tự gọi bot kia\n- ❌ Từ chối handoff với lý do "không thấy session" hay "không thể liên hệ" — hệ thống ĐÃ sẵn sàng kết nối\n- ❌ Nói "đây không phải chuyên môn/vai trò của mình" khi đã nhận handoff\n`
-      : `# Team Coordination\n\n## Team Roster\n${rosterSection}\n\n## Golden Rule\n- **NEVER delegate back** to the bot that delegated to you. Receiving a handoff = MUST execute directly.\n- All bots have equal tool access (scheduler, browser, exec). Roles (dev/marketing/...) are persona only, NOT tool permissions.\n- When receiving a handoff, use your own tools to complete the task. Don't say "this isn't my area".\n\n## Handoff Protocol\n1. Caller bot sends one short confirmation ("Let me check with Luna").\n2. Caller bot calls \`agent_handoff\` tool with exact \`agentId\` from Team Roster above.\n3. Target bot receives handoff → executes directly → replies publicly from own Telegram account.\n4. Prefer using \`[[reply_to_current]]\` or Telegram sendMessage action to attach to original message.\n5. If handoff clearly fails (tool returns error), only the caller bot may summarize as fallback.\n\n## Anti-patterns (DO NOT)\n- ❌ Receiving handoff then delegating back ("let Williams handle the technical stuff")\n- ❌ Answering on behalf of target bot before handoff fails\n- ❌ Ignoring handoff and asking user to message the other bot directly\n- ❌ Refusing handoff with "cannot see session" or "cannot contact" — the system is always ready\n- ❌ Saying "this isn't my role" when you've already received a handoff\n`;
+      ? `# Phối hợp Team\n\n## Team Roster\n${rosterSection}\n\n## Quy tắc vàng\n- **KHÔNG BAO GIỜ giao ngược lại** cho bot đã giao việc cho mình. Nhận handoff = PHẢI thực hiện trực tiếp.\n- Mọi bot đều có đủ tool (scheduler, browser, exec). Vai trò (dev/marketing/...) chỉ là persona, KHÔNG giới hạn quyền dùng tool.\n- Khi nhận handoff, dùng chính tool mình có để hoàn thành. Đừng nói "đây không phải chuyên môn của mình".\n- Trong group chat, nếu tin nhắn không gọi cụ thể bot nào thì các bot không liên quan nên im lặng để tránh trả lời trùng. Quy tắc này không áp dụng cho DM/chat riêng.\n\n## Handoff Protocol\n1. Bot mở lời gửi 1 câu ngắn xác nhận ("Để mình chuyển cho Luna nhé").\n2. Bot mở lời gọi tool \`agent_handoff\` với đúng \`agentId\` từ Team Roster bên trên.\n3. Bot đích nhận handoff → thực hiện trực tiếp → trả lời công khai bằng chính account Telegram của mình.\n4. Ưu tiên dùng \`[[reply_to_current]]\` hoặc Telegram sendMessage action để bám đúng message gốc.\n5. Nếu handoff thất bại rõ ràng (tool báo lỗi), chỉ bot mở lời mới được fallback tóm tắt.\n\n## Anti-pattern (KHÔNG ĐƯỢC LÀM)\n- ❌ Nhận handoff rồi delegate ngược lại ("nhờ Williams set kỹ thuật cho chắc")\n- ❌ Tự trả lời thay bot đích khi handoff chưa thất bại\n- ❌ Bỏ qua handoff và bảo user tự gọi bot kia\n- ❌ Từ chối handoff với lý do "không thấy session" hay "không thể liên hệ" — hệ thống ĐÃ sẵn sàng kết nối\n- ❌ Nói "đây không phải chuyên môn/vai trò của mình" khi đã nhận handoff\n`
+      : `# Team Coordination\n\n## Team Roster\n${rosterSection}\n\n## Golden Rule\n- **NEVER delegate back** to the bot that delegated to you. Receiving a handoff = MUST execute directly.\n- All bots have equal tool access (scheduler, browser, exec). Roles (dev/marketing/...) are persona only, NOT tool permissions.\n- When receiving a handoff, use your own tools to complete the task. Don't say "this isn't my area".\n- In group chats, bots that are not addressed should stay silent on unaddressed messages to avoid duplicate replies. This rule does not apply to DMs/private chats.\n\n## Handoff Protocol\n1. Caller bot sends one short confirmation ("Let me check with Luna").\n2. Caller bot calls \`agent_handoff\` tool with exact \`agentId\` from Team Roster above.\n3. Target bot receives handoff → executes directly → replies publicly from own Telegram account.\n4. Prefer using \`[[reply_to_current]]\` or Telegram sendMessage action to attach to original message.\n5. If handoff clearly fails (tool returns error), only the caller bot may summarize as fallback.\n\n## Anti-patterns (DO NOT)\n- ❌ Receiving handoff then delegating back ("let Williams handle the technical stuff")\n- ❌ Answering on behalf of target bot before handoff fails\n- ❌ Ignoring handoff and asking user to message the other bot directly\n- ❌ Refusing handoff with "cannot see session" or "cannot contact" — the system is always ready\n- ❌ Saying "this isn't my role" when you've already received a handoff\n`;
   }
 
   /**
@@ -236,6 +344,7 @@ I am **${name}**. When asked my name, I answer: _"I'm ${name}"_.${richAiNote ? "
    * @property {boolean} [includeBrowserTool]
    * @property {string} [teamRosterFormatted]
    * @property {string} [emoji]
+   * @property {boolean} [hasScheduler]
    */
 
   /**
@@ -268,6 +377,7 @@ I am **${name}**. When asked my name, I answer: _"I'm ${name}"_.${richAiNote ? "
       includeBrowserTool = true,
       teamRosterFormatted = '',
       emoji = '',
+      hasScheduler = false,
     } = opts;
 
     const isMultiBot = variant === 'relay';
@@ -277,11 +387,11 @@ I am **${name}**. When asked my name, I answer: _"I'm ${name}"_.${richAiNote ? "
       'SOUL.md': buildSoulDoc({ isVi, persona, variant: soulVariant }),
       'AGENTS.md': buildAgentsDoc({
         isVi, botName, botDesc, ownAliases, otherAgents, workspacePath,
-        variant, includeSecurity: true,
+        variant, includeSecurity: true, replyToDirectMessages: true,
       }),
       'USER.md': buildUserDoc({ isVi, userInfo, variant: userVariant || (isMultiBot ? 'cli-multi' : 'wizard') }),
       'TOOLS.md': buildToolsDoc({
-        isVi, skillListStr, workspacePath, variant, agentWorkspaceDir, hasBrowser,
+        isVi, skillListStr, workspacePath, variant, agentWorkspaceDir, hasBrowser, hasScheduler,
       }),
       'MEMORY.md': buildMemoryDoc({ isVi, variant: memoryVariant }),
     };
