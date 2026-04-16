@@ -1,5 +1,8 @@
 # Changelog (English)
 
+## [5.6.6] - 2026-04-17
+- Fix: PM2 sync script crash (SIGKILL) khi khoi dong 9router tren Ubuntu/VPS. Boc trong try-catch, them --no-autorestart.
+
 ## [5.6.4] - 2026-04-16
 - NPM registry sync and version bump hotfix.
 

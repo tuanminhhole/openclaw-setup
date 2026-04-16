@@ -1,5 +1,8 @@
 ﻿# Changelog (Tiếng Việt)
 
+## [5.6.6] - 2026-04-17
+- Fix: Script sync 9router bi SIGKILL khi khoi dong qua PM2 tren Ubuntu/VPS. Xu ly loi nha bang try-catch, them --no-autorestart.
+
 ## [5.6.4] - 2026-04-16
 - Đồng bộ NPM registry và bump version.
 

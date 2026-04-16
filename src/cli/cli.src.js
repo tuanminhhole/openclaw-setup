@@ -196,7 +196,6 @@ function build9RouterSmartRouteSyncScript(dbPath) {
   return `function bootstrap() {
   const fs = require('fs');
   const path = require('path');
-  const safeDbPath = JSON.stringify(dbPath);
   const dbPath = ${safeDbPath};
   const ROUTER='http://localhost:20128';
   const MODEL_PRIORITY = {
@@ -870,6 +869,15 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
   const routerLaunch = resolveNative9RouterDesktopLaunch();
   const normalizedProjectDir = projectDir.replace(/\\/g, '/');
   const normalizedSyncScriptPath = syncScriptPath ? syncScriptPath.replace(/\\/g, '/') : '';
+  try {
+    execSync(`pm2 delete ${routerAppName}`, {
+      cwd: projectDir,
+      stdio: 'ignore',
+      shell: true
+    });
+  } catch {
+    // ignore missing app
+  }
   execFileSync('pm2', [
     'start',
     routerLaunch.command,
@@ -888,20 +896,36 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
   });
   if (syncScriptPath) {
     const syncAppName = `${appName}-9router-sync`;
-    execFileSync('pm2', [
-      'start',
-      process.execPath,
-      '--name',
-      syncAppName,
-      '--cwd',
-      normalizedProjectDir,
-      '--',
-      normalizedSyncScriptPath
-    ], {
-      cwd: projectDir,
-      stdio: 'inherit',
-      env: process.env
-    });
+    try {
+      execSync(`pm2 delete ${syncAppName}`, {
+        cwd: projectDir,
+        stdio: 'ignore',
+        shell: true
+      });
+    } catch {
+      // ignore missing app
+    }
+    try {
+      execFileSync('pm2', [
+        'start',
+        normalizedSyncScriptPath,
+        '--name',
+        syncAppName,
+        '--cwd',
+        normalizedProjectDir,
+        '--interpreter',
+        process.execPath,
+        '--no-autorestart',
+      ], {
+        cwd: projectDir,
+        stdio: 'inherit',
+        env: process.env
+      });
+    } catch (syncErr) {
+      console.log(chalk.yellow(isVi
+        ? `\n⚠️  Khong the tu dong khoi dong sync script qua PM2.`
+        : `\n⚠️  Could not auto-start 9router sync script via PM2.`));
+    }
   }
   runPm2Save({ projectDir, isVi });
   console.log(chalk.green(`\n✅ ${isVi ? '9Router da duoc khoi dong qua PM2.' : '9Router is running via PM2.'}`));

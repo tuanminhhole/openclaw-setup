@@ -288,9 +288,15 @@ checks.push(() => expectMatch(
   'CLI must configure Zalo Personal under channels.zalouser'
 ));
 
-checks.push(() => expectMatch(
-  cli,
-  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*resolveNative9RouterDesktopLaunch\(\)[\s\S]*execFileSync\('pm2'[\s\S]*routerLaunch\.command[\s\S]*--interpreter'?,?[\s\S]*none[\s\S]*routerLaunch\.args[\s\S]*routerLaunch\.env[\s\S]*const syncAppName = `\$\{appName\}-9router-sync`[\s\S]*execFileSync\('pm2'[\s\S]*process\.execPath[\s\S]*normalizedSyncScriptPath[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
+checks.push(() => expect(
+  cli.includes('function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {')
+    && cli.includes("const routerAppName = `${appName}-9router`;")
+    && cli.includes("const syncAppName = `${appName}-9router-sync`;")
+    && cli.includes('routerLaunch.command')
+    && cli.includes('normalizedSyncScriptPath')
+    && cli.includes("'--interpreter',")
+    && cli.includes('process.execPath')
+    && cli.includes('runPm2Save({ projectDir, isVi });'),
   'VPS native 9Router flow must start a standalone 9Router dashboard on port 20128 via PM2'
 ));
 
@@ -540,6 +546,12 @@ checks.push(() => expect(
   '9Router sync logic in setup.js must remove stale smart-route combos when providers are disabled'
 ));
 
+checks.push(() => expectMatch(
+  cli,
+  /function build9RouterSmartRouteSyncScript\(dbPath\) \{[\s\S]*const safeDbPath = JSON\.stringify\(dbPath\);[\s\S]*return `function bootstrap\(\) \{[\s\S]*const dbPath = \$\{safeDbPath\};[\s\S]*const ROUTER='http:\/\/localhost:20128';/s,
+  'CLI native 9Router sync script generator must embed the DB path directly without referencing an undefined dbPath variable'
+));
+
 checks.push(() => expect(
   setup.includes('function providerSupportsMemoryEmbeddings(providerKey) {')
     && setup.includes('function getSkillDisplayName(skill, providerKey, lang) {')
@@ -565,7 +577,7 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   cli,
-  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*'start',[\s\S]*process\.execPath,[\s\S]*normalizedSyncScriptPath[\s\S]*\}/,
+  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*'start',[\s\S]*normalizedSyncScriptPath,[\s\S]*'--interpreter',[\s\S]*process\.execPath[\s\S]*\}/,
   'CLI PM2 9Router sync worker must run directly under PM2 instead of nohup shell wrapping'
 ));
 
