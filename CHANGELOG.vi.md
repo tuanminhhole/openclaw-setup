@@ -1,5 +1,8 @@
 ﻿# Changelog (Tiếng Việt)
 
+## [5.6.4] - 2026-04-16
+- Đồng bộ NPM registry và bump version.
+
 ## [5.6.3] - 2026-04-16
 - Cập nhật thông báo hướng dẫn cài đặt bot vào group trên Telegram cho rõ nghĩa hơn (tiếp tục).
 
