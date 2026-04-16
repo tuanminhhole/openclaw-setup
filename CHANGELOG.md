@@ -1,5 +1,15 @@
 # Changelog (English)
 
+## [5.6.8] - 2026-04-17
+
+### Fix: 9Router Sync & Ubuntu Native Config
+
+- **Fix: DATA_DIR mismatch on native Linux/Mac** — `resolveNative9RouterDesktopLaunch()` now passes `DATA_DIR: getNative9RouterDataDir()` to the PM2 process, ensuring 9router stores its database in `~/.9router/` (Linux) / `%APPDATA%/9router` (Windows), exactly where the sync script writes.
+- **Fix: sync script dbPath** — `writeNative9RouterSyncScript()` now uses `getNative9RouterDataDir()` instead of `getProject9RouterDataDir()`, eliminating the mismatch where sync wrote to `projectDir/.9router/db.json` while 9router read from `~/.9router/db.json`.
+- **Fix: openclaw.json home dir** — On native deploy, the CLI now also writes `openclaw.json` and `auth-profiles.json` to `~/.openclaw/` (home directory), because the openclaw binary on Linux reads from there, not from the project directory.
+- **Fix: ecosystem.config.js OPENCLAW_HOME** — Added `OPENCLAW_HOME` and `OPENCLAW_STATE_DIR` env vars to the PM2 ecosystem config so multi-bot native setups correctly locate the project config.
+- **Fix: MODEL_PRIORITY provider map** — Synced the PM2 sync script's `MODEL_PRIORITY` with the full map from `native-helpers-gen.js`, adding all 20+ providers (`codex`, `github`, `cursor`, `claude-code`, `iflow`, `kiro`, `kilo`, `gemini-cli`, `ollama`, etc.) that were missing.
+
 ## [5.6.6] - 2026-04-17
 - Fix: PM2 sync script crash (SIGKILL) khi khoi dong 9router tren Ubuntu/VPS. Boc trong try-catch, them --no-autorestart.
 

@@ -186,7 +186,9 @@ function resolveNative9RouterDesktopLaunch() {
     args: ['-n', '-H', '0.0.0.0', '-p', '20128', '--skip-update'],
     env: {
       PORT: '20128',
-      HOSTNAME: '0.0.0.0'
+      HOSTNAME: '0.0.0.0',
+      // Ensures 9router stores data in the user home dir, matching where sync script writes db.json
+      DATA_DIR: getNative9RouterDataDir(),
     }
   };
 }
@@ -199,6 +201,28 @@ function build9RouterSmartRouteSyncScript(dbPath) {
   const dbPath = ${safeDbPath};
   const ROUTER='http://localhost:20128';
   const MODEL_PRIORITY = {
+    codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.3-codex-high', 'cx/gpt-5.2-codex', 'cx/gpt-5.2', 'cx/gpt-5.1-codex-max', 'cx/gpt-5.1-codex', 'cx/gpt-5.1', 'cx/gpt-5-codex'],
+    'claude-code': ['cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
+    github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro'],
+    cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gemini-3-flash-preview'],
+    kilo: ['kc/anthropic/claude-sonnet-4-20250514', 'kc/anthropic/claude-opus-4-20250514', 'kc/google/gemini-2.5-pro', 'kc/google/gemini-2.5-flash', 'kc/openai/gpt-4.1', 'kc/deepseek/deepseek-chat'],
+    cline: ['cl/anthropic/claude-sonnet-4.6', 'cl/anthropic/claude-opus-4.6', 'cl/openai/gpt-5.3-codex', 'cl/openai/gpt-5.4', 'cl/google/gemini-3.1-pro-preview'],
+    'gemini-cli': ['gc/gemini-3-flash-preview', 'gc/gemini-3-pro-preview'],
+    iflow: ['if/qwen3-coder-plus', 'if/kimi-k2', 'if/kimi-k2-thinking', 'if/glm-4.7', 'if/deepseek-r1', 'if/deepseek-v3.2', 'if/deepseek-v3', 'if/qwen3-max', 'if/qwen3-235b', 'if/iflow-rome-30ba3b'],
+    qwen: ['qw/qwen3-coder-plus', 'qw/qwen3-coder-flash', 'qw/vision-model', 'qw/coder-model'],
+    kiro: ['kr/claude-sonnet-4.5', 'kr/claude-haiku-4.5', 'kr/deepseek-3.2', 'kr/deepseek-3.1', 'kr/qwen3-coder-next'],
+    ollama: ['ollama/gemma4:e2b', 'ollama/gemma4:e4b', 'ollama/gemma4:26b', 'ollama/gemma4:31b', 'ollama/qwen3.5', 'ollama/kimi-k2.5', 'ollama/glm-5', 'ollama/glm-4.7-flash', 'ollama/minimax-m2.5', 'ollama/gpt-oss:120b'],
+    'kimi-coding': ['kmc/kimi-k2.5', 'kmc/kimi-k2.5-thinking', 'kmc/kimi-latest'],
+    glm: ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
+    'glm-cn': ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
+    minimax: ['minimax/MiniMax-M2.7', 'minimax/MiniMax-M2.5', 'minimax/MiniMax-M2.1'],
+    kimi: ['kimi/kimi-k2.5', 'kimi/kimi-k2.5-thinking', 'kimi/kimi-latest'],
+    deepseek: ['deepseek/deepseek-chat', 'deepseek/deepseek-reasoner'],
+    xai: ['xai/grok-4', 'xai/grok-4-fast-reasoning', 'xai/grok-code-fast-1'],
+    mistral: ['mistral/mistral-large-latest', 'mistral/codestral-latest'],
+    groq: ['groq/llama-3.3-70b-versatile', 'groq/openai/gpt-oss-120b'],
+    cerebras: ['cerebras/gpt-oss-120b'],
+    alicode: ['alicode/qwen3.5-plus', 'alicode/qwen3-coder-plus'],
     openai: ['openai/gpt-4o', 'openai/gpt-4.1'],
     anthropic: ['anthropic/claude-sonnet-4', 'anthropic/claude-haiku-3.5'],
     gemini: ['gemini/gemini-2.5-flash', 'gemini/gemini-2.5-pro'],
@@ -429,8 +453,10 @@ function resolveCommandOnPath(command) {
 async function writeNative9RouterSyncScript(projectDir) {
   const syncScriptPath = path.join(projectDir, '.openclaw', '9router-smart-route-sync.js');
   await fs.ensureDir(path.dirname(syncScriptPath));
-  await fs.ensureDir(getProject9RouterDataDir(projectDir));
-  await fs.writeFile(syncScriptPath, build9RouterSmartRouteSyncScript(path.join(getProject9RouterDataDir(projectDir), 'db.json')));
+  // Use native home data dir so sync script writes to same place 9router binary reads from
+  const nativeDataDir = getNative9RouterDataDir();
+  await fs.ensureDir(nativeDataDir);
+  await fs.writeFile(syncScriptPath, build9RouterSmartRouteSyncScript(path.join(nativeDataDir, 'db.json')));
   return syncScriptPath;
 }
 
@@ -2281,6 +2307,20 @@ async function main() {
     );
     // Generate ecosystem.config.js for PM2 native multi-bot
     if (deployMode === 'native') {
+      // Also write config to ~/.openclaw/ — openclaw binary on Linux/Mac reads from home dir
+      const homeClawDir = path.join(os.homedir(), '.openclaw');
+      await fs.ensureDir(homeClawDir);
+      const homeConfig = JSON.parse(JSON.stringify(sharedConfig));
+      for (const agent of (homeConfig.agents && homeConfig.agents.list || [])) {
+        // workspace is relative to projectDir (.openclaw/workspace-X); agentDir is relative to rootClawDir (agents/X/agent)
+        if (agent.workspace && !path.isAbsolute(agent.workspace)) agent.workspace = path.join(projectDir, agent.workspace);
+        if (agent.agentDir && !path.isAbsolute(agent.agentDir)) agent.agentDir = path.join(rootClawDir, agent.agentDir);
+      }
+      await fs.writeJson(path.join(homeClawDir, 'openclaw.json'), homeConfig, { spaces: 2 });
+      if (Object.keys(authProfilesJson).length > 0) {
+        await fs.writeJson(path.join(homeClawDir, 'auth-profiles.json'), authProfilesJson, { spaces: 2 });
+      }
+      const safeRootClawDir = rootClawDir.replace(/\\/g, '/');
       const pm2Apps = [
         '    {',
         `      name: 'openclaw-multibot',`,
@@ -2290,7 +2330,11 @@ async function main() {
         `      interpreter: 'none',`,
         `      autorestart: true,`,
         `      watch: false,`,
-        `      env: { NODE_ENV: 'production' }`,
+        `      env: {`,
+        `        NODE_ENV: 'production',`,
+        `        OPENCLAW_HOME: '\',`,
+        `        OPENCLAW_STATE_DIR: '\',`,
+        `      }`,
         '    }',
       ].join('\n');
       const ecosystemContent = [

@@ -130,8 +130,9 @@ checks.push(() => expect(
     && cli.includes('const safeDbPath = JSON.stringify(dbPath);')
     && cli.includes("const ROUTER='http://localhost:20128';")
     && cli.includes("fetch(ROUTER + '/api/providers')")
-    && cli.includes("build9RouterSmartRouteSyncScript(path.join(getProject9RouterDataDir(projectDir), 'db.json'))"),
-  'Native 9Router flow must write a smart-route sync script into the project-controlled 9Router data directory'
+    && cli.includes('const nativeDataDir = getNative9RouterDataDir();')
+    && cli.includes("build9RouterSmartRouteSyncScript(path.join(nativeDataDir, 'db.json'))"),
+  'Native 9Router flow must write a smart-route sync script using the user home-level 9Router data directory'
 ));
 
 checks.push(() => expectMatch(

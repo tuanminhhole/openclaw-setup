@@ -1,4 +1,14 @@
-﻿# Changelog (Tiếng Việt)
+# Changelog (Tiếng Việt)
+
+## [5.6.8] - 2026-04-17
+
+### Sửa lỗi: 9Router Sync & Config Ubuntu Native
+
+- **Sửa: DATA_DIR mismatch trên native Linux/Mac** — `resolveNative9RouterDesktopLaunch()` nay truyền `DATA_DIR: getNative9RouterDataDir()` vào PM2, đảm bảo 9router lưu dữ liệu đúng vào `~/.9router/` (Linux) / `%APPDATA%/9router` (Windows).
+- **Sửa: dbPath sync script** — `writeNative9RouterSyncScript()` nay dùng `getNative9RouterDataDir()` thay vì `getProject9RouterDataDir()`, xóa hoàn toàn xung đột khi sync ghi vào `projectDir/.9router/` còn 9router lại đọc từ `~/.9router/`.
+- **Sửa: openclaw.json home dir** — Khi cài native, CLI nay cũng ghi `openclaw.json` và `auth-profiles.json` vào `~/.openclaw/` vì binary openclaw trên Linux đọc từ đó, không đọc từ thư mục project.
+- **Sửa: OPENCLAW_HOME trong ecosystem.config.js** — Thêm `OPENCLAW_HOME` và `OPENCLAW_STATE_DIR` vào env PM2 để multi-bot native tìm đúng config.
+- **Sửa: Bảng MODEL_PRIORITY thiếu provider** — Đồng bộ bảng mapping provider → model của sync script PM2 với `native-helpers-gen.js`, bổ sung 20+ provider còn thiếu: `codex`, `github`, `cursor`, `claude-code`, `iflow`, `kiro`, `kilo`, `gemini-cli`, `ollama`, v.v.
 
 ## [5.6.6] - 2026-04-17
 - Fix: Script sync 9router bi SIGKILL khi khoi dong qua PM2 tren Ubuntu/VPS. Xu ly loi nha bang try-catch, them --no-autorestart.
