@@ -1,5 +1,34 @@
 // @ts-nocheck
 (function (root) {
+  const SMART_ROUTE_PROVIDER_MODELS = {
+    codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.3-codex-high', 'cx/gpt-5.2-codex', 'cx/gpt-5.2', 'cx/gpt-5.1-codex-max', 'cx/gpt-5.1-codex', 'cx/gpt-5.1', 'cx/gpt-5-codex'],
+    'claude-code': ['cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
+    github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro'],
+    cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gemini-3-flash-preview'],
+    kilo: ['kc/anthropic/claude-sonnet-4-20250514', 'kc/anthropic/claude-opus-4-20250514', 'kc/google/gemini-2.5-pro', 'kc/google/gemini-2.5-flash', 'kc/openai/gpt-4.1', 'kc/deepseek/deepseek-chat'],
+    cline: ['cl/anthropic/claude-sonnet-4.6', 'cl/anthropic/claude-opus-4.6', 'cl/openai/gpt-5.3-codex', 'cl/openai/gpt-5.4', 'cl/google/gemini-3.1-pro-preview'],
+    'gemini-cli': ['gc/gemini-3-flash-preview', 'gc/gemini-3-pro-preview'],
+    iflow: ['if/qwen3-coder-plus', 'if/kimi-k2', 'if/kimi-k2-thinking', 'if/glm-4.7', 'if/deepseek-r1', 'if/deepseek-v3.2', 'if/deepseek-v3', 'if/qwen3-max', 'if/qwen3-235b', 'if/iflow-rome-30ba3b'],
+    qwen: ['qw/qwen3-coder-plus', 'qw/qwen3-coder-flash', 'qw/vision-model', 'qw/coder-model'],
+    kiro: ['kr/claude-sonnet-4.5', 'kr/claude-haiku-4.5', 'kr/deepseek-3.2', 'kr/deepseek-3.1', 'kr/qwen3-coder-next'],
+    ollama: ['ollama/gemma4:e2b', 'ollama/gemma4:e4b', 'ollama/gemma4:26b', 'ollama/gemma4:31b', 'ollama/qwen3.5', 'ollama/kimi-k2.5', 'ollama/glm-5', 'ollama/glm-4.7-flash', 'ollama/minimax-m2.5', 'ollama/gpt-oss:120b'],
+    'kimi-coding': ['kmc/kimi-k2.5', 'kmc/kimi-k2.5-thinking', 'kmc/kimi-latest'],
+    glm: ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
+    'glm-cn': ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
+    minimax: ['minimax/MiniMax-M2.7', 'minimax/MiniMax-M2.5', 'minimax/MiniMax-M2.1'],
+    kimi: ['kimi/kimi-k2.5', 'kimi/kimi-k2.5-thinking', 'kimi/kimi-latest'],
+    deepseek: ['deepseek/deepseek-chat', 'deepseek/deepseek-reasoner'],
+    xai: ['xai/grok-4', 'xai/grok-4-fast-reasoning', 'xai/grok-code-fast-1'],
+    mistral: ['mistral/mistral-large-latest', 'mistral/codestral-latest'],
+    groq: ['groq/llama-3.3-70b-versatile', 'groq/openai/gpt-oss-120b'],
+    cerebras: ['cerebras/gpt-oss-120b'],
+    alicode: ['alicode/qwen3.5-plus', 'alicode/qwen3-coder-plus'],
+    openai: ['openai/gpt-4o', 'openai/gpt-4.1'],
+    anthropic: ['anthropic/claude-sonnet-4', 'anthropic/claude-haiku-3.5'],
+    gemini: ['gemini/gemini-2.5-flash', 'gemini/gemini-2.5-pro'],
+  };
+  const SMART_ROUTE_PROVIDER_ORDER = ['openai', 'anthropic', 'claude-code', 'codex', 'cursor', 'github', 'cline', 'kimi', 'minimax', 'deepseek', 'glm', 'alicode', 'xai', 'mistral', 'kilo', 'kiro', 'iflow', 'qwen', 'gemini-cli', 'ollama'];
+
   function encodeBase64Utf8(value) {
     if (typeof Buffer !== 'undefined') {
       return Buffer.from(String(value), 'utf8').toString('base64');
@@ -14,7 +43,8 @@
 
   function build9RouterSmartRouteSyncScript(dbPath) {
     return `const fs=require('fs');const INTERVAL=30000;const p='${dbPath}';
-const PM={codex:['cx/gpt-5.4','cx/gpt-5.3-codex','cx/gpt-5.3-codex-high','cx/gpt-5.2-codex','cx/gpt-5.2','cx/gpt-5.1-codex-max','cx/gpt-5.1-codex','cx/gpt-5.1','cx/gpt-5-codex'],'claude-code':['cc/claude-opus-4-6','cc/claude-sonnet-4-6','cc/claude-opus-4-5-20251101','cc/claude-sonnet-4-5-20250929','cc/claude-haiku-4-5-20251001'],github:['gh/gpt-5.4','gh/gpt-5.3-codex','gh/gpt-5.2-codex','gh/gpt-5.2','gh/gpt-5.1-codex-max','gh/gpt-5.1-codex','gh/gpt-5.1','gh/gpt-5','gh/gpt-4.1','gh/gpt-4o','gh/claude-opus-4.6','gh/claude-sonnet-4.6','gh/claude-sonnet-4.5','gh/claude-opus-4.5','gh/claude-haiku-4.5','gh/gemini-3-pro-preview','gh/gemini-3-flash-preview','gh/gemini-2.5-pro'],cursor:['cu/default','cu/claude-4.6-opus-max','cu/claude-4.5-opus-high-thinking','cu/claude-4.5-sonnet-thinking','cu/claude-4.5-sonnet','cu/gpt-5.3-codex','cu/gpt-5.2-codex','cu/gemini-3-flash-preview'],'kilo:['kc/anthropic/claude-sonnet-4-20250514','kc/anthropic/claude-opus-4-20250514','kc/google/gemini-2.5-pro','kc/google/gemini-2.5-flash','kc/openai/gpt-4.1','kc/deepseek/deepseek-chat'],'cline':['cl/anthropic/claude-sonnet-4.6','cl/anthropic/claude-opus-4.6','cl/openai/gpt-5.3-codex','cl/openai/gpt-5.4','cl/google/gemini-3.1-pro-preview'],'gemini-cli':['gc/gemini-3-flash-preview','gc/gemini-3-pro-preview'],'iflow':['if/qwen3-coder-plus','if/kimi-k2','if/kimi-k2-thinking','if/glm-4.7','if/deepseek-r1','if/deepseek-v3.2','if/deepseek-v3','if/qwen3-max','if/qwen3-235b','if/iflow-rome-30ba3b'],'qwen':['qw/qwen3-coder-plus','qw/qwen3-coder-flash','qw/vision-model','qw/coder-model'],'kiro':['kr/claude-sonnet-4.5','kr/claude-haiku-4.5','kr/deepseek-3.2','kr/deepseek-3.1','kr/qwen3-coder-next'],'ollama':['ollama/gemma4:e2b','ollama/gemma4:e4b','ollama/gemma4:26b','ollama/gemma4:31b','ollama/qwen3.5','ollama/kimi-k2.5','ollama/glm-5','ollama/glm-4.7-flash','ollama/minimax-m2.5','ollama/gpt-oss:120b'],'kimi-coding':['kmc/kimi-k2.5','kmc/kimi-k2.5-thinking','kmc/kimi-latest'],'glm':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'glm-cn':['glm/glm-5.1','glm/glm-5','glm/glm-4.7'],'minimax':['minimax/MiniMax-M2.7','minimax/MiniMax-M2.5','minimax/MiniMax-M2.1'],'kimi':['kimi/kimi-k2.5','kimi/kimi-k2.5-thinking','kimi/kimi-latest'],'deepseek':['deepseek/deepseek-chat','deepseek/deepseek-reasoner'],'xai':['xai/grok-4','xai/grok-4-fast-reasoning','xai/grok-code-fast-1'],'mistral':['mistral/mistral-large-latest','mistral/codestral-latest'],'groq':['groq/llama-3.3-70b-versatile','groq/openai/gpt-oss-120b'],'cerebras':['cerebras/gpt-oss-120b'],'alicode':['alicode/qwen3.5-plus','alicode/qwen3-coder-plus'],'openai':['openai/gpt-4o','openai/gpt-4.1'],'anthropic':['anthropic/claude-sonnet-4','anthropic/claude-haiku-3.5'],'gemini':['gemini/gemini-2.5-flash','gemini/gemini-2.5-pro']};
+const PM=${JSON.stringify(SMART_ROUTE_PROVIDER_MODELS)};
+const PREF=${JSON.stringify(SMART_ROUTE_PROVIDER_ORDER)};
 console.log('[sync-combo] 9Router sync loop started...');
 const sync = async () => {
   try {
@@ -32,9 +62,9 @@ const sync = async () => {
     const res = await fetch('http://localhost:20128/api/providers');
     if (!res.ok) { console.log('[sync-combo] API not ready, retrying...'); return; }
     const d = await res.json();
-    const a = (d.connections || []).filter(c => c && c.provider && c.isActive !== false && !c.disabled).map(c => c.provider);
+    const rawConnections = Array.isArray(d.connections) ? d.connections : Array.isArray(d.providerConnections) ? d.providerConnections : [];
+    const a = [...new Set(rawConnections.filter(c => c && c.provider && c.isActive !== false && !c.disabled).map(c => c.provider))];
     if (!a.length) { removeSmartRoute(); return; }
-    const PREF = ['openai','anthropic','claude-code','codex','cursor','github','cline','kimi','minimax','deepseek','glm','alicode','xai','mistral','kilo','kiro','iflow','qwen','gemini-cli','ollama'];
     a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
     const m = a.flatMap(pv => PM[pv] || []);
     if (!m.length) { removeSmartRoute(); return; }
@@ -58,8 +88,9 @@ setInterval(sync, INTERVAL);`;
   }
 
   function build9RouterComposeEntrypointScript(syncScriptBase64) {
-    return [
-      'npm install -g 9router',
+      const nineRouterSpec = (typeof globalThis !== 'undefined' && globalThis.__openclawCommon && globalThis.__openclawCommon.NINE_ROUTER_NPM_SPEC) || '9router@latest';
+      return [
+      `npm install -g ${nineRouterSpec}`,
       `node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('${syncScriptBase64}','base64').toString())"`,
       'node /tmp/sync.js > /tmp/sync.log 2>&1 &',
       'exec 9router -n -l -H 0.0.0.0 -p 20128 --skip-update'
@@ -67,7 +98,7 @@ setInterval(sync, INTERVAL);`;
   }
 
   function buildGatewayPatchCmd() {
-    return `node -e \\"const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\"`;
+    return `node -e \\"const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\"`;
   }
 
   function buildDockerArtifacts(options) {
@@ -83,7 +114,7 @@ setInterval(sync, INTERVAL);`;
       allSkills = [],
       dockerfileSkillInstallMode = 'none',
       runtimeCommandParts = [],
-      volumeMount = '../../.openclaw:/root/.openclaw',
+      volumeMount = '../..:/root/project',
       singleComposeName = 'oc-bot',
       multiComposeName = 'oc-multibot',
       singleAppContainerName = 'openclaw-bot',
@@ -98,7 +129,7 @@ setInterval(sync, INTERVAL);`;
       emitBrowserInstall = true,
     } = options;
 
-    const browserAptExtra = hasBrowser ? ' xvfb' : '';
+    const browserAptExtra = hasBrowser ? ' xvfb socat' : '';
     const browserInstallLines = hasBrowser && emitBrowserInstall
       ? [
           '',
@@ -116,33 +147,42 @@ setInterval(sync, INTERVAL);`;
     const patchLine = `RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const files=fs.readdirSync(dir).filter(n=>/\\.js$/.test(n));let patched=0;for(const file of files){const p=path.join(dir,file);let s='';try{s=fs.readFileSync(p,'utf8');}catch{continue;}if(s.includes(to)||!s.includes(from))continue;s=s.replace(from,to);fs.writeFileSync(p,s);patched++;}if(!patched){process.exit(0);}"`;
     
     // Dynamic runtime configuration injection for container internal IPs
-    const setupInternalIpScript = `const fs=require('fs'),os=require('os'),p='/root/.openclaw/openclaw.json';if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+    const setupInternalIpScript = `const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
     const setupInternalIpB64 = encodeBase64Utf8(setupInternalIpScript);
 
     const runtimeParts = runtimeCommandParts.filter(Boolean);
-    runtimeParts.unshift(`node -e "eval(Buffer.from('${setupInternalIpB64}','base64').toString())" &&`);
+    runtimeParts.unshift('export OPENCLAW_HOME="$PWD/.openclaw"');
+    runtimeParts.unshift('export OPENCLAW_STATE_DIR="$PWD/.openclaw"');
+    runtimeParts.unshift(`node -e 'eval(Buffer.from("${setupInternalIpB64}","base64").toString())'`);
     if (hasBrowser) {
-      runtimeParts.push('(Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 &) && export DISPLAY=:99 && openclaw gateway run');
+      runtimeParts.push('socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &');
+      runtimeParts.push('Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 & DISPLAY=:99 openclaw gateway run');
     } else {
       runtimeParts.push('openclaw gateway run');
     }
+    const runtimeScript = ['#!/bin/sh', 'set -e', ...runtimeParts].join('\n');
+    const runtimeScriptB64 = encodeBase64Utf8(runtimeScript);
     const dockerfile = `FROM node:22-slim
 
 RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /var/lib/apt/lists/*
 ${browserInstallLines}
 ARG OPENCLAW_VER="${openClawNpmSpec}"
+ARG CACHE_BUST=""
 RUN npm install -g ${openClawNpmSpec} ${openClawRuntimePackages}${skillLines}
 ${patchLine}
-WORKDIR /root/.openclaw
+RUN node -e "require('fs').writeFileSync('/usr/local/bin/openclaw-entrypoint.sh', Buffer.from('${runtimeScriptB64}','base64').toString())" && chmod +x /usr/local/bin/openclaw-entrypoint.sh
+WORKDIR /root/project
 
 EXPOSE 18791
 
-CMD sh -c "${runtimeParts.join(' ')}"`;
+CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
 
     const syncScript = build9RouterSmartRouteSyncScript('/root/.9router/db.json');
     const syncScriptBase64 = encodeBase64Utf8(syncScript);
     const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
+
+    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n';
 
     let compose;
     if (isMultiBot) {
@@ -161,7 +201,7 @@ services:
     restart: always
     env_file:
       - .env
-${dependsOn}${extraHosts}    volumes:
+${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
       - "18791:18791"
@@ -196,7 +236,7 @@ services:
     restart: always
     env_file:
       - .env
-${dependsOn}${extraHosts}    volumes:
+${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
       - "18791:18791"
@@ -236,7 +276,7 @@ services:
     restart: always
     env_file:
       - .env
-${extraHosts}    volumes:
+${appEnvironmentBlock}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
       - "18791:18791"`;
@@ -252,7 +292,7 @@ services:
       - .env
     depends_on:
       - 9router
-${hasBrowser ? `${extraHostsBlock}\n` : ''}    volumes:
+${appEnvironmentBlock}${hasBrowser ? `${extraHostsBlock}\n` : ''}    volumes:
       - ${volumeMount}
     ports:
       - "18791:18791"
@@ -286,7 +326,7 @@ services:
     container_name: ${singleAppContainerName}
     restart: always
     env_file: .env
-    depends_on:
+${appEnvironmentBlock}    depends_on:
       ollama:
         condition: service_healthy
 ${hasBrowser ? `${extraHostsBlock}\n` : ''}    ports:
@@ -329,7 +369,7 @@ services:
     restart: always
     env_file:
       - .env
-${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    volumes:
+${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    volumes:
       - ${volumeMount}
     ports:
       - "18791:18791"`;

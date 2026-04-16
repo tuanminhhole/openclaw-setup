@@ -1,6 +1,6 @@
 {
   "name": "create-openclaw-bot",
-  "version": "5.6.1",
+  "version": "5.6.2",
   "description": "Interactive CLI installer for OpenClaw Bot",
   "main": "dist/cli.js",
   "bin": {
@@ -10,8 +10,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "node src/build.mjs",
-    "dev": "node src/build.mjs --watch",
+    "build": "node src/build.mjs --deploy",
+    "dev": "node src/build.mjs --deploy --watch",
     "test": "node src/tests/smoke-cli-logic.mjs",
     "bump": "node src/bump-version.mjs"
   },

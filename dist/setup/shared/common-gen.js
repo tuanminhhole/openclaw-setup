@@ -2,14 +2,17 @@
 (function (root) {
   const OPENCLAW_NPM_SPEC = 'openclaw@2026.4.14';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
+  const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const TELEGRAM_RELAY_PLUGIN_SPEC = 'openclaw-telegram-multibot-relay';
+  const TELEGRAM_RELAY_PLUGIN_ID = 'telegram-multibot-relay';
+  const TELEGRAM_SETUP_GUIDE_FILENAME = 'TELEGRAM-GROUP-SETUP.md';
 
   function buildRelayPluginInstallCommand(prefix = 'openclaw') {
-    return `${prefix} plugins install ${TELEGRAM_RELAY_PLUGIN_SPEC} 2>/dev/null || true`;
+    return `if [ ! -d "$OPENCLAW_STATE_DIR/extensions/${TELEGRAM_RELAY_PLUGIN_ID}" ]; then ${prefix} plugins install ${TELEGRAM_RELAY_PLUGIN_SPEC} 2>/dev/null || true; fi`;
   }
 
   function buildRelayPluginInstallCommandWin(prefix = 'openclaw') {
-    return `${prefix} plugins install ${TELEGRAM_RELAY_PLUGIN_SPEC} || exit /b 0`;
+    return `if not exist ".openclaw\\extensions\\${TELEGRAM_RELAY_PLUGIN_ID}\\" ${prefix} plugins install ${TELEGRAM_RELAY_PLUGIN_SPEC} || exit /b 0`;
   }
 
   function buildTelegramPostInstallChecklist(options = {}) {
@@ -29,7 +32,7 @@
     }).join('\n');
 
     if (isVi) {
-      return `# Telegram Post-Install Checklist
+      return `# Telegram Group Setup Guide
 
 Bot da duoc cai dat. Thuc hien cac buoc sau de hoat dong trong group.
 
@@ -91,7 +94,7 @@ Neu trong qua trinh setup bao loi cai plugin, sau khi bot dang chay hay chay:
 `;
     }
 
-    return `# Telegram Post-Install Checklist
+    return `# Telegram Group Setup Guide
 
 Bots are installed. Complete the steps below to activate them in a group.
 
@@ -209,7 +212,10 @@ If setup reported a plugin install error, run this after the bot is running:
   root.__openclawCommon = {
     OPENCLAW_NPM_SPEC,
     OPENCLAW_RUNTIME_PACKAGES,
+    NINE_ROUTER_NPM_SPEC,
     TELEGRAM_RELAY_PLUGIN_SPEC,
+    TELEGRAM_RELAY_PLUGIN_ID,
+    TELEGRAM_SETUP_GUIDE_FILENAME,
     buildRelayPluginInstallCommand,
     buildRelayPluginInstallCommandWin,
     buildTelegramPostInstallChecklist,

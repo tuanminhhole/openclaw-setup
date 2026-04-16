@@ -1,5 +1,8 @@
 # Changelog (English)
 
+## [5.6.2] - 2026-04-16
+- Updated post-installation guide prompt to clarify Telegram group setup instructions.
+
 ## [5.6.1] - 2026-04-16
 - Hotfix: Resolved ReferenceError modelsPrimary is not defined during CLI template generation.
 

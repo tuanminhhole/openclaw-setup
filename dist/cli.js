@@ -24,6 +24,7 @@ const {
   OPENCLAW_NPM_SPEC,
   OPENCLAW_RUNTIME_PACKAGES,
   TELEGRAM_RELAY_PLUGIN_SPEC,
+  TELEGRAM_SETUP_GUIDE_FILENAME,
   buildRelayPluginInstallCommand,
   buildTelegramPostInstallChecklist,
 } = loadSharedModule('./setup/shared/common-gen.js', '__openclawCommon');
@@ -393,16 +394,16 @@ function installLatestOpenClaw({ isVi, osChoice }) {
   }
 
   console.log(chalk.cyan(isVi
-    ? '\n📦 Dang cai/cap nhat openclaw@latest...'
-    : '\n📦 Installing/updating openclaw@latest...'));
+    ? `\n📦 Dang cai/cap nhat ${OPENCLAW_NPM_SPEC}...`
+    : `\n📦 Installing/updating ${OPENCLAW_NPM_SPEC}...`));
 
   if (!installGlobalPackage(OPENCLAW_NPM_SPEC, { isVi, osChoice, displayName: 'openclaw' })) {
     process.exit(1);
   }
 
   console.log(chalk.green(isVi
-    ? '✅ openclaw da duoc cap nhat ban moi nhat!'
-    : '✅ openclaw is now on the latest version!'));
+    ? `✅ openclaw da duoc ghim dung ban ${OPENCLAW_NPM_SPEC}!`
+    : `✅ openclaw is now pinned to ${OPENCLAW_NPM_SPEC}!`));
 }
 
 // ─── Shared from docker-gen.js ──────────────────────────────────────────────
@@ -954,6 +955,675 @@ function getCliSkillChoices({ providerKey, isVi }) {
     });
 }
 
+const CLI_BACK = '__openclaw_cli_back__';
+
+function getBackChoice(isVi) {
+  return {
+    name: isVi ? '← Quay lại' : '← Back',
+    value: CLI_BACK,
+  };
+}
+
+function withBackHint(message, isVi) {
+  return `${message} ${isVi ? '(gõ "back" để quay lại)' : '(type "back" to go back)'}`;
+}
+
+async function selectWithBack({ message, choices, defaultValue, allowBack = false, isVi = true }) {
+  const finalChoices = allowBack ? [...choices, getBackChoice(isVi)] : choices;
+  return select({
+    message,
+    choices: finalChoices,
+    ...(defaultValue ? { default: defaultValue } : {}),
+  });
+}
+
+async function inputWithBack({ message, defaultValue = '', required = false, allowBack = false, isVi = true }) {
+  const value = await input({
+    message: allowBack ? withBackHint(message, isVi) : message,
+    default: defaultValue,
+    required,
+  });
+  if (allowBack && String(value || '').trim().toLowerCase() === 'back') {
+    return CLI_BACK;
+  }
+  return value;
+}
+
+async function checkboxWithBack({ message, choices, isVi = true, allowBack = false }) {
+  const finalChoices = allowBack ? [...choices, getBackChoice(isVi)] : choices;
+  const value = await checkbox({
+    message,
+    choices: finalChoices,
+  });
+  return allowBack && value.includes(CLI_BACK) ? CLI_BACK : value;
+}
+
+async function collectBotSetupStep({
+  isVi,
+  channelKey,
+  channel,
+  existingBots = [],
+  existingBotCount = 1,
+  existingGroupId = '',
+}) {
+  let botCount = channelKey === 'telegram' ? existingBotCount : 1;
+  let groupId = existingGroupId;
+  const bots = [];
+
+  if (channelKey === 'telegram') {
+    const botCountValue = await selectWithBack({
+      message: isVi ? 'Bạn muốn cài bao nhiêu Telegram bot?' : 'How many Telegram bots do you want to deploy?',
+      choices: [
+        { name: '1 bot (single)', value: '1' },
+        { name: '2 bots (Department Room)', value: '2' },
+        { name: '3 bots', value: '3' },
+        { name: '4 bots', value: '4' },
+        { name: '5 bots', value: '5' },
+      ],
+      defaultValue: String(existingBotCount || 1),
+      allowBack: true,
+      isVi,
+    });
+    if (botCountValue === CLI_BACK) {
+      return { back: true };
+    }
+    botCount = parseInt(botCountValue, 10);
+
+    if (botCount > 1) {
+      const groupOption = await selectWithBack({
+        message: isVi ? 'Bạn có sẵn Telegram Group chưa?' : 'Do you already have a Telegram Group?',
+        choices: [
+          { name: isVi ? '✨  Tôi sẽ tạo sau (nhập Group ID vào .env sau khi setup)' : '✨  I\'ll create later (add Group ID to .env after setup)', value: 'create' },
+          { name: isVi ? '🔗  Đã có group — nhập Group ID ngay' : '🔗  Already have a group — enter Group ID now', value: 'existing' }
+        ],
+        defaultValue: groupId ? 'existing' : 'create',
+        allowBack: true,
+        isVi,
+      });
+      if (groupOption === CLI_BACK) {
+        return { back: true };
+      }
+
+      if (groupOption === 'existing') {
+        console.log(chalk.dim(isVi
+          ? '\n  📌 Cách lấy Group ID:\n     1. Mở Telegram → tìm @userinfobot\n     2. Bấm Start để bắt đầu → chọn nút "Group" trên màn hình → chọn Group bạn muốn thêm bot vào\n     3. Bot sẽ trả về "Chat ID" — đó là Group ID (bắt đầu bằng -100)\n     👉 https://t.me/userinfobot\n'
+          : '\n  📌 How to get Group ID:\n     1. Open Telegram → find @userinfobot\n     2. Click Start → select "Group" button on the screen → select the group you want to add the bot to\n     3. The bot replies with "Chat ID" — that is your Group ID (starts with -100)\n     👉 https://t.me/userinfobot\n'));
+        const nextGroupId = await inputWithBack({
+          message: isVi ? 'Telegram Group ID (VD: -1001234567890):' : 'Telegram Group ID (e.g. -1001234567890):',
+          defaultValue: groupId,
+          allowBack: true,
+          isVi,
+        });
+        if (nextGroupId === CLI_BACK) {
+          return { back: true };
+        }
+        groupId = nextGroupId;
+      } else {
+        groupId = '';
+      }
+    } else {
+      groupId = '';
+    }
+
+    for (let i = 0; i < botCount; i++) {
+      console.log(chalk.bold(`\n${isVi ? `─── Bot ${i + 1} / ${botCount} ───` : `─── Bot ${i + 1} / ${botCount} ───`}`));
+      const defaults = existingBots[i] || {};
+      const fields = [
+        {
+          key: 'name',
+          message: isVi ? `Tên Bot ${i + 1}:` : `Bot ${i + 1} name:`,
+          defaultValue: defaults.name || `Bot ${i + 1}`,
+          required: true,
+        },
+        {
+          key: 'slashCmd',
+          message: isVi ? `Slash command (VD: /bot${i + 1}):` : `Slash command (e.g. /bot${i + 1}):`,
+          defaultValue: defaults.slashCmd || `/bot${i + 1}`,
+          required: true,
+        },
+        {
+          key: 'desc',
+          message: isVi ? `Mô tả Bot ${i + 1} (VD: Trợ lý AI cá nhân):` : `Bot ${i + 1} description (e.g. Personal AI assistant):`,
+          defaultValue: defaults.desc || (isVi ? 'Trợ lý AI cá nhân' : 'Personal AI assistant'),
+          required: true,
+        },
+        {
+          key: 'persona',
+          message: isVi ? `Tính cách & quy tắc Bot ${i + 1} (VD: siêu thân thiện, nhiều emoji):` : `Bot ${i + 1} persona & rules (e.g. friendly, uses emojis):`,
+          defaultValue: defaults.persona || '',
+          required: false,
+        },
+        {
+          key: 'token',
+          message: isVi ? 'Bot Token (từ @BotFather):' : 'Bot Token (from @BotFather):',
+          defaultValue: defaults.token || '',
+          required: true,
+        },
+      ];
+
+      const draft = { ...defaults };
+      let fieldIndex = 0;
+      while (fieldIndex < fields.length) {
+        const field = fields[fieldIndex];
+        const value = await inputWithBack({
+          message: field.message,
+          defaultValue: draft[field.key] || field.defaultValue,
+          required: field.required,
+          allowBack: true,
+          isVi,
+        });
+        if (value === CLI_BACK) {
+          if (fieldIndex > 0) {
+            fieldIndex--;
+            continue;
+          }
+          return { back: true };
+        }
+        draft[field.key] = value;
+        fieldIndex++;
+      }
+      bots.push(draft);
+    }
+  } else if (channelKey !== 'zalo-personal') {
+    const defaults = existingBots[0] || {};
+    const fields = [
+      {
+        key: 'name',
+        message: isVi ? 'Tên Bot:' : 'Bot Name:',
+        defaultValue: defaults.name || 'Chat Bot',
+        required: true,
+      },
+      {
+        key: 'desc',
+        message: isVi ? 'Mô tả Bot:' : 'Bot Description:',
+        defaultValue: defaults.desc || (isVi ? 'Trợ lý AI cá nhân' : 'Personal AI assistant'),
+        required: true,
+      },
+      {
+        key: 'persona',
+        message: isVi ? 'Tính cách & quy tắc (VD: gọn gàng, thân thiện):' : 'Persona & rules (e.g. concise, friendly):',
+        defaultValue: defaults.persona || '',
+        required: false,
+      },
+      {
+        key: 'token',
+        message: isVi ? `Nhập ${channel.name} Token:` : `Enter ${channel.name} Token:`,
+        defaultValue: defaults.token || '',
+        required: true,
+      },
+    ];
+    const draft = { ...defaults, slashCmd: '' };
+    let fieldIndex = 0;
+    while (fieldIndex < fields.length) {
+      const field = fields[fieldIndex];
+      const value = await inputWithBack({
+        message: field.message,
+        defaultValue: draft[field.key] || field.defaultValue,
+        required: field.required,
+        allowBack: true,
+        isVi,
+      });
+      if (value === CLI_BACK) {
+        if (fieldIndex > 0) {
+          fieldIndex--;
+          continue;
+        }
+        return { back: true };
+      }
+      draft[field.key] = value;
+      fieldIndex++;
+    }
+    bots.push(draft);
+  } else {
+    bots.push({ name: 'Bot', slashCmd: '', desc: '', persona: '', token: '' });
+  }
+
+  return {
+    back: false,
+    botCount,
+    groupId,
+    bots,
+    botToken: bots[0]?.token || '',
+  };
+}
+
+async function collectBotSetupStepWithGroupBack(options) {
+  const {
+    isVi,
+    channelKey,
+    channel,
+    existingBots = [],
+    existingBotCount = 1,
+    existingGroupId = '',
+  } = options;
+
+  let botCount = channelKey === 'telegram' ? existingBotCount : 1;
+  let groupId = existingGroupId;
+  const bots = [];
+
+  if (channelKey === 'telegram') {
+    const botCountValue = await selectWithBack({
+      message: isVi ? 'Bạn muốn cài bao nhiêu Telegram bot?' : 'How many Telegram bots do you want to deploy?',
+      choices: [
+        { name: '1 bot (single)', value: '1' },
+        { name: '2 bots (Department Room)', value: '2' },
+        { name: '3 bots', value: '3' },
+        { name: '4 bots', value: '4' },
+        { name: '5 bots', value: '5' },
+      ],
+      defaultValue: String(existingBotCount || 1),
+      allowBack: true,
+      isVi,
+    });
+    if (botCountValue === CLI_BACK) {
+      return { back: true };
+    }
+    botCount = parseInt(botCountValue, 10);
+
+    if (botCount > 1) {
+      while (true) {
+        const groupOption = await selectWithBack({
+          message: isVi ? 'Bạn có sẵn Telegram Group chưa?' : 'Do you already have a Telegram Group?',
+          choices: [
+            { name: isVi ? '✨  Tôi sẽ tạo sau (nhập Group ID vào .env sau khi setup)' : '✨  I\'ll create later (add Group ID to .env after setup)', value: 'create' },
+            { name: isVi ? '🔗  Đã có group — nhập Group ID ngay' : '🔗  Already have a group — enter Group ID now', value: 'existing' }
+          ],
+          defaultValue: groupId ? 'existing' : 'create',
+          allowBack: true,
+          isVi,
+        });
+        if (groupOption === CLI_BACK) {
+          return { back: true };
+        }
+
+        if (groupOption === 'existing') {
+          console.log(chalk.dim(isVi
+            ? '\n  📌 Cách lấy Group ID:\n     1. Mở Telegram → tìm @userinfobot\n     2. Bấm Start để bắt đầu → chọn nút "Group" trên màn hình → chọn Group bạn muốn thêm bot vào\n     3. Bot sẽ trả về "Chat ID" — đó là Group ID (bắt đầu bằng -100)\n     👉 https://t.me/userinfobot\n'
+            : '\n  📌 How to get Group ID:\n     1. Open Telegram → find @userinfobot\n     2. Click Start → select "Group" button on the screen → select the group you want to add the bot to\n     3. The bot replies with "Chat ID" — that is your Group ID (starts with -100)\n     👉 https://t.me/userinfobot\n'));
+          const nextGroupId = await inputWithBack({
+            message: isVi ? 'Telegram Group ID (VD: -1001234567890):' : 'Telegram Group ID (e.g. -1001234567890):',
+            defaultValue: groupId,
+            allowBack: true,
+            isVi,
+          });
+          if (nextGroupId === CLI_BACK) {
+            continue;
+          }
+          groupId = nextGroupId;
+          break;
+        }
+
+        groupId = '';
+        break;
+      }
+    } else {
+      groupId = '';
+    }
+
+    for (let i = 0; i < botCount; i++) {
+      console.log(chalk.bold(`\n${isVi ? `─── Bot ${i + 1} / ${botCount} ───` : `─── Bot ${i + 1} / ${botCount} ───`}`));
+      const defaults = existingBots[i] || {};
+      const fields = [
+        {
+          key: 'name',
+          message: isVi ? `Tên Bot ${i + 1}:` : `Bot ${i + 1} name:`,
+          defaultValue: defaults.name || `Bot ${i + 1}`,
+          required: true,
+        },
+        {
+          key: 'slashCmd',
+          message: isVi ? `Slash command (VD: /bot${i + 1}):` : `Slash command (e.g. /bot${i + 1}):`,
+          defaultValue: defaults.slashCmd || `/bot${i + 1}`,
+          required: true,
+        },
+        {
+          key: 'desc',
+          message: isVi ? `Mô tả Bot ${i + 1} (VD: Trợ lý AI cá nhân):` : `Bot ${i + 1} description (e.g. Personal AI assistant):`,
+          defaultValue: defaults.desc || (isVi ? 'Trợ lý AI cá nhân' : 'Personal AI assistant'),
+          required: true,
+        },
+        {
+          key: 'persona',
+          message: isVi ? `Tính cách & quy tắc Bot ${i + 1} (VD: siêu thân thiện, nhiều emoji):` : `Bot ${i + 1} persona & rules (e.g. friendly, uses emojis):`,
+          defaultValue: defaults.persona || '',
+          required: false,
+        },
+        {
+          key: 'token',
+          message: isVi ? 'Bot Token (từ @BotFather):' : 'Bot Token (from @BotFather):',
+          defaultValue: defaults.token || '',
+          required: true,
+        },
+      ];
+
+      const draft = { ...defaults };
+      let fieldIndex = 0;
+      while (fieldIndex < fields.length) {
+        const field = fields[fieldIndex];
+        const value = await inputWithBack({
+          message: field.message,
+          defaultValue: draft[field.key] || field.defaultValue,
+          required: field.required,
+          allowBack: true,
+          isVi,
+        });
+        if (value === CLI_BACK) {
+          if (fieldIndex > 0) {
+            fieldIndex--;
+            continue;
+          }
+          return { back: true };
+        }
+        draft[field.key] = value;
+        fieldIndex++;
+      }
+      bots.push(draft);
+    }
+  } else if (channelKey !== 'zalo-personal') {
+    const defaults = existingBots[0] || {};
+    const fields = [
+      {
+        key: 'name',
+        message: isVi ? 'Tên Bot:' : 'Bot Name:',
+        defaultValue: defaults.name || 'Chat Bot',
+        required: true,
+      },
+      {
+        key: 'desc',
+        message: isVi ? 'Mô tả Bot:' : 'Bot Description:',
+        defaultValue: defaults.desc || (isVi ? 'Trợ lý AI cá nhân' : 'Personal AI assistant'),
+        required: true,
+      },
+      {
+        key: 'persona',
+        message: isVi ? 'Tính cách & quy tắc (VD: gọn gàng, thân thiện):' : 'Persona & rules (e.g. concise, friendly):',
+        defaultValue: defaults.persona || '',
+        required: false,
+      },
+      {
+        key: 'token',
+        message: isVi ? `Nhập ${channel.name} Token:` : `Enter ${channel.name} Token:`,
+        defaultValue: defaults.token || '',
+        required: true,
+      },
+    ];
+    const draft = { ...defaults, slashCmd: '' };
+    let fieldIndex = 0;
+    while (fieldIndex < fields.length) {
+      const field = fields[fieldIndex];
+      const value = await inputWithBack({
+        message: field.message,
+        defaultValue: draft[field.key] || field.defaultValue,
+        required: field.required,
+        allowBack: true,
+        isVi,
+      });
+      if (value === CLI_BACK) {
+        if (fieldIndex > 0) {
+          fieldIndex--;
+          continue;
+        }
+        return { back: true };
+      }
+      draft[field.key] = value;
+      fieldIndex++;
+    }
+    bots.push(draft);
+  } else {
+    bots.push({ name: 'Bot', slashCmd: '', desc: '', persona: '', token: '' });
+  }
+
+  return {
+    back: false,
+    botCount,
+    groupId,
+    bots,
+    botToken: bots[0]?.token || '',
+  };
+}
+
+async function collectProviderStep({
+  isVi,
+  existingProviderKey = '',
+  existingProviderKeyVal = '',
+  existingOllamaModel = 'gemma4:e2b',
+}) {
+  const providerKey = await selectWithBack({
+    message: isVi ? 'Chọn AI Provider:' : 'Select AI Provider:',
+    choices: Object.entries(PROVIDERS).map(([k, v]) => ({ name: `${v.icon} ${v.name}`, value: k })),
+    defaultValue: existingProviderKey || undefined,
+    allowBack: true,
+    isVi,
+  });
+  if (providerKey === CLI_BACK) {
+    return { back: true };
+  }
+  const provider = PROVIDERS[providerKey];
+
+  let providerKeyVal = existingProviderKey === providerKey ? existingProviderKeyVal : '';
+  if (!provider.isProxy && !provider.isLocal) {
+    const keyValue = await inputWithBack({
+      message: isVi ? `Nhập ${provider.envKey}:` : `Enter ${provider.envKey}:`,
+      defaultValue: providerKeyVal,
+      required: true,
+      allowBack: true,
+      isVi,
+    });
+    if (keyValue === CLI_BACK) {
+      return { back: true };
+    }
+    providerKeyVal = keyValue;
+  }
+
+  let selectedOllamaModel = existingProviderKey === 'ollama' ? existingOllamaModel : 'gemma4:e2b';
+  if (providerKey === 'ollama') {
+    console.log(chalk.yellow(isVi
+      ? '\n💡 Gemma 4 (02/04/2026) — chọn kích thước phù hợp với RAM máy bạn:'
+      : '\n💡 Gemma 4 (April 2, 2026) — pick a size that fits your RAM:'));
+    const modelValue = await selectWithBack({
+      message: isVi ? 'Chọn model Ollama:' : 'Select Ollama model:',
+      choices: [
+        {
+          name: isVi
+            ? '🟢 gemma4:e2b  — Nhẹ nhất (~4-6 GB RAM) — Laptop / test nhanh ★ Khuyên dùng'
+            : '🟢 gemma4:e2b  — Lightest (~4-6 GB RAM) — Laptop / fastest test ★ Recommended',
+          value: 'gemma4:e2b'
+        },
+        {
+          name: isVi
+            ? '🟡 gemma4:e4b  — Cân bằng (~8-10 GB RAM) — Dùng hằng ngày'
+            : '🟡 gemma4:e4b  — Balanced (~8-10 GB RAM) — Daily use',
+          value: 'gemma4:e4b'
+        },
+        {
+          name: isVi
+            ? '🟠 gemma4:26b  — Mạnh (~18-24 GB RAM/VRAM) — Máy mạnh'
+            : '🟠 gemma4:26b  — Powerful (~18-24 GB RAM/VRAM) — High-end machine',
+          value: 'gemma4:26b'
+        },
+        {
+          name: isVi
+            ? '🔴 gemma4:31b  — Mạnh nhất (~24+ GB RAM/VRAM) — GPU workstation'
+            : '🔴 gemma4:31b  — Most powerful (~24+ GB RAM/VRAM) — GPU workstation',
+          value: 'gemma4:31b'
+        },
+      ],
+      defaultValue: selectedOllamaModel,
+      allowBack: true,
+      isVi,
+    });
+    if (modelValue === CLI_BACK) {
+      return { back: true };
+    }
+    selectedOllamaModel = modelValue;
+  }
+
+  return {
+    back: false,
+    providerKey,
+    provider,
+    providerKeyVal,
+    selectedOllamaModel,
+  };
+}
+
+async function collectSkillsStep({
+  isVi,
+  providerKey,
+  existingSelectedSkills = [],
+  existingBrowserMode = 'server',
+  existingTtsOpenaiKey = '',
+  existingTtsElevenKey = '',
+  existingSmtpHost = 'smtp.gmail.com',
+  existingSmtpPort = '587',
+  existingSmtpUser = '',
+  existingSmtpPass = '',
+}) {
+  const selectedSkills = await checkboxWithBack({
+    message: isVi ? 'Bật tính năng bổ sung (Space để chọn):' : 'Enable extra skills (Space to select):',
+    choices: getCliSkillChoices({ providerKey, isVi }).map((choice) => ({
+      ...choice,
+      checked: existingSelectedSkills.includes(choice.value),
+    })),
+    allowBack: true,
+    isVi,
+  });
+  if (selectedSkills === CLI_BACK) {
+    return { back: true };
+  }
+
+  let browserMode = existingBrowserMode;
+  if (selectedSkills.includes('browser')) {
+    const isLinux = process.platform === 'linux';
+    const browserValue = await selectWithBack({
+      message: isVi ? 'Chế độ Browser Automation:' : 'Browser Automation mode:',
+      choices: [
+        {
+          name: isVi
+            ? '🖥️  Dùng Chrome trên máy tính (Windows/Mac — Bypass Cloudflare tốt hơn)'
+            : '🖥️  Use Host Chrome (Windows/Mac — Better Cloudflare bypass)',
+          value: 'desktop'
+        },
+        {
+          name: isVi
+            ? '🐳 Headless Chromium trong Docker (Ubuntu Server / VPS — không cần GUI)'
+            : '🐳 Headless Chromium inside Docker (Ubuntu Server / VPS — No GUI)',
+          value: 'server'
+        }
+      ],
+      defaultValue: browserMode || (isLinux ? 'server' : 'desktop'),
+      allowBack: true,
+      isVi,
+    });
+    if (browserValue === CLI_BACK) {
+      return { back: true };
+    }
+    browserMode = browserValue;
+  } else {
+    browserMode = 'server';
+  }
+
+  let ttsOpenaiKey = existingTtsOpenaiKey;
+  let ttsElevenKey = existingTtsElevenKey;
+  if (selectedSkills.includes('tts')) {
+    const openaiKey = await inputWithBack({
+      message: isVi ? 'Nhập OPENAI_API_KEY (cho TTS, bỏ trống nếu dùng ElevenLabs):' : 'Enter OPENAI_API_KEY (for TTS, leave empty for ElevenLabs):',
+      defaultValue: ttsOpenaiKey,
+      allowBack: true,
+      isVi,
+    });
+    if (openaiKey === CLI_BACK) {
+      return { back: true };
+    }
+    ttsOpenaiKey = openaiKey;
+
+    const elevenKey = await inputWithBack({
+      message: isVi ? 'Nhập ELEVENLABS_API_KEY (hoặc bỏ trống):' : 'Enter ELEVENLABS_API_KEY (or leave empty):',
+      defaultValue: ttsElevenKey,
+      allowBack: true,
+      isVi,
+    });
+    if (elevenKey === CLI_BACK) {
+      return { back: true };
+    }
+    ttsElevenKey = elevenKey;
+  } else {
+    ttsOpenaiKey = '';
+    ttsElevenKey = '';
+  }
+
+  let smtpHost = existingSmtpHost;
+  let smtpPort = existingSmtpPort;
+  let smtpUser = existingSmtpUser;
+  let smtpPass = existingSmtpPass;
+  if (selectedSkills.includes('email')) {
+    const smtpHostValue = await inputWithBack({
+      message: isVi ? 'SMTP Host (VD: smtp.gmail.com):' : 'SMTP Host (e.g. smtp.gmail.com):',
+      defaultValue: smtpHost,
+      required: true,
+      allowBack: true,
+      isVi,
+    });
+    if (smtpHostValue === CLI_BACK) {
+      return { back: true };
+    }
+    smtpHost = smtpHostValue;
+
+    const smtpPortValue = await inputWithBack({
+      message: 'SMTP Port:',
+      defaultValue: smtpPort,
+      required: true,
+      allowBack: true,
+      isVi,
+    });
+    if (smtpPortValue === CLI_BACK) {
+      return { back: true };
+    }
+    smtpPort = smtpPortValue;
+
+    const smtpUserValue = await inputWithBack({
+      message: isVi ? 'SMTP Email:' : 'SMTP Email:',
+      defaultValue: smtpUser,
+      required: true,
+      allowBack: true,
+      isVi,
+    });
+    if (smtpUserValue === CLI_BACK) {
+      return { back: true };
+    }
+    smtpUser = smtpUserValue;
+
+    const smtpPassValue = await inputWithBack({
+      message: isVi ? 'SMTP App Password:' : 'SMTP App Password:',
+      defaultValue: smtpPass,
+      required: true,
+      allowBack: true,
+      isVi,
+    });
+    if (smtpPassValue === CLI_BACK) {
+      return { back: true };
+    }
+    smtpPass = smtpPassValue;
+  } else {
+    smtpHost = 'smtp.gmail.com';
+    smtpPort = '587';
+    smtpUser = '';
+    smtpPass = '';
+  }
+
+  return {
+    back: false,
+    selectedSkills,
+    browserMode,
+    ttsOpenaiKey,
+    ttsElevenKey,
+    smtpHost,
+    smtpPort,
+    smtpUser,
+    smtpPass,
+  };
+}
+
 
 // ─── Shared workspace file writer ─────────────────────────────────────────────
 // Used by both native and docker flows to write .md + browser files consistently.
@@ -1040,314 +1710,216 @@ async function main() {
   console.log(chalk.greenBright('     OpenClaw Auto Setup CLI     '));
   console.log(chalk.red('==================================\n'));
 
-  // 1. Language
-  const lang = await select({
-    message: 'Select language / Chọn ngôn ngữ:',
-    choices: [
-      { name: 'Tiếng Việt', value: 'vi' },
-      { name: 'English', value: 'en' }
-    ]
-  });
-  const isVi = lang === 'vi';
-
-  // 1b. OS Selection
-  const detectedPlatform = process.platform; // 'win32' | 'darwin' | 'linux'
+  let lang = 'vi';
+  let isVi = true;
+  const detectedPlatform = process.platform;
   const detectedOS = detectedPlatform === 'win32' ? 'windows'
     : detectedPlatform === 'darwin' ? 'macos'
     : 'linux';
-
-  const osChoice = await select({
-    message: isVi ? 'Bạn đang chạy trên hệ điều hành nào?' : 'What OS are you running on?',
-    choices: [
-      { name: isVi ? '🪟 Windows'                    : '🪟 Windows',                    value: 'windows' },
-      { name: isVi ? '🍎 macOS'                      : '🍎 macOS',                      value: 'macos' },
-      { name: isVi ? '🐧 Ubuntu Desktop'             : '🐧 Ubuntu Desktop',             value: 'ubuntu' },
-      { name: isVi ? '🖥️  VPS / Ubuntu Server'       : '🖥️  VPS / Ubuntu Server',       value: 'vps' },
-    ],
-    default: detectedOS === 'linux' ? 'vps' : detectedOS
-  });
-
-  // 1c. Deploy mode — Ubuntu/VPS default native, Windows/macOS default docker
-  // User always gets to choose; if they pick Docker and it's missing we auto-install
-  const deployModeDefault = (osChoice === 'ubuntu' || osChoice === 'vps') ? 'native' : 'docker';
-  let deployMode = await select({
-    message: isVi ? 'Chọn cách chạy bot:' : 'How do you want to run the bot?',
-    choices: [
-      {
-        name: isVi
-          ? '🐳 Docker (Khuyên dùng cho Windows / macOS — dễ cài, chạy ngay)'
-          : '🐳 Docker (Recommended for Windows / macOS — easy setup, runs immediately)',
-        value: 'docker'
-      },
-      {
-        name: isVi
-          ? '⚡ Native / PM2 (Khuyên dùng cho Ubuntu / VPS — ít RAM, ổn định hơn)'
-          : '⚡ Native / PM2 (Recommended for Ubuntu / VPS — less RAM, more stable)',
-        value: 'native'
-      }
-    ],
-    default: deployModeDefault
-  });
-
-  // 1d. Docker selected → auto-install Engine + Compose v2 plugin if not present (no extra prompts)
-  if (deployMode === 'docker' && !isDockerInstalled()) {
-    console.log(chalk.cyan(isVi
-      ? '\n🐳 Docker chưa được cài — đang tự động cài Docker Engine + Compose plugin...'
-      : '\n🐳 Docker not found — auto-installing Docker Engine + Compose plugin...'));
-    try {
-      const platform = process.platform;
-      if (platform === 'win32') {
-        execSync('winget install -e --id Docker.DockerDesktop --accept-source-agreements --accept-package-agreements', { stdio: 'inherit' });
-        console.log(chalk.green(isVi
-          ? '✅ Docker Desktop đã cài xong. Vui lòng mở Docker Desktop, đợi khởi động (icon tray chuyển xanh) rồi chạy lại lệnh này.'
-          : '✅ Docker Desktop installed. Open Docker Desktop, wait for it to start (tray icon turns green), then re-run this command.'));
-        process.exit(0);
-      } else if (platform === 'darwin') {
-        execSync('brew install --cask docker', { stdio: 'inherit' });
-        console.log(chalk.green(isVi
-          ? '✅ Docker Desktop cài xong qua Homebrew. Mở Docker Desktop, đợi khởi động rồi chạy lại lệnh này.'
-          : '✅ Docker Desktop installed via Homebrew. Open Docker Desktop, wait for it to start, then re-run this command.'));
-        process.exit(0);
-      } else {
-        // Linux — Docker Engine + Compose v2 plugin
-        execSync('curl -fsSL https://get.docker.com | sh', { stdio: 'inherit', shell: true });
-        try { execSync('apt-get install -y docker-compose-plugin', { stdio: 'ignore', shell: true }); } catch { /* best-effort */ }
-        console.log(chalk.green(isVi
-          ? '✅ Docker Engine + Compose plugin đã cài xong.'
-          : '✅ Docker Engine + Compose plugin installed.'));
-      }
-    } catch {
-      console.log(chalk.red(isVi
-        ? '❌ Không thể tự cài Docker. Tải thủ công: https://www.docker.com/products/docker-desktop/'
-        : '❌ Could not auto-install Docker. Download manually: https://www.docker.com/products/docker-desktop/'));
-      process.exit(1);
-    }
-  }
-
-
-  // 2. Channel
-  const channelKey = await select({
-    message: isVi ? 'Chọn nền tảng bot:' : 'Select bot platform:',
-    choices: Object.entries(CHANNELS).map(([k, v]) => ({ name: `${v.icon} ${v.name}`, value: k }))
-  });
-  const channel = CHANNELS[channelKey];
-  
-  if (channelKey === 'zalo-bot') {
-    console.log(chalk.yellow(`\n⚠️  ${isVi ? 'LƯU Ý: Zalo OA Bot yêu cầu phải thiết lập Webhook Public (qua VPS/ngrok có HTTPS). Hãy dùng Zalo Personal nếu bạn chưa có Webhook.' : 'NOTE: Zalo OA requires a Public Webhook (via VPS/ngrok with HTTPS). Use Zalo Personal if you do not have one.'}`));
-  }
-
-  // ── Multi-bot: only Telegram supports multiple bots for now ──────────────
-  let botToken = '';        // single-bot compat
-  let botCount = 1;         // total bots
-  let bots = [];            // [{name, slashCmd, token}]
+  let osChoice = detectedOS === 'linux' ? 'vps' : detectedOS;
+  let deployMode = 'docker';
+  let channelKey = 'telegram';
+  let channel = CHANNELS[channelKey];
+  let botToken = '';
+  let botCount = 1;
+  let bots = [];
   let groupId = '';
-
-  if (channelKey === 'telegram') {
-    botCount = parseInt(await select({
-      message: isVi ? 'Bạn muốn cài bao nhiêu Telegram bot?' : 'How many Telegram bots do you want to deploy?',
-      choices: [
-        { name: '1 bot (single)', value: '1' },
-        { name: '2 bots (Department Room)', value: '2' },
-        { name: '3 bots', value: '3' },
-        { name: '4 bots', value: '4' },
-        { name: '5 bots', value: '5' },
-      ],
-      default: '1'
-    }), 10);
-
-    if (botCount > 1) {
-      // Ask if user already has a group or will create later
-      const groupOption = await select({
-        message: isVi ? 'Bạn có sẵn Telegram Group chưa?' : 'Do you already have a Telegram Group?',
-        choices: [
-          { name: isVi ? '✨  Tôi sẽ tạo sau (nhập Group ID vào .env sau khi setup)' : '✨  I\'ll create later (add Group ID to .env after setup)', value: 'create' },
-          { name: isVi ? '🔗  Đã có group — nhập Group ID ngay' : '🔗  Already have a group — enter Group ID now', value: 'existing' }
-        ],
-        default: 'create'
-      });
-
-      if (groupOption === 'existing') {
-        console.log(chalk.dim(isVi
-          ? '\n  📌 Cách lấy Group ID:\n     1. Mở Telegram → tìm @userinfobot\n     2. Bấm Start để bắt đầu → chọn nút "Group" trên màn hình → chọn Group bạn muốn thêm bot vào\n     3. Bot sẽ trả về "Chat ID" — đó là Group ID (bắt đầu bằng -100)\n     👉 https://t.me/userinfobot\n'
-          : '\n  📌 How to get Group ID:\n     1. Open Telegram → find @userinfobot\n     2. Click Start → select "Group" button on the screen → select the group you want to add the bot to\n     3. The bot replies with "Chat ID" — that is your Group ID (starts with -100)\n     👉 https://t.me/userinfobot\n'));
-        groupId = await input({
-          message: isVi ? 'Telegram Group ID (VD: -1001234567890):' : 'Telegram Group ID (e.g. -1001234567890):',
-          default: ''
-        });
-      }
-    }
-
-
-    for (let i = 0; i < botCount; i++) {
-      console.log(chalk.bold(`\n${isVi ? `─── Bot ${i + 1} / ${botCount} ───` : `─── Bot ${i + 1} / ${botCount} ───`}`))
-      const bName = await input({
-        message: isVi ? `Tên Bot ${i + 1}:` : `Bot ${i + 1} name:`,
-        default: `Bot ${i + 1}`
-      });
-      const bSlash = await input({
-        message: isVi ? `Slash command (VD: /bot${i+1}):` : `Slash command (e.g. /bot${i+1}):`,
-        default: `/bot${i + 1}`
-      });
-      const bDesc = await input({
-        message: isVi ? `Mô tả Bot ${i + 1} (VD: Trợ lý AI cá nhân):` : `Bot ${i + 1} description (e.g. Personal AI assistant):`,
-        default: isVi ? 'Trợ lý AI cá nhân' : 'Personal AI assistant'
-      });
-      const bPersona = await input({
-        message: isVi ? `Tính cách & quy tắc Bot ${i + 1} (VD: siêu thân thiện, nhiều emoji):` : `Bot ${i + 1} persona & rules (e.g. friendly, uses emojis):`,
-        default: ''
-      });
-      const bToken = await input({
-        message: isVi ? `Bot Token (từ @BotFather):` : `Bot Token (from @BotFather):`,
-        required: true
-      });
-      bots.push({ name: bName, slashCmd: bSlash, desc: bDesc, persona: bPersona, token: bToken });
-    }
-    botToken = bots[0].token;
-
-  } else if (channelKey !== 'zalo-personal') {
-    const bName = await input({ message: isVi ? 'Tên Bot:' : 'Bot Name:', default: 'Chat Bot' });
-    const bDesc = await input({ message: isVi ? 'Mô tả Bot:' : 'Bot Description:', default: isVi ? 'Trợ lý AI cá nhân' : 'Personal AI assistant' });
-    const bPersona = await input({ message: isVi ? 'Tính cách & quy tắc (VD: gọn gàng, thân thiện):' : 'Persona & rules (e.g. concise, friendly):', default: '' });
-    botToken = await input({
-      message: isVi ? `Nhập ${channel.name} Token:` : `Enter ${channel.name} Token:`,
-      required: true
-    });
-    bots.push({ name: bName, slashCmd: '', desc: bDesc, persona: bPersona, token: botToken });
-  } else {
-    bots.push({ name: 'Bot', slashCmd: '', desc: '', persona: '', token: '' });
-  }
-
-  const isMultiBot = botCount > 1 && channelKey === 'telegram';
-
-  // 3. User Info
-  console.log(chalk.bold(`\n${isVi ? '─── Thông tin của bạn ───' : '─── About You ───'}`));
-  const userInfo = await input({
-    message: isVi ? '👤 Thông tin về bạn (tên bạn, ngôn ngữ, múi giờ, sở thích...):' : '👤 About you (your name,  language, timezone, interests...):',
-    default: '',
-    required: true
-  });
-  
-  const botName = bots[0].name;
-  const botDesc = bots[0].desc;
-  const botPersona = bots[0].persona;
-
-
-  // 3. Provider
-  const providerKey = await select({
-    message: isVi ? 'Chọn AI Provider:' : 'Select AI Provider:',
-    choices: Object.entries(PROVIDERS).map(([k, v]) => ({ name: `${v.icon} ${v.name}`, value: k }))
-  });
-  const provider = PROVIDERS[providerKey];
-  
+  let userInfo = '';
+  let providerKey = '9router';
+  let provider = PROVIDERS[providerKey];
   let providerKeyVal = '';
-  if (!provider.isProxy && !provider.isLocal) {
-    providerKeyVal = await input({
-      message: isVi ? `Nhập ${provider.envKey}:` : `Enter ${provider.envKey}:`,
-      required: true
-    });
-  }
-
-  // 3b. Ollama model — help user pick the right size for their hardware
   let selectedOllamaModel = 'gemma4:e2b';
-  if (providerKey === 'ollama') {
-    console.log(chalk.yellow(isVi
-      ? '\n💡 Gemma 4 (02/04/2026) — chọn kích thước phù hợp với RAM máy bạn:'
-      : '\n💡 Gemma 4 (April 2, 2026) — pick a size that fits your RAM:'));
-    selectedOllamaModel = await select({
-      message: isVi ? 'Chọn model Ollama:' : 'Select Ollama model:',
-      choices: [
-        {
-          name: isVi
-            ? '🟢 gemma4:e2b  — Nhẹ nhất (~4-6 GB RAM) — Laptop / test nhanh ★ Khuyên dùng'
-            : '🟢 gemma4:e2b  — Lightest (~4-6 GB RAM) — Laptop / fastest test ★ Recommended',
-          value: 'gemma4:e2b'
-        },
-        {
-          name: isVi
-            ? '🟡 gemma4:e4b  — Cân bằng (~8-10 GB RAM) — Dùng hằng ngày'
-            : '🟡 gemma4:e4b  — Balanced (~8-10 GB RAM) — Daily use',
-          value: 'gemma4:e4b'
-        },
-        {
-          name: isVi
-            ? '🟠 gemma4:26b  — Mạnh (~18-24 GB RAM/VRAM) — Máy mạnh'
-            : '🟠 gemma4:26b  — Powerful (~18-24 GB RAM/VRAM) — High-end machine',
-          value: 'gemma4:26b'
-        },
-        {
-          name: isVi
-            ? '🔴 gemma4:31b  — Mạnh nhất (~24+ GB RAM/VRAM) — GPU workstation'
-            : '🔴 gemma4:31b  — Most powerful (~24+ GB RAM/VRAM) — GPU workstation',
-          value: 'gemma4:31b'
-        },
-      ],
-      default: 'gemma4:e2b'
-    });
-  }
-
-  // 4. Skills
-  const selectedSkills = await checkbox({
-    message: isVi ? 'Bật tính năng bổ sung (Space để chọn):' : 'Enable extra skills (Space to select):',
-    choices: getCliSkillChoices({ providerKey, isVi })
-  });
-
+  let selectedSkills = [];
   let tavilyKey = '';
-  // (web-search removed — native search built-in)
-
-  // Browser mode: Desktop (host Chrome via CDP) vs Server (headless Chromium inside Docker)
   let browserMode = 'server';
-  if (selectedSkills.includes('browser')) {
-    const isLinux = process.platform === 'linux';
-    browserMode = await select({
-      message: isVi ? 'Chế độ Browser Automation:' : 'Browser Automation mode:',
-      choices: [
-        {
-          name: isVi
-            ? '🖥️  Dùng Chrome trên máy tính (Windows/Mac — Bypass Cloudflare tốt hơn)'
-            : '🖥️  Use Host Chrome (Windows/Mac — Better Cloudflare bypass)',
-          value: 'desktop'
-        },
-        {
-          name: isVi
-            ? '🐳 Headless Chromium trong Docker (Ubuntu Server / VPS — không cần GUI)'
-            : '🐳 Headless Chromium inside Docker (Ubuntu Server / VPS — No GUI)',
-          value: 'server'
-        }
-      ],
-      default: isLinux ? 'server' : 'desktop'
-    });
-  }
-  const hasBrowserDesktop = selectedSkills.includes('browser') && browserMode === 'desktop';
-  const hasBrowserServer  = selectedSkills.includes('browser') && browserMode === 'server';
-
   let ttsOpenaiKey = '';
   let ttsElevenKey = '';
-  if (selectedSkills.includes('tts')) {
-    ttsOpenaiKey = await input({ message: isVi ? 'Nhập OPENAI_API_KEY (cho TTS, bỏ trống nếu dùng ElevenLabs):' : 'Enter OPENAI_API_KEY (for TTS, leave empty for ElevenLabs):' });
-    ttsElevenKey = await input({ message: isVi ? 'Nhập ELEVENLABS_API_KEY (hoặc bỏ trống):' : 'Enter ELEVENLABS_API_KEY (or leave empty):', default: '' });
-  }
-
   let smtpHost = 'smtp.gmail.com', smtpPort = '587', smtpUser = '', smtpPass = '';
-  if (selectedSkills.includes('email')) {
-    smtpHost = await input({ message: isVi ? 'SMTP Host (VD: smtp.gmail.com):' : 'SMTP Host (e.g. smtp.gmail.com):', default: 'smtp.gmail.com' });
-    smtpPort = await input({ message: 'SMTP Port:', default: '587' });
-    smtpUser = await input({ message: isVi ? 'SMTP Email:' : 'SMTP Email:' });
-    smtpPass = await input({ message: isVi ? 'SMTP App Password:' : 'SMTP App Password:' });
-  }
-
-
-
-
-  // 6. Project Dir
   let defaultDir = process.cwd();
   if (!defaultDir.endsWith('openclaw-setup') && !defaultDir.endsWith('openclaw')) {
     defaultDir = path.join(defaultDir, 'openclaw-setup');
   }
-  const projectDir = await input({
-    message: isVi ? 'Thư mục cài đặt project:' : 'Project install directory:',
-    default: defaultDir
-  });
+  let projectDir = defaultDir;
 
+  let setupStep = 'language';
+  while (true) {
+    if (setupStep === 'language') {
+      lang = await select({
+        message: 'Select language / Chọn ngôn ngữ:',
+        choices: [
+          { name: 'Tiếng Việt', value: 'vi' },
+          { name: 'English', value: 'en' }
+        ],
+        default: lang
+      });
+      isVi = lang === 'vi';
+      setupStep = 'os';
+      continue;
+    }
+
+    if (setupStep === 'os') {
+      const nextOsChoice = await selectWithBack({
+        message: isVi ? 'Bạn đang chạy trên hệ điều hành nào?' : 'What OS are you running on?',
+        choices: [
+          { name: isVi ? '🪟 Windows' : '🪟 Windows', value: 'windows' },
+          { name: isVi ? '🍎 macOS' : '🍎 macOS', value: 'macos' },
+          { name: isVi ? '🐧 Ubuntu Desktop' : '🐧 Ubuntu Desktop', value: 'ubuntu' },
+          { name: isVi ? '🖥️  VPS / Ubuntu Server' : '🖥️  VPS / Ubuntu Server', value: 'vps' },
+        ],
+        defaultValue: osChoice,
+        allowBack: true,
+        isVi,
+      });
+      if (nextOsChoice === CLI_BACK) {
+        setupStep = 'language';
+        continue;
+      }
+      osChoice = nextOsChoice;
+      setupStep = 'deploy';
+      continue;
+    }
+
+    if (setupStep === 'deploy') {
+      const deployModeDefault = (osChoice === 'ubuntu' || osChoice === 'vps') ? 'native' : 'docker';
+      const nextDeployMode = await selectWithBack({
+        message: isVi ? 'Chọn cách chạy bot:' : 'How do you want to run the bot?',
+        choices: [
+          { name: isVi ? '🐳 Docker (Khuyên dùng cho Windows / macOS — dễ cài, chạy ngay)' : '🐳 Docker (Recommended for Windows / macOS — easy setup, runs immediately)', value: 'docker' },
+          { name: isVi ? '⚡ Native / PM2 (Khuyên dùng cho Ubuntu / VPS — ít RAM, ổn định hơn)' : '⚡ Native / PM2 (Recommended for Ubuntu / VPS — less RAM, more stable)', value: 'native' }
+        ],
+        defaultValue: deployMode || deployModeDefault,
+        allowBack: true,
+        isVi,
+      });
+      if (nextDeployMode === CLI_BACK) {
+        setupStep = 'os';
+        continue;
+      }
+      deployMode = nextDeployMode;
+      if (deployMode === 'docker' && !isDockerInstalled()) {
+        console.log(chalk.cyan(isVi ? '\n🐳 Docker chưa được cài — đang tự động cài Docker Engine + Compose plugin...' : '\n🐳 Docker not found — auto-installing Docker Engine + Compose plugin...'));
+        try {
+          const platform = process.platform;
+          if (platform === 'win32') {
+            execSync('winget install -e --id Docker.DockerDesktop --accept-source-agreements --accept-package-agreements', { stdio: 'inherit' });
+            console.log(chalk.green(isVi ? '✅ Docker Desktop đã cài xong. Vui lòng mở Docker Desktop, đợi khởi động (icon tray chuyển xanh) rồi chạy lại lệnh này.' : '✅ Docker Desktop installed. Open Docker Desktop, wait for it to start (tray icon turns green), then re-run this command.'));
+            process.exit(0);
+          } else if (platform === 'darwin') {
+            execSync('brew install --cask docker', { stdio: 'inherit' });
+            console.log(chalk.green(isVi ? '✅ Docker Desktop cài xong qua Homebrew. Mở Docker Desktop, đợi khởi động rồi chạy lại lệnh này.' : '✅ Docker Desktop installed via Homebrew. Open Docker Desktop, wait for it to start, then re-run this command.'));
+            process.exit(0);
+          } else {
+            execSync('curl -fsSL https://get.docker.com | sh', { stdio: 'inherit', shell: true });
+            try { execSync('apt-get install -y docker-compose-plugin', { stdio: 'ignore', shell: true }); } catch {}
+            console.log(chalk.green(isVi ? '✅ Docker Engine + Compose plugin đã cài xong.' : '✅ Docker Engine + Compose plugin installed.'));
+          }
+        } catch {
+          console.log(chalk.red(isVi ? '❌ Không thể tự cài Docker. Tải thủ công: https://www.docker.com/products/docker-desktop/' : '❌ Could not auto-install Docker. Download manually: https://www.docker.com/products/docker-desktop/'));
+          process.exit(1);
+        }
+      }
+      setupStep = 'channel';
+      continue;
+    }
+
+    if (setupStep === 'channel') {
+      const nextChannelKey = await selectWithBack({
+        message: isVi ? 'Chọn nền tảng bot:' : 'Select bot platform:',
+        choices: Object.entries(CHANNELS).map(([k, v]) => ({ name: v.icon + ' ' + v.name, value: k })),
+        defaultValue: channelKey,
+        allowBack: true,
+        isVi,
+      });
+      if (nextChannelKey === CLI_BACK) {
+        setupStep = 'deploy';
+        continue;
+      }
+      channelKey = nextChannelKey;
+      channel = CHANNELS[channelKey];
+      if (channelKey === 'zalo-bot') {
+        console.log(chalk.yellow('\n⚠️  ' + (isVi ? 'LƯU Ý: Zalo OA Bot yêu cầu phải thiết lập Webhook Public (qua VPS/ngrok có HTTPS). Hãy dùng Zalo Personal nếu bạn chưa có Webhook.' : 'NOTE: Zalo OA requires a Public Webhook (via VPS/ngrok with HTTPS). Use Zalo Personal if you do not have one.')));
+      }
+      setupStep = 'botSetup';
+      continue;
+    }
+
+    if (setupStep === 'botSetup') {
+      const botSetup = await collectBotSetupStepWithGroupBack({ isVi, channelKey, channel, existingBots: bots, existingBotCount: botCount, existingGroupId: groupId });
+      if (botSetup.back) {
+        setupStep = 'channel';
+        continue;
+      }
+      botCount = botSetup.botCount;
+      groupId = botSetup.groupId;
+      bots = botSetup.bots;
+      botToken = botSetup.botToken;
+      setupStep = 'userInfo';
+      continue;
+    }
+
+    if (setupStep === 'userInfo') {
+      console.log(chalk.bold('\n' + (isVi ? '👤 Thông tin của bạn 👤' : '👤 About You 👤')));
+      const nextUserInfo = await inputWithBack({ message: isVi ? '👤 Thông tin về bạn (tên bạn, ngôn ngữ, múi giờ, sở thích...):' : '👤 About you (your name, language, timezone, interests...):', defaultValue: userInfo, required: true, allowBack: true, isVi });
+      if (nextUserInfo === CLI_BACK) {
+        setupStep = 'botSetup';
+        continue;
+      }
+      userInfo = nextUserInfo;
+      setupStep = 'provider';
+      continue;
+    }
+
+    if (setupStep === 'provider') {
+      const providerSetup = await collectProviderStep({ isVi, existingProviderKey: providerKey, existingProviderKeyVal: providerKeyVal, existingOllamaModel: selectedOllamaModel });
+      if (providerSetup.back) {
+        setupStep = 'userInfo';
+        continue;
+      }
+      providerKey = providerSetup.providerKey;
+      provider = providerSetup.provider;
+      providerKeyVal = providerSetup.providerKeyVal;
+      selectedOllamaModel = providerSetup.selectedOllamaModel;
+      setupStep = 'skills';
+      continue;
+    }
+
+    if (setupStep === 'skills') {
+      const skillSetup = await collectSkillsStep({ isVi, providerKey, existingSelectedSkills: selectedSkills, existingBrowserMode: browserMode, existingTtsOpenaiKey: ttsOpenaiKey, existingTtsElevenKey: ttsElevenKey, existingSmtpHost: smtpHost, existingSmtpPort: smtpPort, existingSmtpUser: smtpUser, existingSmtpPass: smtpPass });
+      if (skillSetup.back) {
+        setupStep = 'provider';
+        continue;
+      }
+      selectedSkills = skillSetup.selectedSkills;
+      browserMode = skillSetup.browserMode;
+      ttsOpenaiKey = skillSetup.ttsOpenaiKey;
+      ttsElevenKey = skillSetup.ttsElevenKey;
+      smtpHost = skillSetup.smtpHost;
+      smtpPort = skillSetup.smtpPort;
+      smtpUser = skillSetup.smtpUser;
+      smtpPass = skillSetup.smtpPass;
+      setupStep = 'projectDir';
+      continue;
+    }
+
+    if (setupStep === 'projectDir') {
+      const nextProjectDir = await inputWithBack({ message: isVi ? 'Thư mục cài đặt project:' : 'Project install directory:', defaultValue: projectDir, allowBack: true, isVi });
+      if (nextProjectDir === CLI_BACK) {
+        setupStep = 'skills';
+        continue;
+      }
+      projectDir = nextProjectDir;
+      break;
+    }
+  }
+
+  const isMultiBot = botCount > 1 && channelKey === 'telegram';
+  const botName = bots[0].name;
+  const botDesc = bots[0].desc;
+  const botPersona = bots[0].persona;
+  const agentId = String(botName || 'chat').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'chat';
+  const modelsPrimary = providerKey === 'ollama' ? selectedOllamaModel : providerKey === '9router' ? 'smart-route' : provider.models?.[0]?.id || 'gpt-4o-mini';
+  const hasBrowserDesktop = selectedSkills.includes('browser') && browserMode === 'desktop';
+  const hasBrowserServer  = selectedSkills.includes('browser') && browserMode === 'server';
   console.log(chalk.cyan(`\n🚀 ${isVi ? 'Đang tạo thư mục và file cấu hình...' : 'Generating directories and configurations...'}`));
   
   await fs.ensureDir(projectDir);
@@ -1430,7 +2002,7 @@ async function main() {
     ? buildRelayPluginInstallCommand('openclaw')
     : '';
   const socatBridge = hasBrowserDesktop ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &' : '';
-  const deviceApproveLoop = '(while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done) &';
+  const deviceApproveLoop = 'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &';
 
   // buildDockerArtifacts joins runtimeCommandParts with spaces, then appends 'openclaw gateway run'
   // Each part should be a standalone command fragment (no trailing &&)
@@ -1449,7 +2021,7 @@ async function main() {
       socatBridge,
       deviceApproveLoop,
     ].filter(Boolean),
-    volumeMount: '../../.openclaw:/root/.openclaw',
+    volumeMount: '../../.openclaw:/root/project/.openclaw',
     singleComposeName: `oc-${agentId}`,
     multiComposeName: 'oc-multibot',
     singleAppContainerName: `openclaw-${agentId}`,
@@ -1543,7 +2115,6 @@ async function main() {
     });
     const telegramAccounts = Object.fromEntries(agentMetas.map((meta) => [meta.accountId, {
       botToken: meta.token,
-      ackReaction: '👍',
     }]));
     const telegramChannelConfig = {
       enabled: true,
@@ -1658,7 +2229,7 @@ async function main() {
 
     await fs.writeJson(path.join(rootClawDir, 'openclaw.json'), sharedConfig, { spaces: 2 });
     await fs.writeFile(
-      path.join(projectDir, 'TELEGRAM-POST-INSTALL.md'),
+      path.join(projectDir, TELEGRAM_SETUP_GUIDE_FILENAME),
       buildTelegramPostInstallChecklist({ isVi, bots, groupId }),
       'utf8',
     );
@@ -1835,7 +2406,23 @@ async function main() {
     }
 
     if (channelKey === 'telegram') {
-      const telegramConfig = { enabled: true, dmPolicy: 'open', allowFrom: ['*'] };
+      const telegramConfig = {
+        enabled: true,
+        dmPolicy: 'open',
+        allowFrom: ['*'],
+        defaultAccount: 'default',
+        replyToMode: 'first',
+        reactionLevel: 'minimal',
+        actions: {
+          sendMessage: true,
+          reactions: true,
+        },
+        accounts: {
+          default: {
+            botToken: loopBotToken || '<your_bot_token>',
+          },
+        },
+      };
       if (isMultiBot) {
         telegramConfig.groupPolicy = groupId ? 'allowlist' : 'open';
         telegramConfig.groupAllowFrom = ['*'];
@@ -1887,8 +2474,8 @@ async function main() {
       // Append per-bot reply rules to AGENTS.md
       const otherBotNames = teamRoster.filter((p) => p.idx !== bIndex).map((p) => p.name);
       const extraAgentsMd = isVi
-        ? `\n\n## Khi nao nen tra loi\n- Neu metadata khong noi ro day la group/supergroup, mac dinh xem la chat rieng/DM va tra loi binh thuong.\n- Trong group, chi tra loi khi tin nhan co alias cua ban: ${dockerOwnAliases.map((a) => `\`${a}\``).join(', ')} hoac username Telegram cua ban.\n- Quy tac im lang khi tin nhan khong goi ban chi ap dung cho group chat, khong ap dung cho DM/chat rieng.\n- Neu group message chi goi ro bot khac ${otherBotNames.length ? otherBotNames.map((n) => `\`${n}\``).join(', ') : '`bot khac`'} thi khong cuop loi.\n- Gateway tu dong tha ack reaction; khong goi action react thu cong tru khi user yeu cau.\n- Khi can phoi hop noi bo, dung dung agent id ky thuat trong \`AGENTS.md\`, khong dung ten hien thi.\n- Khi hoi ve vai tro cac bot, dung \`AGENTS.md\` lam nguon su that.`
-        : `\n\n## When To Reply\n- If metadata does not clearly say this is a group/supergroup, treat it as a private DM and reply normally.\n- In group chats, only reply when the message contains one of your aliases: ${dockerOwnAliases.map((a) => `\`${a}\``).join(', ')} or your Telegram username.\n- The stay-silent rule for messages not addressed to you applies only to group chats, never to DMs/private chats.\n- If a group message is clearly calling another bot such as ${otherBotNames.length ? otherBotNames.map((n) => `\`${n}\``).join(', ') : '`another bot`'}, do not hijack it.\n- The gateway automatically sends ack reactions; do not call react manually unless the user asks.\n- When you need internal coordination, use the exact technical agent id from \`AGENTS.md\`, not the display name.\n- Use \`AGENTS.md\` as the source of truth for team roles.`;
+        ? `\n\n## Khi nao nen tra loi\n- Neu metadata khong noi ro day la group/supergroup, mac dinh xem la chat rieng/DM va tra loi binh thuong.\n- Trong group, chi tra loi khi tin nhan co alias cua ban: ${dockerOwnAliases.map((a) => `\`${a}\``).join(', ')} hoac username Telegram cua ban.\n- Quy tac im lang khi tin nhan khong goi ban chi ap dung cho group chat, khong ap dung cho DM/chat rieng.\n- Neu group message chi goi ro bot khac ${otherBotNames.length ? otherBotNames.map((n) => `\`${n}\``).join(', ') : '`bot khac`'} thi khong cuop loi.\n- Trước MỖI phản hồi Telegram nhìn thấy bởi user, nếu turn hiện tại có tool/action reaction native thì ưu tiên dùng nó để thả \`👍\` trước, trừ khi \`👍\` đã có sẵn.\n- Khong duoc noi la minh da tha like neu turn hien tai chua goi duoc tool reaction hoac reaction khong hien that tren chat.\n- Khi can phoi hop noi bo, dung dung agent id ky thuat trong \`AGENTS.md\`, khong dung ten hien thi.\n- Khi hoi ve vai tro cac bot, dung \`AGENTS.md\` lam nguon su that.`
+        : `\n\n## When To Reply\n- If metadata does not clearly say this is a group/supergroup, treat it as a private DM and reply normally.\n- In group chats, only reply when the message contains one of your aliases: ${dockerOwnAliases.map((a) => `\`${a}\``).join(', ')} or your Telegram username.\n- The stay-silent rule for messages not addressed to you applies only to group chats, never to DMs/private chats.\n- If a group message is clearly calling another bot such as ${otherBotNames.length ? otherBotNames.map((n) => `\`${n}\``).join(', ') : '`another bot`'}, do not hijack it.\n- Before EVERY user-visible Telegram reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- Never claim that you already reacted unless the current turn actually executed the reaction and it is visible on the chat.\n- When you need internal coordination, use the exact technical agent id from \`AGENTS.md\`, not the display name.\n- Use \`AGENTS.md\` as the source of truth for team roles.`;
       await fs.appendFile(path.join(dockerWorkspaceDir, 'AGENTS.md'), extraAgentsMd);
     }
   } // END FOR LOOP
@@ -1988,7 +2575,7 @@ async function main() {
             ? 'Nhắn tin cho bot trên Telegram là dùng được ngay!'
             : 'Just message your bot on Telegram to start chatting!'}`));
           if (isMultiBot) {
-            console.log(chalk.yellow(`\n${isVi ? '📋 Bắt buộc:' : '📋 Required:'} TELEGRAM-POST-INSTALL.md`));
+            console.log(chalk.yellow(`\n${isVi ? '📋 Đọc hướng dẫn setup bot trong Group:' : '📋 Read setup guide in Group:'} ${TELEGRAM_SETUP_GUIDE_FILENAME}`));
             console.log(chalk.gray(isVi
               ? '   → Chạy scripts/telegram-post-install-check.mjs để lấy link thật, kiểm tra group/privacy, rồi mới add bot và Disable privacy mode.'
               : '   → Run scripts/telegram-post-install-check.mjs to get the real links, verify group/privacy, then add the bots and disable privacy mode.'));
@@ -2010,33 +2597,30 @@ async function main() {
 
   if (deployMode === 'docker') {
 
-    if (isMultiBot && channelKey === 'telegram') {
-      console.log(chalk.yellow(`\n${isVi ? '📋 Xem hướng dẫn sau cài:' : '📋 Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
-    }
     // ── Auto-install openclaw binary if not present ──────────────────────────
     const isOpenClawInstalled = () => { try { execSync('openclaw --version', { stdio: 'ignore' }); return true; } catch { return false; } };
     if (!isOpenClawInstalled()) {
       console.log(chalk.cyan(isVi
-        ? '\n📦 Đang cài openclaw binary (npm install -g openclaw)...'
-        : '\n📦 Installing openclaw binary (npm install -g openclaw)...'));
+        ? `\n📦 Đang cài openclaw binary (${OPENCLAW_NPM_SPEC})...`
+        : `\n📦 Installing openclaw binary (${OPENCLAW_NPM_SPEC})...`));
       try {
-        execSync('npm install -g openclaw', { stdio: 'inherit' });
+        execSync(`npm install -g ${OPENCLAW_NPM_SPEC}`, { stdio: 'inherit' });
         console.log(chalk.green(isVi ? '✅ openclaw đã cài xong!' : '✅ openclaw installed!'));
       } catch {
         console.log(chalk.yellow(isVi
-          ? '⚠️  Không tự cài được. Chạy thủ công: sudo npm install -g openclaw'
-          : '⚠️  Could not auto-install. Run manually: sudo npm install -g openclaw'));
+          ? `⚠️  Không tự cài được. Chạy thủ công: sudo npm install -g ${OPENCLAW_NPM_SPEC}`
+          : `⚠️  Could not auto-install. Run manually: sudo npm install -g ${OPENCLAW_NPM_SPEC}`));
       }
     }
 
     if (isMultiBot && channelKey === 'telegram') {
-      console.log(chalk.yellow(`\n${isVi ? '📋 Xem hướng dẫn sau cài:' : '📋 Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
+      console.log(chalk.yellow(`\n${isVi ? '📋 Xem hướng dẫn sau cài:' : '📋 Read post-install guide:'} ${path.join(projectDir, TELEGRAM_SETUP_GUIDE_FILENAME)}`));
     }
   } else {
     if (!isOpenClawInstalled()) {
       console.log(chalk.cyan(isVi
-        ? '\n📦 Dang cai openclaw binary (npm install -g openclaw)...'
-        : '\n📦 Installing openclaw binary (npm install -g openclaw)...'));
+        ? `\n📦 Dang cai openclaw binary (${OPENCLAW_NPM_SPEC})...`
+        : `\n📦 Installing openclaw binary (${OPENCLAW_NPM_SPEC})...`));
       if (!installGlobalPackage(OPENCLAW_NPM_SPEC, { isVi, osChoice, displayName: 'openclaw' })) {
         process.exit(1);
       }
@@ -2178,10 +2762,12 @@ async function main() {
 
     console.log(chalk.cyan(`\n👉 ${isVi ? 'Native runtime da duoc cai san va khoi dong.' : 'Native runtime is installed and started.'}`));
     if (isMultiBot && channelKey === 'telegram') {
-      console.log(chalk.yellow(`\n📋 ${isVi ? 'Xem huong dan sau cai:' : 'Read post-install guide:'} ${path.join(projectDir, 'TELEGRAM-POST-INSTALL.md')}`));
+      console.log(chalk.yellow(`\n📋 ${isVi ? 'Xem huong dan sau cai:' : 'Read post-install guide:'} ${path.join(projectDir, TELEGRAM_SETUP_GUIDE_FILENAME)}`));
     }
   }
 }
+
+
 
 main().catch(err => {
   console.error(chalk.red('Error:'), err);

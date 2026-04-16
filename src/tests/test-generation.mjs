@@ -114,13 +114,15 @@ section('2. Workspace file map - single bot');
     hasScheduler: false,
   });
 
-  ['IDENTITY.md', 'SOUL.md', 'AGENTS.md', 'USER.md', 'TOOLS.md', 'MEMORY.md', 'BROWSER.md', 'browser-tool.js']
+  ['IDENTITY.md', 'SOUL.md', 'AGENTS.md', 'USER.md', 'TOOLS.md', 'MEMORY.md', 'HEARTBEAT.md', 'BOOTSTRAP.md', 'BROWSER.md', 'browser-tool.js']
     .forEach((name) => assert(`single workspace includes ${name}`, typeof files[name] === 'string' && files[name].length > 20));
 
   assert('single workspace does not create TEAMS.md', !files['TEAMS.md']);
   assertIncludes('AGENTS.md contains bot identity', files['AGENTS.md'], 'Williams');
   assertIncludes('AGENTS.md includes security rules', files['AGENTS.md'], 'Security Rules');
   assertIncludes('TOOLS.md points to relative workspace', files['TOOLS.md'], '.openclaw/workspace-williams/');
+  assertIncludes('BOOTSTRAP.md reinforces bot identity', files['BOOTSTRAP.md'], 'highest-priority source of truth');
+  assertIncludes('HEARTBEAT.md avoids re-onboarding', files['HEARTBEAT.md'], 'Do not re-onboard the user');
   assertNotIncludes('single TOOLS omits cron guidance when scheduler not selected', files['TOOLS.md'], 'cron-jobs.mdx');
   assertIncludes('browser-tool.js is CLI variant', files['browser-tool.js'], 'get_text');
   assertNotIncludes('workspace docs exclude removed combo channel', JSON.stringify(files), 'telegram+zalo-personal');
@@ -159,6 +161,8 @@ section('3. Workspace file map - relay multi-bot');
   });
 
   assert('relay workspace includes TEAMS.md', typeof files['TEAMS.md'] === 'string' && files['TEAMS.md'].length > 50);
+  assert('relay workspace includes HEARTBEAT.md', typeof files['HEARTBEAT.md'] === 'string' && files['HEARTBEAT.md'].length > 20);
+  assert('relay workspace includes BOOTSTRAP.md', typeof files['BOOTSTRAP.md'] === 'string' && files['BOOTSTRAP.md'].length > 20);
   assert('relay server browser omits browser-tool.js', !files['browser-tool.js']);
   assertIncludes('relay AGENTS references TEAMS.md', files['AGENTS.md'], 'TEAMS.md');
   assertIncludes('relay TOOLS contains Telegram section', files['TOOLS.md'], 'Telegram');
@@ -229,7 +233,7 @@ section('5. Docker artifacts');
       'openclaw skills install browser-automation 2>/dev/null || true &&',
       'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &',
     ],
-    volumeMount: '../../.openclaw:/root/.openclaw',
+    volumeMount: '../../.openclaw:/root/project/.openclaw',
     singleComposeName: 'oc-williams',
     singleAppContainerName: 'openclaw-williams',
     singleRouterContainerName: '9router-williams',
@@ -241,8 +245,12 @@ section('5. Docker artifacts');
   assert('single compose generated', single.compose.length > 500);
   assertIncludes('Dockerfile installs OpenClaw spec', single.dockerfile, common.OPENCLAW_NPM_SPEC);
   assertIncludes('Dockerfile includes browser dependencies when requested', single.dockerfile, 'playwright install chromium');
+  assertIncludes('Dockerfile writes a dedicated entrypoint script', single.dockerfile, '/usr/local/bin/openclaw-entrypoint.sh');
+  assertIncludes('Dockerfile uses JSON-array CMD for entrypoint', single.dockerfile, 'CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]');
   assertIncludes('compose includes 9Router sidecar when requested', single.compose, '9router-williams');
-  assertIncludes('compose mounts .openclaw volume', single.compose, '../../.openclaw:/root/.openclaw');
+  assertIncludes('compose mounts .openclaw volume into project workspace', single.compose, '../../.openclaw:/root/project/.openclaw');
+  assertIncludes('compose sets project-local OPENCLAW_HOME', single.compose, 'OPENCLAW_HOME=/root/project/.openclaw');
+  assertIncludes('compose sets project-local OPENCLAW_STATE_DIR', single.compose, 'OPENCLAW_STATE_DIR=/root/project/.openclaw');
   assertIncludes('compose includes host gateway for desktop browser', single.compose, 'host.docker.internal');
   assertNotIncludes('compose does not leak old interpolation bug', single.compose, "Buffer.from('${Buffer.from");
   assertNotIncludes('Docker output excludes removed combo channel', JSON.stringify(single), 'telegram+zalo-personal');
@@ -256,7 +264,7 @@ section('5. Docker artifacts');
     hasBrowser: false,
     selectedModel: 'llama3.1',
     runtimeCommandParts: [common.buildRelayPluginInstallCommand('openclaw') + ' &&'],
-    volumeMount: '../../.openclaw:/root/.openclaw',
+    volumeMount: '../../.openclaw:/root/project/.openclaw',
     multiComposeName: 'oc-multibot',
     multiAppContainerName: 'openclaw-multibot',
     multiOllamaContainerName: 'ollama-multibot',
@@ -265,7 +273,8 @@ section('5. Docker artifacts');
 
   assertIncludes('multi compose includes app container', multi.compose, 'openclaw-multibot');
   assertIncludes('multi compose includes Ollama service for local provider', multi.compose, 'ollama-multibot');
-  assertIncludes('multi Docker command installs relay plugin', multi.dockerfile, common.TELEGRAM_RELAY_PLUGIN_SPEC);
+  assertIncludes('multi Dockerfile also uses dedicated entrypoint script', multi.dockerfile, '/usr/local/bin/openclaw-entrypoint.sh');
+  assertIncludes('relay plugin runtime install is idempotent', multi.dockerfile, 'extensions/telegram-multibot-relay');
 }
 
 section('6. Data and deprecated names');

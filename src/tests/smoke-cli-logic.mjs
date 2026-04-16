@@ -47,7 +47,7 @@ checks.push(() => expectMatch(
 checks.push(() => expectOrder(
   cli,
   "if (cliSubcommand === 'upgrade') {",
-  "const lang = await select({",
+  "let setupStep = 'language';",
   'CLI upgrade subcommand must short-circuit before the interactive setup wizard'
 ));
 
@@ -500,8 +500,22 @@ checks.push(() => expect(
 ));
 
 checks.push(() => expect(
-  setup.includes('ALWAYS call action') || setup.includes('LUÔN gọi action'),
-  'Workspace docs must mandate tool-based react action before replies'
+  setup.includes('Before EVERY user-visible Telegram reply')
+    || setup.includes('Trước MỖI phản hồi Telegram nhìn thấy bởi user'),
+  'Workspace docs must require Telegram reactions before every visible reply'
+));
+
+checks.push(() => expect(
+  setup.includes("reactionLevel: 'minimal'")
+    && !setup.includes("reactionLevel: 'ack'")
+    && !setup.includes("ackReaction: '"),
+  'Generated Telegram configs must use reactionLevel:minimal and must not emit ackReaction'
+));
+
+checks.push(() => expect(
+  setup.includes("defaultProfile: 'host-chrome'")
+    && setup.includes("http://127.0.0.1:9222"),
+  'Desktop browser docs/config must target the host-chrome Chrome Debug profile'
 ));
 
 checks.push(() => expect(

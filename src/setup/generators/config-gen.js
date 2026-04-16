@@ -162,8 +162,9 @@
           enabled: true,
           dmPolicy: 'open',
           allowFrom: ['*'],
+          defaultAccount: 'default',
           replyToMode: 'first',
-          reactionLevel: 'ack',
+          reactionLevel: 'minimal',
           actions: {
             sendMessage: true,
             reactions: true,
@@ -171,7 +172,6 @@
           accounts: {
             default: {
               botToken: tok || '<your_bot_token>',
-              ackReaction: '👍',
             },
           },
         };

@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 /* eslint-disable no-undef, no-unused-vars */
 /**
  * @fileoverview Part of the OpenClaw Setup Wizard IIFE bundle.
@@ -46,14 +46,14 @@
       botName: '',
       description: '',
       emoji: '🤖',
-      provider: 'google',
-      model: 'google/gemini-2.5-flash',
+      provider: '9router',
+      model: '9router/smart-route',
       language: 'vi',
       systemPrompt: '',
       userInfo: '',
       securityRules: '',
       plugins: [],
-      skills: [],
+      skills: ['memory'],
       // Persisted credential inputs (Bug 1+2 fix)
       botToken: '',
       apiKey: '',
