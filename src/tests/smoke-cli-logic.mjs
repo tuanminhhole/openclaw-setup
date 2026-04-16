@@ -84,10 +84,11 @@ checks.push(() => expectMatch(
   'CLI fast-test mode must be able to reuse an existing openclaw install'
 ));
 
-checks.push(() => expectMatch(
+checks.push(() => expectOrder(
   cli,
-  /installLatestOpenClaw\(\{ isVi, osChoice \}\);\s*if \(deployMode === 'docker'\) \{/,
-  'CLI must install or upgrade openclaw before entering the Docker/native branches'
+  "  installLatestOpenClaw({ isVi, osChoice });",
+  "  const autoRun = deployMode === 'docker' ? await confirm({",
+  'CLI must install or upgrade openclaw after config generation and before Docker auto-run'
 ));
 
 checks.push(() => expectMatch(
@@ -289,7 +290,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*resolveNative9RouterDesktopLaunch\(\)[\s\S]*execFileSync\('pm2'[\s\S]*routerLaunch\.command[\s\S]*--interpreter'?,?[\s\S]*none[\s\S]*routerLaunch\.args[\s\S]*routerLaunch\.env[\s\S]*nohup "\$\{process\.execPath\}" "\$\{normalizedSyncScriptPath\}" >\/tmp\/\$\{syncAppName\}\.log 2>&1 &[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
+  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*resolveNative9RouterDesktopLaunch\(\)[\s\S]*execFileSync\('pm2'[\s\S]*routerLaunch\.command[\s\S]*--interpreter'?,?[\s\S]*none[\s\S]*routerLaunch\.args[\s\S]*routerLaunch\.env[\s\S]*const syncAppName = `\$\{appName\}-9router-sync`[\s\S]*execFileSync\('pm2'[\s\S]*process\.execPath[\s\S]*normalizedSyncScriptPath[\s\S]*runPm2Save\(\{ projectDir, isVi \}\)/s,
   'VPS native 9Router flow must start a standalone 9Router dashboard on port 20128 via PM2'
 ));
 
@@ -337,6 +338,13 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectOrder(
   cli,
+  "  installLatestOpenClaw({ isVi, osChoice });",
+  "if (deployMode === 'docker' && autoRun) {",
+  'CLI must pin the OpenClaw version before auto-running Docker build/up'
+));
+
+checks.push(() => expectOrder(
+  cli,
   "await ensureProjectRuntimeDirs(projectDir, isVi);",
   "installRelayPluginForProject(projectDir, isVi);",
   'Relay plugin install must happen after preparing the project runtime directories in native flow'
@@ -353,6 +361,12 @@ checks.push(() => expectMatch(
   cli,
   /const pm2Apps = \[[\s\S]*args: 'gateway run'/,
   'Native multi-bot ecosystem must run one gateway process'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /function getNativePm2AppName\(isMultiBot = false\) \{\s*return isMultiBot \? 'openclaw-multibot' : 'openclaw';\s*\}[\s\S]*name: 'openclaw-multibot'/,
+  'CLI native VPS flow must use stable PM2 app names for single-bot and multi-bot setups'
 ));
 
 checks.push(() => expectMatch(
@@ -547,6 +561,12 @@ checks.push(() => expect(
     && setup.includes('let patched=0')
     && setup.includes('if(!patched){process.exit(0);}'),
   'Dockerfile patching in setup.js must scan all OpenClaw dist JS files and silently skip when no timeout patch anchor exists'
+));
+
+checks.push(() => expectMatch(
+  cli,
+  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*'start',[\s\S]*process\.execPath,[\s\S]*normalizedSyncScriptPath[\s\S]*\}/,
+  'CLI PM2 9Router sync worker must run directly under PM2 instead of nohup shell wrapping'
 ));
 
 checks.push(() => expect(

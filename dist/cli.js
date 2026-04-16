@@ -799,6 +799,23 @@ function detectProjectUses9Router(projectDir) {
   return fs.existsSync(path.join(projectDir, '.9router'));
 }
 
+function detectProjectIsMultiBot(projectDir) {
+  try {
+    const configPath = path.join(projectDir, '.openclaw', 'openclaw.json');
+    if (fs.existsSync(configPath)) {
+      const config = fs.readJsonSync(configPath);
+      return (config?.agents?.list?.length || 0) > 1;
+    }
+  } catch {
+    // fallback below
+  }
+  return false;
+}
+
+function getNativePm2AppName(isMultiBot = false) {
+  return isMultiBot ? 'openclaw-multibot' : 'openclaw';
+}
+
 async function runUpgradeCommand() {
   const projectDir = findProjectDir();
   if (!projectDir) {
@@ -811,6 +828,7 @@ async function runUpgradeCommand() {
   const osChoice = getDetectedOsChoice();
   const botName = detectProjectBotName(projectDir);
   const is9Router = detectProjectUses9Router(projectDir);
+  const isMultiBot = detectProjectIsMultiBot(projectDir);
 
   console.log(chalk.cyan('\nRefreshing generated OpenClaw project artifacts...'));
   console.log(chalk.gray(`   Project: ${projectDir}`));
@@ -821,7 +839,9 @@ async function runUpgradeCommand() {
     deployMode,
     osChoice,
     projectDir,
-    botName,
+    botName: (deployMode !== 'docker' && osChoice === 'vps')
+      ? getNativePm2AppName(isMultiBot)
+      : botName,
   }));
   await writeGeneratedArtifacts(projectDir, buildCliUpgradeArtifacts());
 
@@ -830,6 +850,9 @@ async function runUpgradeCommand() {
       projectDir,
       openclawHome: path.join(projectDir, '.openclaw'),
       is9Router,
+      osChoice,
+      isMultiBot,
+      appName: getNativePm2AppName(isMultiBot),
       isVi: false,
     }));
   }
@@ -867,14 +890,13 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
     const syncAppName = `${appName}-9router-sync`;
     execFileSync('pm2', [
       'start',
-      'sh',
+      process.execPath,
       '--name',
       syncAppName,
       '--cwd',
       normalizedProjectDir,
       '--',
-      '-c',
-      `nohup "${process.execPath}" "${normalizedSyncScriptPath}" >/tmp/${syncAppName}.log 2>&1 &`
+      normalizedSyncScriptPath
     ], {
       cwd: projectDir,
       stdio: 'inherit',
@@ -2237,7 +2259,7 @@ async function main() {
     if (deployMode === 'native') {
       const pm2Apps = [
         '    {',
-        `      name: '${botName || 'openclaw-multibot'}',`,
+        `      name: 'openclaw-multibot',`,
         `      script: 'openclaw',`,
         `      args: 'gateway run',`,
         `      cwd: '${projectDir.replace(/\\/g, '/')}',`,
@@ -2486,7 +2508,12 @@ async function main() {
 
   // ── Uninstall scripts ───────────────────────────────────────────────────────
   await writeGeneratedArtifacts(projectDir, buildCliUninstallArtifacts({
-    deployMode, osChoice: detectedOS, projectDir, botName,
+    deployMode,
+    osChoice: detectedOS,
+    projectDir,
+    botName: (deployMode !== 'docker' && detectedOS === 'vps')
+      ? getNativePm2AppName(isMultiBot)
+      : botName,
   }));
 
   // ── Upgrade scripts ─────────────────────────────────────────────────────────
@@ -2499,17 +2526,26 @@ async function main() {
       projectDir,
       openclawHome: path.join(projectDir, '.openclaw'),
       is9Router: providerKey === '9router',
+      osChoice,
+      isMultiBot,
+      appName: getNativePm2AppName(isMultiBot),
       isVi,
     }));
 
     console.log(chalk.cyan(
-      isVi
-        ? `\n🚀 start-bot.bat / start-bot.sh đã tạo — double-click để restart bot.`
-        : `\n🚀 start-bot.bat / start-bot.sh created — double-click to restart the bot.`
+      process.platform === 'win32'
+        ? (isVi
+          ? `\n🚀 start-bot.bat / start-bot.sh đã tạo — double-click để restart bot.`
+          : `\n🚀 start-bot.bat / start-bot.sh created — double-click to restart the bot.`)
+        : (isVi
+          ? `\n🚀 start-bot.sh đã tạo — chạy ./start-bot.sh để restart bot.`
+          : `\n🚀 start-bot.sh created — run ./start-bot.sh to restart the bot.`)
     ));
   }
 
   console.log(chalk.green(`✅ ${isVi ? 'Tạo cấu hình thành công!' : 'Configs created successfully!'}`));
+
+  installLatestOpenClaw({ isVi, osChoice });
   
   // 7. Auto Run
   const autoRun = deployMode === 'docker' ? await confirm({
@@ -2592,9 +2628,6 @@ async function main() {
     });
 
   }
-
-  installLatestOpenClaw({ isVi, osChoice });
-
   if (deployMode === 'docker') {
 
     // ── Auto-install openclaw binary if not present ──────────────────────────
@@ -2664,7 +2697,7 @@ async function main() {
 
       if (isMultiBot && channelKey === 'telegram') {
         if (providerKey === '9router') {
-          startNative9RouterPm2({ isVi, projectDir, appName: botName || 'openclaw-multibot', syncScriptPath: native9RouterSyncScriptPath });
+          startNative9RouterPm2({ isVi, projectDir, appName: getNativePm2AppName(true), syncScriptPath: native9RouterSyncScriptPath });
         }
         execSync('pm2 start ecosystem.config.js && pm2 save', {
           cwd: projectDir,
@@ -2672,13 +2705,13 @@ async function main() {
           shell: true
         });
         console.log(chalk.green(`\n🎉 ${isVi ? 'Setup hoan tat! Multi-bot native dang chay qua PM2.' : 'Setup complete! Native multi-bot is running via PM2.'}`));
-        console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${botName || 'openclaw-multibot'}` : `   View logs: pm2 logs ${botName || 'openclaw-multibot'}`));
+        console.log(chalk.gray(isVi ? `   Xem log: pm2 logs ${getNativePm2AppName(true)}` : `   View logs: pm2 logs ${getNativePm2AppName(true)}`));
         printNativeDashboardAccessInfo({ isVi, providerKey, projectDir });
         if (channelKey === 'zalo-personal') {
           printZaloPersonalLoginInfo({ isVi, deployMode: 'native', projectDir });
         }
       } else {
-        const appName = botName || 'openclaw';
+        const appName = getNativePm2AppName(false);
         if (providerKey === '9router') {
           startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath: native9RouterSyncScriptPath });
         }

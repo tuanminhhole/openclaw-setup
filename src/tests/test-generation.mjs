@@ -199,6 +199,8 @@ section('4. Install artifacts');
   const chromeSh = install.buildChromeDebugSh();
   const startBat = install.buildStartBotBat({ projectDir, openclawHome: `${projectDir}\\.openclaw`, is9Router: true, isVi: true });
   const startSh = install.buildStartBotSh({ projectDir: '/opt/openclaw/demo', is9Router: true, isVi: false });
+  const startShVpsSingle = install.buildStartBotSh({ projectDir: '/opt/openclaw/demo', is9Router: true, isVi: false, osChoice: 'vps', isMultiBot: false, appName: 'openclaw' });
+  const startShVpsMulti = install.buildStartBotSh({ projectDir: '/opt/openclaw/demo', is9Router: true, isVi: false, osChoice: 'vps', isMultiBot: true, appName: 'openclaw-multibot' });
   const upgradePs1 = install.buildUpgradePs1();
   const upgradeSh = install.buildUpgradeSh();
   const chromeArtifacts = install.buildCliChromeDebugArtifacts();
@@ -211,6 +213,9 @@ section('4. Install artifacts');
   assertIncludes('start-bot bat sets project-local DATA_DIR', startBat, 'DATA_DIR');
   assertIncludes('start-bot sh sets project-local OPENCLAW_HOME', startSh, 'export OPENCLAW_HOME="$PWD/.openclaw"');
   assertIncludes('start-bot sh loads .env', startSh, 'if [ -f ".env" ]; then set -a; . ./.env; set +a; fi');
+  assertIncludes('vps start-bot sh uses PM2 for 9Router', startShVpsSingle, 'pm2 start "$NINE_ROUTER_BIN" --name "$APP_NAME-9router"');
+  assertIncludes('vps start-bot sh uses PM2 for gateway', startShVpsSingle, 'pm2 start openclaw --name "$APP_NAME" --cwd "$PROJECT_DIR" -- gateway run');
+  assertIncludes('vps multi start-bot sh uses ecosystem config', startShVpsMulti, 'pm2 start ecosystem.config.js');
   assertIncludes('upgrade.ps1 delegates to latest CLI upgrade', upgradePs1, 'npx create-openclaw-bot@latest upgrade');
   assertIncludes('upgrade.sh delegates to latest CLI upgrade', upgradeSh, 'npx create-openclaw-bot@latest upgrade');
   assert('buildCliChromeDebugArtifacts emits bat and executable sh', chromeArtifacts.map((x) => `${x.name}:${!!x.executable}`).join(',') === 'start-chrome-debug.bat:false,start-chrome-debug.sh:true');
@@ -274,7 +279,7 @@ section('5. Docker artifacts');
   assertIncludes('multi compose includes app container', multi.compose, 'openclaw-multibot');
   assertIncludes('multi compose includes Ollama service for local provider', multi.compose, 'ollama-multibot');
   assertIncludes('multi Dockerfile also uses dedicated entrypoint script', multi.dockerfile, '/usr/local/bin/openclaw-entrypoint.sh');
-  assertIncludes('relay plugin runtime install is idempotent', multi.dockerfile, 'extensions/telegram-multibot-relay');
+  assertIncludes('relay plugin runtime install helper is idempotent', common.buildRelayPluginInstallCommand('openclaw'), 'extensions/telegram-multibot-relay');
 }
 
 section('6. Data and deprecated names');

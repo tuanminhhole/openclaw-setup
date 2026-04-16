@@ -1,5 +1,8 @@
 # Changelog (English)
 
+## [5.6.3] - 2026-04-16
+- Updated post-installation guide prompt to clarify Telegram group setup instructions (continued).
+
 ## [5.6.2] - 2026-04-16
 - Updated post-installation guide prompt to clarify Telegram group setup instructions.
 

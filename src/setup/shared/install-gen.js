@@ -222,9 +222,66 @@ fi
       projectDir = '.',
       is9Router = false,
       isVi = true,
+      osChoice = 'linux',
+      isMultiBot = false,
+      appName = 'openclaw',
       logFile9r = '/tmp/9router.log',
       logFileGw = '/tmp/openclaw-gw.log',
     } = opts;
+    if (osChoice === 'vps') {
+      const L = [];
+      L.push('#!/bin/bash');
+      L.push('set -euo pipefail');
+      L.push(`PROJECT_DIR="${projectDir}"`);
+      L.push('cd "$PROJECT_DIR"');
+      L.push('export OPENCLAW_HOME="$PROJECT_DIR/.openclaw"');
+      L.push('export OPENCLAW_STATE_DIR="$PROJECT_DIR/.openclaw"');
+      L.push('export DATA_DIR="$PROJECT_DIR/.9router"');
+      L.push('if [ -f ".env" ]; then set -a; . ./.env; set +a; fi');
+      L.push(`APP_NAME="${appName}"`);
+      L.push('');
+      L.push('if ! command -v pm2 >/dev/null 2>&1; then');
+      L.push(isVi ? '  echo "ERROR: Khong tim thay PM2. Chay: npm install -g pm2"' : '  echo "ERROR: PM2 not found. Run: npm install -g pm2"');
+      L.push('  exit 1');
+      L.push('fi');
+      L.push('');
+      L.push(isVi ? 'echo "====== OpenClaw — Khoi dong lai bot qua PM2 ======"' : 'echo "====== OpenClaw — Restart Bot via PM2 ======"');
+      L.push('echo ""');
+      if (is9Router) {
+        L.push(isVi ? 'echo "[1] Khoi dong lai 9Router qua PM2..."' : 'echo "[1] Restarting 9Router via PM2..."');
+        L.push('NINE_ROUTER_BIN="$(command -v 9router 2>/dev/null || true)"');
+        L.push('NODE_BIN="$(command -v node 2>/dev/null || true)"');
+        L.push('if [ -z "$NINE_ROUTER_BIN" ] || [ -z "$NODE_BIN" ]; then');
+        L.push(isVi ? '  echo "ERROR: Thieu node hoac 9router. Chay: npm install -g 9router"' : '  echo "ERROR: Missing node or 9router. Run: npm install -g 9router"');
+        L.push('  exit 1');
+        L.push('fi');
+        L.push('pm2 delete "$APP_NAME-9router" "$APP_NAME-9router-sync" >/dev/null 2>&1 || true');
+        L.push('PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$DATA_DIR" pm2 start "$NINE_ROUTER_BIN" --name "$APP_NAME-9router" --interpreter "$NODE_BIN" -- -n -H 0.0.0.0 -p 20128 --skip-update');
+        L.push('if [ -f "$PROJECT_DIR/.openclaw/9router-smart-route-sync.js" ]; then');
+        L.push('  pm2 start "$NODE_BIN" --name "$APP_NAME-9router-sync" -- "$PROJECT_DIR/.openclaw/9router-smart-route-sync.js"');
+        L.push('fi');
+      } else {
+        L.push(isVi ? 'echo "[1] Khong dung 9Router cho project nay."' : 'echo "[1] This project does not use 9Router."');
+      }
+      L.push('');
+      if (isMultiBot) {
+        L.push(isVi ? 'echo "[2] Khoi dong lai multi-bot gateway qua PM2..."' : 'echo "[2] Restarting multi-bot gateway via PM2..."');
+        L.push('pm2 delete "$APP_NAME" >/dev/null 2>&1 || true');
+        L.push('pm2 start ecosystem.config.js');
+      } else {
+        L.push(isVi ? 'echo "[2] Khoi dong lai OpenClaw gateway qua PM2..."' : 'echo "[2] Restarting OpenClaw gateway via PM2..."');
+        L.push('pm2 delete "$APP_NAME" >/dev/null 2>&1 || true');
+        L.push('pm2 start openclaw --name "$APP_NAME" --cwd "$PROJECT_DIR" -- gateway run');
+      }
+      L.push('pm2 save >/dev/null 2>&1 || true');
+      L.push('echo ""');
+      L.push('echo "OpenClaw Dashboard: http://127.0.0.1:18791"');
+      if (is9Router) L.push('echo "9Router Dashboard:  http://127.0.0.1:20128/dashboard"');
+      L.push('echo ""');
+      L.push(isVi ? 'echo "Log gateway: pm2 logs $APP_NAME"' : 'echo "Gateway logs: pm2 logs $APP_NAME"');
+      if (is9Router) L.push(isVi ? 'echo "Log 9Router: pm2 logs $APP_NAME-9router"' : 'echo "9Router logs: pm2 logs $APP_NAME-9router"');
+      return L.join('\n');
+    }
     const L = [];
     L.push('#!/bin/bash');
     L.push('set -euo pipefail');
