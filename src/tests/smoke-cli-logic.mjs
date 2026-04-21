@@ -128,7 +128,8 @@ checks.push(() => expectMatch(
 checks.push(() => expect(
   cli.includes('function build9RouterSmartRouteSyncScript(dbPath) {')
     && cli.includes('const safeDbPath = JSON.stringify(dbPath);')
-    && cli.includes("const ROUTER='http://localhost:20128';")
+    && cli.includes('const safeRouterBaseUrl = JSON.stringify(NINE_ROUTER_API_BASE_URL);')
+    && cli.includes('const ROUTER=${safeRouterBaseUrl};')
     && cli.includes("fetch(ROUTER + '/api/providers')")
     && cli.includes('const nativeDataDir = getNative9RouterDataDir();')
     && cli.includes("build9RouterSmartRouteSyncScript(path.join(nativeDataDir, 'db.json'))"),
@@ -232,9 +233,9 @@ checks.push(() => expectMatch(
   'Native Zalo flow must tolerate non-standard exit codes when the login output already reports success'
 ));
 
-checks.push(() => expectMatch(
-  cli,
-  /baseUrl: deployMode === 'native' \? 'http:\/\/localhost:20128\/v1' : 'http:\/\/9router:20128\/v1'/,
+checks.push(() => expect(
+  cli.includes("'9router': build9RouterProviderConfig(get9RouterBaseUrl(deployMode))")
+    && cli.includes("provider.baseUrl = get9RouterBaseUrl(detectProjectDeployMode(projectDir));"),
   'Native 9Router config must target localhost instead of the Docker hostname'
 ));
 
@@ -503,9 +504,14 @@ checks.push(() => expectMatch(
   'Wizard single-bot Docker compose must include the 9Router sidecar service and named volume when provider is 9Router'
 ));
 
-checks.push(() => expectMatch(
-  setup,
-  /function native9RouterSyncScriptContent\(\) \{[\s\S]*const p=path\.join\(process\.env\.DATA_DIR\|\|'\.9router','db\.json'\);[\s\S]*const ROUTER='http:\/\/localhost:20128';[\s\S]*fetch\(ROUTER\+'\/api\/providers'\)[\s\S]*d\.connections[\s\S]*smart-route/s,
+checks.push(() => expect(
+  setup.includes("function native9RouterSyncScriptContent() {")
+    && setup.includes("const p=path.join(process.env.DATA_DIR||'.9router','db.json');")
+    && setup.includes("const ROUTER='${globalThis.__openclawCommon.NINE_ROUTER_API_BASE_URL}';")
+    && setup.includes("fetch(ROUTER+'/api/providers')")
+    && setup.includes('Array.isArray(d.connections)')
+    && setup.includes('Array.isArray(d.providerConnections)')
+    && setup.includes("id:'smart-route'"),
   'Native script generation must keep the 9Router sync script project-local via DATA_DIR and sync active providers from the 9Router API'
 ));
 
@@ -547,9 +553,12 @@ checks.push(() => expect(
   '9Router sync logic in setup.js must remove stale smart-route combos when providers are disabled'
 ));
 
-checks.push(() => expectMatch(
-  cli,
-  /function build9RouterSmartRouteSyncScript\(dbPath\) \{[\s\S]*const safeDbPath = JSON\.stringify\(dbPath\);[\s\S]*return `function bootstrap\(\) \{[\s\S]*const dbPath = \$\{safeDbPath\};[\s\S]*const ROUTER='http:\/\/localhost:20128';/s,
+checks.push(() => expect(
+  cli.includes('function build9RouterSmartRouteSyncScript(dbPath) {')
+    && cli.includes('const safeDbPath = JSON.stringify(dbPath);')
+    && cli.includes('return `function bootstrap() {')
+    && cli.includes('const dbPath = ${safeDbPath};')
+    && cli.includes('const safeRouterBaseUrl = JSON.stringify(NINE_ROUTER_API_BASE_URL);'),
   'CLI native 9Router sync script generator must embed the DB path directly without referencing an undefined dbPath variable'
 ));
 
@@ -576,9 +585,11 @@ checks.push(() => expect(
   'Dockerfile patching in setup.js must scan all OpenClaw dist JS files and silently skip when no timeout patch anchor exists'
 ));
 
-checks.push(() => expectMatch(
-  cli,
-  /function startNative9RouterPm2\(\{ isVi, projectDir, appName, syncScriptPath \}\) \{[\s\S]*'start',[\s\S]*normalizedSyncScriptPath,[\s\S]*'--interpreter',[\s\S]*process\.execPath[\s\S]*\}/,
+checks.push(() => expect(
+  cli.includes('function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {')
+    && cli.includes('normalizedSyncScriptPath')
+    && cli.includes("const syncAppName = `${appName}-9router-sync`;")
+    && cli.includes("'--no-autorestart',"),
   'CLI PM2 9Router sync worker must run directly under PM2 instead of nohup shell wrapping'
 ));
 
@@ -642,15 +653,13 @@ checks.push(() => expect(
   'Web wizard must expose a helper that seeds likely control UI origins'
 ));
 
-checks.push(() => expectMatch(
-  setup,
-  /controlUi:\s*\{\s*allowedOrigins: getGatewayAllowedOrigins\(18791\)/s,
+checks.push(() => expect(
+  setup.includes("gateway: common.buildGatewayConfig(18791, 'native', getGatewayAllowedOrigins(18791))"),
   'Web wizard single-bot gateway config must seed control UI allowed origins'
 ));
 
-checks.push(() => expectMatch(
-  setup,
-  /controlUi:\s*\{\s*allowedOrigins: getGatewayAllowedOrigins\(basePort\)/s,
+checks.push(() => expect(
+  setup.includes('gateway: common.buildGatewayConfig(basePort, state.deployMode, getGatewayAllowedOrigins(basePort))'),
   'Web wizard per-bot gateway config must seed control UI allowed origins'
 ));
 

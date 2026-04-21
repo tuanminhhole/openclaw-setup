@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.6.9-0EA5E9?style=for-the-badge" alt="Version 5.6.9" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.6.10-0EA5E9?style=for-the-badge" alt="Version 5.6.9" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,7 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ---
 
-## 🆕 What's new in v5.6.9
+## 🆕 What's new in v5.6.10
 
 - 🔧 **OpenAI Codex provider fix** — Updated Codex model registry to match OpenAI's current API. Removed 6 deprecated models, retained 4 active ones: `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.4-mini`.
 - 🔀 **9Router API mode switch** — Switched from `openai-completions` to `openai-responses` to align with OpenAI's Responses API.

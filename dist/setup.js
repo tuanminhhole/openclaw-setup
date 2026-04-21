@@ -627,6 +627,39 @@
     const OPENCLAW_NPM_SPEC = 'openclaw@2026.4.14';
     const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
     const NINE_ROUTER_NPM_SPEC = '9router@latest';
+    const NINE_ROUTER_PORT = 20128;
+    const NINE_ROUTER_PROXY_API_KEY = 'sk-no-key';
+    const NINE_ROUTER_API_BASE_URL = `http://localhost:${NINE_ROUTER_PORT}`;
+    const NINE_ROUTER_DOCKER_API_BASE_URL = `http://9router:${NINE_ROUTER_PORT}`;
+    const SUPPORTED_CODEX_MODELS = ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'];
+    const SMART_ROUTE_PROVIDER_MODELS = {
+      codex: SUPPORTED_CODEX_MODELS,
+      'claude-code': ['cc/claude-opus-4-7', 'cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
+      github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1-codex-mini', 'gh/gpt-5.1', 'gh/gpt-5-codex', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro', 'gh/grok-code-fast-1'],
+      cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.6-sonnet-medium-thinking', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-opus-high', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/claude-4.5-haiku', 'cu/claude-4.5-opus', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gpt-5.2', 'cu/kimi-k2.5', 'cu/gemini-3-flash-preview'],
+      kilo: ['kc/anthropic/claude-sonnet-4-20250514', 'kc/anthropic/claude-opus-4-20250514', 'kc/google/gemini-2.5-pro', 'kc/google/gemini-2.5-flash', 'kc/openai/gpt-4.1', 'kc/openai/o3', 'kc/deepseek/deepseek-chat', 'kc/deepseek/deepseek-reasoner'],
+      cline: ['cl/anthropic/claude-opus-4.7', 'cl/anthropic/claude-sonnet-4.6', 'cl/anthropic/claude-opus-4.6', 'cl/openai/gpt-5.4', 'cl/openai/gpt-5.3-codex', 'cl/google/gemini-3.1-pro-preview', 'cl/google/gemini-3.1-flash-lite-preview', 'cl/kwaipilot/kat-coder-pro'],
+      'gemini-cli': ['gc/gemini-3-flash-preview', 'gc/gemini-3-pro-preview'],
+      kiro: ['kr/claude-sonnet-4.5', 'kr/claude-haiku-4.5', 'kr/deepseek-3.2', 'kr/deepseek-3.1', 'kr/qwen3-coder-next', 'kr/glm-5', 'kr/MiniMax-M2.5'],
+      'kimi-coding': ['kmc/kimi-k2.5', 'kmc/kimi-k2.5-thinking', 'kmc/kimi-latest'],
+      openai: ['openai/gpt-5.4', 'openai/gpt-5.4-mini', 'openai/gpt-5.2', 'openai/gpt-5.1', 'openai/gpt-5', 'openai/gpt-4o', 'openai/gpt-4.1', 'openai/o3', 'openai/o4-mini'],
+      anthropic: ['anthropic/claude-sonnet-4-20250514', 'anthropic/claude-opus-4-20250514', 'anthropic/claude-3-5-sonnet-20241022'],
+      gemini: ['gemini/gemini-3.1-pro-preview', 'gemini/gemini-3-flash-preview', 'gemini/gemini-2.5-pro', 'gemini/gemini-2.5-flash', 'gemini/gemini-2.5-flash-lite'],
+      deepseek: ['deepseek/deepseek-chat', 'deepseek/deepseek-reasoner'],
+      xai: ['xai/grok-4', 'xai/grok-4-fast-reasoning', 'xai/grok-code-fast-1', 'xai/grok-3'],
+      mistral: ['mistral/mistral-large-latest', 'mistral/codestral-latest', 'mistral/mistral-medium-latest'],
+      iflow: ['if/qwen3-coder-plus', 'if/qwen3-max', 'if/qwen3-vl-plus', 'if/qwen3-max-preview', 'if/qwen3-235b', 'if/qwen3-32b', 'if/kimi-k2', 'if/deepseek-v3.2', 'if/deepseek-v3.1', 'if/deepseek-v3', 'if/deepseek-r1', 'if/glm-4.7', 'if/iflow-rome-30ba3b'],
+      qwen: ['qw/qwen3-coder-plus', 'qw/qwen3-coder-flash', 'qw/vision-model', 'qw/coder-model'],
+      alicode: ['alicode/qwen3.5-plus', 'alicode/kimi-k2.5', 'alicode/glm-5', 'alicode/qwen3-coder-next', 'alicode/qwen3-coder-plus', 'alicode/glm-4.7'],
+      groq: ['groq/llama-3.3-70b-versatile', 'groq/openai/gpt-oss-120b', 'groq/qwen/qwen3-32b'],
+      cerebras: ['cerebras/gpt-oss-120b', 'cerebras/zai-glm-4.7', 'cerebras/qwen-3-32b'],
+      glm: ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
+      'glm-cn': ['glm-cn/glm-5.1', 'glm-cn/glm-5', 'glm-cn/glm-4.7', 'glm-cn/glm-4.6'],
+      minimax: ['minimax/MiniMax-M2.7', 'minimax/MiniMax-M2.5', 'minimax/MiniMax-M2.1'],
+      kimi: ['kimi/kimi-k2.5', 'kimi/kimi-k2.5-thinking', 'kimi/kimi-latest'],
+      ollama: ['ollama/qwen3.5', 'ollama/kimi-k2.5', 'ollama/glm-5', 'ollama/minimax-m2.5', 'ollama/glm-4.7-flash', 'ollama/gpt-oss:120b'],
+    };
+    const SMART_ROUTE_PROVIDER_ORDER = ['openai', 'anthropic', 'claude-code', 'codex', 'cursor', 'github', 'cline', 'kimi', 'minimax', 'deepseek', 'glm', 'alicode', 'xai', 'mistral', 'kilo', 'kiro', 'iflow', 'qwen', 'gemini-cli', 'gemini', 'ollama'];
     const TELEGRAM_RELAY_PLUGIN_SPEC = 'openclaw-telegram-multibot-relay';
     const TELEGRAM_RELAY_PLUGIN_ID = 'telegram-multibot-relay';
     const TELEGRAM_SETUP_GUIDE_FILENAME = 'TELEGRAM-GROUP-SETUP.md';
@@ -833,10 +866,60 @@
       return JSON.stringify(buildAuthProfilesJson(options), null, 2);
     }
 
+    function get9RouterBaseUrl(deployMode = 'native') {
+      return deployMode === 'docker' ? `${NINE_ROUTER_DOCKER_API_BASE_URL}/v1` : `${NINE_ROUTER_API_BASE_URL}/v1`;
+    }
+
+    function build9RouterProviderConfig(baseUrl = `${NINE_ROUTER_API_BASE_URL}/v1`) {
+      return {
+        baseUrl,
+        apiKey: NINE_ROUTER_PROXY_API_KEY,
+        api: 'openai-completions',
+        models: [
+          {
+            id: 'smart-route',
+            name: 'Smart Proxy (Auto Route)',
+            contextWindow: 200000,
+            maxTokens: 8192,
+          },
+          ...SUPPORTED_CODEX_MODELS.map((id) => ({
+            id,
+            name: `Codex ${id.slice(3).replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}`,
+            contextWindow: 200000,
+            maxTokens: 8192,
+          })),
+        ],
+      };
+    }
+
+    function buildGatewayConfig(port = 18791, deployMode = 'native', allowedOrigins = []) {
+      const normalizedPort = Number(port) || 18791;
+      const cfg = {
+        port: normalizedPort,
+        mode: 'local',
+        controlUi: { allowedOrigins },
+        auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
+      };
+      if (deployMode === 'docker') {
+        cfg.bind = 'custom';
+        cfg.customBindHost = '0.0.0.0';
+      } else {
+        cfg.bind = 'loopback';
+      }
+      return cfg;
+    }
+
     root.__openclawCommon = {
       OPENCLAW_NPM_SPEC,
       OPENCLAW_RUNTIME_PACKAGES,
       NINE_ROUTER_NPM_SPEC,
+      NINE_ROUTER_PORT,
+      NINE_ROUTER_PROXY_API_KEY,
+      NINE_ROUTER_API_BASE_URL,
+      NINE_ROUTER_DOCKER_API_BASE_URL,
+      SUPPORTED_CODEX_MODELS,
+      SMART_ROUTE_PROVIDER_MODELS,
+      SMART_ROUTE_PROVIDER_ORDER,
       TELEGRAM_RELAY_PLUGIN_SPEC,
       TELEGRAM_RELAY_PLUGIN_ID,
       TELEGRAM_SETUP_GUIDE_FILENAME,
@@ -845,6 +928,9 @@
       buildTelegramPostInstallChecklist,
       buildAuthProfilesJson,
       buildAuthProfilesString,
+      get9RouterBaseUrl,
+      build9RouterProviderConfig,
+      buildGatewayConfig,
     };
 
   })(typeof globalThis !== 'undefined' ? globalThis : {});
@@ -1377,7 +1463,7 @@
       L.push('set "PATH=%APPDATA%\\npm;%PATH%"');
       L.push('powershell -NoProfile -Command "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force" >nul 2>&1');
       L.push('echo.');
-      L.push(isVi ? 'echo ====== OpenClaw — Khoi dong lai bot ======' : 'echo ====== OpenClaw — Restart Bot ======');
+      L.push(isVi ? 'echo ====== OpenClaw - Khoi dong lai bot ======' : 'echo ====== OpenClaw - Restart Bot ======');
       L.push('echo.');
       L.push(isVi ? 'echo [1] Dung process openclaw cu (neu co)...' : 'echo [1] Stopping existing openclaw process (if any)...');
       L.push('call openclaw gateway stop >nul 2>&1');
@@ -1392,12 +1478,19 @@
         L.push("echo $b = Join-Path $env:APPDATA 'npm\\9router.cmd' >> \"%TEMP%\\oc-start9r.ps1\"");
         L.push("echo if ^(-not ^(Test-Path $b^)^) { $b = Join-Path $env:APPDATA 'npm\\9router' } >> \"%TEMP%\\oc-start9r.ps1\"");
         L.push(`echo $patch = Join-Path '${projectDir}' '.openclaw\\patch-9router.js' >> "%TEMP%\\oc-start9r.ps1"`);
-        L.push("echo if ^(Test-Path $patch^) { & node $patch *> $null } >> \"%TEMP%\\oc-start9r.ps1\"");
+        L.push("echo if ^(Test-Path $patch^) { ^& node $patch ^| Out-Null } >> \"%TEMP%\\oc-start9r.ps1\"");
         L.push(`echo Start-Process 'cmd.exe' -WindowStyle Hidden -WorkingDirectory '${projectDir}' -ArgumentList ^('/c "' + $b + '" -n -H 0.0.0.0 -p 20128 --skip-update'^) >> "%TEMP%\\oc-start9r.ps1"`);
         L.push('powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\\oc-start9r.ps1"');
         L.push('del "%TEMP%\\oc-start9r.ps1" >nul 2>&1');
         L.push('timeout /t 5 /nobreak >nul');
         L.push(isVi ? 'echo [OK] 9Router da khoi dong.' : 'echo [OK] 9Router started.');
+        L.push('');
+        L.push(isVi ? 'echo [2b] Khoi dong sync smart-route...' : 'echo [2b] Starting smart-route sync...');
+        L.push(`echo $env:DATA_DIR = '%DATA_DIR%' > "%TEMP%\\oc-syncsmart.ps1"`);
+        L.push(`echo $sync = Join-Path '${projectDir}' '.openclaw\\9router-smart-route-sync.js' >> "%TEMP%\\oc-syncsmart.ps1"`);
+        L.push(`echo if ^(Test-Path $sync^) { Start-Process 'node' -WindowStyle Hidden -ArgumentList $sync } >> "%TEMP%\\oc-syncsmart.ps1"`);
+        L.push('powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\\oc-syncsmart.ps1"');
+        L.push('del "%TEMP%\\oc-syncsmart.ps1" >nul 2>&1');
       }
       L.push('');
       L.push(isVi ? 'echo [3] Khoi dong OpenClaw Gateway...' : 'echo [3] Starting OpenClaw Gateway...');
@@ -1464,7 +1557,7 @@
         L.push('  exit 1');
         L.push('fi');
         L.push('');
-        L.push(isVi ? 'echo "====== OpenClaw — Khoi dong lai bot qua PM2 ======"' : 'echo "====== OpenClaw — Restart Bot via PM2 ======"');
+        L.push(isVi ? 'echo "====== OpenClaw - Khoi dong lai bot qua PM2 ======"' : 'echo "====== OpenClaw - Restart Bot via PM2 ======"');
         L.push('echo ""');
         if (is9Router) {
           L.push(isVi ? 'echo "[1] Khoi dong lai 9Router qua PM2..."' : 'echo "[1] Restarting 9Router via PM2..."');
@@ -1513,7 +1606,7 @@
       L.push('export DATA_DIR="$PWD/.9router"');
       L.push('if [ -f ".env" ]; then set -a; . ./.env; set +a; fi');
       L.push('');
-      L.push(isVi ? 'echo "====== OpenClaw — Khoi dong lai bot ======"' : 'echo "====== OpenClaw — Restart Bot ======"');
+      L.push(isVi ? 'echo "====== OpenClaw - Khoi dong lai bot ======"' : 'echo "====== OpenClaw - Restart Bot ======"');
       L.push('');
       L.push(isVi ? 'echo "[1] Dung openclaw gateway cu (neu co)..."' : 'echo "[1] Stopping existing openclaw gateway (if any)..."');
       L.push('openclaw gateway stop 2>/dev/null || true');
@@ -1534,6 +1627,11 @@
         L.push(`nohup env PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$DATA_DIR" "$NINE_ROUTER_BIN" -n -H 0.0.0.0 -p 20128 --skip-update > "${logFile9r}" 2>&1 &`);
         L.push('sleep 3');
         L.push(isVi ? `echo "[OK] 9Router da khoi dong. Log: ${logFile9r}"` : `echo "[OK] 9Router started. Log: ${logFile9r}"`);
+        L.push('');
+        L.push(isVi ? 'echo "[2b] Khoi dong sync smart-route..."' : 'echo "[2b] Starting smart-route sync..."');
+        L.push('if [ -f "$PROJECT_DIR/.openclaw/9router-smart-route-sync.js" ]; then');
+        L.push('  nohup env DATA_DIR="$DATA_DIR" node "$PROJECT_DIR/.openclaw/9router-smart-route-sync.js" > /tmp/9router-sync.log 2>&1 &');
+        L.push('fi');
       }
       L.push('');
       L.push(isVi ? 'echo "[3] Khoi dong OpenClaw Gateway..."' : 'echo "[3] Starting OpenClaw Gateway..."');
@@ -1769,36 +1867,10 @@
   // â”€â”€ Shared Docker artifact helpers for wizard + CLI (setup/shared/docker-gen.js) 
   // @ts-nocheck
   (function (root) {
-    const SUPPORTED_CODEX_MODELS = ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'];
-
-    const SMART_ROUTE_PROVIDER_MODELS = {
-      codex: SUPPORTED_CODEX_MODELS,
-      'claude-code': ['cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
-      github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro'],
-      cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gemini-3-flash-preview'],
-      kilo: ['kc/anthropic/claude-sonnet-4-20250514', 'kc/anthropic/claude-opus-4-20250514', 'kc/google/gemini-2.5-pro', 'kc/google/gemini-2.5-flash', 'kc/openai/gpt-4.1', 'kc/deepseek/deepseek-chat'],
-      cline: ['cl/anthropic/claude-sonnet-4.6', 'cl/anthropic/claude-opus-4.6', 'cl/openai/gpt-5.3-codex', 'cl/openai/gpt-5.4', 'cl/google/gemini-3.1-pro-preview'],
-      'gemini-cli': ['gc/gemini-3-flash-preview', 'gc/gemini-3-pro-preview'],
-      iflow: ['if/qwen3-coder-plus', 'if/kimi-k2', 'if/kimi-k2-thinking', 'if/glm-4.7', 'if/deepseek-r1', 'if/deepseek-v3.2', 'if/deepseek-v3', 'if/qwen3-max', 'if/qwen3-235b', 'if/iflow-rome-30ba3b'],
-      qwen: ['qw/qwen3-coder-plus', 'qw/qwen3-coder-flash', 'qw/vision-model', 'qw/coder-model'],
-      kiro: ['kr/claude-sonnet-4.5', 'kr/claude-haiku-4.5', 'kr/deepseek-3.2', 'kr/deepseek-3.1', 'kr/qwen3-coder-next'],
-      ollama: ['ollama/gemma4:e2b', 'ollama/gemma4:e4b', 'ollama/gemma4:26b', 'ollama/gemma4:31b', 'ollama/qwen3.5', 'ollama/kimi-k2.5', 'ollama/glm-5', 'ollama/glm-4.7-flash', 'ollama/minimax-m2.5', 'ollama/gpt-oss:120b'],
-      'kimi-coding': ['kmc/kimi-k2.5', 'kmc/kimi-k2.5-thinking', 'kmc/kimi-latest'],
-      glm: ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
-      'glm-cn': ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
-      minimax: ['minimax/MiniMax-M2.7', 'minimax/MiniMax-M2.5', 'minimax/MiniMax-M2.1'],
-      kimi: ['kimi/kimi-k2.5', 'kimi/kimi-k2.5-thinking', 'kimi/kimi-latest'],
-      deepseek: ['deepseek/deepseek-chat', 'deepseek/deepseek-reasoner'],
-      xai: ['xai/grok-4', 'xai/grok-4-fast-reasoning', 'xai/grok-code-fast-1'],
-      mistral: ['mistral/mistral-large-latest', 'mistral/codestral-latest'],
-      groq: ['groq/llama-3.3-70b-versatile', 'groq/openai/gpt-oss-120b'],
-      cerebras: ['cerebras/gpt-oss-120b'],
-      alicode: ['alicode/qwen3.5-plus', 'alicode/qwen3-coder-plus'],
-      openai: ['openai/gpt-4o', 'openai/gpt-4.1'],
-      anthropic: ['anthropic/claude-sonnet-4', 'anthropic/claude-haiku-3.5'],
-      gemini: ['gemini/gemini-2.5-flash', 'gemini/gemini-2.5-pro'],
-    };
-    const SMART_ROUTE_PROVIDER_ORDER = ['openai', 'anthropic', 'claude-code', 'codex', 'cursor', 'github', 'cline', 'kimi', 'minimax', 'deepseek', 'glm', 'alicode', 'xai', 'mistral', 'kilo', 'kiro', 'iflow', 'qwen', 'gemini-cli', 'ollama'];
+    const common = (typeof globalThis !== 'undefined' && globalThis.__openclawCommon) || {};
+    const SUPPORTED_CODEX_MODELS = common.SUPPORTED_CODEX_MODELS || ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'];
+    const SMART_ROUTE_PROVIDER_MODELS = common.SMART_ROUTE_PROVIDER_MODELS || { codex: SUPPORTED_CODEX_MODELS };
+    const SMART_ROUTE_PROVIDER_ORDER = common.SMART_ROUTE_PROVIDER_ORDER || ['codex'];
 
     function encodeBase64Utf8(value) {
       if (typeof Buffer !== 'undefined') {
@@ -1858,7 +1930,7 @@
   setInterval(sync, INTERVAL);`;
     }
 
-    function build9RouterPatchScript() {
+  function build9RouterPatchScript() {
       return `const fs=require('fs');const path=require('path');const cp=require('child_process');
   const MODELS=${JSON.stringify(SUPPORTED_CODEX_MODELS.map((model) => model.replace('cx/', '')))};
   const MODEL_NAMES={"gpt-5.4":"GPT 5.4","gpt-5.4-mini":"GPT 5.4 Mini","gpt-5.3-codex":"GPT 5.3 Codex","gpt-5.2":"GPT 5.2"};
@@ -1888,11 +1960,35 @@
   add('/usr/lib/node_modules/9router');
   add(path.join(process.cwd(),'node_modules','9router'));
   function patchFile(filePath, transform){if(!fs.existsSync(filePath))return false;const before=fs.readFileSync(filePath,'utf8');const after=transform(before);if(!after||after===before)return false;fs.writeFileSync(filePath,after);return true;}
+  function patchText(text,replacers){let next=text;for(const replacer of replacers){next=replacer(next);}return next===text?null:next;}
   function patchProviderModels(root){return patchFile(path.join(root,'open-sse','config','providerModels.js'),(text)=>text.replace(/cx:\\s*\\[[\\s\\S]*?\\],/,()=>{const lines=MODELS.map((id)=>'    { id: "'+id+'", name: "'+(MODEL_NAMES[id]||id)+'" },');return 'cx: [  // OpenAI Codex\\n'+lines.join('\\n')+'\\n  ],';}));}
-  function patchCodexExecutor(root){return patchFile(path.join(root,'open-sse','executors','codex.js'),(text)=>{if(text.includes('delete body.max_output_tokens;'))return text;return text.replace('    delete body.max_tokens;\\n','    delete body.max_tokens;\\n    delete body.max_output_tokens;\\n');});}
+  function patchCodexLikeFile(filePath){return patchFile(filePath,(text)=>{if(text.includes('max_output_tokens'))return text;return patchText(text,[
+    (value)=>value.replace(/delete (\\w+)\\.max_tokens,delete \\1\\.user/g,'delete $1.max_tokens,delete $1.max_output_tokens,delete $1.user'),
+    (value)=>value.replace(/delete (\\w+)\\.max_tokens;(\\s*)delete \\1\\.user/g,'delete $1.max_tokens;$2delete $1.max_output_tokens;$2delete $1.user'),
+    (value)=>value.replace('    delete body.max_tokens;\\n','    delete body.max_tokens;\\n    delete body.max_output_tokens;\\n')
+  ]);});}
+  function patchCodexExecutor(root){let touched=0;touched+=patchCodexLikeFile(path.join(root,'open-sse','executors','codex.js'))?1:0;const chunksDir=path.join(root,'app','.next','server','chunks');if(fs.existsSync(chunksDir)){for(const entry of fs.readdirSync(chunksDir)){if(!entry.endsWith('.js'))continue;touched+=patchCodexLikeFile(path.join(chunksDir,entry))?1:0;}}return touched;}
+  function patchResponsesNullGuard(root){let touched=0;const chunksDir=path.join(root,'app','.next','server','chunks');if(!fs.existsSync(chunksDir))return touched;for(const entry of fs.readdirSync(chunksDir)){if(!entry.endsWith('.js'))continue;touched+=patchFile(path.join(chunksDir,entry),(text)=>patchText(text,[
+    (value)=>value.replace('let b=a.content.find(a=>"output_text"===a.type);','let b=a.content.find(a=>a&&"output_text"===a.type);'),
+    (value)=>value.replace('let c=a.content.find(a=>"string"==typeof a.text);','let c=a.content.find(a=>a&&"string"==typeof a.text);'),
+    (value)=>value.replace('let b=a.filter(a=>a?.type==="message");','let b=a.filter(a=>a&&a?.type==="message");'),
+    (value)=>value.replace('for(let a of j){let b=a.type||(a.role?"message":null);','for(let a of j){let b=a&&(a.type||(a.role?"message":null));'),
+    (value)=>value.replace('for(let a of b.messages||[]){if("system"===a.role){','for(let a of b.messages||[])if(a){if("system"===a.role){'),
+    (value)=>value.replace('let b=Array.isArray(a.content)?a.content.map(a=>"input_text"===a.type||"output_text"===a.type?{type:"text",text:a.text}:"input_image"===a.type?{type:"image_url",image_url:{url:a.image_url||a.file_id||"",detail:a.detail||"auto"}}:a):a.content;','let b=Array.isArray(a.content)?a.content.map(a=>a&&("input_text"===a.type||"output_text"===a.type)?{type:"text",text:a.text}:a&&"input_image"===a.type?{type:"image_url",image_url:{url:a.image_url||a.file_id||"",detail:a.detail||"auto"}}:a).filter(Boolean):a.content;'),
+    (value)=>value.replace('c="string"==typeof a.content?[{type:b,text:a.content}]:Array.isArray(a.content)?a.content.map(a=>{if("text"===a.type)return{type:b,text:a.text};if("image_url"===a.type)return{type:"input_image",image_url:"string"==typeof a.image_url?a.image_url:a.image_url?.url,detail:a.image_url?.detail||"auto"};if("input_image"===a.type)return a;let c=a.text||a.content||JSON.stringify(a);return{type:b,text:"string"==typeof c?c:JSON.stringify(c)}}):[];','c="string"==typeof a.content?[{type:b,text:a.content}]:Array.isArray(a.content)?a.content.map(a=>{if(!a)return null;if("text"===a.type)return{type:b,text:a.text};if("image_url"===a.type)return{type:"input_image",image_url:"string"==typeof a.image_url?a.image_url:a.image_url?.url,detail:a.image_url?.detail||"auto"};if("input_image"===a.type)return a;let c=a.text||a.content||JSON.stringify(a);return{type:b,text:"string"==typeof c?c:JSON.stringify(c)}}).filter(Boolean):[];'),
+    (value)=>value.replace('b.tools&&Array.isArray(b.tools)&&(e.tools=b.tools.map(a=>{if(a.function)return a;let b=a.name;return b&&"string"==typeof b&&""!==b.trim()?{type:"function",function:{name:b,description:String(a.description||""),parameters:i(a.parameters),strict:a.strict}}:null}).filter(Boolean))','b.tools&&Array.isArray(b.tools)&&(e.tools=b.tools.map(a=>{if(!a)return null;if(a.function)return a;let b=a.name;return b&&"string"==typeof b&&""!==b.trim()?{type:"function",function:{name:b,description:String(a.description||""),parameters:i(a.parameters),strict:a.strict}}:null}).filter(Boolean))'),
+    (value)=>value.replace('b.tools&&Array.isArray(b.tools)&&(e.tools=b.tools.map(a=>"function"===a.type?{type:"function",name:a.function.name,description:String(a.function.description||""),parameters:i(a.function.parameters),strict:a.function.strict}:a)),','b.tools&&Array.isArray(b.tools)&&(e.tools=b.tools.map(a=>a&&"function"===a.type?{type:"function",name:a.function.name,description:String(a.function.description||""),parameters:i(a.function.parameters),strict:a.function.strict}:a).filter(Boolean)),'),
+    (value)=>value.replace('filter(a=>"function_call"===a.type)','filter(a=>a&&"function_call"===a.type)'),
+    (value)=>value.replace(/filter\\(a=>"text"===a\\.type\\)/g,'filter(a=>a&&"text"===a.type)'),
+    (value)=>value.replace(/find\\(a=>"message_stop"===a\\.type\\)/g,'find(a=>a&&"message_stop"===a.type)'),
+    (value)=>value.replace(/find\\(a=>"content_block_delta"===a\\.type\\)/g,'find(a=>a&&"content_block_delta"===a.type)'),
+    (value)=>value.replace(/find\\(a=>"message_delta"===a\\.type\\)/g,'find(a=>a&&"message_delta"===a.type)'),
+    (value)=>value.replace(/find\\(a=>"message_start"===a\\.type\\)/g,'find(a=>a&&"message_start"===a.type)'),
+    (value)=>value.replace(/for\\(let e of a\\.content\\)(?!if\\(e\\))/g,'for(let e of a.content)if(e)')
+  ] ))?1:0;}return touched;}
   function patchSelfTest(root){return patchFile(path.join(root,'src','app','api','providers','[id]','test','testUtils.js'),(text)=>{if(text.includes('model: "gpt-5.2"')&&text.includes('store: false')&&text.includes('acceptStatuses: [200, 400]'))return text;return text.replace(/codex:\\s*\\{[\\s\\S]*?refreshable:\\s*true,\\s*\\},/,SELF_TEST_BLOCK);});}
   let touched=0;
-  for(const root of roots){if(!root||!fs.existsSync(root))continue;touched+=patchProviderModels(root)?1:0;touched+=patchCodexExecutor(root)?1:0;touched+=patchSelfTest(root)?1:0;}
+  for(const root of roots){if(!root||!fs.existsSync(root))continue;touched+=patchProviderModels(root)?1:0;touched+=patchCodexExecutor(root)?1:0;touched+=patchResponsesNullGuard(root)?1:0;touched+=patchSelfTest(root)?1:0;}
   if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}else{console.log('[patch-9router] No compatible 9router source files found to patch.');}`;
     }
 
@@ -2220,34 +2316,8 @@
    * Do NOT add import/export statements. Edit, then run: node build.mjs
    */
 
-  const SMART_ROUTE_PROVIDER_MODELS = {
-    codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'],
-    'claude-code': ['cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
-    github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro'],
-    cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gemini-3-flash-preview'],
-    kilo: ['kc/anthropic/claude-sonnet-4-20250514', 'kc/anthropic/claude-opus-4-20250514', 'kc/google/gemini-2.5-pro', 'kc/google/gemini-2.5-flash', 'kc/openai/gpt-4.1', 'kc/deepseek/deepseek-chat'],
-    cline: ['cl/anthropic/claude-sonnet-4.6', 'cl/anthropic/claude-opus-4.6', 'cl/openai/gpt-5.3-codex', 'cl/openai/gpt-5.4', 'cl/google/gemini-3.1-pro-preview'],
-    'gemini-cli': ['gc/gemini-3-flash-preview', 'gc/gemini-3-pro-preview'],
-    iflow: ['if/qwen3-coder-plus', 'if/kimi-k2', 'if/kimi-k2-thinking', 'if/glm-4.7', 'if/deepseek-r1', 'if/deepseek-v3.2', 'if/deepseek-v3', 'if/qwen3-max', 'if/qwen3-235b', 'if/iflow-rome-30ba3b'],
-    qwen: ['qw/qwen3-coder-plus', 'qw/qwen3-coder-flash', 'qw/vision-model', 'qw/coder-model'],
-    kiro: ['kr/claude-sonnet-4.5', 'kr/claude-haiku-4.5', 'kr/deepseek-3.2', 'kr/deepseek-3.1', 'kr/qwen3-coder-next'],
-    ollama: ['ollama/gemma4:e2b', 'ollama/gemma4:e4b', 'ollama/gemma4:26b', 'ollama/gemma4:31b', 'ollama/qwen3.5', 'ollama/kimi-k2.5', 'ollama/glm-5', 'ollama/glm-4.7-flash', 'ollama/minimax-m2.5', 'ollama/gpt-oss:120b'],
-    'kimi-coding': ['kmc/kimi-k2.5', 'kmc/kimi-k2.5-thinking', 'kmc/kimi-latest'],
-    glm: ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
-    'glm-cn': ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
-    minimax: ['minimax/MiniMax-M2.7', 'minimax/MiniMax-M2.5', 'minimax/MiniMax-M2.1'],
-    kimi: ['kimi/kimi-k2.5', 'kimi/kimi-k2.5-thinking', 'kimi/kimi-latest'],
-    deepseek: ['deepseek/deepseek-chat', 'deepseek/deepseek-reasoner'],
-    xai: ['xai/grok-4', 'xai/grok-4-fast-reasoning', 'xai/grok-code-fast-1'],
-    mistral: ['mistral/mistral-large-latest', 'mistral/codestral-latest'],
-    groq: ['groq/llama-3.3-70b-versatile', 'groq/openai/gpt-oss-120b'],
-    cerebras: ['cerebras/gpt-oss-120b'],
-    alicode: ['alicode/qwen3.5-plus', 'alicode/qwen3-coder-plus'],
-    openai: ['openai/gpt-4o', 'openai/gpt-4.1'],
-    anthropic: ['anthropic/claude-sonnet-4', 'anthropic/claude-haiku-3.5'],
-    gemini: ['gemini/gemini-2.5-flash', 'gemini/gemini-2.5-pro'],
-  };
-  const SMART_ROUTE_PROVIDER_ORDER = ['openai', 'anthropic', 'claude-code', 'codex', 'cursor', 'github', 'cline', 'kimi', 'minimax', 'deepseek', 'glm', 'alicode', 'xai', 'mistral', 'kilo', 'kiro', 'iflow', 'qwen', 'gemini-cli', 'ollama'];
+  const SMART_ROUTE_PROVIDER_MODELS = globalThis.__openclawCommon.SMART_ROUTE_PROVIDER_MODELS;
+  const SMART_ROUTE_PROVIDER_ORDER = globalThis.__openclawCommon.SMART_ROUTE_PROVIDER_ORDER;
 
   function buildNativeScriptCtx(options) {
     const relayPluginSpec = options?.relayPluginSpec || 'openclaw-telegram-multibot-relay';
@@ -2294,7 +2364,7 @@
   const path=require('path');
   const INTERVAL=30000;
   const p=path.join(process.env.DATA_DIR||'.9router','db.json');
-  const ROUTER='http://localhost:20128';
+  const ROUTER='${globalThis.__openclawCommon.NINE_ROUTER_API_BASE_URL}';
   const PM=${JSON.stringify(SMART_ROUTE_PROVIDER_MODELS)};
   const PREF=${JSON.stringify(SMART_ROUTE_PROVIDER_ORDER)};
   console.log('[sync-combo] 9Router sync loop started...');
@@ -2489,23 +2559,9 @@
           models: {
             mode: 'merge',
             providers: {
-              '9router': {
-                baseUrl: 'http://localhost:20128/v1',
-                apiKey: 'sk-no-key',
-                api: 'openai-responses',
-                models: [
-                  {
-                    id: 'smart-route',
-                    name: 'Smart Proxy (Auto Route)',
-                    contextWindow: 200000,
-                    maxTokens: 8192,
-                  },
-                  { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
-                  { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
-                  { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
-                  { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 }
-                ]
-              }
+              '9router': globalThis.__openclawCommon.build9RouterProviderConfig(
+                globalThis.__openclawCommon.get9RouterBaseUrl('native')
+              )
             }
           }
         } : {}),
@@ -2642,6 +2698,7 @@
         // Force use global provider if proxy mode is chosen globally, else use bot specific provider
         const botProvider = (provider && provider.isProxy) ? provider : (PROVIDERS[bot.provider] || provider);
         const actualModel = botProvider.isProxy ? provider.models[0].id : (bot.model || state.config.model);
+        const common = globalThis.__openclawCommon;
 
         const cfg = {
           meta: { lastTouchedVersion: '2026.3.24' },
@@ -2663,23 +2720,7 @@
             models: {
               mode: 'merge',
               providers: {
-                '9router': {
-                  baseUrl: state.deployMode === 'docker' ? 'http://9router:20128/v1' : 'http://localhost:20128/v1',
-                  apiKey: 'sk-no-key',
-                  api: 'openai-responses',
-                  models: [
-                    {
-                      id: 'smart-route',
-                      name: 'Smart Proxy (Auto Route)',
-                      contextWindow: 200000,
-                      maxTokens: 8192,
-                    },
-                    { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
-                    { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
-                    { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
-                    { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 }
-                  ]
-                }
+                '9router': common.build9RouterProviderConfig(common.get9RouterBaseUrl(state.deployMode))
               }
             }
           } : {}),
@@ -2700,17 +2741,7 @@
           commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
           channels: {},
           tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
-          gateway: {
-            port: basePort,
-            mode: 'local',
-            ...(state.deployMode === 'docker'
-              ? { bind: 'custom', customBindHost: '0.0.0.0' }
-              : { bind: 'loopback' }),
-            controlUi: {
-              allowedOrigins: getGatewayAllowedOrigins(basePort),
-            },
-            auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
-          },
+          gateway: common.buildGatewayConfig(basePort, state.deployMode, getGatewayAllowedOrigins(basePort)),
         };
 
         if (hasBrowser) {
@@ -2822,7 +2853,7 @@
           const authProviderName = botProvider.isProxy ? '9router' : (bot.provider || state.config.provider);
           const authProfileId = botProvider.isProxy ? '9router-proxy' : `${authProviderName}:default`;
           const authKeyValue = botProvider.isProxy
-            ? 'sk-no-key'
+            ? globalThis.__openclawCommon.NINE_ROUTER_PROXY_API_KEY
             : ((bot.apiKey || state.config.apiKey || '').trim() || `<your_${(botProvider.envKey || 'API_KEY').toLowerCase()}>`);
           authProfilesJson = {
             version: 1,
@@ -4890,6 +4921,7 @@
 
       const buildRelayPluginInstallCommand = globalThis.__openclawCommon.buildRelayPluginInstallCommand;
       const buildRelayPluginInstallCommandWin = globalThis.__openclawCommon.buildRelayPluginInstallCommandWin;
+      const common = globalThis.__openclawCommon;
       const lang = state.config.language || document.getElementById('cfg-language')?.value || 'vi';
 
       function buildTelegramPostInstallChecklist() {
@@ -5037,38 +5069,16 @@
         commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
         channels: ch.channelConfig,
         tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
-        gateway: {
-          port: 18791,
-          mode: 'local',
-          bind: 'loopback',
-          controlUi: {
-            allowedOrigins: getGatewayAllowedOrigins(18791),
-          },
-          auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
-        },
+        gateway: common.buildGatewayConfig(18791, 'native', getGatewayAllowedOrigins(18791)),
       };
 
       // 9Router: add proxy endpoint config under models.providers
       // Native mode: 9router runs on localhost; Docker mode: uses docker service hostname
       if (is9Router) {
-        const nineRouterBase = state.deployMode === 'native'
-          ? 'http://localhost:20128/v1'
-          : 'http://9router:20128/v1';
         clawConfig.models = {
           mode: 'merge',
           providers: {
-            '9router': {
-              baseUrl: nineRouterBase,
-              apiKey: 'sk-no-key',
-              api: 'openai-responses',
-              models: [
-                { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 },
-                { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
-                { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
-                { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
-                { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 }
-              ],
-            },
+            '9router': common.build9RouterProviderConfig(common.get9RouterBaseUrl(state.deployMode)),
           },
         };
       }

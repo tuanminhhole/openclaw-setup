@@ -60,6 +60,7 @@
       // Force use global provider if proxy mode is chosen globally, else use bot specific provider
       const botProvider = (provider && provider.isProxy) ? provider : (PROVIDERS[bot.provider] || provider);
       const actualModel = botProvider.isProxy ? provider.models[0].id : (bot.model || state.config.model);
+      const common = globalThis.__openclawCommon;
 
       const cfg = {
         meta: { lastTouchedVersion: '2026.3.24' },
@@ -81,23 +82,7 @@
           models: {
             mode: 'merge',
             providers: {
-              '9router': {
-                baseUrl: state.deployMode === 'docker' ? 'http://9router:20128/v1' : 'http://localhost:20128/v1',
-                apiKey: 'sk-no-key',
-                api: 'openai-responses',
-                models: [
-                  {
-                    id: 'smart-route',
-                    name: 'Smart Proxy (Auto Route)',
-                    contextWindow: 200000,
-                    maxTokens: 8192,
-                  },
-                  { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
-                  { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
-                  { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
-                  { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 }
-                ]
-              }
+              '9router': common.build9RouterProviderConfig(common.get9RouterBaseUrl(state.deployMode))
             }
           }
         } : {}),
@@ -118,17 +103,7 @@
         commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
         channels: {},
         tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
-        gateway: {
-          port: basePort,
-          mode: 'local',
-          ...(state.deployMode === 'docker'
-            ? { bind: 'custom', customBindHost: '0.0.0.0' }
-            : { bind: 'loopback' }),
-          controlUi: {
-            allowedOrigins: getGatewayAllowedOrigins(basePort),
-          },
-          auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
-        },
+        gateway: common.buildGatewayConfig(basePort, state.deployMode, getGatewayAllowedOrigins(basePort)),
       };
 
       if (hasBrowser) {
@@ -240,7 +215,7 @@
         const authProviderName = botProvider.isProxy ? '9router' : (bot.provider || state.config.provider);
         const authProfileId = botProvider.isProxy ? '9router-proxy' : `${authProviderName}:default`;
         const authKeyValue = botProvider.isProxy
-          ? 'sk-no-key'
+          ? globalThis.__openclawCommon.NINE_ROUTER_PROXY_API_KEY
           : ((bot.apiKey || state.config.apiKey || '').trim() || `<your_${(botProvider.envKey || 'API_KEY').toLowerCase()}>`);
         authProfilesJson = {
           version: 1,

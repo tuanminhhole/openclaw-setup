@@ -23,10 +23,16 @@ function loadSharedModule(modulePath, globalName) {
 const {
   OPENCLAW_NPM_SPEC,
   OPENCLAW_RUNTIME_PACKAGES,
+  NINE_ROUTER_PROXY_API_KEY,
+  NINE_ROUTER_API_BASE_URL,
+  SMART_ROUTE_PROVIDER_MODELS,
+  SMART_ROUTE_PROVIDER_ORDER,
   TELEGRAM_RELAY_PLUGIN_SPEC,
   TELEGRAM_SETUP_GUIDE_FILENAME,
   buildRelayPluginInstallCommand,
   buildTelegramPostInstallChecklist,
+  get9RouterBaseUrl,
+  build9RouterProviderConfig,
 } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 
 const {
@@ -196,54 +202,29 @@ function resolveNative9RouterDesktopLaunch() {
 
 function build9RouterSmartRouteSyncScript(dbPath) {
   const safeDbPath = JSON.stringify(dbPath);
+  const safeRouterBaseUrl = JSON.stringify(NINE_ROUTER_API_BASE_URL);
+  const safeModelPriority = JSON.stringify(SMART_ROUTE_PROVIDER_MODELS);
+  const safeProviderOrder = JSON.stringify(SMART_ROUTE_PROVIDER_ORDER);
   return `function bootstrap() {
   const fs = require('fs');
   const path = require('path');
   const dbPath = ${safeDbPath};
-  const ROUTER='http://localhost:20128';
-const NINE_ROUTER_OPENCLAW_MODELS = [
-  { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 },
-  { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
-  { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
-  { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
-  { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 },
-];
-
-const MODEL_PRIORITY = {
-    codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'],
-    'claude-code': ['cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
-    github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro'],
-    cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gemini-3-flash-preview'],
-    kilo: ['kc/anthropic/claude-sonnet-4-20250514', 'kc/anthropic/claude-opus-4-20250514', 'kc/google/gemini-2.5-pro', 'kc/google/gemini-2.5-flash', 'kc/openai/gpt-4.1', 'kc/deepseek/deepseek-chat'],
-    cline: ['cl/anthropic/claude-sonnet-4.6', 'cl/anthropic/claude-opus-4.6', 'cl/openai/gpt-5.3-codex', 'cl/openai/gpt-5.4', 'cl/google/gemini-3.1-pro-preview'],
-    'gemini-cli': ['gc/gemini-3-flash-preview', 'gc/gemini-3-pro-preview'],
-    iflow: ['if/qwen3-coder-plus', 'if/kimi-k2', 'if/kimi-k2-thinking', 'if/glm-4.7', 'if/deepseek-r1', 'if/deepseek-v3.2', 'if/deepseek-v3', 'if/qwen3-max', 'if/qwen3-235b', 'if/iflow-rome-30ba3b'],
-    qwen: ['qw/qwen3-coder-plus', 'qw/qwen3-coder-flash', 'qw/vision-model', 'qw/coder-model'],
-    kiro: ['kr/claude-sonnet-4.5', 'kr/claude-haiku-4.5', 'kr/deepseek-3.2', 'kr/deepseek-3.1', 'kr/qwen3-coder-next'],
-    ollama: ['ollama/gemma4:e2b', 'ollama/gemma4:e4b', 'ollama/gemma4:26b', 'ollama/gemma4:31b', 'ollama/qwen3.5', 'ollama/kimi-k2.5', 'ollama/glm-5', 'ollama/glm-4.7-flash', 'ollama/minimax-m2.5', 'ollama/gpt-oss:120b'],
-    'kimi-coding': ['kmc/kimi-k2.5', 'kmc/kimi-k2.5-thinking', 'kmc/kimi-latest'],
-    glm: ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
-    'glm-cn': ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
-    minimax: ['minimax/MiniMax-M2.7', 'minimax/MiniMax-M2.5', 'minimax/MiniMax-M2.1'],
-    kimi: ['kimi/kimi-k2.5', 'kimi/kimi-k2.5-thinking', 'kimi/kimi-latest'],
-    deepseek: ['deepseek/deepseek-chat', 'deepseek/deepseek-reasoner'],
-    xai: ['xai/grok-4', 'xai/grok-4-fast-reasoning', 'xai/grok-code-fast-1'],
-    mistral: ['mistral/mistral-large-latest', 'mistral/codestral-latest'],
-    groq: ['groq/llama-3.3-70b-versatile', 'groq/openai/gpt-oss-120b'],
-    cerebras: ['cerebras/gpt-oss-120b'],
-    alicode: ['alicode/qwen3.5-plus', 'alicode/qwen3-coder-plus'],
-    openai: ['openai/gpt-4o', 'openai/gpt-4.1'],
-    anthropic: ['anthropic/claude-sonnet-4', 'anthropic/claude-haiku-3.5'],
-    gemini: ['gemini/gemini-2.5-flash', 'gemini/gemini-2.5-pro'],
-  };
+  const ROUTER=${safeRouterBaseUrl};
+  const MODEL_PRIORITY=${safeModelPriority};
+  const PREF=${safeProviderOrder};
   const sync = async () => {
     try {
       const response = await fetch(ROUTER + '/api/providers');
       if (!response.ok) return;
       const payload = await response.json();
-      const a = (payload.connections || [])
+      const rawConnections = Array.isArray(payload.connections)
+        ? payload.connections
+        : Array.isArray(payload.providerConnections)
+          ? payload.providerConnections
+          : [];
+      const a = [...new Set(rawConnections
         .filter((item) => item && item.provider && item.isActive !== false && !item.disabled)
-        .map((item) => item.provider);
+        .map((item) => item.provider))];
       let db = {};
       try {
         db = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
@@ -262,6 +243,7 @@ const MODEL_PRIORITY = {
         removeSmartRoute();
         return;
       }
+      a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
       const m = a.flatMap((provider) => MODEL_PRIORITY[provider] || []);
       if (!m.length) {
         removeSmartRoute();
@@ -482,10 +464,10 @@ async function patchProject9RouterOpenClawConfig(projectDir) {
   const config = await fs.readJson(configPath);
   const provider = config?.models?.providers?.['9router'];
   if (!provider) return false;
-  provider.baseUrl = provider.baseUrl || (detectProjectDeployMode(projectDir) === 'docker' ? 'http://9router:20128/v1' : 'http://localhost:20128/v1');
-  provider.apiKey = 'sk-no-key';
-  provider.api = 'openai-responses';
-  provider.models = NINE_ROUTER_OPENCLAW_MODELS;
+  provider.baseUrl = get9RouterBaseUrl(detectProjectDeployMode(projectDir));
+  provider.apiKey = NINE_ROUTER_PROXY_API_KEY;
+  provider.api = 'openai-completions';
+  provider.models = build9RouterProviderConfig(provider.baseUrl).models;
   await fs.writeJson(configPath, config, { spaces: 2 });
   return true;
 }
@@ -498,7 +480,6 @@ async function patchProjectDocker9Router(projectDir) {
   await fs.ensureDir(dockerDir);
   await fs.writeFile(path.join(dockerDir, 'sync.js'), build9RouterSmartRouteSyncScript('/root/.9router/db.json'));
   await fs.writeFile(path.join(dockerDir, 'patch-9router.js'), build9RouterPatchScript());
-
   let compose = await fs.readFile(composePath, 'utf8');
   compose = compose.replace(
     /node -e "require\('fs'\)\.writeFileSync\('\/tmp\/sync\.js',Buffer\.from\('[^']*','base64'\)\.toString\(\)\)"/,
@@ -974,6 +955,7 @@ async function runUpgradeCommand() {
 
 function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
   const routerAppName = `${appName}-9router`;
+  const syncAppName = `${appName}-9router-sync`;
   const routerLaunch = resolveNative9RouterDesktopLaunch();
   const normalizedProjectDir = projectDir.replace(/\\/g, '/');
   const normalizedSyncScriptPath = syncScriptPath ? syncScriptPath.replace(/\\/g, '/') : '';
@@ -1003,7 +985,6 @@ function startNative9RouterPm2({ isVi, projectDir, appName, syncScriptPath }) {
     env: { ...process.env, ...routerLaunch.env }
   });
   if (syncScriptPath) {
-    const syncAppName = `${appName}-9router-sync`;
     try {
       execSync(`pm2 delete ${syncAppName}`, {
         cwd: projectDir,
@@ -2234,13 +2215,13 @@ async function main() {
   } else if (providerKey === '9router') {
     authProfilesJson = {
       version: 1,
-      profiles: {
-        '9router-proxy': {
-          provider: '9router',
-          type: 'api_key',
-          key: 'sk-no-key',
+        profiles: {
+          '9router-proxy': {
+            provider: '9router',
+            type: 'api_key',
+            key: NINE_ROUTER_PROXY_API_KEY,
+          },
         },
-      },
       order: { '9router': ['9router-proxy'] },
     };
   }
@@ -2316,12 +2297,7 @@ async function main() {
         models: {
           mode: 'merge',
           providers: {
-            '9router': {
-              baseUrl: deployMode === 'native' ? 'http://localhost:20128/v1' : 'http://9router:20128/v1',
-              apiKey: 'sk-no-key',
-              api: 'openai-responses',
-              models: NINE_ROUTER_OPENCLAW_MODELS,
-            },
+            '9router': build9RouterProviderConfig(get9RouterBaseUrl(deployMode)),
           },
         },
       } : provider.isLocal ? {
@@ -2520,12 +2496,7 @@ async function main() {
         models: {
           mode: 'merge',
           providers: {
-            '9router': {
-              baseUrl: deployMode === 'native' ? 'http://localhost:20128/v1' : 'http://9router:20128/v1',
-              apiKey: 'sk-no-key',
-              api: 'openai-responses',
-              models: NINE_ROUTER_OPENCLAW_MODELS
-            }
+            '9router': build9RouterProviderConfig(get9RouterBaseUrl(deployMode))
           }
         }
       } : provider.isLocal ? {
@@ -2621,7 +2592,7 @@ async function main() {
     }
 
     await fs.writeJson(path.join(loopBotDir, '.openclaw', 'openclaw.json'), botConfig, { spaces: 2 });
-    
+
     // ── Workspace files: use shared writeWorkspaceFiles() ──────────────────────
     const dockerWorkspaceDir = path.join(loopBotDir, '.openclaw', loopWorkspaceDir);
     const dockerOwnAliases = [loopBotName, bots[bIndex]?.slashCmd || '', `bot ${bIndex + 1}`].filter(Boolean);

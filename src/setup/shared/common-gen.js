@@ -3,6 +3,39 @@
   const OPENCLAW_NPM_SPEC = 'openclaw@2026.4.14';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
+  const NINE_ROUTER_PORT = 20128;
+  const NINE_ROUTER_PROXY_API_KEY = 'sk-no-key';
+  const NINE_ROUTER_API_BASE_URL = `http://localhost:${NINE_ROUTER_PORT}`;
+  const NINE_ROUTER_DOCKER_API_BASE_URL = `http://9router:${NINE_ROUTER_PORT}`;
+  const SUPPORTED_CODEX_MODELS = ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'];
+  const SMART_ROUTE_PROVIDER_MODELS = {
+    codex: SUPPORTED_CODEX_MODELS,
+    'claude-code': ['cc/claude-opus-4-7', 'cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
+    github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1-codex-mini', 'gh/gpt-5.1', 'gh/gpt-5-codex', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro', 'gh/grok-code-fast-1'],
+    cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.6-sonnet-medium-thinking', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-opus-high', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/claude-4.5-haiku', 'cu/claude-4.5-opus', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gpt-5.2', 'cu/kimi-k2.5', 'cu/gemini-3-flash-preview'],
+    kilo: ['kc/anthropic/claude-sonnet-4-20250514', 'kc/anthropic/claude-opus-4-20250514', 'kc/google/gemini-2.5-pro', 'kc/google/gemini-2.5-flash', 'kc/openai/gpt-4.1', 'kc/openai/o3', 'kc/deepseek/deepseek-chat', 'kc/deepseek/deepseek-reasoner'],
+    cline: ['cl/anthropic/claude-opus-4.7', 'cl/anthropic/claude-sonnet-4.6', 'cl/anthropic/claude-opus-4.6', 'cl/openai/gpt-5.4', 'cl/openai/gpt-5.3-codex', 'cl/google/gemini-3.1-pro-preview', 'cl/google/gemini-3.1-flash-lite-preview', 'cl/kwaipilot/kat-coder-pro'],
+    'gemini-cli': ['gc/gemini-3-flash-preview', 'gc/gemini-3-pro-preview'],
+    kiro: ['kr/claude-sonnet-4.5', 'kr/claude-haiku-4.5', 'kr/deepseek-3.2', 'kr/deepseek-3.1', 'kr/qwen3-coder-next', 'kr/glm-5', 'kr/MiniMax-M2.5'],
+    'kimi-coding': ['kmc/kimi-k2.5', 'kmc/kimi-k2.5-thinking', 'kmc/kimi-latest'],
+    openai: ['openai/gpt-5.4', 'openai/gpt-5.4-mini', 'openai/gpt-5.2', 'openai/gpt-5.1', 'openai/gpt-5', 'openai/gpt-4o', 'openai/gpt-4.1', 'openai/o3', 'openai/o4-mini'],
+    anthropic: ['anthropic/claude-sonnet-4-20250514', 'anthropic/claude-opus-4-20250514', 'anthropic/claude-3-5-sonnet-20241022'],
+    gemini: ['gemini/gemini-3.1-pro-preview', 'gemini/gemini-3-flash-preview', 'gemini/gemini-2.5-pro', 'gemini/gemini-2.5-flash', 'gemini/gemini-2.5-flash-lite'],
+    deepseek: ['deepseek/deepseek-chat', 'deepseek/deepseek-reasoner'],
+    xai: ['xai/grok-4', 'xai/grok-4-fast-reasoning', 'xai/grok-code-fast-1', 'xai/grok-3'],
+    mistral: ['mistral/mistral-large-latest', 'mistral/codestral-latest', 'mistral/mistral-medium-latest'],
+    iflow: ['if/qwen3-coder-plus', 'if/qwen3-max', 'if/qwen3-vl-plus', 'if/qwen3-max-preview', 'if/qwen3-235b', 'if/qwen3-32b', 'if/kimi-k2', 'if/deepseek-v3.2', 'if/deepseek-v3.1', 'if/deepseek-v3', 'if/deepseek-r1', 'if/glm-4.7', 'if/iflow-rome-30ba3b'],
+    qwen: ['qw/qwen3-coder-plus', 'qw/qwen3-coder-flash', 'qw/vision-model', 'qw/coder-model'],
+    alicode: ['alicode/qwen3.5-plus', 'alicode/kimi-k2.5', 'alicode/glm-5', 'alicode/qwen3-coder-next', 'alicode/qwen3-coder-plus', 'alicode/glm-4.7'],
+    groq: ['groq/llama-3.3-70b-versatile', 'groq/openai/gpt-oss-120b', 'groq/qwen/qwen3-32b'],
+    cerebras: ['cerebras/gpt-oss-120b', 'cerebras/zai-glm-4.7', 'cerebras/qwen-3-32b'],
+    glm: ['glm/glm-5.1', 'glm/glm-5', 'glm/glm-4.7'],
+    'glm-cn': ['glm-cn/glm-5.1', 'glm-cn/glm-5', 'glm-cn/glm-4.7', 'glm-cn/glm-4.6'],
+    minimax: ['minimax/MiniMax-M2.7', 'minimax/MiniMax-M2.5', 'minimax/MiniMax-M2.1'],
+    kimi: ['kimi/kimi-k2.5', 'kimi/kimi-k2.5-thinking', 'kimi/kimi-latest'],
+    ollama: ['ollama/qwen3.5', 'ollama/kimi-k2.5', 'ollama/glm-5', 'ollama/minimax-m2.5', 'ollama/glm-4.7-flash', 'ollama/gpt-oss:120b'],
+  };
+  const SMART_ROUTE_PROVIDER_ORDER = ['openai', 'anthropic', 'claude-code', 'codex', 'cursor', 'github', 'cline', 'kimi', 'minimax', 'deepseek', 'glm', 'alicode', 'xai', 'mistral', 'kilo', 'kiro', 'iflow', 'qwen', 'gemini-cli', 'gemini', 'ollama'];
   const TELEGRAM_RELAY_PLUGIN_SPEC = 'openclaw-telegram-multibot-relay';
   const TELEGRAM_RELAY_PLUGIN_ID = 'telegram-multibot-relay';
   const TELEGRAM_SETUP_GUIDE_FILENAME = 'TELEGRAM-GROUP-SETUP.md';
@@ -209,10 +242,60 @@ If setup reported a plugin install error, run this after the bot is running:
     return JSON.stringify(buildAuthProfilesJson(options), null, 2);
   }
 
+  function get9RouterBaseUrl(deployMode = 'native') {
+    return deployMode === 'docker' ? `${NINE_ROUTER_DOCKER_API_BASE_URL}/v1` : `${NINE_ROUTER_API_BASE_URL}/v1`;
+  }
+
+  function build9RouterProviderConfig(baseUrl = `${NINE_ROUTER_API_BASE_URL}/v1`) {
+    return {
+      baseUrl,
+      apiKey: NINE_ROUTER_PROXY_API_KEY,
+      api: 'openai-completions',
+      models: [
+        {
+          id: 'smart-route',
+          name: 'Smart Proxy (Auto Route)',
+          contextWindow: 200000,
+          maxTokens: 8192,
+        },
+        ...SUPPORTED_CODEX_MODELS.map((id) => ({
+          id,
+          name: `Codex ${id.slice(3).replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}`,
+          contextWindow: 200000,
+          maxTokens: 8192,
+        })),
+      ],
+    };
+  }
+
+  function buildGatewayConfig(port = 18791, deployMode = 'native', allowedOrigins = []) {
+    const normalizedPort = Number(port) || 18791;
+    const cfg = {
+      port: normalizedPort,
+      mode: 'local',
+      controlUi: { allowedOrigins },
+      auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
+    };
+    if (deployMode === 'docker') {
+      cfg.bind = 'custom';
+      cfg.customBindHost = '0.0.0.0';
+    } else {
+      cfg.bind = 'loopback';
+    }
+    return cfg;
+  }
+
   root.__openclawCommon = {
     OPENCLAW_NPM_SPEC,
     OPENCLAW_RUNTIME_PACKAGES,
     NINE_ROUTER_NPM_SPEC,
+    NINE_ROUTER_PORT,
+    NINE_ROUTER_PROXY_API_KEY,
+    NINE_ROUTER_API_BASE_URL,
+    NINE_ROUTER_DOCKER_API_BASE_URL,
+    SUPPORTED_CODEX_MODELS,
+    SMART_ROUTE_PROVIDER_MODELS,
+    SMART_ROUTE_PROVIDER_ORDER,
     TELEGRAM_RELAY_PLUGIN_SPEC,
     TELEGRAM_RELAY_PLUGIN_ID,
     TELEGRAM_SETUP_GUIDE_FILENAME,
@@ -221,6 +304,9 @@ If setup reported a plugin install error, run this after the bot is running:
     buildTelegramPostInstallChecklist,
     buildAuthProfilesJson,
     buildAuthProfilesString,
+    get9RouterBaseUrl,
+    build9RouterProviderConfig,
+    buildGatewayConfig,
   };
 
 })(typeof globalThis !== 'undefined' ? globalThis : {});

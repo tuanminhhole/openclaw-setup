@@ -24,6 +24,7 @@
 
     const buildRelayPluginInstallCommand = globalThis.__openclawCommon.buildRelayPluginInstallCommand;
     const buildRelayPluginInstallCommandWin = globalThis.__openclawCommon.buildRelayPluginInstallCommandWin;
+    const common = globalThis.__openclawCommon;
     const lang = state.config.language || document.getElementById('cfg-language')?.value || 'vi';
 
     function buildTelegramPostInstallChecklist() {
@@ -171,38 +172,16 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
       channels: ch.channelConfig,
       tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
-      gateway: {
-        port: 18791,
-        mode: 'local',
-        bind: 'loopback',
-        controlUi: {
-          allowedOrigins: getGatewayAllowedOrigins(18791),
-        },
-        auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
-      },
+      gateway: common.buildGatewayConfig(18791, 'native', getGatewayAllowedOrigins(18791)),
     };
 
     // 9Router: add proxy endpoint config under models.providers
     // Native mode: 9router runs on localhost; Docker mode: uses docker service hostname
     if (is9Router) {
-      const nineRouterBase = state.deployMode === 'native'
-        ? 'http://localhost:20128/v1'
-        : 'http://9router:20128/v1';
       clawConfig.models = {
         mode: 'merge',
         providers: {
-          '9router': {
-            baseUrl: nineRouterBase,
-            apiKey: 'sk-no-key',
-            api: 'openai-responses',
-            models: [
-              { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
-              { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 }
-            ],
-          },
+          '9router': common.build9RouterProviderConfig(common.get9RouterBaseUrl(state.deployMode)),
         },
       };
     }

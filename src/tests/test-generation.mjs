@@ -82,6 +82,7 @@ section('1. Export surfaces');
   ].forEach((name) => assert(`install-gen exports ${name}`, typeof install[name] === 'function'));
 
   assert('docker-gen exports buildDockerArtifacts', typeof docker.buildDockerArtifacts === 'function');
+  assert('docker-gen exports build9RouterPatchScript', typeof docker.build9RouterPatchScript === 'function');
   assert('common-gen exposes pinned OpenClaw spec', typeof common.OPENCLAW_NPM_SPEC === 'string' && common.OPENCLAW_NPM_SPEC.length > 0);
   assert('data exports providers and skills', !!data.PROVIDERS && Array.isArray(data.SKILLS));
 }
@@ -211,6 +212,7 @@ section('4. Install artifacts');
   assertIncludes('Chrome debug sh opens port 9222', chromeSh, '--remote-debugging-port=9222');
   assertIncludes('start-bot bat sets project-local OPENCLAW_HOME', startBat, 'OPENCLAW_HOME');
   assertIncludes('start-bot bat sets project-local DATA_DIR', startBat, 'DATA_DIR');
+  assertIncludes('start-bot bat suppresses patch output safely on Windows', startBat, '| Out-Null');
   assertIncludes('start-bot sh sets project-local OPENCLAW_HOME', startSh, 'export OPENCLAW_HOME="$PWD/.openclaw"');
   assertIncludes('start-bot sh loads .env', startSh, 'if [ -f ".env" ]; then set -a; . ./.env; set +a; fi');
   assertIncludes('vps start-bot sh uses PM2 for 9Router', startShVpsSingle, 'pm2 start "$NINE_ROUTER_BIN" --name "$APP_NAME-9router"');
@@ -280,6 +282,21 @@ section('5. Docker artifacts');
   assertIncludes('multi compose includes Ollama service for local provider', multi.compose, 'ollama-multibot');
   assertIncludes('multi Dockerfile also uses dedicated entrypoint script', multi.dockerfile, '/usr/local/bin/openclaw-entrypoint.sh');
   assertIncludes('relay plugin runtime install helper is idempotent', common.buildRelayPluginInstallCommand('openclaw'), 'extensions/telegram-multibot-relay');
+
+  const patchScript = docker.build9RouterPatchScript();
+  assertIncludes('9Router patch script strips max_output_tokens', patchScript, 'max_output_tokens');
+  assertIncludes('9Router patch script scans bundled Next.js chunks', patchScript, "app','.next','server','chunks");
+  assertIncludes('9Router patch script still supports legacy codex executor path', patchScript, "open-sse','executors','codex.js");
+  assertIncludes('9Router patch script guards null output items in bundled responses parser', patchScript, 'a=>a&&"output_text"===a.type');
+  assertIncludes('9Router patch script guards null OpenAI responses input items in bundled converters', patchScript, 'let b=a&&(a.type||(a.role?"message":null));');
+  assertIncludes('9Router patch script guards null message items in bundled converters', patchScript, 'for(let a of b.messages||[])if(a){if("system"===a.role){');
+  assertIncludes('9Router patch script guards null response content items in bundled converters', patchScript, 'a.content.map(a=>a&&("input_text"===a.type||"output_text"===a.type)');
+  assertIncludes('9Router patch script guards null request content items in bundled converters', patchScript, 'a.content.map(a=>{if(!a)return null;');
+  assertIncludes('9Router patch script guards null tool definitions in bundled converters', patchScript, 'b.tools.map(a=>{if(!a)return null;if(a.function)return a;');
+  assertIncludes('9Router patch script guards null OpenAI tool definitions on reverse conversion', patchScript, 'b.tools.map(a=>a&&"function"===a.type?');
+  assertIncludes('9Router patch script guards null function_call items in bundled responses parser', patchScript, 'a=>a&&"function_call"===a.type');
+  assertIncludes('9Router patch script guards null text items in bundled converters', patchScript, 'a=>a&&"text"===a.type');
+  assertIncludes('9Router patch script guards null Claude message_start items', patchScript, 'a=>a&&"message_start"===a.type');
 }
 
 section('6. Data and deprecated names');

@@ -1,5 +1,12 @@
 # Changelog (Tiếng Việt)
 
+## [5.6.10] — 2026-04-21
+
+### Hotfix: Ổn định Smart-Route 9Router
+
+- **Sửa: smart-route crash null** — Đổi API provider 9Router từ `openai-responses` về lại `openai-completions`. Khi `smart-route` route qua provider non-Codex (Gemini, Claude, v.v.), việc convert sang Responses format tạo ra null output items, gây crash `Cannot read properties of null (reading 'type')`. Format completions hoạt động ổn định với mọi provider.
+- **Sửa: thiếu sync smart-route trong script restart** — `start-bot.bat` và `start-bot.sh` không khởi động tiến trình `9router-smart-route-sync.js` khi restart. Điều này khiến provider được bật trong 9Router dashboard sau lần setup đầu (ví dụ Gemini) không được thêm vào combo `smart-route`. Sync script nay được chạy cùng 9Router mỗi lần restart.
+
 ## [5.6.9] - 2026-04-21
 
 ### Sửa lỗi: Tương thích Provider OpenAI Codex & Config Zalo Personal

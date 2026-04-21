@@ -1,5 +1,12 @@
 # Changelog (English)
 
+## [5.6.10] — 2026-04-21
+
+### Hotfix: 9Router Smart-Route Runtime Stability
+
+- **Fix: smart-route null crash** — Reverted 9Router provider API from `openai-responses` back to `openai-completions`. When `smart-route` routes through non-Codex providers (Gemini, Claude, etc.), the Responses format conversion produces null output items, causing `Cannot read properties of null (reading 'type')` crashes. The completions format is universally supported across all providers.
+- **Fix: smart-route sync missing from restart scripts** — The `start-bot.bat` and `start-bot.sh` restart scripts were not launching the `9router-smart-route-sync.js` background process. This meant that any provider enabled in the 9Router dashboard after initial setup (e.g., Gemini) would never be added to the `smart-route` combo. The sync script is now launched alongside 9Router on every restart.
+
 ## [5.6.9] - 2026-04-21
 
 ### Fix: OpenAI Codex Provider Compatibility & Zalo Personal Config

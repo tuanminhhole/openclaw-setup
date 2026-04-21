@@ -160,7 +160,7 @@ fi
     L.push('set "PATH=%APPDATA%\\npm;%PATH%"');
     L.push('powershell -NoProfile -Command "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force" >nul 2>&1');
     L.push('echo.');
-    L.push(isVi ? 'echo ====== OpenClaw — Khoi dong lai bot ======' : 'echo ====== OpenClaw — Restart Bot ======');
+    L.push(isVi ? 'echo ====== OpenClaw - Khoi dong lai bot ======' : 'echo ====== OpenClaw - Restart Bot ======');
     L.push('echo.');
     L.push(isVi ? 'echo [1] Dung process openclaw cu (neu co)...' : 'echo [1] Stopping existing openclaw process (if any)...');
     L.push('call openclaw gateway stop >nul 2>&1');
@@ -175,12 +175,19 @@ fi
       L.push("echo $b = Join-Path $env:APPDATA 'npm\\9router.cmd' >> \"%TEMP%\\oc-start9r.ps1\"");
       L.push("echo if ^(-not ^(Test-Path $b^)^) { $b = Join-Path $env:APPDATA 'npm\\9router' } >> \"%TEMP%\\oc-start9r.ps1\"");
       L.push(`echo $patch = Join-Path '${projectDir}' '.openclaw\\patch-9router.js' >> "%TEMP%\\oc-start9r.ps1"`);
-      L.push("echo if ^(Test-Path $patch^) { & node $patch *> $null } >> \"%TEMP%\\oc-start9r.ps1\"");
+      L.push("echo if ^(Test-Path $patch^) { ^& node $patch ^| Out-Null } >> \"%TEMP%\\oc-start9r.ps1\"");
       L.push(`echo Start-Process 'cmd.exe' -WindowStyle Hidden -WorkingDirectory '${projectDir}' -ArgumentList ^('/c "' + $b + '" -n -H 0.0.0.0 -p 20128 --skip-update'^) >> "%TEMP%\\oc-start9r.ps1"`);
       L.push('powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\\oc-start9r.ps1"');
       L.push('del "%TEMP%\\oc-start9r.ps1" >nul 2>&1');
       L.push('timeout /t 5 /nobreak >nul');
       L.push(isVi ? 'echo [OK] 9Router da khoi dong.' : 'echo [OK] 9Router started.');
+      L.push('');
+      L.push(isVi ? 'echo [2b] Khoi dong sync smart-route...' : 'echo [2b] Starting smart-route sync...');
+      L.push(`echo $env:DATA_DIR = '%DATA_DIR%' > "%TEMP%\\oc-syncsmart.ps1"`);
+      L.push(`echo $sync = Join-Path '${projectDir}' '.openclaw\\9router-smart-route-sync.js' >> "%TEMP%\\oc-syncsmart.ps1"`);
+      L.push(`echo if ^(Test-Path $sync^) { Start-Process 'node' -WindowStyle Hidden -ArgumentList $sync } >> "%TEMP%\\oc-syncsmart.ps1"`);
+      L.push('powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\\oc-syncsmart.ps1"');
+      L.push('del "%TEMP%\\oc-syncsmart.ps1" >nul 2>&1');
     }
     L.push('');
     L.push(isVi ? 'echo [3] Khoi dong OpenClaw Gateway...' : 'echo [3] Starting OpenClaw Gateway...');
@@ -247,7 +254,7 @@ fi
       L.push('  exit 1');
       L.push('fi');
       L.push('');
-      L.push(isVi ? 'echo "====== OpenClaw — Khoi dong lai bot qua PM2 ======"' : 'echo "====== OpenClaw — Restart Bot via PM2 ======"');
+      L.push(isVi ? 'echo "====== OpenClaw - Khoi dong lai bot qua PM2 ======"' : 'echo "====== OpenClaw - Restart Bot via PM2 ======"');
       L.push('echo ""');
       if (is9Router) {
         L.push(isVi ? 'echo "[1] Khoi dong lai 9Router qua PM2..."' : 'echo "[1] Restarting 9Router via PM2..."');
@@ -296,7 +303,7 @@ fi
     L.push('export DATA_DIR="$PWD/.9router"');
     L.push('if [ -f ".env" ]; then set -a; . ./.env; set +a; fi');
     L.push('');
-    L.push(isVi ? 'echo "====== OpenClaw — Khoi dong lai bot ======"' : 'echo "====== OpenClaw — Restart Bot ======"');
+    L.push(isVi ? 'echo "====== OpenClaw - Khoi dong lai bot ======"' : 'echo "====== OpenClaw - Restart Bot ======"');
     L.push('');
     L.push(isVi ? 'echo "[1] Dung openclaw gateway cu (neu co)..."' : 'echo "[1] Stopping existing openclaw gateway (if any)..."');
     L.push('openclaw gateway stop 2>/dev/null || true');
@@ -317,6 +324,11 @@ fi
       L.push(`nohup env PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$DATA_DIR" "$NINE_ROUTER_BIN" -n -H 0.0.0.0 -p 20128 --skip-update > "${logFile9r}" 2>&1 &`);
       L.push('sleep 3');
       L.push(isVi ? `echo "[OK] 9Router da khoi dong. Log: ${logFile9r}"` : `echo "[OK] 9Router started. Log: ${logFile9r}"`);
+      L.push('');
+      L.push(isVi ? 'echo "[2b] Khoi dong sync smart-route..."' : 'echo "[2b] Starting smart-route sync..."');
+      L.push('if [ -f "$PROJECT_DIR/.openclaw/9router-smart-route-sync.js" ]; then');
+      L.push('  nohup env DATA_DIR="$DATA_DIR" node "$PROJECT_DIR/.openclaw/9router-smart-route-sync.js" > /tmp/9router-sync.log 2>&1 &');
+      L.push('fi');
     }
     L.push('');
     L.push(isVi ? 'echo "[3] Khoi dong OpenClaw Gateway..."' : 'echo "[3] Starting OpenClaw Gateway..."');
