@@ -2456,6 +2456,7 @@ async function main() {
     const loopBotName = isMultiBot ? (bots[bIndex]?.name || `Bot ${bIndex+1}`) : botName;
     const loopBotDesc = isMultiBot ? (bots[bIndex]?.desc || '') : botDesc;
     const loopBotPersona = isMultiBot ? (bots[bIndex]?.persona || '') : botPersona;
+    const loopBotToken = isMultiBot ? (bots[bIndex]?.token || '') : botToken;
     const teamRoster = bots.slice(0, numBotsToConfigure).map((peer, idx) => ({
       idx,
       name: peer?.name || `Bot ${idx + 1}`,

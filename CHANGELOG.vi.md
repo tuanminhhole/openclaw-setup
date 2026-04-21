@@ -1,5 +1,11 @@
 # Changelog (Tiếng Việt)
 
+## [5.6.11] — 2026-04-21
+
+### Hotfix: Sửa lỗi CLI crash khi setup Telegram 1 bot
+
+- **Sửa: `loopBotToken is not defined`** — Luồng setup Telegram 1 bot thiếu khai báo biến `loopBotToken`, gây `ReferenceError` ngay sau khi tạo cấu hình. Đã bổ sung biến bị thiếu cùng với `loopBotName`, `loopBotDesc`, và `loopBotPersona`.
+
 ## [5.6.10] — 2026-04-21
 
 ### Hotfix: Ổn định Smart-Route 9Router

@@ -1,5 +1,11 @@
 # Changelog (English)
 
+## [5.6.11] — 2026-04-21
+
+### Hotfix: Fix CLI crash on single-bot Telegram setup
+
+- **Fix: `loopBotToken is not defined`** — The single-bot Telegram setup path was missing the `loopBotToken` variable declaration, causing `ReferenceError` immediately after config generation. Added the missing variable alongside `loopBotName`, `loopBotDesc`, and `loopBotPersona`.
+
 ## [5.6.10] — 2026-04-21
 
 ### Hotfix: 9Router Smart-Route Runtime Stability
