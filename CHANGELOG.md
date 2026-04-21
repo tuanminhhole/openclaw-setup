@@ -1,5 +1,11 @@
 # Changelog (English)
 
+## [5.6.12] — 2026-04-22
+
+### Hotfix: PM2 gateway process missing OPENCLAW_HOME environment
+
+- **Fix: PM2 env forwarding** — VPS/Ubuntu PM2 gateway processes were silently failing because `OPENCLAW_HOME` and `OPENCLAW_STATE_DIR` were not forwarded to the child process. All PM2 gateway start commands (`vps-sh.js`, `install-gen.js` restart script) now use `sh -c "export OPENCLAW_HOME=... && openclaw gateway run"` to ensure the environment is correctly inherited.
+
 ## [5.6.11] — 2026-04-21
 
 ### Hotfix: Fix CLI crash on single-bot Telegram setup

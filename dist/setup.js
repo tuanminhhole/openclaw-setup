@@ -1586,7 +1586,7 @@
         } else {
           L.push(isVi ? 'echo "[2] Khoi dong lai OpenClaw gateway qua PM2..."' : 'echo "[2] Restarting OpenClaw gateway via PM2..."');
           L.push('pm2 delete "$APP_NAME" >/dev/null 2>&1 || true');
-          L.push('pm2 start openclaw --name "$APP_NAME" --cwd "$PROJECT_DIR" -- gateway run');
+          L.push('OPENCLAW_HOME="$PROJECT_DIR/.openclaw" OPENCLAW_STATE_DIR="$PROJECT_DIR/.openclaw" pm2 start --name "$APP_NAME" --cwd "$PROJECT_DIR" -- sh -c "export OPENCLAW_HOME=$PROJECT_DIR/.openclaw OPENCLAW_STATE_DIR=$PROJECT_DIR/.openclaw && openclaw gateway run"');
         }
         L.push('pm2 save >/dev/null 2>&1 || true');
         L.push('echo ""');
@@ -3654,7 +3654,7 @@
         vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$NINE_ROUTER_ENTRY" --name openclaw-multibot-9router --interpreter "$(command -v node)"');
         vps.push('pm2 start --name openclaw-multibot-9router-sync -- sh -c "node ./.9router/9router-smart-route-sync.js"');
       }
-      vps.push('pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"');
+      vps.push('OPENCLAW_HOME="$OPENCLAW_HOME" OPENCLAW_STATE_DIR="$OPENCLAW_STATE_DIR" pm2 start --name openclaw-multibot -- sh -c "export OPENCLAW_HOME=$OPENCLAW_HOME OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR && openclaw gateway run"');
       vps.push('pm2 save && pm2 startup');
       vps.push(`echo ""`);
       vps.push(`echo "=== ✅ Shared multi-bot gateway running via PM2 ==="`);
@@ -3670,7 +3670,7 @@
         vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "$(command -v node)"');
         vps.push('pm2 start --name openclaw-9router-sync -- sh -c "node ./.9router/9router-smart-route-sync.js"');
       }
-      vps.push('pm2 start --name openclaw -- sh -c "openclaw gateway run"');
+      vps.push('OPENCLAW_HOME="$OPENCLAW_HOME" OPENCLAW_STATE_DIR="$OPENCLAW_STATE_DIR" pm2 start --name openclaw -- sh -c "export OPENCLAW_HOME=$OPENCLAW_HOME OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR && openclaw gateway run"');
       vps.push('pm2 save && pm2 startup');
       vps.push('echo "Bot dang chay! Xem log: pm2 logs openclaw"');
     }

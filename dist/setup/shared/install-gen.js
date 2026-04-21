@@ -283,7 +283,7 @@ fi
       } else {
         L.push(isVi ? 'echo "[2] Khoi dong lai OpenClaw gateway qua PM2..."' : 'echo "[2] Restarting OpenClaw gateway via PM2..."');
         L.push('pm2 delete "$APP_NAME" >/dev/null 2>&1 || true');
-        L.push('pm2 start openclaw --name "$APP_NAME" --cwd "$PROJECT_DIR" -- gateway run');
+        L.push('OPENCLAW_HOME="$PROJECT_DIR/.openclaw" OPENCLAW_STATE_DIR="$PROJECT_DIR/.openclaw" pm2 start --name "$APP_NAME" --cwd "$PROJECT_DIR" -- sh -c "export OPENCLAW_HOME=$PROJECT_DIR/.openclaw OPENCLAW_STATE_DIR=$PROJECT_DIR/.openclaw && openclaw gateway run"');
       }
       L.push('pm2 save >/dev/null 2>&1 || true');
       L.push('echo ""');

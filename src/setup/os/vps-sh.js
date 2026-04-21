@@ -49,7 +49,7 @@ function generateVpsSh(ctx) {
       vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$NINE_ROUTER_ENTRY" --name openclaw-multibot-9router --interpreter "$(command -v node)"');
       vps.push('pm2 start --name openclaw-multibot-9router-sync -- sh -c "node ./.9router/9router-smart-route-sync.js"');
     }
-    vps.push('pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"');
+    vps.push('OPENCLAW_HOME="$OPENCLAW_HOME" OPENCLAW_STATE_DIR="$OPENCLAW_STATE_DIR" pm2 start --name openclaw-multibot -- sh -c "export OPENCLAW_HOME=$OPENCLAW_HOME OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR && openclaw gateway run"');
     vps.push('pm2 save && pm2 startup');
     vps.push(`echo ""`);
     vps.push(`echo "=== ✅ Shared multi-bot gateway running via PM2 ==="`);
@@ -65,7 +65,7 @@ function generateVpsSh(ctx) {
       vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "$(command -v node)"');
       vps.push('pm2 start --name openclaw-9router-sync -- sh -c "node ./.9router/9router-smart-route-sync.js"');
     }
-    vps.push('pm2 start --name openclaw -- sh -c "openclaw gateway run"');
+    vps.push('OPENCLAW_HOME="$OPENCLAW_HOME" OPENCLAW_STATE_DIR="$OPENCLAW_STATE_DIR" pm2 start --name openclaw -- sh -c "export OPENCLAW_HOME=$OPENCLAW_HOME OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR && openclaw gateway run"');
     vps.push('pm2 save && pm2 startup');
     vps.push('echo "Bot dang chay! Xem log: pm2 logs openclaw"');
   }

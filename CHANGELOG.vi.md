@@ -1,5 +1,11 @@
 # Changelog (Tiếng Việt)
 
+## [5.6.12] — 2026-04-22
+
+### Hotfix: PM2 gateway process thiếu biến môi trường OPENCLAW_HOME
+
+- **Sửa: PM2 env forwarding** — Process gateway PM2 trên VPS/Ubuntu bị fail im lặng do `OPENCLAW_HOME` và `OPENCLAW_STATE_DIR` không được chuyển tiếp đến child process. Tất cả lệnh PM2 khởi động gateway (`vps-sh.js`, script restart `install-gen.js`) giờ dùng `sh -c "export OPENCLAW_HOME=... && openclaw gateway run"` để đảm bảo môi trường được kế thừa đúng.
+
 ## [5.6.11] — 2026-04-21
 
 ### Hotfix: Sửa lỗi CLI crash khi setup Telegram 1 bot

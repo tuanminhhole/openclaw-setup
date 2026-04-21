@@ -611,13 +611,13 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-multibot-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw-multibot -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw-multibot/s,
+  /NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-multibot-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw-multibot -- sh -c "export OPENCLAW_HOME=\$OPENCLAW_HOME OPENCLAW_STATE_DIR=\$OPENCLAW_STATE_DIR && openclaw gateway run"[\s\S]*pm2 logs openclaw-multibot/s,
   'VPS multi-bot native script must start the shared gateway via PM2'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw -- sh -c "openclaw gateway run"[\s\S]*pm2 logs openclaw/s,
+  /NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw -- sh -c "export OPENCLAW_HOME=\$OPENCLAW_HOME OPENCLAW_STATE_DIR=\$OPENCLAW_STATE_DIR && openclaw gateway run"[\s\S]*pm2 logs openclaw/s,
   'VPS single-bot native script must start one bot via PM2'
 ));
 
