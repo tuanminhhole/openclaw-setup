@@ -6,7 +6,7 @@
  */
 
 const SMART_ROUTE_PROVIDER_MODELS = {
-  codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.3-codex-high', 'cx/gpt-5.2-codex', 'cx/gpt-5.2', 'cx/gpt-5.1-codex-max', 'cx/gpt-5.1-codex', 'cx/gpt-5.1', 'cx/gpt-5-codex'],
+  codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'],
   'claude-code': ['cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
   github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro'],
   cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gemini-3-flash-preview'],
@@ -277,14 +277,18 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
             '9router': {
               baseUrl: 'http://localhost:20128/v1',
               apiKey: 'sk-no-key',
-              api: 'openai-completions',
+              api: 'openai-responses',
               models: [
                 {
                   id: 'smart-route',
                   name: 'Smart Proxy (Auto Route)',
                   contextWindow: 200000,
                   maxTokens: 8192,
-                }
+                },
+                { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
+                { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
+                { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
+                { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 }
               ]
             }
           }

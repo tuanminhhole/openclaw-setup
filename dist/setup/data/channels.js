@@ -65,15 +65,26 @@
       channelConfig: {
         zalouser: {
           enabled: true,
+          defaultAccount: 'default',
           accounts: {
             default: {
               dmPolicy: 'open',
               allowFrom: ['*'],
               groupPolicy: 'allowlist',
+              groupAllowFrom: ['*'],
             },
           },
           dmPolicy: 'open',
+          allowFrom: ['*'],
           groupPolicy: 'allowlist',
+          groupAllowFrom: ['*'],
+          historyLimit: 50,
+          groups: {
+            '*': {
+              enabled: true,
+              requireMention: false,
+            },
+          },
         },
       },
       pluginInstall: '@openclaw/zalouser',
@@ -161,4 +172,3 @@
 - ❌ DO NOT run containers with --privileged
 - ✅ Limit exposed ports (only 38789)`,
   };
-

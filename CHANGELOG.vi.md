@@ -1,5 +1,15 @@
 # Changelog (Tiếng Việt)
 
+## [5.6.9] - 2026-04-21
+
+### Sửa lỗi: Tương thích Provider OpenAI Codex & Config Zalo Personal
+
+- **Sửa: Danh sách model Codex** — Cập nhật registry model Codex cho phù hợp với API hiện tại của OpenAI. Loại bỏ các model đã bị dừng (`gpt-5.3-codex-high`, `gpt-5.2-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex`, `gpt-5.1`, `gpt-5-codex`), giữ lại 4 model đang hoạt động: `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.4-mini`.
+- **Sửa: Chế độ API 9Router** — Chuyển config provider 9Router từ `openai-completions` sang `openai-responses` cho khớp với Responses API mới của OpenAI.
+- **Mới: Script tự động patch 9Router** — Thêm `patch-9router.js` tự động vá source files 9Router (providerModels, codex executor, self-test) để tương thích với thay đổi API Codex. Patch chạy tự động khi setup, upgrade và trước mỗi lần khởi động 9Router.
+- **Sửa: Hiển thị model Codex** — Config 9Router nay hiển thị từng model Codex riêng (`cx/gpt-5.4`, `cx/gpt-5.3-codex`, `cx/gpt-5.2`, `cx/gpt-5.4-mini`) bên cạnh `smart-route` để người dùng có thể chọn model cụ thể.
+- **Cải thiện: Config kênh Zalo Personal** — Bổ sung `defaultAccount`, `groupAllowFrom`, `historyLimit`, config wildcard cho groups và `autoReply` vào cấu hình Zalo Personal được generate, giúp xử lý nhóm tốt hơn ngay từ đầu.
+
 ## [5.6.8] - 2026-04-17
 
 ### Sửa lỗi: 9Router Sync & Config Ubuntu Native

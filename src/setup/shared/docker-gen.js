@@ -1,7 +1,9 @@
 // @ts-nocheck
 (function (root) {
+  const SUPPORTED_CODEX_MODELS = ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'];
+
   const SMART_ROUTE_PROVIDER_MODELS = {
-    codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.3-codex-high', 'cx/gpt-5.2-codex', 'cx/gpt-5.2', 'cx/gpt-5.1-codex-max', 'cx/gpt-5.1-codex', 'cx/gpt-5.1', 'cx/gpt-5-codex'],
+    codex: SUPPORTED_CODEX_MODELS,
     'claude-code': ['cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
     github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro'],
     cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gemini-3-flash-preview'],
@@ -87,11 +89,51 @@ setTimeout(sync, 5000);
 setInterval(sync, INTERVAL);`;
   }
 
-  function build9RouterComposeEntrypointScript(syncScriptBase64) {
+  function build9RouterPatchScript() {
+    return `const fs=require('fs');const path=require('path');const cp=require('child_process');
+const MODELS=${JSON.stringify(SUPPORTED_CODEX_MODELS.map((model) => model.replace('cx/', '')))};
+const MODEL_NAMES={"gpt-5.4":"GPT 5.4","gpt-5.4-mini":"GPT 5.4 Mini","gpt-5.3-codex":"GPT 5.3 Codex","gpt-5.2":"GPT 5.2"};
+const SELF_TEST_BLOCK=[
+'codex: {',
+'    url: "https://chatgpt.com/backend-api/codex/responses",',
+'    method: "POST",',
+'    authHeader: "Authorization",',
+'    authPrefix: "Bearer ",',
+'    extraHeaders: { "Content-Type": "application/json", "originator": "codex-cli", "User-Agent": "codex-cli/1.0.18 (macOS; arm64)" },',
+'    body: JSON.stringify({',
+'      model: "gpt-5.2",',
+'      instructions: "You are a coding assistant.",',
+'      input: [{ role: "user", content: [{ type: "input_text", text: "Reply with exactly: ok" }] }],',
+'      stream: true,',
+'      store: false,',
+'    }),',
+'    acceptStatuses: [200, 400],',
+'    refreshable: true,',
+'  },'
+].join('\\n');
+const roots=new Set();
+function add(p){if(p)roots.add(p);}
+try{const npmRoot=cp.execSync('npm root -g',{stdio:['ignore','pipe','ignore'],encoding:'utf8'}).trim();if(npmRoot)add(path.join(npmRoot,'9router'));}catch{}
+add(path.join(process.env.APPDATA||'','npm','node_modules','9router'));
+add('/usr/local/lib/node_modules/9router');
+add('/usr/lib/node_modules/9router');
+add(path.join(process.cwd(),'node_modules','9router'));
+function patchFile(filePath, transform){if(!fs.existsSync(filePath))return false;const before=fs.readFileSync(filePath,'utf8');const after=transform(before);if(!after||after===before)return false;fs.writeFileSync(filePath,after);return true;}
+function patchProviderModels(root){return patchFile(path.join(root,'open-sse','config','providerModels.js'),(text)=>text.replace(/cx:\\s*\\[[\\s\\S]*?\\],/,()=>{const lines=MODELS.map((id)=>'    { id: "'+id+'", name: "'+(MODEL_NAMES[id]||id)+'" },');return 'cx: [  // OpenAI Codex\\n'+lines.join('\\n')+'\\n  ],';}));}
+function patchCodexExecutor(root){return patchFile(path.join(root,'open-sse','executors','codex.js'),(text)=>{if(text.includes('delete body.max_output_tokens;'))return text;return text.replace('    delete body.max_tokens;\\n','    delete body.max_tokens;\\n    delete body.max_output_tokens;\\n');});}
+function patchSelfTest(root){return patchFile(path.join(root,'src','app','api','providers','[id]','test','testUtils.js'),(text)=>{if(text.includes('model: "gpt-5.2"')&&text.includes('store: false')&&text.includes('acceptStatuses: [200, 400]'))return text;return text.replace(/codex:\\s*\\{[\\s\\S]*?refreshable:\\s*true,\\s*\\},/,SELF_TEST_BLOCK);});}
+let touched=0;
+for(const root of roots){if(!root||!fs.existsSync(root))continue;touched+=patchProviderModels(root)?1:0;touched+=patchCodexExecutor(root)?1:0;touched+=patchSelfTest(root)?1:0;}
+if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}else{console.log('[patch-9router] No compatible 9router source files found to patch.');}`;
+  }
+
+  function build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64) {
       const nineRouterSpec = (typeof globalThis !== 'undefined' && globalThis.__openclawCommon && globalThis.__openclawCommon.NINE_ROUTER_NPM_SPEC) || '9router@latest';
       return [
       `npm install -g ${nineRouterSpec}`,
+      `node -e "require('fs').writeFileSync('/tmp/patch-9router.js',Buffer.from('${patchScriptBase64}','base64').toString())"`,
       `node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('${syncScriptBase64}','base64').toString())"`,
+      'node /tmp/patch-9router.js || true',
       'node /tmp/sync.js > /tmp/sync.log 2>&1 &',
       'exec 9router -n -l -H 0.0.0.0 -p 20128 --skip-update'
     ].join('\n');
@@ -179,7 +221,9 @@ CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
 
     const syncScript = build9RouterSmartRouteSyncScript('/root/.9router/db.json');
     const syncScriptBase64 = encodeBase64Utf8(syncScript);
-    const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64);
+    const patchScript = build9RouterPatchScript();
+    const patchScriptBase64 = encodeBase64Utf8(patchScript);
+    const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
     const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n';
@@ -388,6 +432,7 @@ ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    
     encodeBase64Utf8,
     indentBlock,
     build9RouterSmartRouteSyncScript,
+    build9RouterPatchScript,
     build9RouterComposeEntrypointScript,
     buildGatewayPatchCmd,
     buildDockerArtifacts,

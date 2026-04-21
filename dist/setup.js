@@ -280,15 +280,26 @@
         channelConfig: {
           zalouser: {
             enabled: true,
+            defaultAccount: 'default',
             accounts: {
               default: {
                 dmPolicy: 'open',
                 allowFrom: ['*'],
                 groupPolicy: 'allowlist',
+                groupAllowFrom: ['*'],
               },
             },
             dmPolicy: 'open',
+            allowFrom: ['*'],
             groupPolicy: 'allowlist',
+            groupAllowFrom: ['*'],
+            historyLimit: 50,
+            groups: {
+              '*': {
+                enabled: true,
+                requireMention: false,
+              },
+            },
           },
         },
         pluginInstall: '@openclaw/zalouser',
@@ -376,7 +387,6 @@
   - ❌ DO NOT run containers with --privileged
   - ✅ Limit exposed ports (only 38789)`,
     };
-
 
   // â”€â”€ PLUGINS list (setup/data/plugins.js) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // @ts-nocheck
@@ -1381,6 +1391,8 @@
         L.push("echo $env:DATA_DIR = '%DATA_DIR%' > \"%TEMP%\\oc-start9r.ps1\"");
         L.push("echo $b = Join-Path $env:APPDATA 'npm\\9router.cmd' >> \"%TEMP%\\oc-start9r.ps1\"");
         L.push("echo if ^(-not ^(Test-Path $b^)^) { $b = Join-Path $env:APPDATA 'npm\\9router' } >> \"%TEMP%\\oc-start9r.ps1\"");
+        L.push(`echo $patch = Join-Path '${projectDir}' '.openclaw\\patch-9router.js' >> "%TEMP%\\oc-start9r.ps1"`);
+        L.push("echo if ^(Test-Path $patch^) { & node $patch *> $null } >> \"%TEMP%\\oc-start9r.ps1\"");
         L.push(`echo Start-Process 'cmd.exe' -WindowStyle Hidden -WorkingDirectory '${projectDir}' -ArgumentList ^('/c "' + $b + '" -n -H 0.0.0.0 -p 20128 --skip-update'^) >> "%TEMP%\\oc-start9r.ps1"`);
         L.push('powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\\oc-start9r.ps1"');
         L.push('del "%TEMP%\\oc-start9r.ps1" >nul 2>&1');
@@ -1463,6 +1475,9 @@
           L.push('  exit 1');
           L.push('fi');
           L.push('pm2 delete "$APP_NAME-9router" "$APP_NAME-9router-sync" >/dev/null 2>&1 || true');
+          L.push('if [ -f "$PROJECT_DIR/.openclaw/patch-9router.js" ]; then');
+          L.push('  "$NODE_BIN" "$PROJECT_DIR/.openclaw/patch-9router.js" >/dev/null 2>&1 || true');
+          L.push('fi');
           L.push('PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$DATA_DIR" pm2 start "$NINE_ROUTER_BIN" --name "$APP_NAME-9router" --interpreter "$NODE_BIN" -- -n -H 0.0.0.0 -p 20128 --skip-update');
           L.push('if [ -f "$PROJECT_DIR/.openclaw/9router-smart-route-sync.js" ]; then');
           L.push('  pm2 start "$NODE_BIN" --name "$APP_NAME-9router-sync" -- "$PROJECT_DIR/.openclaw/9router-smart-route-sync.js"');
@@ -1512,6 +1527,9 @@
         L.push('if [ -z "$NINE_ROUTER_BIN" ]; then');
         L.push(isVi ? '  echo "ERROR: Khong tim thay 9router! Chay: npm install -g 9router"' : '  echo "ERROR: 9router not found! Run: npm install -g 9router"');
         L.push('  exit 1');
+        L.push('fi');
+        L.push('if [ -f "$PROJECT_DIR/.openclaw/patch-9router.js" ]; then');
+        L.push('  node "$PROJECT_DIR/.openclaw/patch-9router.js" >/dev/null 2>&1 || true');
         L.push('fi');
         L.push(`nohup env PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$DATA_DIR" "$NINE_ROUTER_BIN" -n -H 0.0.0.0 -p 20128 --skip-update > "${logFile9r}" 2>&1 &`);
         L.push('sleep 3');
@@ -1751,8 +1769,10 @@
   // â”€â”€ Shared Docker artifact helpers for wizard + CLI (setup/shared/docker-gen.js) 
   // @ts-nocheck
   (function (root) {
+    const SUPPORTED_CODEX_MODELS = ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'];
+
     const SMART_ROUTE_PROVIDER_MODELS = {
-      codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.3-codex-high', 'cx/gpt-5.2-codex', 'cx/gpt-5.2', 'cx/gpt-5.1-codex-max', 'cx/gpt-5.1-codex', 'cx/gpt-5.1', 'cx/gpt-5-codex'],
+      codex: SUPPORTED_CODEX_MODELS,
       'claude-code': ['cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
       github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro'],
       cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gemini-3-flash-preview'],
@@ -1838,11 +1858,51 @@
   setInterval(sync, INTERVAL);`;
     }
 
-    function build9RouterComposeEntrypointScript(syncScriptBase64) {
+    function build9RouterPatchScript() {
+      return `const fs=require('fs');const path=require('path');const cp=require('child_process');
+  const MODELS=${JSON.stringify(SUPPORTED_CODEX_MODELS.map((model) => model.replace('cx/', '')))};
+  const MODEL_NAMES={"gpt-5.4":"GPT 5.4","gpt-5.4-mini":"GPT 5.4 Mini","gpt-5.3-codex":"GPT 5.3 Codex","gpt-5.2":"GPT 5.2"};
+  const SELF_TEST_BLOCK=[
+  'codex: {',
+  '    url: "https://chatgpt.com/backend-api/codex/responses",',
+  '    method: "POST",',
+  '    authHeader: "Authorization",',
+  '    authPrefix: "Bearer ",',
+  '    extraHeaders: { "Content-Type": "application/json", "originator": "codex-cli", "User-Agent": "codex-cli/1.0.18 (macOS; arm64)" },',
+  '    body: JSON.stringify({',
+  '      model: "gpt-5.2",',
+  '      instructions: "You are a coding assistant.",',
+  '      input: [{ role: "user", content: [{ type: "input_text", text: "Reply with exactly: ok" }] }],',
+  '      stream: true,',
+  '      store: false,',
+  '    }),',
+  '    acceptStatuses: [200, 400],',
+  '    refreshable: true,',
+  '  },'
+  ].join('\\n');
+  const roots=new Set();
+  function add(p){if(p)roots.add(p);}
+  try{const npmRoot=cp.execSync('npm root -g',{stdio:['ignore','pipe','ignore'],encoding:'utf8'}).trim();if(npmRoot)add(path.join(npmRoot,'9router'));}catch{}
+  add(path.join(process.env.APPDATA||'','npm','node_modules','9router'));
+  add('/usr/local/lib/node_modules/9router');
+  add('/usr/lib/node_modules/9router');
+  add(path.join(process.cwd(),'node_modules','9router'));
+  function patchFile(filePath, transform){if(!fs.existsSync(filePath))return false;const before=fs.readFileSync(filePath,'utf8');const after=transform(before);if(!after||after===before)return false;fs.writeFileSync(filePath,after);return true;}
+  function patchProviderModels(root){return patchFile(path.join(root,'open-sse','config','providerModels.js'),(text)=>text.replace(/cx:\\s*\\[[\\s\\S]*?\\],/,()=>{const lines=MODELS.map((id)=>'    { id: "'+id+'", name: "'+(MODEL_NAMES[id]||id)+'" },');return 'cx: [  // OpenAI Codex\\n'+lines.join('\\n')+'\\n  ],';}));}
+  function patchCodexExecutor(root){return patchFile(path.join(root,'open-sse','executors','codex.js'),(text)=>{if(text.includes('delete body.max_output_tokens;'))return text;return text.replace('    delete body.max_tokens;\\n','    delete body.max_tokens;\\n    delete body.max_output_tokens;\\n');});}
+  function patchSelfTest(root){return patchFile(path.join(root,'src','app','api','providers','[id]','test','testUtils.js'),(text)=>{if(text.includes('model: "gpt-5.2"')&&text.includes('store: false')&&text.includes('acceptStatuses: [200, 400]'))return text;return text.replace(/codex:\\s*\\{[\\s\\S]*?refreshable:\\s*true,\\s*\\},/,SELF_TEST_BLOCK);});}
+  let touched=0;
+  for(const root of roots){if(!root||!fs.existsSync(root))continue;touched+=patchProviderModels(root)?1:0;touched+=patchCodexExecutor(root)?1:0;touched+=patchSelfTest(root)?1:0;}
+  if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}else{console.log('[patch-9router] No compatible 9router source files found to patch.');}`;
+    }
+
+    function build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64) {
         const nineRouterSpec = (typeof globalThis !== 'undefined' && globalThis.__openclawCommon && globalThis.__openclawCommon.NINE_ROUTER_NPM_SPEC) || '9router@latest';
         return [
         `npm install -g ${nineRouterSpec}`,
+        `node -e "require('fs').writeFileSync('/tmp/patch-9router.js',Buffer.from('${patchScriptBase64}','base64').toString())"`,
         `node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('${syncScriptBase64}','base64').toString())"`,
+        'node /tmp/patch-9router.js || true',
         'node /tmp/sync.js > /tmp/sync.log 2>&1 &',
         'exec 9router -n -l -H 0.0.0.0 -p 20128 --skip-update'
       ].join('\n');
@@ -1930,7 +1990,9 @@
 
       const syncScript = build9RouterSmartRouteSyncScript('/root/.9router/db.json');
       const syncScriptBase64 = encodeBase64Utf8(syncScript);
-      const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64);
+      const patchScript = build9RouterPatchScript();
+      const patchScriptBase64 = encodeBase64Utf8(patchScript);
+      const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64);
       const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
       const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n';
@@ -2139,6 +2201,7 @@
       encodeBase64Utf8,
       indentBlock,
       build9RouterSmartRouteSyncScript,
+      build9RouterPatchScript,
       build9RouterComposeEntrypointScript,
       buildGatewayPatchCmd,
       buildDockerArtifacts,
@@ -2158,7 +2221,7 @@
    */
 
   const SMART_ROUTE_PROVIDER_MODELS = {
-    codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.3-codex-high', 'cx/gpt-5.2-codex', 'cx/gpt-5.2', 'cx/gpt-5.1-codex-max', 'cx/gpt-5.1-codex', 'cx/gpt-5.1', 'cx/gpt-5-codex'],
+    codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'],
     'claude-code': ['cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
     github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro'],
     cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gemini-3-flash-preview'],
@@ -2429,14 +2492,18 @@
               '9router': {
                 baseUrl: 'http://localhost:20128/v1',
                 apiKey: 'sk-no-key',
-                api: 'openai-completions',
+                api: 'openai-responses',
                 models: [
                   {
                     id: 'smart-route',
                     name: 'Smart Proxy (Auto Route)',
                     contextWindow: 200000,
                     maxTokens: 8192,
-                  }
+                  },
+                  { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
+                  { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
+                  { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
+                  { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 }
                 ]
               }
             }
@@ -2599,14 +2666,18 @@
                 '9router': {
                   baseUrl: state.deployMode === 'docker' ? 'http://9router:20128/v1' : 'http://localhost:20128/v1',
                   apiKey: 'sk-no-key',
-                  api: 'openai-completions',
+                  api: 'openai-responses',
                   models: [
                     {
                       id: 'smart-route',
                       name: 'Smart Proxy (Auto Route)',
                       contextWindow: 200000,
                       maxTokens: 8192,
-                    }
+                    },
+                    { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
+                    { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
+                    { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
+                    { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 }
                   ]
                 }
               }
@@ -2705,7 +2776,18 @@
         if (state.channel === 'zalo-personal') {
           cfg.channels.zalouser = {
             enabled: true,
+            defaultAccount: 'default',
             dmPolicy: 'open',
+            allowFrom: ['*'],
+            groupPolicy: 'allowlist',
+            groupAllowFrom: ['*'],
+            historyLimit: 50,
+            groups: {
+              '*': {
+                enabled: true,
+                requireMention: false,
+              },
+            },
             autoReply: true,
           };
           // plugins.entries.zalouser is REQUIRED for gateway to load the Zalo channel provider
@@ -4978,9 +5060,13 @@
             '9router': {
               baseUrl: nineRouterBase,
               apiKey: 'sk-no-key',
-              api: 'openai-completions',
+              api: 'openai-responses',
               models: [
-                { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 }
+                { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 },
+                { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
+                { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
+                { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
+                { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 }
               ],
             },
           },

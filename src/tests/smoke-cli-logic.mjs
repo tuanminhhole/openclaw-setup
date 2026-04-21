@@ -285,7 +285,7 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   cli,
-  /hasZaloPersonal\(channelKey\)\) \{[\s\S]*botConfig\.channels\['zalouser'\] = \{\s*enabled: true,\s*dmPolicy: 'open',\s*allowFrom: \['\*'\]/s,
+  /hasZaloPersonal\(channelKey\)\) \{[\s\S]*botConfig\.channels\['zalouser'\] = \{[\s\S]*defaultAccount: 'default'[\s\S]*dmPolicy: 'open'[\s\S]*allowFrom: \['\*'\][\s\S]*groupPolicy: 'allowlist'[\s\S]*groupAllowFrom: \['\*'\][\s\S]*historyLimit: 50[\s\S]*autoReply: true/s,
   'CLI must configure Zalo Personal under channels.zalouser'
 ));
 

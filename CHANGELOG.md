@@ -1,5 +1,15 @@
 # Changelog (English)
 
+## [5.6.9] - 2026-04-21
+
+### Fix: OpenAI Codex Provider Compatibility & Zalo Personal Config
+
+- **Fix: OpenAI Codex model list** — Updated Codex provider model registry to match OpenAI's current API. Removed deprecated models (`gpt-5.3-codex-high`, `gpt-5.2-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex`, `gpt-5.1`, `gpt-5-codex`) and retained the 4 active models: `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.4-mini`.
+- **Fix: 9Router API mode** — Switched 9Router provider config from `openai-completions` to `openai-responses` to align with OpenAI's current Responses API.
+- **New: 9Router auto-patch script** — Added `patch-9router.js` that automatically patches 9Router source files (providerModels, codex executor, self-test) to stay compatible with OpenAI Codex API changes. The patch runs on setup, upgrade, and before every 9Router launch.
+- **Fix: Codex model exposure** — 9Router config now exposes individual Codex models (`cx/gpt-5.4`, `cx/gpt-5.3-codex`, `cx/gpt-5.2`, `cx/gpt-5.4-mini`) alongside `smart-route` so users can target specific Codex models directly.
+- **Improve: Zalo Personal channel config** — Added `defaultAccount`, `groupAllowFrom`, `historyLimit`, `groups` wildcard config and `autoReply` to the generated Zalo Personal channel configuration for more robust group handling out of the box.
+
 ## [5.6.8] - 2026-04-17
 
 ### Fix: 9Router Sync & Ubuntu Native Config

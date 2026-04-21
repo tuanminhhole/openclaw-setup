@@ -84,14 +84,18 @@
               '9router': {
                 baseUrl: state.deployMode === 'docker' ? 'http://9router:20128/v1' : 'http://localhost:20128/v1',
                 apiKey: 'sk-no-key',
-                api: 'openai-completions',
+                api: 'openai-responses',
                 models: [
                   {
                     id: 'smart-route',
                     name: 'Smart Proxy (Auto Route)',
                     contextWindow: 200000,
                     maxTokens: 8192,
-                  }
+                  },
+                  { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
+                  { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
+                  { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
+                  { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 }
                 ]
               }
             }
@@ -190,7 +194,18 @@
       if (state.channel === 'zalo-personal') {
         cfg.channels.zalouser = {
           enabled: true,
+          defaultAccount: 'default',
           dmPolicy: 'open',
+          allowFrom: ['*'],
+          groupPolicy: 'allowlist',
+          groupAllowFrom: ['*'],
+          historyLimit: 50,
+          groups: {
+            '*': {
+              enabled: true,
+              requireMention: false,
+            },
+          },
           autoReply: true,
         };
         // plugins.entries.zalouser is REQUIRED for gateway to load the Zalo channel provider

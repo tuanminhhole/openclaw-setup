@@ -31,6 +31,7 @@ const {
 
 const {
   buildDockerArtifacts,
+  build9RouterPatchScript,
 } = loadSharedModule('./setup/shared/docker-gen.js', '__openclawDockerGen');
 
 const {
@@ -200,8 +201,16 @@ function build9RouterSmartRouteSyncScript(dbPath) {
   const path = require('path');
   const dbPath = ${safeDbPath};
   const ROUTER='http://localhost:20128';
-  const MODEL_PRIORITY = {
-    codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.3-codex-high', 'cx/gpt-5.2-codex', 'cx/gpt-5.2', 'cx/gpt-5.1-codex-max', 'cx/gpt-5.1-codex', 'cx/gpt-5.1', 'cx/gpt-5-codex'],
+const NINE_ROUTER_OPENCLAW_MODELS = [
+  { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 },
+  { id: 'cx/gpt-5.4', name: 'Codex GPT 5.4', contextWindow: 200000, maxTokens: 8192 },
+  { id: 'cx/gpt-5.3-codex', name: 'Codex GPT 5.3', contextWindow: 200000, maxTokens: 8192 },
+  { id: 'cx/gpt-5.2', name: 'Codex GPT 5.2', contextWindow: 200000, maxTokens: 8192 },
+  { id: 'cx/gpt-5.4-mini', name: 'Codex GPT 5.4 Mini', contextWindow: 200000, maxTokens: 8192 },
+];
+
+const MODEL_PRIORITY = {
+    codex: ['cx/gpt-5.4', 'cx/gpt-5.3-codex', 'cx/gpt-5.2', 'cx/gpt-5.4-mini'],
     'claude-code': ['cc/claude-opus-4-6', 'cc/claude-sonnet-4-6', 'cc/claude-opus-4-5-20251101', 'cc/claude-sonnet-4-5-20250929', 'cc/claude-haiku-4-5-20251001'],
     github: ['gh/gpt-5.4', 'gh/gpt-5.3-codex', 'gh/gpt-5.2-codex', 'gh/gpt-5.2', 'gh/gpt-5.1-codex-max', 'gh/gpt-5.1-codex', 'gh/gpt-5.1', 'gh/gpt-5', 'gh/gpt-4.1', 'gh/gpt-4o', 'gh/claude-opus-4.6', 'gh/claude-sonnet-4.6', 'gh/claude-sonnet-4.5', 'gh/claude-opus-4.5', 'gh/claude-haiku-4.5', 'gh/gemini-3-pro-preview', 'gh/gemini-3-flash-preview', 'gh/gemini-2.5-pro'],
     cursor: ['cu/default', 'cu/claude-4.6-opus-max', 'cu/claude-4.5-opus-high-thinking', 'cu/claude-4.5-sonnet-thinking', 'cu/claude-4.5-sonnet', 'cu/gpt-5.3-codex', 'cu/gpt-5.2-codex', 'cu/gemini-3-flash-preview'],
@@ -458,6 +467,61 @@ async function writeNative9RouterSyncScript(projectDir) {
   await fs.ensureDir(nativeDataDir);
   await fs.writeFile(syncScriptPath, build9RouterSmartRouteSyncScript(path.join(nativeDataDir, 'db.json')));
   return syncScriptPath;
+}
+
+async function writeNative9RouterPatchScript(projectDir) {
+  const patchScriptPath = path.join(projectDir, '.openclaw', 'patch-9router.js');
+  await fs.ensureDir(path.dirname(patchScriptPath));
+  await fs.writeFile(patchScriptPath, build9RouterPatchScript());
+  return patchScriptPath;
+}
+
+async function patchProject9RouterOpenClawConfig(projectDir) {
+  const configPath = path.join(projectDir, '.openclaw', 'openclaw.json');
+  if (!await fs.pathExists(configPath)) return false;
+  const config = await fs.readJson(configPath);
+  const provider = config?.models?.providers?.['9router'];
+  if (!provider) return false;
+  provider.baseUrl = provider.baseUrl || (detectProjectDeployMode(projectDir) === 'docker' ? 'http://9router:20128/v1' : 'http://localhost:20128/v1');
+  provider.apiKey = 'sk-no-key';
+  provider.api = 'openai-responses';
+  provider.models = NINE_ROUTER_OPENCLAW_MODELS;
+  await fs.writeJson(configPath, config, { spaces: 2 });
+  return true;
+}
+
+async function patchProjectDocker9Router(projectDir) {
+  const dockerDir = path.join(projectDir, 'docker', 'openclaw');
+  const composePath = path.join(dockerDir, 'docker-compose.yml');
+  if (!await fs.pathExists(composePath)) return false;
+
+  await fs.ensureDir(dockerDir);
+  await fs.writeFile(path.join(dockerDir, 'sync.js'), build9RouterSmartRouteSyncScript('/root/.9router/db.json'));
+  await fs.writeFile(path.join(dockerDir, 'patch-9router.js'), build9RouterPatchScript());
+
+  let compose = await fs.readFile(composePath, 'utf8');
+  compose = compose.replace(
+    /node -e "require\('fs'\)\.writeFileSync\('\/tmp\/sync\.js',Buffer\.from\('[^']*','base64'\)\.toString\(\)\)"/,
+    "cp /opt/sync.js /tmp/sync.js"
+  );
+  compose = compose.replace(
+    /(npm install -g [^\n]+\n)/,
+    `$1        cp /opt/patch-9router.js /tmp/patch-9router.js\n`
+  );
+  if (!compose.includes('node /tmp/patch-9router.js || true')) {
+    compose = compose.replace(
+      /(\s*node \/tmp\/sync\.js > \/tmp\/sync\.log 2>&1 &\n)/,
+      `        node /tmp/patch-9router.js || true\n$1`
+    );
+  }
+  if (!compose.includes('./sync.js:/opt/sync.js:ro')) {
+    compose = compose.replace(
+      /(\s*-\s*9router-data:\/root\/\.9router\s*\n)/,
+      `$1      - ./sync.js:/opt/sync.js:ro\n      - ./patch-9router.js:/opt/patch-9router.js:ro\n`
+    );
+  }
+  await fs.writeFile(composePath, compose, 'utf8');
+  return true;
 }
 
 function getGatewayAllowedOrigins(port) {
@@ -880,6 +944,24 @@ async function runUpgradeCommand() {
       appName: getNativePm2AppName(isMultiBot),
       isVi: false,
     }));
+  }
+
+  if (is9Router) {
+    await writeNative9RouterPatchScript(projectDir);
+    await patchProject9RouterOpenClawConfig(projectDir);
+    if (deployMode === 'docker') {
+      await patchProjectDocker9Router(projectDir);
+    } else {
+      await writeNative9RouterSyncScript(projectDir);
+      try {
+        execFileSync(process.execPath, [path.join(projectDir, '.openclaw', 'patch-9router.js')], {
+          cwd: projectDir,
+          stdio: 'ignore',
+        });
+      } catch {
+        // Best effort: start scripts also retry the patch before launch.
+      }
+    }
   }
 
   console.log(chalk.green('\nUpgrade artifacts refreshed successfully.'));
@@ -2237,10 +2319,8 @@ async function main() {
             '9router': {
               baseUrl: deployMode === 'native' ? 'http://localhost:20128/v1' : 'http://9router:20128/v1',
               apiKey: 'sk-no-key',
-              api: 'openai-completions',
-              models: [
-                { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 },
-              ],
+              api: 'openai-responses',
+              models: NINE_ROUTER_OPENCLAW_MODELS,
             },
           },
         },
@@ -2443,10 +2523,8 @@ async function main() {
             '9router': {
               baseUrl: deployMode === 'native' ? 'http://localhost:20128/v1' : 'http://9router:20128/v1',
               apiKey: 'sk-no-key',
-              api: 'openai-completions',
-              models: [
-                { id: 'smart-route', name: 'Smart Proxy (Auto Route)', contextWindow: 200000, maxTokens: 8192 }
-              ]
+              api: 'openai-responses',
+              models: NINE_ROUTER_OPENCLAW_MODELS
             }
           }
         }
@@ -2524,8 +2602,19 @@ async function main() {
     } else if (hasZaloPersonal(channelKey)) {
       botConfig.channels['zalouser'] = {
         enabled: true,
+        defaultAccount: 'default',
         dmPolicy: 'open',
-        allowFrom: ['*']
+        allowFrom: ['*'],
+        groupPolicy: 'allowlist',
+        groupAllowFrom: ['*'],
+        historyLimit: 50,
+        groups: {
+          '*': {
+            enabled: true,
+            requireMention: false,
+          },
+        },
+        autoReply: true,
       };
     } else if (channelKey === 'zalo-bot') {
       botConfig.channels['zalo'] = { enabled: true, provider: 'official_account' };
@@ -2746,7 +2835,16 @@ async function main() {
 
     let native9RouterSyncScriptPath = null;
     if (providerKey === '9router') {
+      await writeNative9RouterPatchScript(projectDir);
       native9RouterSyncScriptPath = await writeNative9RouterSyncScript(projectDir);
+      try {
+        execFileSync(process.execPath, [path.join(projectDir, '.openclaw', 'patch-9router.js')], {
+          cwd: projectDir,
+          stdio: 'ignore',
+        });
+      } catch {
+        // Start scripts retry this patch before launching 9router.
+      }
     }
 
     await ensureProjectRuntimeDirs(projectDir, isVi);

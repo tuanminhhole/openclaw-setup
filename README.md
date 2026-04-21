@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.5.0-0EA5E9?style=for-the-badge" alt="Version 5.5.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.6.9-0EA5E9?style=for-the-badge" alt="Version 5.6.9" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,23 +24,22 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ---
 
-## 🆕 What's new in v5.6.0
+## 🆕 What's new in v5.6.9
+
+- 🔧 **OpenAI Codex provider fix** — Updated Codex model registry to match OpenAI's current API. Removed 6 deprecated models, retained 4 active ones: `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.4-mini`.
+- 🔀 **9Router API mode switch** — Switched from `openai-completions` to `openai-responses` to align with OpenAI's Responses API.
+- 🩹 **Auto-patch 9Router** — New `patch-9router.js` automatically patches 9Router source files on setup, upgrade, and before every launch to stay compatible with Codex API changes.
+- 🎯 **Direct Codex model targeting** — 9Router config now exposes individual Codex models alongside `smart-route` so users can pick a specific model.
+- 💬 **Zalo Personal group config** — Added `defaultAccount`, `groupAllowFrom`, `historyLimit`, wildcard group config and `autoReply` for better out-of-the-box group handling.
+
+<details>
+<summary><b>Previous: What's new in v5.6.0</b></summary>
 
 - 🧠 **Memory & Dreaming enabled by default** — Long-term Memory skill is now pre-selected for all new installations. The `memory-core` plugin with `dreaming.enabled: true` is auto-injected into `openclaw.json`, and `DREAMS.md` is seeded in every workspace.
 - 🤝 **Relay plugin card auto-shows** — When selecting Telegram multi-bot (≥2 bots), the Relay plugin card appears with an "Auto-enabled" badge and locked checkbox. Switching back to 1 bot hides it.
 - 🔑 **Relay trigger keywords in TEAMS.md** — `TEAMS.md` now documents all relay trigger keywords (question/task/reminder patterns) from the v5.0.9 relay plugin, helping bots understand and coordinate cross-bot communication.
 - 🌍 **Proper Vietnamese diacritics** — All workspace `.md` files now use proper UTF-8 Vietnamese with full diacritics, eliminating mojibake.
 - 👍 **Tool-based reaction** — `TOOLS.md` mandates bots call the `react` action with 👍 before replying, replacing unreliable gateway auto-ack.
-
-<details>
-<summary><b>Previous: What's new in v5.5.0</b></summary>
-
-- 📦 **OpenClaw 2026.4.14** — Bumped from 2026.4.5. Includes the new experimental Dreaming memory system, active-memory improvements, Telegram approval button deadlock fix, and WebSocket keepalive stability.
-- 📄 **Modular workspace docs** — Multi-bot deployments now generate `TEAM.md` and `RELAY.md` as separate files.
-- 🔐 **Full security rules everywhere** — All `AGENTS.md` files now include the complete 4-section security ruleset.
-- 🗑️ **Removed `.yaml` agent files** — OpenClaw Core reads config exclusively from `openclaw.json`.
-- 🤖 **Anti-hallucination handoff** — Relay-variant `AGENTS.md` now mandates tool-first `react` actions.
-- 🏗️ **Scaffold-based generation** — Both Wizard and CLI now call shared scaffold builders.
 
 </details>
 

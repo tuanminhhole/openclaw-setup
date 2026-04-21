@@ -174,6 +174,8 @@ fi
       L.push("echo $env:DATA_DIR = '%DATA_DIR%' > \"%TEMP%\\oc-start9r.ps1\"");
       L.push("echo $b = Join-Path $env:APPDATA 'npm\\9router.cmd' >> \"%TEMP%\\oc-start9r.ps1\"");
       L.push("echo if ^(-not ^(Test-Path $b^)^) { $b = Join-Path $env:APPDATA 'npm\\9router' } >> \"%TEMP%\\oc-start9r.ps1\"");
+      L.push(`echo $patch = Join-Path '${projectDir}' '.openclaw\\patch-9router.js' >> "%TEMP%\\oc-start9r.ps1"`);
+      L.push("echo if ^(Test-Path $patch^) { & node $patch *> $null } >> \"%TEMP%\\oc-start9r.ps1\"");
       L.push(`echo Start-Process 'cmd.exe' -WindowStyle Hidden -WorkingDirectory '${projectDir}' -ArgumentList ^('/c "' + $b + '" -n -H 0.0.0.0 -p 20128 --skip-update'^) >> "%TEMP%\\oc-start9r.ps1"`);
       L.push('powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\\oc-start9r.ps1"');
       L.push('del "%TEMP%\\oc-start9r.ps1" >nul 2>&1');
@@ -256,6 +258,9 @@ fi
         L.push('  exit 1');
         L.push('fi');
         L.push('pm2 delete "$APP_NAME-9router" "$APP_NAME-9router-sync" >/dev/null 2>&1 || true');
+        L.push('if [ -f "$PROJECT_DIR/.openclaw/patch-9router.js" ]; then');
+        L.push('  "$NODE_BIN" "$PROJECT_DIR/.openclaw/patch-9router.js" >/dev/null 2>&1 || true');
+        L.push('fi');
         L.push('PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$DATA_DIR" pm2 start "$NINE_ROUTER_BIN" --name "$APP_NAME-9router" --interpreter "$NODE_BIN" -- -n -H 0.0.0.0 -p 20128 --skip-update');
         L.push('if [ -f "$PROJECT_DIR/.openclaw/9router-smart-route-sync.js" ]; then');
         L.push('  pm2 start "$NODE_BIN" --name "$APP_NAME-9router-sync" -- "$PROJECT_DIR/.openclaw/9router-smart-route-sync.js"');
@@ -305,6 +310,9 @@ fi
       L.push('if [ -z "$NINE_ROUTER_BIN" ]; then');
       L.push(isVi ? '  echo "ERROR: Khong tim thay 9router! Chay: npm install -g 9router"' : '  echo "ERROR: 9router not found! Run: npm install -g 9router"');
       L.push('  exit 1');
+      L.push('fi');
+      L.push('if [ -f "$PROJECT_DIR/.openclaw/patch-9router.js" ]; then');
+      L.push('  node "$PROJECT_DIR/.openclaw/patch-9router.js" >/dev/null 2>&1 || true');
       L.push('fi');
       L.push(`nohup env PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$DATA_DIR" "$NINE_ROUTER_BIN" -n -H 0.0.0.0 -p 20128 --skip-update > "${logFile9r}" 2>&1 &`);
       L.push('sleep 3');

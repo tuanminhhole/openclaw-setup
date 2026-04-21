@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.5.0-0EA5E9?style=for-the-badge" alt="Version 5.5.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.6.9-0EA5E9?style=for-the-badge" alt="Version 5.6.9" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,23 +24,22 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
-## 🆕 Có gì mới trong v5.6.0
+## 🆕 Có gì mới trong v5.6.9
+
+- 🔧 **Sửa provider OpenAI Codex** — Cập nhật registry model Codex phù hợp API hiện tại của OpenAI. Loại 6 model đã dừng, giữ 4 model đang hoạt động: `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.4-mini`.
+- 🔀 **Chuyển chế độ API 9Router** — Đổi từ `openai-completions` sang `openai-responses` cho khớp với Responses API mới của OpenAI.
+- 🩹 **Tự động patch 9Router** — Script `patch-9router.js` mới tự vá source files 9Router khi setup, upgrade và trước mỗi lần khởi động để tương thích thay đổi API Codex.
+- 🎯 **Chọn model Codex trực tiếp** — Config 9Router giờ hiển thị từng model Codex bên cạnh `smart-route` để người dùng có thể chọn model cụ thể.
+- 💬 **Config nhóm Zalo Personal** — Bổ sung `defaultAccount`, `groupAllowFrom`, `historyLimit`, wildcard group config và `autoReply` để xử lý nhóm tốt hơn ngay từ đầu.
+
+<details>
+<summary><b>Trước đó: Có gì mới ở v5.6.0</b></summary>
 
 - 🧠 **Memory & Dreaming bật mặc định** — Long-term Memory skill giờ được bật sẵn cho mọi cài đặt mới. Plugin `memory-core` với `dreaming.enabled: true` được inject tự động vào `openclaw.json`, `DREAMS.md` được tạo sẵn trong workspace.
 - 🤝 **Card Relay plugin tự động hiển thị** — Khi chọn Telegram multi-bot (≥2 bots), card Relay plugin hiện ra với badge "Tự động bật" và checkbox bị khóa. Chuyển về 1 bot sẽ ẩn card.
 - 🔑 **Từ khóa relay trong TEAMS.md** — `TEAMS.md` giờ liệt kê đầy đủ từ khóa kích hoạt relay (hỏi/giao việc/nhắc nhở) từ plugin v5.0.9, giúp bot hiểu và phối hợp tốt hơn.
 - 🌍 **Tiếng Việt có dấu chuẩn** — Tất cả file `.md` workspace giờ dùng UTF-8 chuẩn với dấu tiếng Việt đầy đủ, hết lỗi mojibake.
 - 👍 **Tool-based reaction** — `TOOLS.md` bắt buộc bot gọi action `react` thả 👍 trước khi trả lời, thay vì dùng gateway auto-ack không ổn định.
-
-<details>
-<summary><b>Trước đó: Có gì mới ở v5.5.0</b></summary>
-
-- 📦 **OpenClaw 2026.4.14** — Nâng từ 2026.4.5. Bao gồm hệ thống Dreaming, cải thiện active-memory, sửa deadlock nút approve Telegram, ổn định WebSocket keepalive.
-- 📄 **Tách file workspace docs** — Multi-bot giờ sinh `TEAM.md` và `RELAY.md` thành file riêng.
-- 🔐 **Quy tắc bảo mật đầy đủ mọi nơi** — Tất cả `AGENTS.md` giờ có đủ 4 section bảo mật.
-- 🗑️ **Xóa file `.yaml` agent** — OpenClaw Core chỉ đọc từ `openclaw.json`.
-- 🤖 **Chống ảo giác handoff** — `AGENTS.md` relay bắt buộc `react` action.
-- 🏗️ **Scaffold-based generation** — Cả Wizard lẫn CLI gọi chung scaffold builders.
 
 </details>
 
