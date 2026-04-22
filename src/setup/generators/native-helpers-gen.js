@@ -257,7 +257,8 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       gateway: {
         port: 18791,
         mode: 'local',
-        bind: 'loopback',
+        bind: state.nativeOs === 'vps' ? 'custom' : 'loopback',
+        ...(state.nativeOs === 'vps' ? { customBindHost: '0.0.0.0' } : {}),
         controlUi: {
           allowedOrigins: getGatewayAllowedOrigins(18791),
         },

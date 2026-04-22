@@ -1,5 +1,13 @@
 # Changelog (Tiếng Việt)
 
+## [5.6.13] — 2026-04-22
+
+### Ổn định luồng Deploy Native/PM2 trên VPS
+
+- **Sửa: Khởi tạo biến môi trường trên Native** — Quy trình khởi động PM2 cho cài đặt Native đã được viết lại sử dụng một bash wrapper chuyên dụng (`start-gateway.sh`) thay vì lệnh `sh -c` trực tiếp lỏng lẻo. Thay đổi này đảm bảo các biến môi trường quan trọng như `OPENCLAW_HOME` và `OPENCLAW_STATE_DIR` luôn được nạp đầy đủ khi gateway khởi chạy, khắc phục triệt để lỗi gateway ngừng hoạt động ngầm (silent failures) và sai lệch đường dẫn sau khi khởi động lại shell.
+- **Sửa: Lỗi shell injection trong script** — Dọn dẹp lại lệnh PM2 để sử dụng đồng nhất tham số `--interpreter` khi chạy các tiến trình phụ, tránh lỗi shell-injection chuẩn POSIX trong kiến trúc đa bot (multi-bot).
+- **Cải thiện: Truy cập dashboard từ xa** — Giao diện cấu hình binding cho Gateway nay đã được tối ưu để lưu IPv4 `0.0.0.0` ngay lập tức nếu được triển khai trên môi trường `VPS/Ubuntu`. Cấu hình dashboard và proxy nay đã hỗ trợ kết nối mạng ngoài / WAN / SSH-tunnel an toàn mà không làm rò rỉ dữ liệu của bản cài đặt dạng Desktop-Native vào mạng LAN nội bộ nội bộ (local area network).
+
 ## [5.6.12] — 2026-04-22
 
 ### Hotfix: PM2 gateway process thiếu biến môi trường OPENCLAW_HOME

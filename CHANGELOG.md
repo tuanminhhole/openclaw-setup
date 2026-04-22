@@ -1,5 +1,13 @@
 # Changelog (English)
 
+## [5.6.13] — 2026-04-22
+
+### Stabilize VPS/Native PM2 Deployment
+
+- **Fix: Native environment variable initialization** — The Native PM2 startup process was refactored to use a dedicated bash wrapper (`start-gateway.sh`) instead of fragile inline `sh -c` commands. This ensures that critical environment variables like `OPENCLAW_HOME` and `OPENCLAW_STATE_DIR` are reliably available when the gateway boots, resolving silent failures and file-system pathing mismatches across shell restarts.
+- **Fix: 9Router start scripts injection flaws** — Cleaned up PM2 commands to consistently use explicit script and binary executable flags (`--interpreter`) in multi-bot architectures to mitigate POSIX shell-injection issues.
+- **Improve: Remote dashboard access** — The Gateway custom binding interface has been extended to default to `0.0.0.0` when deployed in `VPS/Ubuntu` scenarios. Dashboard configuration and proxy interfaces can now correctly handle WAN/SSH-tunnel connectivity without exposing desktop-native instances to LAN by default.
+
 ## [5.6.12] — 2026-04-22
 
 ### Hotfix: PM2 gateway process missing OPENCLAW_HOME environment

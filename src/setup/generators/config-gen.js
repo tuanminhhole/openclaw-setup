@@ -103,7 +103,7 @@
         commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
         channels: {},
         tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
-        gateway: common.buildGatewayConfig(basePort, state.deployMode, getGatewayAllowedOrigins(basePort)),
+        gateway: common.buildGatewayConfig(basePort, state.deployMode, getGatewayAllowedOrigins(basePort), state.nativeOs || ''),
       };
 
       if (hasBrowser) {

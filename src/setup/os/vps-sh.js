@@ -13,6 +13,7 @@ function generateVpsSh(ctx) {
   let scriptContent;
 
   const scriptName = 'setup-openclaw-vps.sh';
+  const appName = isMultiBot ? 'openclaw-multibot' : 'openclaw';
   const vps = [
     '#!/usr/bin/env bash', 'set -e',
     `echo "=== OpenClaw Setup — Ubuntu/VPS${isMultiBot ? ` Multi-Bot (${state.botCount} bots)` : ''} ==="`,
@@ -38,37 +39,79 @@ function generateVpsSh(ctx) {
   if (pluginCmd) vps.push(pluginCmd);
   vps.push('if [ -f ".env" ]; then set -a; . ./.env; set +a; fi');
 
+  // ── Write bot runtime files ──────────────────────────────────────────────
   if (isMultiBot) {
     vps.push('echo "--- Creating shared multi-agent runtime ---"');
     appendShWriteCommands(vps, sharedNativeFileMap());
     const _uninstallVpsMulti = generateUninstallScript();
     if (_uninstallVpsMulti) appendShWriteCommands(vps, { [_uninstallVpsMulti.name]: _uninstallVpsMulti.content });
-    vps.push('echo "--- Starting shared gateway via PM2 ---"');
-    if (is9Router) {
-      vps.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);
-      vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$NINE_ROUTER_ENTRY" --name openclaw-multibot-9router --interpreter "$(command -v node)"');
-      vps.push('pm2 start --name openclaw-multibot-9router-sync -- sh -c "node ./.9router/9router-smart-route-sync.js"');
-    }
-    vps.push('OPENCLAW_HOME="$OPENCLAW_HOME" OPENCLAW_STATE_DIR="$OPENCLAW_STATE_DIR" pm2 start --name openclaw-multibot -- sh -c "export OPENCLAW_HOME=$OPENCLAW_HOME OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR && openclaw gateway run"');
-    vps.push('pm2 save && pm2 startup');
-    vps.push(`echo ""`);
-    vps.push(`echo "=== ✅ Shared multi-bot gateway running via PM2 ==="`);
-    vps.push(`echo "Commands:"`);
-    vps.push(`echo "  pm2 status            # Status gateway"`);
-    vps.push(`echo "  pm2 logs openclaw-multibot"`);
   } else {
     appendShWriteCommands(vps, botFiles(0));
     const _uninstallVps = generateUninstallScript();
     if (_uninstallVps) appendShWriteCommands(vps, { [_uninstallVps.name]: _uninstallVps.content });
-    if (is9Router) {
-      vps.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);
-      vps.push('PORT=20128 HOSTNAME=0.0.0.0 pm2 start "$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "$(command -v node)"');
-      vps.push('pm2 start --name openclaw-9router-sync -- sh -c "node ./.9router/9router-smart-route-sync.js"');
-    }
-    vps.push('OPENCLAW_HOME="$OPENCLAW_HOME" OPENCLAW_STATE_DIR="$OPENCLAW_STATE_DIR" pm2 start --name openclaw -- sh -c "export OPENCLAW_HOME=$OPENCLAW_HOME OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR && openclaw gateway run"');
-    vps.push('pm2 save && pm2 startup');
-    vps.push('echo "Bot dang chay! Xem log: pm2 logs openclaw"');
   }
+
+  // ── Create start-bot.sh restart script ─────────────────────────────────
+  const startScript = globalThis.__openclawInstall.buildStartBotSh({
+    projectDir,
+    is9Router,
+    isVi,
+    osChoice: 'vps',
+    isMultiBot,
+    appName,
+  });
+  appendShWriteCommands(vps, { 'start-bot.sh': startScript });
+  vps.push('chmod +x start-bot.sh');
+
+  // ── Create PM2 entrypoint wrapper ──────────────────────────────────────
+  // PM2 needs a proper script file with env setup to survive restarts.
+  // Inline `-- sh -c` loses env vars on pm2 restart/reboot.
+  vps.push('echo "--- Creating PM2 entrypoint wrapper ---"');
+  vps.push(`cat > "$PROJECT_DIR/.openclaw/start-gateway.sh" << 'GWEOF'
+#!/bin/bash
+set -e
+cd "${projectDir.replace(/"/g, '\\"')}"
+export OPENCLAW_HOME="$PWD/.openclaw"
+export OPENCLAW_STATE_DIR="$PWD/.openclaw"
+export DATA_DIR="$PWD/.9router"
+export PATH="$HOME/.local/bin:$PATH"
+if [ -f ".env" ]; then set -a; . ./.env; set +a; fi
+exec openclaw gateway run
+GWEOF`);
+  vps.push('chmod +x "$PROJECT_DIR/.openclaw/start-gateway.sh"');
+
+  // ── Start services via PM2 ─────────────────────────────────────────────
+  vps.push('echo "--- Starting services via PM2 ---"');
+  vps.push('NODE_BIN="$(command -v node)"');
+
+  if (is9Router) {
+    vps.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);
+    vps.push(`PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$DATA_DIR" pm2 start "$NINE_ROUTER_ENTRY" --name ${appName}-9router --interpreter "$NODE_BIN"`);
+    // 9Router sync: start the actual JS file directly with node interpreter
+    vps.push(`pm2 start "$PROJECT_DIR/.9router/9router-smart-route-sync.js" --name ${appName}-9router-sync --interpreter "$NODE_BIN" --env DATA_DIR="$DATA_DIR"`);
+  }
+
+  // Gateway: start the bash wrapper script (has all env setup baked in)
+  vps.push(`pm2 start "$PROJECT_DIR/.openclaw/start-gateway.sh" --name ${appName} --interpreter bash`);
+  vps.push('pm2 save && pm2 startup');
+
+  if (isMultiBot) {
+    vps.push('echo ""');
+    vps.push(`echo "=== ✅ Shared multi-bot gateway running via PM2 ==="`);
+    vps.push('echo "Commands:"');
+    vps.push(`echo "  pm2 status            # Status gateway"`);
+    vps.push(`echo "  pm2 logs ${appName}"`);
+  } else {
+    vps.push(`echo "Bot dang chay! Xem log: pm2 logs ${appName}"`);
+  }
+
+  vps.push('echo ""');
+  vps.push('echo "Dashboard: http://127.0.0.1:18791"');
+  if (is9Router) vps.push('echo "9Router:   http://127.0.0.1:20128/dashboard"');
+  vps.push('echo ""');
+  vps.push(`echo "Restart:   bash start-bot.sh"`);
+  vps.push(`echo "Logs:      pm2 logs ${appName}"`);
+
   scriptContent = vps.filter(Boolean).join('\n');
 
   return { scriptName, scriptContent };

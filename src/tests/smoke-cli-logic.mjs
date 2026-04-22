@@ -468,7 +468,7 @@ checks.push(() => expect(
 ));
 
 checks.push(() => expect(
-  setup.includes("bind: 'loopback'")
+  (setup.includes("cfg.bind = 'loopback'") || setup.includes("? 'custom' : 'loopback'"))
     && setup.includes("state.bots[state.activeBotIndex].provider = key;")
     && setup.includes("state.bots[state.activeBotIndex].model = p.models[0].id;")
     && setup.includes("state.bots[state.activeBotIndex].provider = state.config.provider;")
@@ -574,7 +574,7 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /\.9router\/9router-smart-route-sync\.js[\s\S]*pm2 start --name openclaw-9router-sync/s,
+  /\.9router\/9router-smart-route-sync\.js[\s\S]*pm2 start[\s\S]*--name[\s\S]*9router-sync/s,
   'VPS native script generation must write and run the 9Router smart-route sync loop'
 ));
 
@@ -611,14 +611,14 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-multibot-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw-multibot -- sh -c "export OPENCLAW_HOME=\$OPENCLAW_HOME OPENCLAW_STATE_DIR=\$OPENCLAW_STATE_DIR && openclaw gateway run"[\s\S]*pm2 logs openclaw-multibot/s,
-  'VPS multi-bot native script must start the shared gateway via PM2'
+  /start-gateway\.sh[\s\S]*pm2 start[\s\S]*--name \$\{appName\} --interpreter bash[\s\S]*pm2 save \&\& pm2 startup/s,
+  'VPS multi-bot native script must start the shared gateway via PM2 bash wrapper'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /NINE_ROUTER_ENTRY="\$\([\s\S]*PORT=20128 HOSTNAME=0\.0\.0\.0 pm2 start "\$NINE_ROUTER_ENTRY" --name openclaw-9router --interpreter "\$\(command -v node\)"[\s\S]*pm2 start --name openclaw -- sh -c "export OPENCLAW_HOME=\$OPENCLAW_HOME OPENCLAW_STATE_DIR=\$OPENCLAW_STATE_DIR && openclaw gateway run"[\s\S]*pm2 logs openclaw/s,
-  'VPS single-bot native script must start one bot via PM2'
+  /start-gateway\.sh[\s\S]*pm2 start[\s\S]*--name \$\{appName\} --interpreter bash[\s\S]*pm2 save \&\& pm2 startup/s,
+  'VPS single-bot native script must start one bot via PM2 bash wrapper'
 ));
 
 checks.push(() => expectMatch(
@@ -659,8 +659,8 @@ checks.push(() => expect(
 ));
 
 checks.push(() => expect(
-  setup.includes('gateway: common.buildGatewayConfig(basePort, state.deployMode, getGatewayAllowedOrigins(basePort))'),
-  'Web wizard per-bot gateway config must seed control UI allowed origins'
+  setup.includes('gateway: common.buildGatewayConfig(basePort, state.deployMode, getGatewayAllowedOrigins(basePort),'),
+  'Web wizard per-bot gateway config must seed control UI allowed origins with osChoice'
 ));
 
 checks.push(() => expectMatch(

@@ -268,7 +268,7 @@ If setup reported a plugin install error, run this after the bot is running:
     };
   }
 
-  function buildGatewayConfig(port = 18791, deployMode = 'native', allowedOrigins = []) {
+  function buildGatewayConfig(port = 18791, deployMode = 'native', allowedOrigins = [], osChoice = '') {
     const normalizedPort = Number(port) || 18791;
     const cfg = {
       port: normalizedPort,
@@ -276,7 +276,7 @@ If setup reported a plugin install error, run this after the bot is running:
       controlUi: { allowedOrigins },
       auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
     };
-    if (deployMode === 'docker') {
+    if (deployMode === 'docker' || osChoice === 'vps') {
       cfg.bind = 'custom';
       cfg.customBindHost = '0.0.0.0';
     } else {

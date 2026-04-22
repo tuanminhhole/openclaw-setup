@@ -216,7 +216,7 @@ section('4. Install artifacts');
   assertIncludes('start-bot sh sets project-local OPENCLAW_HOME', startSh, 'export OPENCLAW_HOME="$PWD/.openclaw"');
   assertIncludes('start-bot sh loads .env', startSh, 'if [ -f ".env" ]; then set -a; . ./.env; set +a; fi');
   assertIncludes('vps start-bot sh uses PM2 for 9Router', startShVpsSingle, 'pm2 start "$NINE_ROUTER_BIN" --name "$APP_NAME-9router"');
-  assertIncludes('vps start-bot sh uses PM2 for gateway', startShVpsSingle, 'pm2 start --name "$APP_NAME" --cwd "$PROJECT_DIR" -- sh -c "export OPENCLAW_HOME=$PROJECT_DIR/.openclaw OPENCLAW_STATE_DIR=$PROJECT_DIR/.openclaw && openclaw gateway run"');
+  assertIncludes('vps start-bot sh uses PM2 for gateway', startShVpsSingle, 'pm2 start "$PROJECT_DIR/.openclaw/start-gateway.sh" --name "$APP_NAME" --interpreter bash');
   assertIncludes('vps multi start-bot sh uses ecosystem config', startShVpsMulti, 'pm2 start ecosystem.config.js');
   assertIncludes('upgrade.ps1 delegates to latest CLI upgrade', upgradePs1, 'npx create-openclaw-bot@latest upgrade');
   assertIncludes('upgrade.sh delegates to latest CLI upgrade', upgradeSh, 'npx create-openclaw-bot@latest upgrade');

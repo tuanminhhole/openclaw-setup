@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.6.12-0EA5E9?style=for-the-badge" alt="Version 5.6.9" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.6.13-0EA5E9?style=for-the-badge" alt="Version 5.6.13" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,7 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
-## 🆕 Có gì mới trong v5.6.12
+## 🆕 Có gì mới trong v5.6.13
 
 - 🔧 **Sửa provider OpenAI Codex** — Cập nhật registry model Codex phù hợp API hiện tại của OpenAI. Loại 6 model đã dừng, giữ 4 model đang hoạt động: `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.4-mini`.
 - 🔀 **Chuyển chế độ API 9Router** — Đổi từ `openai-completions` sang `openai-responses` cho khớp với Responses API mới của OpenAI.
