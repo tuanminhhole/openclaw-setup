@@ -79,12 +79,6 @@
           groupPolicy: 'allowlist',
           groupAllowFrom: ['*'],
           historyLimit: 50,
-          groups: {
-            '*': {
-              enabled: true,
-              requireMention: false,
-            },
-          },
         },
       },
       pluginInstall: '@openclaw/zalouser',

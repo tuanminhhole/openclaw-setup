@@ -56,6 +56,7 @@
     // 'telegram+zalo-personal' — Combo mode tạm ngưng, nghiên cứu thêm.
     'zalo-personal': {
       name: 'Zalo Personal',
+      hasZaloPersonal: true,
       envKeys: [],
       envExtra: '',
       credSteps: [
@@ -79,12 +80,6 @@
           groupPolicy: 'allowlist',
           groupAllowFrom: ['*'],
           historyLimit: 50,
-          groups: {
-            '*': {
-              enabled: true,
-              requireMention: false,
-            },
-          },
         },
       },
       pluginInstall: '@openclaw/zalouser',

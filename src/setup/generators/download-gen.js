@@ -102,7 +102,7 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
 chcp 65001>nul
 set "OPENCLAW_SELF=%~f0"
 set "OPENCLAW_TMP=%TEMP%\\openclaw_%RANDOM%.ps1"
-powershell -ep bypass -nop -c "$l=(Select-String -Path $env:OPENCLAW_SELF -Pattern '^\s*:PS_BEGIN\s*$').LineNumber;$a=[io.file]::ReadAllLines($env:OPENCLAW_SELF,[text.encoding]::UTF8);[io.file]::WriteAllText($env:OPENCLAW_TMP,($a[$l..($a.Length-1)] -join \\"\`n\\"),[text.encoding]::UTF8)"
+powershell -ep bypass -nop -c "$l=(Select-String -Path $env:OPENCLAW_SELF -Pattern '^\\s*:PS_BEGIN\\s*$').LineNumber;$a=[io.file]::ReadAllLines($env:OPENCLAW_SELF,[text.encoding]::UTF8);[io.file]::WriteAllText($env:OPENCLAW_TMP,($a[$l..($a.Length-1)] -join \\"\`n\\"),[text.encoding]::UTF8)"
 powershell -ep bypass -nop -File "%OPENCLAW_TMP%"
 if %errorlevel% neq 0 pause
 del "%OPENCLAW_TMP%" 2>nul

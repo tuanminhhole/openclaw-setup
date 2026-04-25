@@ -2169,6 +2169,7 @@ async function main() {
     multiOllamaNumParallel: 2,
     singleOllamaNumParallel: 1,
     emitBrowserInstall: hasBrowserServer || hasBrowserDesktop,
+
   });
 
   const dockerDir = path.join(projectDir, 'docker', 'openclaw');
@@ -2580,14 +2581,12 @@ async function main() {
         groupPolicy: 'allowlist',
         groupAllowFrom: ['*'],
         historyLimit: 50,
-        groups: {
-          '*': {
-            enabled: true,
-            requireMention: false,
-          },
-        },
         autoReply: true,
       };
+      // zalo-mod plugin — pre-integrated for Zalo Personal moderation
+      botConfig.plugins = botConfig.plugins || {};
+      botConfig.plugins.entries = botConfig.plugins.entries || {};
+      botConfig.plugins.entries['zalo-mod'] = { enabled: true, config: {} };
     } else if (channelKey === 'zalo-bot') {
       botConfig.channels['zalo'] = { enabled: true, provider: 'official_account' };
     }

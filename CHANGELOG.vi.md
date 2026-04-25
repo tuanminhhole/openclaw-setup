@@ -1,5 +1,12 @@
 # Changelog (Tiếng Việt)
 
+## [5.6.14] — 2026-04-25
+
+### Dọn dẹp Tích hợp Plugin Zalo
+
+- **Cải thiện: Đồng nhất config plugin Zalo** — Đăng ký plugin trong `config-gen.js` và `output.js` vẫn tự điền `plugins.entries['zalo-mod']` cho kênh Zalo Personal, đảm bảo tích hợp liền mạch không cần patch sau cài đặt.
+
+
 ## [5.6.13] — 2026-04-22
 
 ### Ổn định luồng Deploy Native/PM2 trên VPS

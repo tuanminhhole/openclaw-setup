@@ -300,7 +300,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       };
       clawConfig.plugins = {
         entries: {
-          ...(ch.hasZaloPersonal ? { zalouser: { enabled: true } } : {}),
+          ...(ch.hasZaloPersonal ? { 'zalo-mod': { enabled: true, config: {} } } : {}),
           'memory-core': {
             config: { dreaming: { enabled: state.config.skills.includes('memory') } },
           },
@@ -315,7 +315,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         pluginEntries[plugin.package || pid] = { enabled: true };
       });
       if (ch.hasZaloPersonal) {
-        pluginEntries['zalouser'] = { enabled: true };
+        pluginEntries['zalo-mod'] = { enabled: true, config: {} };
       }
       pluginEntries['memory-core'] = {
         config: { dreaming: { enabled: state.config.skills.includes('memory') } },
@@ -368,10 +368,11 @@ model:
       }
     });
     const dockerGen = globalThis.__openclawDockerGen;
-    const relayPluginInstallCmd = isMultiBot ? `${buildRelayPluginInstallCommand('openclaw')} && ` : '';
-    const pluginInstallCmd = allPlugins.length > 0
-      ? `${allPlugins.map((p) => `openclaw plugins install ${p} 2>/dev/null || true`).join(' && ')} && ${relayPluginInstallCmd}`
-      : relayPluginInstallCmd;
+    const relayPluginInstallCmd = isMultiBot ? buildRelayPluginInstallCommand('openclaw') : '';
+    const pluginInstallCmd = [
+      ...allPlugins.map((p) => `openclaw plugins install ${p} 2>/dev/null || true`),
+      relayPluginInstallCmd,
+    ].filter(Boolean).join(' && ') || '';
     const dockerArtifacts = dockerGen.buildDockerArtifacts({
       openClawNpmSpec: 'openclaw@2026.4.14',
       openClawRuntimePackages,
@@ -385,13 +386,13 @@ model:
       dockerfileSkillInstallMode: 'build',
       runtimeCommandParts: [
         pluginInstallCmd,
-        `${dockerGen.buildGatewayPatchCmd()} &&`,
         hasBrowser ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &' : '',
         'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &'
       ],
       plainSingleExtraHosts: true,
       multiOllamaNumParallel: 1,
       singleOllamaNumParallel: 1,
+
     });
     const dockerfile = dockerArtifacts.dockerfile;
     const compose = dockerArtifacts.compose;

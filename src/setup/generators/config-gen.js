@@ -175,18 +175,13 @@
           groupPolicy: 'allowlist',
           groupAllowFrom: ['*'],
           historyLimit: 50,
-          groups: {
-            '*': {
-              enabled: true,
-              requireMention: false,
-            },
-          },
           autoReply: true,
         };
-        // plugins.entries.zalouser is REQUIRED for gateway to load the Zalo channel provider
+        // zalo-mod plugin - pre-integrated for Zalo Personal moderation
+        // User configures groupName, botName, watchGroupIds etc. after setup
         cfg.plugins = cfg.plugins || {};
         cfg.plugins.entries = cfg.plugins.entries || {};
-        cfg.plugins.entries.zalouser = { enabled: true };
+        cfg.plugins.entries['zalo-mod'] = { enabled: true, config: {} };
       } else if (state.channel === 'zalo-bot') {
         cfg.channels.zalo = { enabled: true, provider: 'official_account' };
       }

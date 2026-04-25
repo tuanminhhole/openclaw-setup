@@ -167,6 +167,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       multiOllamaNumParallel = 1,
       singleOllamaNumParallel = 1,
       emitBrowserInstall = true,
+
     } = options;
 
     const browserAptExtra = hasBrowser ? ' xvfb socat' : '';

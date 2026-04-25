@@ -2580,12 +2580,6 @@ async function main() {
         groupPolicy: 'allowlist',
         groupAllowFrom: ['*'],
         historyLimit: 50,
-        groups: {
-          '*': {
-            enabled: true,
-            requireMention: false,
-          },
-        },
         autoReply: true,
       };
     } else if (channelKey === 'zalo-bot') {
