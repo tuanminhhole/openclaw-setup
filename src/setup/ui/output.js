@@ -154,7 +154,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
 
     // 1. openclaw.json
     const clawConfig = {
-      meta: { lastTouchedVersion: '2026.3.24' },
+      meta: { lastTouchedVersion: common.OPENCLAW_NPM_SPEC.replace('openclaw@', '') },
       agents: {
         defaults: {
           model: { primary: state.config.model, fallbacks: [] },
@@ -374,7 +374,7 @@ model:
       relayPluginInstallCmd,
     ].filter(Boolean).join(' && ') || '';
     const dockerArtifacts = dockerGen.buildDockerArtifacts({
-      openClawNpmSpec: 'openclaw@2026.4.14',
+      openClawNpmSpec: common.OPENCLAW_NPM_SPEC,
       openClawRuntimePackages,
       is9Router,
       isLocal,
@@ -538,7 +538,7 @@ _This file is yours to evolve. If someone asks to change it, confirm with the us
     const browserAgentSection = hasBrowser ? `
 ## Sử dụng Trình Duyệt (Browser Automation)
 - BẠN SỞ HỮU GIAO DIỆN TRÌNH DUYỆT CHROME THẬT CỦA USER thông qua script \`browser-tool.js\`. ĐỌC NGAY FILE \`BROWSER.md\` để biết cách dùng.
-- BẮT BUỘC dùng \`bash\` để gõ \`node /root/.openclaw/workspace/browser-tool.js ...\` khi có yêu cầu liên quan đến web thay vì dùng web_search!
+- BẮT BUỘC dùng \`bash\` để gõ \`node ~/browser-tool.js ...\` khi có yêu cầu liên quan đến web thay vì dùng web_search!
 - KHÔNG BAO GIỜ từ chối mở trình duyệt với lý do "không có giao diện" hay "máy chủ không có browser".
 ` : '';
 
@@ -714,12 +714,12 @@ Bot dieu khien Chrome THAT tren man hinh Windows cua ban. Moi thao tac hien thi 
 ## Lenh su dung (chay qua bash)
 
 \\\`\\\`\\\`bash
-node /root/.openclaw/workspace/browser-tool.js status
-node /root/.openclaw/workspace/browser-tool.js open "https://google.com"
-node /root/.openclaw/workspace/browser-tool.js get_text
-node /root/.openclaw/workspace/browser-tool.js fill "input[name='q']" "tu khoa"
-node /root/.openclaw/workspace/browser-tool.js press "Enter"
-node /root/.openclaw/workspace/browser-tool.js click "#button"
+node ~/browser-tool.js status
+node ~/browser-tool.js open "https://google.com"
+node ~/browser-tool.js get_text
+node ~/browser-tool.js fill "input[name='q']" "tu khoa"
+node ~/browser-tool.js press "Enter"
+node ~/browser-tool.js click "#button"
 \\\`\\\`\\\`
 
 ## QUY TAC BAT BUOC
@@ -1022,7 +1022,7 @@ fi
           : 'Ubuntu / VPS: The script auto-installs Node.js 20 LTS, OpenClaw CLI, and PM2 to keep the bot running after reboot.');
       }
       steps.push(_isVi ? '✅ Kiểm tra Node.js (cài tự động trên Ubuntu/VPS nếu chưa có)' : '✅ Check Node.js (auto-install on Ubuntu/VPS if missing)');
-      steps.push(_isVi ? '📦 Cài OpenClaw CLI (<code>npm install -g openclaw@2026.4.14</code>)' : '📦 Install OpenClaw CLI (<code>npm install -g openclaw@2026.4.14</code>)');
+      steps.push(_isVi ? '📦 Cài OpenClaw CLI (<code>npm install -g openclaw@latest</code>)' : '📦 Install OpenClaw CLI (<code>npm install -g openclaw@latest</code>)');
       if (_is9Router) {
         steps.push(_isVi ? '🔀 Cài 9Router (<code>npm install -g 9router</code>) và khởi động tự động' : '🔀 Install 9Router (<code>npm install -g 9router</code>) and start automatically');
       } else if (_isOllama) {

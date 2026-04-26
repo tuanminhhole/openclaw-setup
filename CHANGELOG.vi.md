@@ -1,5 +1,17 @@
 # Changelog (Tiếng Việt)
 
+## [5.7.0] — 2026-04-27
+
+### Kiến trúc Config Tập trung & Bộ Test Ma trận
+
+- **Refactor: Tập trung bot-config-gen.js** — Dồn toàn bộ logic tạo `openclaw.json`, `.env`, và `exec-approvals.json` vào module duy nhất (`src/setup/shared/bot-config-gen.js`). Cả Web Wizard (IIFE) và CLI (CJS) đều dùng chung cùng một builder, loại bỏ triệt để sai lệch config giữa 2 bề mặt.
+- **Refactor: Phiên bản rolling `@latest`** — Tất cả script cài đặt (Windows BAT, macOS/Linux/VPS SH) và trình tạo config giờ dùng `openclaw@latest` thay vì version cố định (ví dụ `openclaw@2026.4.14`). Trường `lastTouchedVersion` dùng hằng `OPENCLAW_NPM_SPEC` để phân giải động.
+- **Sửa: Xóa `autoReply` khỏi Zalo Personal** — Trường `autoReply: true` gây crash gateway khi khởi động đã bị loại bỏ vĩnh viễn khỏi mọi generator (`config-gen.js`, `cli.src.js`, `bot-config-gen.js`).
+- **Sửa: Chuẩn hóa config Zalo Personal** — Kênh `zalouser` giờ tạo ra config khớp production với `groups`, `groupPolicy: 'allowlist'`, `historyLimit: 50`, `bindings` đúng chuẩn, và `zalo-mod` plugin đã đăng ký sẵn.
+- **Sửa: Tạo gateway token** — Tất cả môi trường (Wizard + CLI) giờ dùng `crypto.randomUUID()` cho auth token gateway, thay thế dummy token cũ trong CLI.
+- **Mới: Bộ test ma trận toàn diện** — Thêm `test-matrix.mjs` với 422 test phủ tất cả tổ hợp OS × Deploy Mode × Channel × Số bot, kèm exec-approvals, tạo .env, sandbox Wizard IIFE, kiểm tra cấu trúc CLI, và kiểm tra tính toàn vẹn config production đa kênh.
+- **Dọn dẹp: Xóa file test cũ** — Loại bỏ `test-vps-install.mjs` E2E test, đã được thay thế bởi bộ test ma trận.
+
 ## [5.6.14] — 2026-04-25
 
 ### Dọn dẹp Tích hợp Plugin Zalo

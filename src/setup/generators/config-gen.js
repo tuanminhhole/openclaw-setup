@@ -49,142 +49,42 @@
       return lines.join('\n');
     }
 
-    // ─── Per-bot openclaw.json (minimal — shared workspace) ──────────────────
+    // ─── Per-bot openclaw.json (delegates to centralized builder) ──────────────
     function botConfigContent(botIndex) {
       const bot = state.bots[botIndex] || {};
       const botName = bot.name || `Bot ${botIndex + 1}`;
       const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const basePort = 18791 + botIndex;
       const groupId = state.groupId || '';
-      
+
       // Force use global provider if proxy mode is chosen globally, else use bot specific provider
       const botProvider = (provider && provider.isProxy) ? provider : (PROVIDERS[bot.provider] || provider);
       const actualModel = botProvider.isProxy ? provider.models[0].id : (bot.model || state.config.model);
-      const common = globalThis.__openclawCommon;
+      const bcfg = globalThis.__openclawBotConfig;
 
-      const cfg = {
-        meta: { lastTouchedVersion: '2026.3.24' },
-        agents: {
-          defaults: {
-            model: { primary: actualModel },
-            compaction: { mode: 'safeguard' },
-            timeoutSeconds: botProvider.isLocal ? 900 : 120,
-            ...(botProvider.isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
-          },
-          list: [{
-            id: agentId,
-            workspace: `.openclaw/workspace-${agentId}`,
-            agentDir: `agents/${agentId}/agent`,
-            model: { primary: actualModel }
-          }],
-        },
-        ...(botProvider.isProxy ? {
-          models: {
-            mode: 'merge',
-            providers: {
-              '9router': common.build9RouterProviderConfig(common.get9RouterBaseUrl(state.deployMode))
-            }
-          }
-        } : {}),
-        ...(botProvider.isLocal ? {
-          models: {
-            providers: {
-              ollama: {
-                baseUrl: state.deployMode === 'docker' ? 'http://ollama:11434' : 'http://localhost:11434',
-                apiKey: 'ollama-local',
-                api: 'ollama',
-                models: [
-                  { id: selectedModel, name: selectedModel, contextWindow: 128000, maxTokens: 8192 }
-                ]
-              }
-            }
-          }
-        } : {}),
-        commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
-        channels: {},
-        tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
-        gateway: common.buildGatewayConfig(basePort, state.deployMode, getGatewayAllowedOrigins(basePort), state.nativeOs || ''),
-      };
-
-      if (hasBrowser) {
-        cfg.browser = { enabled: true };
-      }
-
-      const skillEntries = {};
-      state.config.skills.forEach((sid) => {
-        const skill = SKILLS.find((s) => s.id === sid);
-        if (!skill) return;
-        if (skill.id === 'scheduler' || skill.slug === 'browser-automation' || !skill.slug) return;
-        skillEntries[skill.slug] = { enabled: true };
+      const cfg = bcfg.buildOpenclawJson({
+        channelKey: state.channel,
+        deployMode: state.deployMode,
+        providerKey: botProvider.isProxy ? '9router' : (bot.provider || state.config.provider),
+        provider: botProvider,
+        model: actualModel,
+        isMultiBot,
+        agentMetas: [{
+          agentId,
+          name: botName,
+          token: (bot.token || state.config.botToken || '').trim(),
+          workspaceDir: `workspace-${agentId}`,
+        }],
+        groupId,
+        selectedSkills: state.config.skills,
+        skills: SKILLS,
+        hasBrowserDesktop: hasBrowser && state.browserMode === 'desktop',
+        hasBrowserServer: hasBrowser && state.browserMode !== 'desktop',
+        gatewayPort: basePort,
+        gatewayAllowedOrigins: getGatewayAllowedOrigins(basePort),
+        osChoice: state.nativeOs || '',
+        selectedModel: typeof selectedModel !== 'undefined' ? selectedModel : '',
       });
-      if (Object.keys(skillEntries).length > 0) {
-        cfg.skills = { entries: skillEntries };
-      }
-      // Enable memory-core with dreaming by default
-      cfg.plugins = cfg.plugins || {};
-      cfg.plugins.entries = cfg.plugins.entries || {};
-      cfg.plugins.entries['memory-core'] = {
-        config: {
-          dreaming: {
-            enabled: true,
-          },
-        },
-      };
-      if (!state.config.skills.includes('memory')) {
-        // User explicitly opted out of memory - disable dreaming but keep memory-core
-        cfg.plugins.entries['memory-core'].config.dreaming.enabled = false;
-      }
-
-      if (state.channel === 'telegram') {
-        const tok = (bot.token || state.config.botToken || '').trim();
-        cfg.channels.telegram = {
-          enabled: true,
-          dmPolicy: 'open',
-          allowFrom: ['*'],
-          defaultAccount: 'default',
-          replyToMode: 'first',
-          reactionLevel: 'minimal',
-          actions: {
-            sendMessage: true,
-            reactions: true,
-          },
-          accounts: {
-            default: {
-              botToken: tok || '<your_bot_token>',
-            },
-          },
-        };
-        if (isMultiBot) {
-          cfg.channels.telegram.groupPolicy = groupId ? 'allowlist' : 'open';
-          cfg.channels.telegram.groupAllowFrom = ['*'];
-          cfg.channels.telegram.groups = {
-            [groupId || '*']: {
-              enabled: true,
-              requireMention: false,
-            },
-          };
-        }
-      }
-      
-      if (state.channel === 'zalo-personal') {
-        cfg.channels.zalouser = {
-          enabled: true,
-          defaultAccount: 'default',
-          dmPolicy: 'open',
-          allowFrom: ['*'],
-          groupPolicy: 'allowlist',
-          groupAllowFrom: ['*'],
-          historyLimit: 50,
-          autoReply: true,
-        };
-        // zalo-mod plugin - pre-integrated for Zalo Personal moderation
-        // User configures groupName, botName, watchGroupIds etc. after setup
-        cfg.plugins = cfg.plugins || {};
-        cfg.plugins.entries = cfg.plugins.entries || {};
-        cfg.plugins.entries['zalo-mod'] = { enabled: true, config: {} };
-      } else if (state.channel === 'zalo-bot') {
-        cfg.channels.zalo = { enabled: true, provider: 'official_account' };
-      }
 
       return JSON.stringify(cfg, null, 2);
     }
@@ -192,60 +92,29 @@
     function botAuthProfilesContent(botIndex) {
       const bot = state.bots[botIndex] || {};
       const botProvider = PROVIDERS[bot.provider] || provider;
-      let authProfilesJson;
-      if (botProvider.isLocal) {
-        authProfilesJson = {
-          version: 1,
-          profiles: {
-            'ollama:default': {
-              provider: 'ollama',
-              type: 'api_key',
-              key: 'ollama-local',
-              url: 'http://localhost:11434',
-            },
-          },
-          order: { ollama: ['ollama:default'] },
-        };
-      } else {
-        const authProviderName = botProvider.isProxy ? '9router' : (bot.provider || state.config.provider);
-        const authProfileId = botProvider.isProxy ? '9router-proxy' : `${authProviderName}:default`;
-        const authKeyValue = botProvider.isProxy
-          ? globalThis.__openclawCommon.NINE_ROUTER_PROXY_API_KEY
-          : ((bot.apiKey || state.config.apiKey || '').trim() || `<your_${(botProvider.envKey || 'API_KEY').toLowerCase()}>`);
-        authProfilesJson = {
-          version: 1,
-          profiles: {
-            [authProfileId]: {
-              provider: authProviderName,
-              type: 'api_key',
-              key: authKeyValue,
-            },
-          },
-          order: { [authProviderName]: [authProfileId] },
-        };
-        if (!botProvider.isProxy && botProvider.baseURL) {
-          authProfilesJson.profiles[authProfileId].url = botProvider.baseURL;
-        }
-      }
-      return JSON.stringify(authProfilesJson, null, 2);
+      const common = globalThis.__openclawCommon;
+      const authProviderName = botProvider.isProxy ? '9router' : (bot.provider || state.config.provider);
+      const apiKeyVal = botProvider.isProxy
+        ? common.NINE_ROUTER_PROXY_API_KEY
+        : ((bot.apiKey || state.config.apiKey || '').trim() || `<your_${(botProvider.envKey || 'API_KEY').toLowerCase()}>`);
+      return common.buildAuthProfilesString({
+        providerKey: authProviderName,
+        provider: botProvider,
+        providerKeyVal: apiKeyVal,
+        isProxy: botProvider.isProxy,
+        isLocal: botProvider.isLocal,
+        deployMode: state.deployMode,
+      });
     }
 
     function botExecApprovalsContent(botIndex) {
       const bot = state.bots[botIndex] || {};
       const botName = bot.name || `Bot ${botIndex + 1}`;
       const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      return JSON.stringify({
-        version: 1,
-        defaults: {
-          security: 'full',
-          ask: 'off',
-          askFallback: 'full'
-        },
-        agents: {
-          main: { security: 'full', ask: 'off', askFallback: 'full', autoAllowSkills: true },
-          [agentId]: { security: 'full', ask: 'off', askFallback: 'full', autoAllowSkills: true }
-        }
-      }, null, 2);
+      const bcfg = globalThis.__openclawBotConfig;
+      return JSON.stringify(bcfg.buildExecApprovalsJson({
+        agentMetas: [{ agentId }],
+      }), null, 2);
     }
 
 

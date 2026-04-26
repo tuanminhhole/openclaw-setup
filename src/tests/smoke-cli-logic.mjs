@@ -1,4 +1,4 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 import path from 'path';
 
 const root = process.cwd();
@@ -234,31 +234,30 @@ checks.push(() => expectMatch(
 ));
 
 checks.push(() => expect(
-  cli.includes("'9router': build9RouterProviderConfig(get9RouterBaseUrl(deployMode))")
-    && cli.includes("provider.baseUrl = get9RouterBaseUrl(detectProjectDeployMode(projectDir));"),
+  cli.includes("provider.baseUrl = get9RouterBaseUrl(detectProjectDeployMode(projectDir));")
+    && cli.includes('buildOpenclawJson'),
   'Native 9Router config must target localhost instead of the Docker hostname'
 ));
 
-checks.push(() => expectMatch(
-  cli,
-  /controlUi:\s*\{\s*allowedOrigins: getGatewayAllowedOrigins\(18791\)/s,
-  'Native shared gateway config must seed control UI allowed origins'
-));
-
-checks.push(() => expectMatch(
-  cli,
-  /controlUi:\s*\{\s*allowedOrigins: getGatewayAllowedOrigins\(18791 \+ \(isMultiBot \? bIndex : 0\)\)/s,
-  'Native per-bot gateway config must seed control UI allowed origins for each port'
+checks.push(() => expect(
+  setup.includes('gatewayPort = 18791')
+    && setup.includes('gatewayAllowedOrigins')
+    && setup.includes('port: gatewayPort'),
+  'Centralized gateway config builder must seed control UI allowed origins'
 ));
 
 checks.push(() => expect(
-  cli.includes('workspace: `.openclaw/${meta.workspaceDir}`')
-    && cli.includes('agentDir: `agents/${meta.agentId}/agent`')
-    && cli.includes('workspace: `.openclaw/${loopWorkspaceDir}`')
-    && cli.includes('agentDir: `agents/${loopAgentId}/agent`')
-    && !cli.includes('workspace: `/root/.openclaw/${meta.workspaceDir}`')
-    && !cli.includes('agentDir: `/root/.openclaw/agents/${meta.agentId}/agent`'),
-  'CLI native/docker agent entries must use wizard-compatible relative workspace and agentDir paths'
+  setup.includes('gatewayPort: basePort')
+    && setup.includes('gatewayAllowedOrigins: getGatewayAllowedOrigins(basePort)'),
+  'Config-gen per-bot gateway config must pass port and allowed origins to centralized builder'
+));
+
+checks.push(() => expect(
+  setup.includes("workspace: `.openclaw/${meta.workspaceDir")
+    && setup.includes("agentDir: `agents/${meta.agentId}/agent`")
+    && !setup.includes('workspace: `/root/.openclaw/${meta.workspaceDir}')
+    && !setup.includes('agentDir: `/root/.openclaw/agents/${meta.agentId}/agent`'),
+  'Centralized agent entries must use relative workspace and agentDir paths'
 ));
 
 checks.push(() => expectMatch(
@@ -284,10 +283,15 @@ checks.push(() => expect(
   'Docker setup.js patch script must use bind:custom+customBindHost:0.0.0.0, skip socat gateway bridge, and avoid shell-expanding ${entry.address}'
 ));
 
-checks.push(() => expectMatch(
-  cli,
-  /hasZaloPersonal\(channelKey\)\) \{[\s\S]*botConfig\.channels\['zalouser'\] = \{[\s\S]*defaultAccount: 'default'[\s\S]*dmPolicy: 'open'[\s\S]*allowFrom: \['\*'\][\s\S]*groupPolicy: 'allowlist'[\s\S]*groupAllowFrom: \['\*'\][\s\S]*historyLimit: 50[\s\S]*autoReply: true/s,
-  'CLI must configure Zalo Personal under channels.zalouser'
+checks.push(() => expect(
+  setup.includes("channels.zalouser")
+    && setup.includes("defaultAccount: 'default'")
+    && setup.includes("dmPolicy: 'open'")
+    && setup.includes("groupPolicy: 'allowlist'")
+    && setup.includes("historyLimit: 50")
+    && !setup.includes("autoReply")
+    && setup.includes("groups:"),
+  'Centralized builder must configure Zalo Personal under channels.zalouser without autoReply'
 ));
 
 checks.push(() => expect(
@@ -397,13 +401,13 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /const scriptName = isDocker \? 'setup-openclaw-docker-win\.bat' : 'setup-openclaw-win\.bat';[\s\S]*npm install -g openclaw@2026\.4\.14[\s\S]*openclaw gateway run/s,
+  /const scriptName = isDocker \? 'setup-openclaw-docker-win\.bat' : 'setup-openclaw-win\.bat';[\s\S]*npm install -g openclaw@latest[\s\S]*openclaw gateway run/s,
   'Windows native/docker script generation must use the correct file name and start command'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /const scriptName = isDocker \? 'setup-openclaw-docker-macos\.sh' : 'setup-openclaw-macos\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@2026\.4\.14[\s\S]*openclaw gateway run/s,
+  /const scriptName = isDocker \? 'setup-openclaw-docker-macos\.sh' : 'setup-openclaw-macos\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@latest[\s\S]*openclaw gateway run/s,
   'macOS script generation must use the correct file name and start command'
 ));
 
@@ -426,7 +430,7 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*PROJECT_DIR="[\s\S]*export OPENCLAW_HOME="\$PROJECT_DIR\/\.openclaw"[\s\S]*export OPENCLAW_STATE_DIR="\$PROJECT_DIR\/\.openclaw"[\s\S]*export DATA_DIR="\$PROJECT_DIR\/\.9router"[\s\S]*npm install -g openclaw@2026\.4\.14[\s\S]*pm2@latest[\s\S]*pm2 save && pm2 startup/s,
+  /scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*PROJECT_DIR="[\s\S]*export OPENCLAW_HOME="\$PROJECT_DIR\/\.openclaw"[\s\S]*export OPENCLAW_STATE_DIR="\$PROJECT_DIR\/\.openclaw"[\s\S]*export DATA_DIR="\$PROJECT_DIR\/\.9router"[\s\S]*npm install -g openclaw@latest[\s\S]*pm2@latest[\s\S]*pm2 save && pm2 startup/s,
   'VPS native script generation must keep runtime files project-local, install openclaw+pm2, and persist PM2 startup'
 ));
 
@@ -623,7 +627,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /scriptName = 'setup-openclaw-linux\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@2026\.4\.14[\s\S]*openclaw gateway run/s,
+  /scriptName = 'setup-openclaw-linux\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@latest[\s\S]*openclaw gateway run/s,
   'Linux Desktop native script generation must install openclaw and run the gateway'
 ));
 
@@ -654,13 +658,14 @@ checks.push(() => expect(
 ));
 
 checks.push(() => expect(
-  setup.includes("gateway: common.buildGatewayConfig(18791, 'native', getGatewayAllowedOrigins(18791))"),
-  'Web wizard single-bot gateway config must seed control UI allowed origins'
+  setup.includes('gatewayPort: basePort')
+    && setup.includes('gatewayAllowedOrigins: getGatewayAllowedOrigins(basePort)'),
+  'Web wizard single/per-bot gateway config must pass port and origins to centralized builder'
 ));
 
 checks.push(() => expect(
-  setup.includes('gateway: common.buildGatewayConfig(basePort, state.deployMode, getGatewayAllowedOrigins(basePort),'),
-  'Web wizard per-bot gateway config must seed control UI allowed origins with osChoice'
+  setup.includes("osChoice: state.nativeOs"),
+  'Web wizard per-bot gateway config must pass osChoice to centralized builder'
 ));
 
 checks.push(() => expectMatch(

@@ -1,5 +1,17 @@
 # Changelog (English)
 
+## [5.7.0] — 2026-04-27
+
+### Centralized Config Architecture & Test Matrix
+
+- **Refactor: Centralized bot-config-gen.js** — Migrated all `openclaw.json`, `.env`, and `exec-approvals.json` generation logic into a single shared module (`src/setup/shared/bot-config-gen.js`). Both the Web Wizard (IIFE) and CLI (CJS) now consume the same builder, eliminating configuration drift between the two surfaces.
+- **Refactor: Rolling `@latest` versioning** — All installation scripts (Windows BAT, macOS/Linux/VPS SH) and configuration generators now use `openclaw@latest` instead of pinned version strings (e.g., `openclaw@2026.4.14`). The `lastTouchedVersion` field uses the `OPENCLAW_NPM_SPEC` constant for dynamic resolution.
+- **Fix: Remove `autoReply` from Zalo Personal** — The `autoReply: true` field that caused gateway startup crashes has been permanently removed from all generators (`config-gen.js`, `cli.src.js`, `bot-config-gen.js`).
+- **Fix: Standardize Zalo Personal config** — The `zalouser` channel now generates production-matching configuration with `groups`, `groupPolicy: 'allowlist'`, `historyLimit: 50`, proper `bindings`, and `zalo-mod` plugin pre-registration.
+- **Fix: Gateway token generation** — All environments (Wizard + CLI) now use `crypto.randomUUID()` for gateway auth tokens, replacing the previous dummy token in CLI.
+- **New: Comprehensive test matrix** — Added `test-matrix.mjs` with 422 tests covering all OS × Deploy Mode × Channel × Bot Count combinations, plus exec-approvals, .env generation, Wizard IIFE sandbox evaluation, CLI structural validation, and cross-channel production config integrity checks.
+- **Chore: Cleaned up legacy test files** — Removed the standalone `test-vps-install.mjs` E2E test, now superseded by the matrix test suite.
+
 ## [5.6.14] — 2026-04-25
 
 ### Zalo Plugin Integration Cleanup

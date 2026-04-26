@@ -60,6 +60,13 @@ const {
   buildCliStartBotArtifacts,
 } = loadSharedModule('./setup/shared/install-gen.js', '__openclawInstall');
 
+const {
+  buildOpenclawJson,
+  buildExecApprovalsJson,
+  buildEnvFileContent,
+  buildSkillsEntries: _buildSkillsEntries,
+} = loadSharedModule('./setup/shared/bot-config-gen.js', '__openclawBotConfig');
+
 function installRelayPluginForProject(projectDir, isVi) {
   try {
     execSync(`openclaw plugins install ${TELEGRAM_RELAY_PLUGIN_SPEC}`, { cwd: projectDir, stdio: 'ignore' });
@@ -2062,49 +2069,43 @@ async function main() {
 
   // ─── Helper: build .env content per bot ──────────────────────────────────
 
-  function buildEnvContent(botIndex) {
-    let env = '';
-    if (provider.isLocal) {
-      env += `OLLAMA_HOST=${ollamaHost}\n`;
-      env += 'OLLAMA_API_KEY=ollama-local\n';
-    } else if (!provider.isProxy) {
-      env += `${provider.envKey}=${providerKeyVal}\n`;
-    }
+  function buildEnvContentForBot(botIndex) {
     const tok = bots[botIndex]?.token || botToken;
-    if (channelKey === 'telegram') {
-      env += `TELEGRAM_BOT_TOKEN=${tok}\n`;
-      if (isMultiBot && groupId) env += `TELEGRAM_GROUP_ID=${groupId}\n`;
-    } else if (channelKey === 'zalo-bot') {
-      env += `ZALO_APP_ID=\nZALO_APP_SECRET=\nZALO_BOT_TOKEN=${tok}\n`;
-    }
-    if (selectedSkills.includes('tts')) {
-      env += `\n# --- Text-To-Speech ---\n`;
-      if (ttsOpenaiKey) env += `OPENAI_API_KEY=${ttsOpenaiKey}\n`;
-      if (ttsElevenKey) env += `ELEVENLABS_API_KEY=${ttsElevenKey}\n`;
-    }
-    if (selectedSkills.includes('email')) {
-      env += `\n# --- Email ---\nSMTP_HOST=${smtpHost}\nSMTP_PORT=${smtpPort}\nSMTP_USER=${smtpUser}\nSMTP_PASS=${smtpPass}\n`;
-    }
-    return env;
+    return buildEnvFileContent({
+      provider,
+      providerKeyVal,
+      channelKey,
+      botToken: tok,
+      isMultiBot,
+      groupId,
+      selectedSkills,
+      ttsOpenaiKey,
+      ttsElevenKey,
+      smtpHost,
+      smtpPort,
+      smtpUser,
+      smtpPass,
+      isSharedEnv: false,
+    });
   }
 
-  function buildSharedEnvContent() {
-    let env = '';
-    if (provider.isLocal) {
-      env += `OLLAMA_HOST=${ollamaHost}\n`;
-      env += 'OLLAMA_API_KEY=ollama-local\n';
-    } else if (!provider.isProxy) {
-      env += `${provider.envKey}=${providerKeyVal}\n`;
-    }
-    if (selectedSkills.includes('tts')) {
-      env += `\n# --- Text-To-Speech ---\n`;
-      if (ttsOpenaiKey) env += `OPENAI_API_KEY=${ttsOpenaiKey}\n`;
-      if (ttsElevenKey) env += `ELEVENLABS_API_KEY=${ttsElevenKey}\n`;
-    }
-    if (selectedSkills.includes('email')) {
-      env += `\n# --- Email ---\nSMTP_HOST=${smtpHost}\nSMTP_PORT=${smtpPort}\nSMTP_USER=${smtpUser}\nSMTP_PASS=${smtpPass}\n`;
-    }
-    return env;
+  function buildSharedEnvContentForBots() {
+    return buildEnvFileContent({
+      provider,
+      providerKeyVal,
+      channelKey,
+      botToken: '',
+      isMultiBot,
+      groupId,
+      selectedSkills,
+      ttsOpenaiKey,
+      ttsElevenKey,
+      smtpHost,
+      smtpPort,
+      smtpUser,
+      smtpPass,
+      isSharedEnv: true,
+    });
   }
 
   // ─── Create directories and write .env files ─────────────────────────────
@@ -2112,9 +2113,9 @@ async function main() {
     await fs.ensureDir(path.join(projectDir, '.openclaw'));
     if (deployMode === 'docker') {
       await fs.ensureDir(path.join(projectDir, 'docker', 'openclaw'));
-      await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', '.env'), buildSharedEnvContent());
+      await fs.writeFile(path.join(projectDir, 'docker', 'openclaw', '.env'), buildSharedEnvContentForBots());
     } else {
-      await fs.writeFile(path.join(projectDir, '.env'), buildSharedEnvContent());
+      await fs.writeFile(path.join(projectDir, '.env'), buildSharedEnvContentForBots());
     }
   } else {
     await fs.ensureDir(path.join(projectDir, '.openclaw'));
@@ -2122,7 +2123,7 @@ async function main() {
     const envFilePath = deployMode === 'docker'
       ? path.join(projectDir, 'docker', 'openclaw', '.env')
       : path.join(projectDir, '.env');
-    await fs.writeFile(envFilePath, buildEnvContent(0));
+    await fs.writeFile(envFilePath, buildEnvContentForBot(0));
   }
   
   
@@ -2169,6 +2170,7 @@ async function main() {
     multiOllamaNumParallel: 2,
     singleOllamaNumParallel: 1,
     emitBrowserInstall: hasBrowserServer || hasBrowserDesktop,
+
   });
 
   const dockerDir = path.join(projectDir, 'docker', 'openclaw');
@@ -2248,112 +2250,23 @@ async function main() {
         workspaceDir: `workspace-${agentSlug}`,
       };
     });
-    const telegramAccounts = Object.fromEntries(agentMetas.map((meta) => [meta.accountId, {
-      botToken: meta.token,
-    }]));
-    const telegramChannelConfig = {
-      enabled: true,
-      defaultAccount: 'default',
-      dmPolicy: 'open',
-      allowFrom: ['*'],
-      groupPolicy: groupId ? 'allowlist' : 'open',
-      groupAllowFrom: ['*'],
-      groups: {
-        [groupId || '*']: { enabled: true, requireMention: false },
-      },
-      replyToMode: 'first',
-      reactionLevel: 'minimal',
-      actions: {
-        sendMessage: true,
-        reactions: true,
-      },
-      accounts: telegramAccounts,
-    };
-    const skillEntries = {};
-    SKILLS.forEach((s) => {
-      if (!selectedSkills.includes(s.value)) return;
-      if (!s.slug) return;
-      skillEntries[s.slug] = { enabled: true };
+    const sharedConfig = buildOpenclawJson({
+      channelKey,
+      deployMode,
+      providerKey,
+      provider,
+      model: modelsPrimary,
+      isMultiBot: true,
+      agentMetas,
+      groupId,
+      selectedSkills,
+      skills: SKILLS,
+      hasBrowserDesktop,
+      hasBrowserServer,
+      gatewayPort: 18791,
+      gatewayAllowedOrigins: getGatewayAllowedOrigins(18791),
+      osChoice,
     });
-
-    const sharedConfig = {
-      meta: { lastTouchedVersion: '2026.3.24' },
-      agents: {
-        defaults: {
-          model: { primary: modelsPrimary, fallbacks: [] },
-          compaction: { mode: 'safeguard' },
-          timeoutSeconds: provider.isLocal ? 900 : 120,
-          ...(provider.isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
-        },
-        list: agentMetas.map((meta) => ({
-          id: meta.agentId,
-          name: meta.name,
-          workspace: `.openclaw/${meta.workspaceDir}`,
-          agentDir: `agents/${meta.agentId}/agent`,
-          model: { primary: modelsPrimary, fallbacks: [] },
-        })),
-      },
-      ...(providerKey === '9router' ? {
-        models: {
-          mode: 'merge',
-          providers: {
-            '9router': build9RouterProviderConfig(get9RouterBaseUrl(deployMode)),
-          },
-        },
-      } : provider.isLocal ? {
-        models: {
-          mode: 'merge',
-          providers: {
-            ollama: {
-              baseUrl: 'http://ollama:11434',
-              api: 'ollama',
-              apiKey: 'ollama-local',
-              models: OLLAMA_MODELS,
-            },
-          },
-        },
-      } : {}),
-      commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
-      bindings: agentMetas.map((meta) => ({
-        agentId: meta.agentId,
-        match: { channel: 'telegram', accountId: meta.accountId },
-      })),
-      channels: {
-        telegram: telegramChannelConfig,
-      },
-      tools: {
-        profile: 'full',
-        exec: { host: 'gateway', security: 'full', ask: 'off' },
-        agentToAgent: {
-          enabled: true,
-          allow: agentMetas.map((meta) => meta.agentId),
-        },
-      },
-      gateway: {
-        port: 18791,
-        mode: 'local',
-        bind: 'custom',
-        customBindHost: '0.0.0.0',
-        controlUi: {
-          allowedOrigins: getGatewayAllowedOrigins(18791),
-        },
-        auth: { mode: 'token', token: 'cli-dummy-token-xyz123' },
-      },
-    };
-    sharedConfig.plugins = { entries: {} };
-
-    if (hasBrowserDesktop) {
-      sharedConfig.browser = {
-        enabled: true,
-        defaultProfile: 'host-chrome',
-        profiles: { 'host-chrome': { cdpUrl: 'http://127.0.0.1:9222', color: '#4285F4' } },
-      };
-    } else if (hasBrowserServer) {
-      sharedConfig.browser = { enabled: true };
-    }
-    if (Object.keys(skillEntries).length > 0) {
-      sharedConfig.skills = { entries: skillEntries };
-    }
 
     await fs.writeJson(path.join(rootClawDir, 'openclaw.json'), sharedConfig, { spaces: 2 });
     await fs.writeFile(
@@ -2408,14 +2321,7 @@ async function main() {
       await fs.writeJson(path.join(rootClawDir, 'auth-profiles.json'), authProfilesJson, { spaces: 2 });
     }
 
-    const execApprovalsConfig = {
-      version: 1,
-      defaults: { security: 'full', ask: 'off', askFallback: 'full' },
-      agents: Object.fromEntries([
-        ['main', { security: 'full', ask: 'off', askFallback: 'full', autoAllowSkills: true }],
-        ...agentMetas.map((meta) => [meta.agentId, { security: 'full', ask: 'off', askFallback: 'full', autoAllowSkills: true }]),
-      ]),
-    };
+    const execApprovalsConfig = buildExecApprovalsJson({ agentMetas });
     await fs.writeJson(path.join(rootClawDir, 'exec-approvals.json'), execApprovalsConfig, { spaces: 2 });
 
     const teamMdRoster = agentMetas.map((meta) => ({
@@ -2477,114 +2383,30 @@ async function main() {
     }
 
 
-    const botConfig = {
-      meta: { lastTouchedVersion: '2026.3.24' },
-      agents: {
-        defaults: {
-          model: { primary: modelsPrimary, fallbacks: [] },
-          compaction: { mode: 'safeguard' },
-          timeoutSeconds: provider.isLocal ? 900 : 120,
-          ...(provider.isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
-        },
-        list: [{
-          id: loopAgentId,
-          workspace: `.openclaw/${loopWorkspaceDir}`,
-          agentDir: `agents/${loopAgentId}/agent`,
-          model: { primary: modelsPrimary, fallbacks: [] }
-        }]
-      },
-      ...(providerKey === '9router' ? {
-        models: {
-          mode: 'merge',
-          providers: {
-            '9router': build9RouterProviderConfig(get9RouterBaseUrl(deployMode))
-          }
-        }
-      } : provider.isLocal ? {
-        models: {
-          mode: 'merge',
-          providers: {
-            ollama: {
-              baseUrl: 'http://ollama:11434',
-              api: 'ollama',
-              apiKey: 'ollama-local',
-              models: OLLAMA_MODELS
-            }
-          }
-        }
-      } : {}),
-      commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
-      channels: {},
-      tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
-      gateway: {
-        port: 18791 + (isMultiBot ? bIndex : 0), mode: 'local', bind: 'custom', customBindHost: '0.0.0.0',
-        controlUi: {
-          allowedOrigins: getGatewayAllowedOrigins(18791 + (isMultiBot ? bIndex : 0)),
-        },
-        auth: { mode: 'token', token: 'cli-dummy-token-xyz123' }
-      }
-    };
-
-    if (hasBrowserDesktop) {
-      botConfig.browser = {
-        enabled: true,
-        defaultProfile: 'host-chrome',
-        profiles: { 'host-chrome': { cdpUrl: 'http://127.0.0.1:9222', color: '#4285F4' } }
-      };
-    } else if (hasBrowserServer) {
-      botConfig.browser = { enabled: true };
-    }
-
-    const skillEntries = {};
-    SKILLS.forEach(s => {
-      if (!selectedSkills.includes(s.value)) return;
-      if (!s.slug) return;
-      skillEntries[s.slug] = { enabled: true };
+    const loopGatewayPort = 18791 + (isMultiBot ? bIndex : 0);
+    const botConfig = buildOpenclawJson({
+      channelKey,
+      deployMode,
+      providerKey,
+      provider,
+      model: modelsPrimary,
+      isMultiBot: false,
+      agentMetas: [{
+        agentId: loopAgentId,
+        name: loopBotName,
+        token: loopBotToken,
+        workspaceDir: loopWorkspaceDir,
+      }],
+      groupId,
+      selectedSkills,
+      skills: SKILLS,
+      hasBrowserDesktop,
+      hasBrowserServer,
+      gatewayPort: loopGatewayPort,
+      gatewayAllowedOrigins: getGatewayAllowedOrigins(loopGatewayPort),
+      osChoice,
+      selectedModel: selectedOllamaModel,
     });
-    if (Object.keys(skillEntries).length > 0) {
-      botConfig.skills = { entries: skillEntries };
-    }
-
-    if (channelKey === 'telegram') {
-      const telegramConfig = {
-        enabled: true,
-        dmPolicy: 'open',
-        allowFrom: ['*'],
-        defaultAccount: 'default',
-        replyToMode: 'first',
-        reactionLevel: 'minimal',
-        actions: {
-          sendMessage: true,
-          reactions: true,
-        },
-        accounts: {
-          default: {
-            botToken: loopBotToken || '<your_bot_token>',
-          },
-        },
-      };
-      if (isMultiBot) {
-        telegramConfig.groupPolicy = groupId ? 'allowlist' : 'open';
-        telegramConfig.groupAllowFrom = ['*'];
-        telegramConfig.groups = {
-          [groupId || '*']: { enabled: true, requireMention: false }
-        };
-      }
-      botConfig.channels['telegram'] = telegramConfig;
-    } else if (hasZaloPersonal(channelKey)) {
-      botConfig.channels['zalouser'] = {
-        enabled: true,
-        defaultAccount: 'default',
-        dmPolicy: 'open',
-        allowFrom: ['*'],
-        groupPolicy: 'allowlist',
-        groupAllowFrom: ['*'],
-        historyLimit: 50,
-        autoReply: true,
-      };
-    } else if (channelKey === 'zalo-bot') {
-      botConfig.channels['zalo'] = { enabled: true, provider: 'official_account' };
-    }
 
     await fs.writeJson(path.join(loopBotDir, '.openclaw', 'openclaw.json'), botConfig, { spaces: 2 });
 

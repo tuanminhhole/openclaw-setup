@@ -113,23 +113,142 @@ function buildBootstrapDoc(options = {}) {
   }
 
   function buildBrowserToolJs(variant = 'wizard') {
-    if (variant === 'cli') {
-      return `const { chromium } = require('playwright');\n(async () => {\n  const [,, action, param1, param2] = process.argv;\n  if (!action) { console.log('Usage: node browser-tool.js open|get_text|click|fill|press|status [params]'); process.exit(0); }\n  let browser;\n  try {\n    browser = await chromium.connectOverCDP('http://127.0.0.1:9222');\n    const ctx = browser.contexts()[0] || await browser.newContext();\n    const page = ctx.pages()[0] || await ctx.newPage();\n    if (action === 'open') {\n      await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 20000 });\n      console.log('[Browser] Opened: ' + (await page.title()) + ' | ' + page.url());\n    } else if (action === 'get_text') {\n      const text = await page.evaluate(() => document.body.innerText.trim());\n      console.log(text.substring(0, 4000));\n    } else if (action === 'click') {\n      await page.locator(param1).first().click({ timeout: 5000 });\n      console.log('[Browser] Clicked: ' + param1);\n    } else if (action === 'fill') {\n      await page.locator(param1).first().fill(param2, { timeout: 5000 });\n      console.log('[Browser] Filled into: ' + param1);\n    } else if (action === 'press') {\n      await page.keyboard.press(param1);\n      console.log('[Browser] Pressed: ' + param1);\n    } else if (action === 'status') {\n      console.log('[Browser] Connected: ' + page.url());\n    }\n  } finally {\n    if (browser) await browser.close();\n  }\n})();\n`;
-    }
-    return `const { chromium } = require('playwright');\n(async () => {\n  const [,, action, param1, param2] = process.argv;\n  const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');\n  const ctx = browser.contexts()[0] || await browser.newContext();\n  const page = ctx.pages()[0] || await ctx.newPage();\n  if (action === 'open') await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 });\n  else if (action === 'click') await page.locator(param1).first().click({ timeout: 5000 });\n  else if (action === 'fill') await page.locator(param1).first().fill(param2, { timeout: 5000 });\n  else if (action === 'press') await page.keyboard.press(param1);\n  else console.log(await page.title(), page.url());\n  await browser.close();\n})();\n`;
+    // v2: Full-featured browser-tool.js matching OpenClaw native browser plugin capabilities
+    // Both 'cli' and 'wizard' variants now use the same full script
+    const playwrightRequire = variant === 'cli'
+      ? "require('playwright')"
+      : "require('/usr/local/lib/node_modules/openclaw/node_modules/playwright-core')";
+
+    return `/**
+ * browser-tool.js v2 — Full-featured Chrome CDP controller
+ * Commands: open|get_url|get_text|get_links|get_posts|evaluate|console|screenshot|screenshot_full|pdf|click|fill|press|hover|select|upload|scroll|wait|resize|tabs|new_tab|switch_tab|close_tab|status
+ */
+const { chromium } = ${playwrightRequire};
+const action = process.argv[2];
+const param1 = process.argv[3];
+const param2 = process.argv[4];
+const CDP_URL = 'http://127.0.0.1:9222';
+(async () => {
+    let browser;
+    try {
+        browser = await chromium.connectOverCDP(CDP_URL, { timeout: 5000 });
+        const ctx = browser.contexts()[0];
+        const pages = ctx.pages();
+        let page = pages.length > 0 ? pages[0] : await ctx.newPage();
+        if (action === 'open') {
+            console.log('[Browser] Opening: ' + param1);
+            await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForTimeout(1500);
+            console.log('[Browser] Opened: ' + (await page.title()) + ' | ' + page.url());
+        } else if (action === 'get_url') {
+            console.log(page.url());
+        } else if (action === 'status') {
+            const allPages = ctx.pages();
+            console.log('[Browser] Connected! Tabs: ' + allPages.length);
+            console.log('[Browser] Current: ' + (await page.title()) + ' | ' + page.url());
+        } else if (action === 'get_text') {
+            const maxLen = parseInt(param1) || 4000;
+            const text = await page.evaluate(() => { document.querySelectorAll('script,style,noscript,svg').forEach(e => e.remove()); return document.body.innerText.trim(); });
+            console.log(text.substring(0, maxLen));
+        } else if (action === 'get_links') {
+            const filter = param1 || '';
+            const links = await page.evaluate((f) => { const a = Array.from(document.querySelectorAll('a[href]')).map(e => e.href).filter(h => h && h.startsWith('http')); return [...new Set(f ? a.filter(h => h.includes(f)) : a)]; }, filter);
+            console.log(JSON.stringify(links.slice(0, 50), null, 2));
+        } else if (action === 'get_posts') {
+            const posts = await page.evaluate(() => {
+                const results = [];
+                const articles = document.querySelectorAll('[role="article"]');
+                for (const article of articles) {
+                    const textEl = article.querySelector('[data-ad-comet-preview="message"],[data-ad-preview="message"]');
+                    const fullText = (textEl ? textEl.innerText.trim() : '') || article.innerText.substring(0, 800);
+                    const allLinks = Array.from(article.querySelectorAll('a[href]'));
+                    let permalink = '';
+                    for (const a of allLinks) { const h = a.href || ''; if (h.includes('/posts/') || h.includes('/permalink/') || h.includes('story_fbid')) { permalink = h.split('?')[0]; break; } }
+                    let author = '';
+                    for (const el of article.querySelectorAll('a[role="link"] strong, h2 a, h3 a, h4 a')) { const n = el.innerText.trim(); if (n && n.length > 1 && n.length < 50) { author = n; break; } }
+                    let timePosted = '';
+                    const timeLinks = allLinks.filter(a => { const h = a.href || ''; return h.includes('/posts/') || h.includes('/permalink/'); });
+                    if (timeLinks.length > 0) { const t = timeLinks[0].innerText.trim(); if (t && t.length < 30) timePosted = t; }
+                    if (!timePosted) { const te = article.querySelector('abbr,[data-utime]'); if (te) timePosted = te.innerText.trim() || te.getAttribute('title') || ''; }
+                    if (fullText.length > 20) results.push({ author: author || 'N/A', text: fullText.substring(0, 500), permalink: permalink || 'N/A', time: timePosted || 'N/A' });
+                }
+                return results;
+            });
+            console.log(posts.length === 0 ? '[Browser] No posts found. Try scroll then get_posts again.' : JSON.stringify(posts.slice(0, 10), null, 2));
+        } else if (action === 'evaluate') {
+            const code = process.argv.slice(3).join(' ');
+            if (!code) { console.log('[Browser] Usage: evaluate <js_code>'); process.exit(1); }
+            const result = await page.evaluate(code);
+            console.log(result !== undefined && result !== null ? (typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result)) : '[Browser] Done');
+        } else if (action === 'console') {
+            const msgs = []; page.on('console', m => msgs.push('[' + m.type() + '] ' + m.text()));
+            await page.waitForTimeout(2000);
+            console.log(msgs.length === 0 ? '[Browser] No console messages in 2s' : msgs.join('\\n'));
+        } else if (action === 'screenshot') {
+            const p = param1 || '/tmp/screenshot.png'; await page.screenshot({ path: p, fullPage: false }); console.log('[Browser] Screenshot: ' + p);
+        } else if (action === 'screenshot_full') {
+            const p = param1 || '/tmp/screenshot_full.png'; await page.screenshot({ path: p, fullPage: true }); console.log('[Browser] Full screenshot: ' + p);
+        } else if (action === 'pdf') {
+            const p = param1 || '/tmp/page.pdf'; await page.pdf({ path: p, format: 'A4' }); console.log('[Browser] PDF: ' + p);
+        } else if (action === 'click') {
+            await page.locator(param1).first().click({ timeout: 5000 }); await page.waitForTimeout(600); console.log('[Browser] Clicked: ' + param1);
+        } else if (action === 'fill') {
+            await page.locator(param1).first().fill(param2, { timeout: 5000 }); console.log('[Browser] Filled: ' + param1);
+        } else if (action === 'press') {
+            await page.keyboard.press(param1); await page.waitForTimeout(1000); console.log('[Browser] Pressed: ' + param1);
+        } else if (action === 'hover') {
+            await page.locator(param1).first().hover({ timeout: 5000 }); console.log('[Browser] Hovered: ' + param1);
+        } else if (action === 'select') {
+            await page.locator(param1).first().selectOption(param2, { timeout: 5000 }); console.log('[Browser] Selected: ' + param2);
+        } else if (action === 'upload') {
+            await page.locator(param1).first().setInputFiles(param2, { timeout: 5000 }); console.log('[Browser] Uploaded: ' + param2);
+        } else if (action === 'scroll') {
+            const px = parseInt(param1) || 800; await page.evaluate((p) => window.scrollBy(0, p), px); await page.waitForTimeout(2000); console.log('[Browser] Scrolled: ' + px + 'px');
+        } else if (action === 'wait') {
+            const ms = parseInt(param1) || 1000; await page.waitForTimeout(ms); console.log('[Browser] Waited: ' + ms + 'ms');
+        } else if (action === 'resize') {
+            const w = parseInt(param1) || 1280, h = parseInt(param2) || 720; await page.setViewportSize({ width: w, height: h }); console.log('[Browser] Resized: ' + w + 'x' + h);
+        } else if (action === 'tabs') {
+            const ap = ctx.pages(); for (let i = 0; i < ap.length; i++) { const t = await ap[i].title().catch(() => '(untitled)'); console.log('[' + i + '] ' + t + ' | ' + ap[i].url() + (ap[i] === page ? ' < current' : '')); }
+        } else if (action === 'new_tab') {
+            const np = await ctx.newPage(); if (param1) await np.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 }); console.log('[Browser] New tab' + (param1 ? ': ' + param1 : ''));
+        } else if (action === 'switch_tab') {
+            const idx = parseInt(param1), ap = ctx.pages(); if (isNaN(idx) || idx < 0 || idx >= ap.length) { console.log('[Browser] Invalid index. Use tabs to list.'); } else { page = ap[idx]; await page.bringToFront(); console.log('[Browser] Switched to [' + idx + ']: ' + page.url()); }
+        } else if (action === 'close_tab') {
+            const ap = ctx.pages(), idx = param1 !== undefined ? parseInt(param1) : ap.indexOf(page); if (ap.length <= 1) { console.log('[Browser] Cannot close last tab.'); } else if (isNaN(idx) || idx < 0 || idx >= ap.length) { console.log('[Browser] Invalid index.'); } else { await ap[idx].close(); console.log('[Browser] Closed tab [' + idx + ']'); }
+        } else {
+            console.log('browser-tool.js v2 — Commands:');
+            console.log('  Nav:      open <url> | get_url | status');
+            console.log('  Content:  get_text [max] | get_links [filter] | get_posts | evaluate <js> | console');
+            console.log('  Export:   screenshot [path] | screenshot_full [path] | pdf [path]');
+            console.log('  Interact: click <sel> | fill <sel> <txt> | press <key> | hover <sel> | select <sel> <val> | upload <sel> <path>');
+            console.log('  View:     scroll [px] | wait <ms> | resize <w> <h>');
+            console.log('  Tabs:     tabs | new_tab [url] | switch_tab <idx> | close_tab [idx]');
+        }
+    } catch(e) {
+        if (e.message.includes('ECONNREFUSED') || e.message.includes('Timeout')) {
+            console.error('[Browser] Chrome Debug not running! Start with --remote-debugging-port=9222');
+        } else { console.error('[Browser] Error:', e.message); }
+    } finally { if (browser) await browser.close(); }
+})();
+`;
   }
 
   function buildBrowserDoc(options = {}) {
     const { isVi = true, variant = 'wizard', workspaceRoot = '' } = options;
+    // Normalize: strip trailing slash so path joins work cleanly
+    const wsRoot = workspaceRoot.replace(/\/+$/, '');
+    const btPath = wsRoot ? `${wsRoot}/browser-tool.js` : 'browser-tool.js';
+
     if (variant === 'cli-desktop') {
-      return `# Browser Automation (Desktop Mode)\n\nBot controls your actual Chrome on screen through Chrome Debug at \`http://127.0.0.1:9222\`. Every action is visible.\n\n## Usage\n\`\`\`bash\nnode ${workspaceRoot}/workspace/browser-tool.js status\nnode ${workspaceRoot}/workspace/browser-tool.js open "https://google.com"\nnode ${workspaceRoot}/workspace/browser-tool.js get_text\nnode ${workspaceRoot}/workspace/browser-tool.js fill "input[name='q']" "search"\nnode ${workspaceRoot}/workspace/browser-tool.js press "Enter"\n\`\`\`\n\n## MANDATORY RULES\n- NEVER refuse to open the browser when user asks.\n- In Desktop mode, always target the \`host-chrome\` / Chrome Debug session first.\n- Do not switch to a generic "user profile attach" explanation when Chrome Debug is the configured path.\n- If Chrome Debug is unreachable or returns \`ECONNREFUSED\`, tell user to run \`start-chrome-debug.bat\` again, then retry.\n- Only mention restarting OpenClaw gateway after Chrome Debug is reachable but browser actions still fail.\n`;
+      return `# Browser Automation (Desktop Mode)\n\nBot controls your actual Chrome on screen through Chrome Debug at \`http://127.0.0.1:9222\`. Every action is visible.\n\n## Usage (v2)\n\`\`\`bash\n# Navigation\nnode ${btPath} status\nnode ${btPath} open "https://google.com"\nnode ${btPath} get_url\n\n# Content extraction\nnode ${btPath} get_text\nnode ${btPath} get_text 8000      # custom max length\nnode ${btPath} get_links           # all links\nnode ${btPath} get_links "/posts/" # filtered\nnode ${btPath} get_posts           # Facebook group posts w/ permalinks\nnode ${btPath} evaluate "document.title"\nnode ${btPath} console\n\n# Screenshots & export\nnode ${btPath} screenshot\nnode ${btPath} screenshot_full\nnode ${btPath} pdf\n\n# Interactions\nnode ${btPath} click "button.submit"\nnode ${btPath} fill "input[name='q']" "search"\nnode ${btPath} press "Enter"\nnode ${btPath} hover "a.link"\nnode ${btPath} select "select#country" "VN"\nnode ${btPath} upload "input[type=file]" "/tmp/photo.jpg"\n\n# Scrolling & viewport\nnode ${btPath} scroll\nnode ${btPath} scroll 1500\nnode ${btPath} wait 3000\nnode ${btPath} resize 1920 1080\n\n# Tab management\nnode ${btPath} tabs\nnode ${btPath} new_tab "https://example.com"\nnode ${btPath} switch_tab 1\nnode ${btPath} close_tab 2\n\`\`\`\n\n## MANDATORY RULES\n- NEVER refuse to open the browser when user asks.\n- In Desktop mode, always target the \`host-chrome\` / Chrome Debug session first.\n- If Chrome Debug is unreachable or returns \`ECONNREFUSED\`, tell user to run \`start-chrome-debug.bat\` again.\n- Use \`get_posts\` instead of \`get_text\` when scraping Facebook — it extracts permalinks.\n`;
     }
     if (variant === 'cli-server') {
       return `# Browser Automation (Headless Server Mode)\n\nBot uses a headless Chromium instance running inside the Docker container. No GUI needed!\n\n## Notes\n- Running on Ubuntu Server / VPS (no GUI required)\n- Uses Playwright + Headless Chromium installed inside Docker\n- For Cloudflare bypass, switch to Desktop mode (requires Windows/Mac with Chrome)\n`;
     }
     return isVi
-      ? `# Browser Automation\n\nDùng file \`browser-tool.js\` để điều khiển Chrome debug tại \`http://127.0.0.1:9222\`.`
-      : `# Browser Automation\n\nUse \`browser-tool.js\` to control Chrome debug on \`http://127.0.0.1:9222\`.`;
+      ? `# Browser Automation\n\nDùng file \`browser-tool.js\` để điều khiển Chrome debug tại \`http://127.0.0.1:9222\`.\nScript: \`${btPath}\`\nPhiên bản v2 hỗ trợ: open, get_text, get_links, get_posts, evaluate, screenshot, pdf, click, fill, press, hover, select, upload, scroll, tabs, và nhiều lệnh khác.`
+      : `# Browser Automation\n\nUse \`browser-tool.js\` to control Chrome debug on \`http://127.0.0.1:9222\`.\nScript: \`${btPath}\`\nVersion v2 supports: open, get_text, get_links, get_posts, evaluate, screenshot, pdf, click, fill, press, hover, select, upload, scroll, tabs, and more.`;
   }
 
   function buildSecurityRules(isVi = true) {
@@ -147,7 +266,7 @@ function buildBootstrapDoc(options = {}) {
       ownAliases = [],
       otherAgents = [],    // [{ name, agentId }]
       replyToDirectMessages = true,
-      workspacePath = '/root/.openclaw/workspace/',
+      workspacePath = '~/',
       variant = 'single', // 'single' | 'relay'
       includeSecurity = true,
     } = options;
@@ -181,7 +300,7 @@ function buildBootstrapDoc(options = {}) {
     const {
       isVi = true,
       skillListStr = '',
-      workspacePath = '/root/.openclaw/workspace/',
+      workspacePath = '~/',
       variant = 'single', // 'single' | 'relay'
       agentWorkspaceDir = 'workspace',
       hasBrowser = false,
@@ -285,7 +404,7 @@ function buildBootstrapDoc(options = {}) {
       ownAliases = [],
       otherAgents = [],
       skillListStr = '',
-      workspacePath = '/root/.openclaw/workspace/',
+      workspacePath = '~/',
       agentWorkspaceDir = 'workspace',
       persona = '',
       userInfo = '',

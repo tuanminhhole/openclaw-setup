@@ -56,6 +56,7 @@
     // 'telegram+zalo-personal' — Combo mode tạm ngưng, nghiên cứu thêm.
     'zalo-personal': {
       name: 'Zalo Personal',
+      hasZaloPersonal: true,
       envKeys: [],
       envExtra: '',
       credSteps: [

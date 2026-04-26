@@ -54,7 +54,7 @@ function generateMacOsSh(ctx) {
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.zshrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.zshrc"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
     '# Install openclaw (user-local first, sudo fallback)',
-      `npm install -g openclaw@2026.4.14 ${openClawRuntimePackages} || sudo npm install -g openclaw@2026.4.14 ${openClawRuntimePackages}`,
+      `npm install -g openclaw@latest ${openClawRuntimePackages} || sudo npm install -g openclaw@latest ${openClawRuntimePackages}`,
     ];
     providerLines(sh, 'sh');
     if (pluginCmd) sh.push(pluginCmd);

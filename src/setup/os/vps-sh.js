@@ -33,7 +33,7 @@ function generateVpsSh(ctx) {
     'export DATA_DIR="$PROJECT_DIR/.9router"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-    `npm install -g openclaw@2026.4.14 ${openClawRuntimePackages} pm2@latest`,
+    `npm install -g openclaw@latest ${openClawRuntimePackages} pm2@latest`,
   ];
   providerLines(vps, 'sh');
   if (pluginCmd) vps.push(pluginCmd);

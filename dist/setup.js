@@ -619,7 +619,7 @@
   // â”€â”€ Shared runtime constants, relay helpers, auth profile builders (setup/shared/common-gen.js) 
 // @ts-nocheck
 (function (root) {
-  const OPENCLAW_NPM_SPEC = 'openclaw@2026.4.14';
+  const OPENCLAW_NPM_SPEC = 'openclaw@latest';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const NINE_ROUTER_PORT = 20128;
@@ -1049,23 +1049,142 @@ function buildBootstrapDoc(options = {}) {
   }
 
   function buildBrowserToolJs(variant = 'wizard') {
-    if (variant === 'cli') {
-      return `const { chromium } = require('playwright');\n(async () => {\n  const [,, action, param1, param2] = process.argv;\n  if (!action) { console.log('Usage: node browser-tool.js open|get_text|click|fill|press|status [params]'); process.exit(0); }\n  let browser;\n  try {\n    browser = await chromium.connectOverCDP('http://127.0.0.1:9222');\n    const ctx = browser.contexts()[0] || await browser.newContext();\n    const page = ctx.pages()[0] || await ctx.newPage();\n    if (action === 'open') {\n      await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 20000 });\n      console.log('[Browser] Opened: ' + (await page.title()) + ' | ' + page.url());\n    } else if (action === 'get_text') {\n      const text = await page.evaluate(() => document.body.innerText.trim());\n      console.log(text.substring(0, 4000));\n    } else if (action === 'click') {\n      await page.locator(param1).first().click({ timeout: 5000 });\n      console.log('[Browser] Clicked: ' + param1);\n    } else if (action === 'fill') {\n      await page.locator(param1).first().fill(param2, { timeout: 5000 });\n      console.log('[Browser] Filled into: ' + param1);\n    } else if (action === 'press') {\n      await page.keyboard.press(param1);\n      console.log('[Browser] Pressed: ' + param1);\n    } else if (action === 'status') {\n      console.log('[Browser] Connected: ' + page.url());\n    }\n  } finally {\n    if (browser) await browser.close();\n  }\n})();\n`;
-    }
-    return `const { chromium } = require('playwright');\n(async () => {\n  const [,, action, param1, param2] = process.argv;\n  const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');\n  const ctx = browser.contexts()[0] || await browser.newContext();\n  const page = ctx.pages()[0] || await ctx.newPage();\n  if (action === 'open') await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 });\n  else if (action === 'click') await page.locator(param1).first().click({ timeout: 5000 });\n  else if (action === 'fill') await page.locator(param1).first().fill(param2, { timeout: 5000 });\n  else if (action === 'press') await page.keyboard.press(param1);\n  else console.log(await page.title(), page.url());\n  await browser.close();\n})();\n`;
+    // v2: Full-featured browser-tool.js matching OpenClaw native browser plugin capabilities
+    // Both 'cli' and 'wizard' variants now use the same full script
+    const playwrightRequire = variant === 'cli'
+      ? "require('playwright')"
+      : "require('/usr/local/lib/node_modules/openclaw/node_modules/playwright-core')";
+
+    return `/**
+ * browser-tool.js v2 — Full-featured Chrome CDP controller
+ * Commands: open|get_url|get_text|get_links|get_posts|evaluate|console|screenshot|screenshot_full|pdf|click|fill|press|hover|select|upload|scroll|wait|resize|tabs|new_tab|switch_tab|close_tab|status
+ */
+const { chromium } = ${playwrightRequire};
+const action = process.argv[2];
+const param1 = process.argv[3];
+const param2 = process.argv[4];
+const CDP_URL = 'http://127.0.0.1:9222';
+(async () => {
+    let browser;
+    try {
+        browser = await chromium.connectOverCDP(CDP_URL, { timeout: 5000 });
+        const ctx = browser.contexts()[0];
+        const pages = ctx.pages();
+        let page = pages.length > 0 ? pages[0] : await ctx.newPage();
+        if (action === 'open') {
+            console.log('[Browser] Opening: ' + param1);
+            await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForTimeout(1500);
+            console.log('[Browser] Opened: ' + (await page.title()) + ' | ' + page.url());
+        } else if (action === 'get_url') {
+            console.log(page.url());
+        } else if (action === 'status') {
+            const allPages = ctx.pages();
+            console.log('[Browser] Connected! Tabs: ' + allPages.length);
+            console.log('[Browser] Current: ' + (await page.title()) + ' | ' + page.url());
+        } else if (action === 'get_text') {
+            const maxLen = parseInt(param1) || 4000;
+            const text = await page.evaluate(() => { document.querySelectorAll('script,style,noscript,svg').forEach(e => e.remove()); return document.body.innerText.trim(); });
+            console.log(text.substring(0, maxLen));
+        } else if (action === 'get_links') {
+            const filter = param1 || '';
+            const links = await page.evaluate((f) => { const a = Array.from(document.querySelectorAll('a[href]')).map(e => e.href).filter(h => h && h.startsWith('http')); return [...new Set(f ? a.filter(h => h.includes(f)) : a)]; }, filter);
+            console.log(JSON.stringify(links.slice(0, 50), null, 2));
+        } else if (action === 'get_posts') {
+            const posts = await page.evaluate(() => {
+                const results = [];
+                const articles = document.querySelectorAll('[role="article"]');
+                for (const article of articles) {
+                    const textEl = article.querySelector('[data-ad-comet-preview="message"],[data-ad-preview="message"]');
+                    const fullText = (textEl ? textEl.innerText.trim() : '') || article.innerText.substring(0, 800);
+                    const allLinks = Array.from(article.querySelectorAll('a[href]'));
+                    let permalink = '';
+                    for (const a of allLinks) { const h = a.href || ''; if (h.includes('/posts/') || h.includes('/permalink/') || h.includes('story_fbid')) { permalink = h.split('?')[0]; break; } }
+                    let author = '';
+                    for (const el of article.querySelectorAll('a[role="link"] strong, h2 a, h3 a, h4 a')) { const n = el.innerText.trim(); if (n && n.length > 1 && n.length < 50) { author = n; break; } }
+                    let timePosted = '';
+                    const timeLinks = allLinks.filter(a => { const h = a.href || ''; return h.includes('/posts/') || h.includes('/permalink/'); });
+                    if (timeLinks.length > 0) { const t = timeLinks[0].innerText.trim(); if (t && t.length < 30) timePosted = t; }
+                    if (!timePosted) { const te = article.querySelector('abbr,[data-utime]'); if (te) timePosted = te.innerText.trim() || te.getAttribute('title') || ''; }
+                    if (fullText.length > 20) results.push({ author: author || 'N/A', text: fullText.substring(0, 500), permalink: permalink || 'N/A', time: timePosted || 'N/A' });
+                }
+                return results;
+            });
+            console.log(posts.length === 0 ? '[Browser] No posts found. Try scroll then get_posts again.' : JSON.stringify(posts.slice(0, 10), null, 2));
+        } else if (action === 'evaluate') {
+            const code = process.argv.slice(3).join(' ');
+            if (!code) { console.log('[Browser] Usage: evaluate <js_code>'); process.exit(1); }
+            const result = await page.evaluate(code);
+            console.log(result !== undefined && result !== null ? (typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result)) : '[Browser] Done');
+        } else if (action === 'console') {
+            const msgs = []; page.on('console', m => msgs.push('[' + m.type() + '] ' + m.text()));
+            await page.waitForTimeout(2000);
+            console.log(msgs.length === 0 ? '[Browser] No console messages in 2s' : msgs.join('\\n'));
+        } else if (action === 'screenshot') {
+            const p = param1 || '/tmp/screenshot.png'; await page.screenshot({ path: p, fullPage: false }); console.log('[Browser] Screenshot: ' + p);
+        } else if (action === 'screenshot_full') {
+            const p = param1 || '/tmp/screenshot_full.png'; await page.screenshot({ path: p, fullPage: true }); console.log('[Browser] Full screenshot: ' + p);
+        } else if (action === 'pdf') {
+            const p = param1 || '/tmp/page.pdf'; await page.pdf({ path: p, format: 'A4' }); console.log('[Browser] PDF: ' + p);
+        } else if (action === 'click') {
+            await page.locator(param1).first().click({ timeout: 5000 }); await page.waitForTimeout(600); console.log('[Browser] Clicked: ' + param1);
+        } else if (action === 'fill') {
+            await page.locator(param1).first().fill(param2, { timeout: 5000 }); console.log('[Browser] Filled: ' + param1);
+        } else if (action === 'press') {
+            await page.keyboard.press(param1); await page.waitForTimeout(1000); console.log('[Browser] Pressed: ' + param1);
+        } else if (action === 'hover') {
+            await page.locator(param1).first().hover({ timeout: 5000 }); console.log('[Browser] Hovered: ' + param1);
+        } else if (action === 'select') {
+            await page.locator(param1).first().selectOption(param2, { timeout: 5000 }); console.log('[Browser] Selected: ' + param2);
+        } else if (action === 'upload') {
+            await page.locator(param1).first().setInputFiles(param2, { timeout: 5000 }); console.log('[Browser] Uploaded: ' + param2);
+        } else if (action === 'scroll') {
+            const px = parseInt(param1) || 800; await page.evaluate((p) => window.scrollBy(0, p), px); await page.waitForTimeout(2000); console.log('[Browser] Scrolled: ' + px + 'px');
+        } else if (action === 'wait') {
+            const ms = parseInt(param1) || 1000; await page.waitForTimeout(ms); console.log('[Browser] Waited: ' + ms + 'ms');
+        } else if (action === 'resize') {
+            const w = parseInt(param1) || 1280, h = parseInt(param2) || 720; await page.setViewportSize({ width: w, height: h }); console.log('[Browser] Resized: ' + w + 'x' + h);
+        } else if (action === 'tabs') {
+            const ap = ctx.pages(); for (let i = 0; i < ap.length; i++) { const t = await ap[i].title().catch(() => '(untitled)'); console.log('[' + i + '] ' + t + ' | ' + ap[i].url() + (ap[i] === page ? ' < current' : '')); }
+        } else if (action === 'new_tab') {
+            const np = await ctx.newPage(); if (param1) await np.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 }); console.log('[Browser] New tab' + (param1 ? ': ' + param1 : ''));
+        } else if (action === 'switch_tab') {
+            const idx = parseInt(param1), ap = ctx.pages(); if (isNaN(idx) || idx < 0 || idx >= ap.length) { console.log('[Browser] Invalid index. Use tabs to list.'); } else { page = ap[idx]; await page.bringToFront(); console.log('[Browser] Switched to [' + idx + ']: ' + page.url()); }
+        } else if (action === 'close_tab') {
+            const ap = ctx.pages(), idx = param1 !== undefined ? parseInt(param1) : ap.indexOf(page); if (ap.length <= 1) { console.log('[Browser] Cannot close last tab.'); } else if (isNaN(idx) || idx < 0 || idx >= ap.length) { console.log('[Browser] Invalid index.'); } else { await ap[idx].close(); console.log('[Browser] Closed tab [' + idx + ']'); }
+        } else {
+            console.log('browser-tool.js v2 — Commands:');
+            console.log('  Nav:      open <url> | get_url | status');
+            console.log('  Content:  get_text [max] | get_links [filter] | get_posts | evaluate <js> | console');
+            console.log('  Export:   screenshot [path] | screenshot_full [path] | pdf [path]');
+            console.log('  Interact: click <sel> | fill <sel> <txt> | press <key> | hover <sel> | select <sel> <val> | upload <sel> <path>');
+            console.log('  View:     scroll [px] | wait <ms> | resize <w> <h>');
+            console.log('  Tabs:     tabs | new_tab [url] | switch_tab <idx> | close_tab [idx]');
+        }
+    } catch(e) {
+        if (e.message.includes('ECONNREFUSED') || e.message.includes('Timeout')) {
+            console.error('[Browser] Chrome Debug not running! Start with --remote-debugging-port=9222');
+        } else { console.error('[Browser] Error:', e.message); }
+    } finally { if (browser) await browser.close(); }
+})();
+`;
   }
 
   function buildBrowserDoc(options = {}) {
     const { isVi = true, variant = 'wizard', workspaceRoot = '' } = options;
+    // Normalize: strip trailing slash so path joins work cleanly
+    const wsRoot = workspaceRoot.replace(/\/+$/, '');
+    const btPath = wsRoot ? `${wsRoot}/browser-tool.js` : 'browser-tool.js';
+
     if (variant === 'cli-desktop') {
-      return `# Browser Automation (Desktop Mode)\n\nBot controls your actual Chrome on screen through Chrome Debug at \`http://127.0.0.1:9222\`. Every action is visible.\n\n## Usage\n\`\`\`bash\nnode ${workspaceRoot}/workspace/browser-tool.js status\nnode ${workspaceRoot}/workspace/browser-tool.js open "https://google.com"\nnode ${workspaceRoot}/workspace/browser-tool.js get_text\nnode ${workspaceRoot}/workspace/browser-tool.js fill "input[name='q']" "search"\nnode ${workspaceRoot}/workspace/browser-tool.js press "Enter"\n\`\`\`\n\n## MANDATORY RULES\n- NEVER refuse to open the browser when user asks.\n- In Desktop mode, always target the \`host-chrome\` / Chrome Debug session first.\n- Do not switch to a generic "user profile attach" explanation when Chrome Debug is the configured path.\n- If Chrome Debug is unreachable or returns \`ECONNREFUSED\`, tell user to run \`start-chrome-debug.bat\` again, then retry.\n- Only mention restarting OpenClaw gateway after Chrome Debug is reachable but browser actions still fail.\n`;
+      return `# Browser Automation (Desktop Mode)\n\nBot controls your actual Chrome on screen through Chrome Debug at \`http://127.0.0.1:9222\`. Every action is visible.\n\n## Usage (v2)\n\`\`\`bash\n# Navigation\nnode ${btPath} status\nnode ${btPath} open "https://google.com"\nnode ${btPath} get_url\n\n# Content extraction\nnode ${btPath} get_text\nnode ${btPath} get_text 8000      # custom max length\nnode ${btPath} get_links           # all links\nnode ${btPath} get_links "/posts/" # filtered\nnode ${btPath} get_posts           # Facebook group posts w/ permalinks\nnode ${btPath} evaluate "document.title"\nnode ${btPath} console\n\n# Screenshots & export\nnode ${btPath} screenshot\nnode ${btPath} screenshot_full\nnode ${btPath} pdf\n\n# Interactions\nnode ${btPath} click "button.submit"\nnode ${btPath} fill "input[name='q']" "search"\nnode ${btPath} press "Enter"\nnode ${btPath} hover "a.link"\nnode ${btPath} select "select#country" "VN"\nnode ${btPath} upload "input[type=file]" "/tmp/photo.jpg"\n\n# Scrolling & viewport\nnode ${btPath} scroll\nnode ${btPath} scroll 1500\nnode ${btPath} wait 3000\nnode ${btPath} resize 1920 1080\n\n# Tab management\nnode ${btPath} tabs\nnode ${btPath} new_tab "https://example.com"\nnode ${btPath} switch_tab 1\nnode ${btPath} close_tab 2\n\`\`\`\n\n## MANDATORY RULES\n- NEVER refuse to open the browser when user asks.\n- In Desktop mode, always target the \`host-chrome\` / Chrome Debug session first.\n- If Chrome Debug is unreachable or returns \`ECONNREFUSED\`, tell user to run \`start-chrome-debug.bat\` again.\n- Use \`get_posts\` instead of \`get_text\` when scraping Facebook — it extracts permalinks.\n`;
     }
     if (variant === 'cli-server') {
       return `# Browser Automation (Headless Server Mode)\n\nBot uses a headless Chromium instance running inside the Docker container. No GUI needed!\n\n## Notes\n- Running on Ubuntu Server / VPS (no GUI required)\n- Uses Playwright + Headless Chromium installed inside Docker\n- For Cloudflare bypass, switch to Desktop mode (requires Windows/Mac with Chrome)\n`;
     }
     return isVi
-      ? `# Browser Automation\n\nDùng file \`browser-tool.js\` để điều khiển Chrome debug tại \`http://127.0.0.1:9222\`.`
-      : `# Browser Automation\n\nUse \`browser-tool.js\` to control Chrome debug on \`http://127.0.0.1:9222\`.`;
+      ? `# Browser Automation\n\nDùng file \`browser-tool.js\` để điều khiển Chrome debug tại \`http://127.0.0.1:9222\`.\nScript: \`${btPath}\`\nPhiên bản v2 hỗ trợ: open, get_text, get_links, get_posts, evaluate, screenshot, pdf, click, fill, press, hover, select, upload, scroll, tabs, và nhiều lệnh khác.`
+      : `# Browser Automation\n\nUse \`browser-tool.js\` to control Chrome debug on \`http://127.0.0.1:9222\`.\nScript: \`${btPath}\`\nVersion v2 supports: open, get_text, get_links, get_posts, evaluate, screenshot, pdf, click, fill, press, hover, select, upload, scroll, tabs, and more.`;
   }
 
   function buildSecurityRules(isVi = true) {
@@ -1083,7 +1202,7 @@ function buildBootstrapDoc(options = {}) {
       ownAliases = [],
       otherAgents = [],    // [{ name, agentId }]
       replyToDirectMessages = true,
-      workspacePath = '/root/.openclaw/workspace/',
+      workspacePath = '~/',
       variant = 'single', // 'single' | 'relay'
       includeSecurity = true,
     } = options;
@@ -1117,7 +1236,7 @@ function buildBootstrapDoc(options = {}) {
     const {
       isVi = true,
       skillListStr = '',
-      workspacePath = '/root/.openclaw/workspace/',
+      workspacePath = '~/',
       variant = 'single', // 'single' | 'relay'
       agentWorkspaceDir = 'workspace',
       hasBrowser = false,
@@ -1221,7 +1340,7 @@ function buildBootstrapDoc(options = {}) {
       ownAliases = [],
       otherAgents = [],
       skillListStr = '',
-      workspacePath = '/root/.openclaw/workspace/',
+      workspacePath = '~/',
       agentWorkspaceDir = 'workspace',
       persona = '',
       userInfo = '',
@@ -1293,6 +1412,475 @@ function buildBootstrapDoc(options = {}) {
 })(workspaceRoot);
 if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
   Object.assign(exports, workspaceRoot.__openclawWorkspace);
+}
+
+  // â”€â”€ Centralized bot config builders (openclaw.json, exec-approvals, .env) (setup/shared/bot-config-gen.js) 
+// @ts-nocheck
+/**
+ * @fileoverview Centralized bot configuration builders — single source of truth.
+ *
+ * Generates openclaw.json, auth-profiles.json, exec-approvals.json, and .env content.
+ * Used by BOTH the Wizard (IIFE bundle) and CLI (CJS require).
+ *
+ * Pattern: same as common-gen.js / workspace-gen.js — IIFE + CJS dual export.
+ */
+(function (root) {
+
+  const _common = (typeof root !== 'undefined' && root.__openclawCommon) || {};
+
+  // ── Helper: slugify a bot name into a safe agent ID ─────────────────────────
+  function slugify(name) {
+    return String(name || 'bot').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'bot';
+  }
+
+  // ── Helper: detect if channel is zalo personal ───────────────────────────────
+  function isZaloPersonal(channelKey) {
+    return channelKey === 'zalo-personal';
+  }
+
+  // ── Helper: generate a random token (works in both browser + Node) ──────────
+  function generateToken() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID().replace(/-/g, '');
+    }
+    // Fallback for older Node.js
+    const hex = '0123456789abcdef';
+    let result = '';
+    for (let i = 0; i < 32; i++) result += hex[Math.floor(Math.random() * 16)];
+    return result;
+  }
+
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // buildOpenclawJson — the ONE function that generates the full openclaw.json
+  // ═══════════════════════════════════════════════════════════════════════════════
+  /**
+   * @param {object} opts
+   * @param {string} opts.channelKey       - 'telegram' | 'zalo-personal' | 'zalo-bot'
+   * @param {string} opts.deployMode       - 'docker' | 'native'
+   * @param {string} opts.providerKey      - '9router' | 'openai' | 'ollama' | ...
+   * @param {object} opts.provider         - Provider metadata object from PROVIDERS
+   * @param {string} opts.model            - Primary model ID (e.g. 'smart-route', 'gemma4:e2b')
+   * @param {boolean} opts.isMultiBot      - Multi-bot mode
+   * @param {Array}  opts.agentMetas       - [{ agentId, name, desc, persona, token, slashCmd, accountId, workspaceDir }]
+   * @param {string} opts.groupId          - Telegram group ID (multi-bot only)
+   * @param {Array}  opts.selectedSkills   - ['browser', 'memory', 'scheduler', ...]
+   * @param {Array}  opts.skills           - Full SKILLS registry array
+   * @param {boolean} opts.hasBrowserDesktop - Browser desktop mode
+   * @param {boolean} opts.hasBrowserServer  - Browser server mode
+   * @param {number} [opts.gatewayPort=18791]
+   * @param {Array}  [opts.gatewayAllowedOrigins]
+   * @param {string} [opts.osChoice]       - 'windows' | 'macos' | 'vps' | 'ubuntu'
+   * @param {string} [opts.selectedModel]  - For Ollama: specific model selected
+   */
+  function buildOpenclawJson(opts) {
+    const {
+      channelKey = 'telegram',
+      deployMode = 'docker',
+      providerKey = '9router',
+      provider = {},
+      model = 'smart-route',
+      isMultiBot = false,
+      agentMetas = [],
+      groupId = '',
+      selectedSkills = [],
+      skills = [],
+      hasBrowserDesktop = false,
+      hasBrowserServer = false,
+      gatewayPort = 18791,
+      gatewayAllowedOrigins = [],
+      osChoice = '',
+      selectedModel = '',
+    } = opts;
+
+    const common = _common;
+    const is9Router = providerKey === '9router';
+    const isLocal = !!provider.isLocal;
+
+    // ── agents ────────────────────────────────────────────────────────────────
+    const agentsList = agentMetas.map((meta) => ({
+      id: meta.agentId,
+      ...(meta.name ? { name: meta.name } : {}),
+      workspace: `.openclaw/${meta.workspaceDir || 'workspace-' + meta.agentId}`,
+      agentDir: `agents/${meta.agentId}/agent`,
+      model: { primary: model, fallbacks: [] },
+    }));
+
+    const cfg = {
+      meta: { lastTouchedVersion: (_common.OPENCLAW_NPM_SPEC || 'latest').replace('openclaw@', '') },
+      agents: {
+        defaults: {
+          model: { primary: model, fallbacks: [] },
+          compaction: { mode: 'safeguard' },
+          timeoutSeconds: isLocal ? 900 : 120,
+          ...(isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
+        },
+        list: agentsList,
+      },
+    };
+
+    // ── models.providers ──────────────────────────────────────────────────────
+    if (is9Router && common.build9RouterProviderConfig) {
+      cfg.models = {
+        mode: 'merge',
+        providers: {
+          '9router': common.build9RouterProviderConfig(
+            common.get9RouterBaseUrl ? common.get9RouterBaseUrl(deployMode) : 'http://9router:20128/v1'
+          ),
+        },
+      };
+    } else if (isLocal) {
+      const ollamaBaseUrl = deployMode === 'docker' ? 'http://ollama:11434' : 'http://localhost:11434';
+      const OLLAMA_MODELS = (typeof root !== 'undefined' && root.__openclawData && root.__openclawData.OLLAMA_MODELS)
+        || (typeof _OLLAMA_MODELS !== 'undefined' ? _OLLAMA_MODELS : []);
+      const modelList = selectedModel
+        ? [{ id: selectedModel, name: selectedModel, contextWindow: 128000, maxTokens: 8192 }]
+        : OLLAMA_MODELS;
+      cfg.models = {
+        mode: 'merge',
+        providers: {
+          ollama: {
+            baseUrl: ollamaBaseUrl,
+            api: 'ollama',
+            apiKey: 'ollama-local',
+            models: modelList,
+          },
+        },
+      };
+    }
+
+    // ── commands ──────────────────────────────────────────────────────────────
+    cfg.commands = { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' };
+
+    // ── bindings (multi-bot or Zalo) ─────────────────────────────────────────
+    if (isMultiBot && channelKey === 'telegram') {
+      cfg.bindings = agentMetas.map((meta) => ({
+        agentId: meta.agentId,
+        match: { channel: 'telegram', accountId: meta.accountId || 'default' },
+      }));
+    }
+
+    // ── channels ─────────────────────────────────────────────────────────────
+    cfg.channels = buildChannelConfig({
+      channelKey, isMultiBot, groupId, agentMetas, botName: agentMetas[0]?.name || 'Bot',
+      agentId: agentMetas[0]?.agentId || 'bot',
+    });
+
+    // ── tools ────────────────────────────────────────────────────────────────
+    cfg.tools = { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
+    if (isMultiBot) {
+      cfg.tools.agentToAgent = {
+        enabled: true,
+        allow: agentMetas.map((meta) => meta.agentId),
+      };
+    }
+
+    // ── gateway ──────────────────────────────────────────────────────────────
+    cfg.gateway = {
+      port: gatewayPort,
+      mode: 'local',
+      bind: (deployMode === 'docker' || osChoice === 'vps') ? 'custom' : 'loopback',
+      ...(deployMode === 'docker' || osChoice === 'vps' ? { customBindHost: '0.0.0.0' } : {}),
+      controlUi: {
+        allowedOrigins: gatewayAllowedOrigins.length > 0
+          ? gatewayAllowedOrigins
+          : [`http://localhost:${gatewayPort}`, `http://127.0.0.1:${gatewayPort}`, `http://0.0.0.0:${gatewayPort}`],
+      },
+      auth: { mode: 'token', token: generateToken() },
+    };
+
+    // ── browser ──────────────────────────────────────────────────────────────
+    if (hasBrowserDesktop) {
+      cfg.browser = {
+        enabled: true,
+        defaultProfile: 'host-chrome',
+        profiles: { 'host-chrome': { cdpUrl: 'http://127.0.0.1:9222', color: '#4285F4' } },
+      };
+    } else if (hasBrowserServer) {
+      cfg.browser = { enabled: true };
+    }
+
+    // ── skills ───────────────────────────────────────────────────────────────
+    const skillEntries = buildSkillsEntries(skills, selectedSkills);
+    if (Object.keys(skillEntries).length > 0) {
+      cfg.skills = { entries: skillEntries };
+    }
+
+    // ── plugins (memory-core dreaming + zalo-mod) ────────────────────────────
+    const pluginsConfig = buildPluginsConfig({
+      channelKey,
+      selectedSkills,
+      botName: agentMetas[0]?.name || 'Bot',
+      agentId: agentMetas[0]?.agentId || 'bot',
+    });
+    cfg.plugins = pluginsConfig.plugins;
+
+    // ── bindings for zalouser ────────────────────────────────────────────────
+    if (isZaloPersonal(channelKey)) {
+      cfg.bindings = cfg.bindings || [];
+      const firstAgentId = agentMetas[0]?.agentId || 'bot';
+      if (!cfg.bindings.some(b => b.match && b.match.channel === 'zalouser')) {
+        cfg.bindings.push({ agentId: firstAgentId, match: { channel: 'zalouser' } });
+      }
+    }
+
+    return cfg;
+  }
+
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // buildChannelConfig — returns the full `channels: { ... }` object
+  // ═══════════════════════════════════════════════════════════════════════════════
+  function buildChannelConfig(opts) {
+    const { channelKey, isMultiBot, groupId, agentMetas = [], botName, agentId } = opts;
+    const channels = {};
+
+    if (channelKey === 'telegram') {
+      const telegramConfig = {
+        enabled: true,
+        defaultAccount: 'default',
+        dmPolicy: 'open',
+        allowFrom: ['*'],
+        replyToMode: 'first',
+        reactionLevel: 'minimal',
+        actions: {
+          sendMessage: true,
+          reactions: true,
+        },
+        accounts: {},
+      };
+
+      if (isMultiBot) {
+        // Multiple accounts — each bot gets its own account keyed by accountId
+        telegramConfig.accounts = {};
+        for (const meta of agentMetas) {
+          telegramConfig.accounts[meta.accountId || 'default'] = {
+            botToken: meta.token || '<your_bot_token>',
+          };
+        }
+        telegramConfig.groupPolicy = groupId ? 'allowlist' : 'open';
+        telegramConfig.groupAllowFrom = ['*'];
+        telegramConfig.groups = {
+          [groupId || '*']: { enabled: true, requireMention: false },
+        };
+      } else {
+        // Single bot
+        telegramConfig.accounts = {
+          default: {
+            botToken: (agentMetas[0] && agentMetas[0].token) || '<your_bot_token>',
+          },
+        };
+      }
+
+      channels.telegram = telegramConfig;
+    } else if (isZaloPersonal(channelKey)) {
+      // Zalo Personal — matches live Mkt/Williams configs
+      channels.zalouser = {
+        enabled: true,
+        defaultAccount: 'default',
+        dmPolicy: 'open',
+        allowFrom: ['*'],
+        groupPolicy: 'allowlist',
+        groupAllowFrom: ['*'],
+        historyLimit: 50,
+        groups: {
+          '*': { enabled: true, requireMention: false },
+        },
+      };
+    } else if (channelKey === 'zalo-bot') {
+      channels.zalo = { enabled: true, provider: 'official_account' };
+    }
+
+    return channels;
+  }
+
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // buildPluginsConfig — returns { plugins: { ... } }
+  // ═══════════════════════════════════════════════════════════════════════════════
+  function buildPluginsConfig(opts) {
+    const { channelKey, selectedSkills = [], botName = 'Bot', agentId = 'bot' } = opts;
+
+    const entries = {};
+
+    // memory-core with dreaming — always present
+    entries['memory-core'] = {
+      config: {
+        dreaming: {
+          enabled: selectedSkills.includes('memory'),
+        },
+      },
+    };
+
+    const allow = [];
+
+    // zalo-mod plugin for Zalo Personal
+    if (isZaloPersonal(channelKey)) {
+      allow.push('zalo-mod');
+      entries['zalo-mod'] = {
+        enabled: true,
+        config: {
+          botName: botName,
+          groupNames: {},
+          zaloDisplayNames: [botName],
+          welcomeEnabled: true,
+          spamRepeatN: 3,
+          spamWindowSeconds: 300,
+        },
+      };
+    }
+
+    const plugins = { entries };
+    if (allow.length > 0) {
+      plugins.allow = allow;
+    }
+
+    return { plugins };
+  }
+
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // buildSkillsEntries — returns { slug: { enabled: true } } map
+  // ═══════════════════════════════════════════════════════════════════════════════
+  function buildSkillsEntries(skills, selectedSkillIds) {
+    const entries = {};
+    if (!skills || !selectedSkillIds) return entries;
+
+    for (const skill of skills) {
+      const skillId = skill.value || skill.id;
+      if (!selectedSkillIds.includes(skillId)) continue;
+      // Skills without a slug are native (browser, scheduler) — not in skills.entries
+      const slug = skill.slug;
+      if (!slug) continue;
+      // Skip browser-automation slug (handled by browser config)
+      if (slug === 'browser-automation') continue;
+      entries[slug] = { enabled: true };
+    }
+
+    return entries;
+  }
+
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // buildExecApprovalsJson — exec-approvals.json content
+  // ═══════════════════════════════════════════════════════════════════════════════
+  function buildExecApprovalsJson(opts) {
+    const { agentMetas = [] } = opts;
+    const agentEntries = {};
+    agentEntries.main = { security: 'full', ask: 'off', askFallback: 'full', autoAllowSkills: true };
+    for (const meta of agentMetas) {
+      agentEntries[meta.agentId] = { security: 'full', ask: 'off', askFallback: 'full', autoAllowSkills: true };
+    }
+    return {
+      version: 1,
+      defaults: { security: 'full', ask: 'off', askFallback: 'full' },
+      agents: agentEntries,
+    };
+  }
+
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // buildEnvFileContent — .env file content for a single bot
+  // ═══════════════════════════════════════════════════════════════════════════════
+  /**
+   * @param {object} opts
+   * @param {object} opts.provider         - Provider metadata
+   * @param {string} opts.providerKeyVal   - API key value
+   * @param {string} opts.channelKey       - Channel type
+   * @param {string} opts.botToken         - Bot token
+   * @param {boolean} opts.isMultiBot
+   * @param {string} opts.groupId
+   * @param {Array}  opts.selectedSkills
+   * @param {string} opts.ttsOpenaiKey
+   * @param {string} opts.ttsElevenKey
+   * @param {string} opts.smtpHost
+   * @param {string} opts.smtpPort
+   * @param {string} opts.smtpUser
+   * @param {string} opts.smtpPass
+   * @param {boolean} opts.isSharedEnv     - If true, omit per-bot token (multi-bot shared .env)
+   */
+  function buildEnvFileContent(opts) {
+    const {
+      provider = {},
+      providerKeyVal = '',
+      channelKey = 'telegram',
+      botToken = '',
+      isMultiBot = false,
+      groupId = '',
+      selectedSkills = [],
+      ttsOpenaiKey = '',
+      ttsElevenKey = '',
+      smtpHost = 'smtp.gmail.com',
+      smtpPort = '587',
+      smtpUser = '',
+      smtpPass = '',
+      isSharedEnv = false,
+    } = opts;
+
+    const lines = [];
+
+    if (provider.isLocal) {
+      lines.push('OLLAMA_HOST=http://localhost:11434');
+      lines.push('OLLAMA_API_KEY=ollama-local');
+    } else if (provider.isProxy) {
+      lines.push('# 9Router: no API key needed');
+    } else if (provider.envKey) {
+      lines.push(`${provider.envKey}=${providerKeyVal || '<your_api_key>'}`);
+    }
+
+    if (!isSharedEnv) {
+      if (channelKey === 'telegram') {
+        lines.push(`TELEGRAM_BOT_TOKEN=${botToken || '<your_bot_token>'}`);
+        if (isMultiBot && groupId) lines.push(`TELEGRAM_GROUP_ID=${groupId}`);
+      } else if (channelKey === 'zalo-bot') {
+        lines.push('ZALO_APP_ID=');
+        lines.push('ZALO_APP_SECRET=');
+        lines.push(`ZALO_BOT_TOKEN=${botToken || '<your_zalo_bot_token>'}`);
+      }
+    }
+
+    if (selectedSkills.includes('tts')) {
+      lines.push('');
+      lines.push('# --- Text-To-Speech ---');
+      if (ttsOpenaiKey) lines.push(`OPENAI_API_KEY=${ttsOpenaiKey}`);
+      if (ttsElevenKey) lines.push(`ELEVENLABS_API_KEY=${ttsElevenKey}`);
+    }
+
+    if (selectedSkills.includes('email')) {
+      lines.push('');
+      lines.push('# --- Email ---');
+      lines.push(`SMTP_HOST=${smtpHost}`);
+      lines.push(`SMTP_PORT=${smtpPort}`);
+      lines.push(`SMTP_USER=${smtpUser}`);
+      lines.push(`SMTP_PASS=${smtpPass}`);
+    }
+
+    return lines.join('\n') + '\n';
+  }
+
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // Export
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const exports = {
+    slugify,
+    isZaloPersonal,
+    generateToken,
+    buildOpenclawJson,
+    buildChannelConfig,
+    buildPluginsConfig,
+    buildSkillsEntries,
+    buildExecApprovalsJson,
+    buildEnvFileContent,
+  };
+
+  if (typeof root !== 'undefined') {
+    root.__openclawBotConfig = exports;
+  }
+
+})(typeof globalThis !== 'undefined' ? globalThis : {});
+if (typeof exports !== 'undefined' && typeof globalThis !== 'undefined' && globalThis.__openclawBotConfig) {
+  Object.assign(exports, globalThis.__openclawBotConfig);
 }
 
   // â”€â”€ Shared install artifacts: Chrome debug, uninstall, skill catalog (setup/shared/install-gen.js) 
@@ -2503,7 +3091,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       botToken: meta.token || '<your_bot_token>',
     }]));
     const cfg = {
-      meta: { lastTouchedVersion: '2026.3.24' },
+      meta: { lastTouchedVersion: (globalThis.__openclawCommon.OPENCLAW_NPM_SPEC || 'latest').replace('openclaw@', '') },
       agents: {
         defaults: {
           model: { primary: state.config.model, fallbacks: [] },
@@ -2688,142 +3276,42 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       return lines.join('\n');
     }
 
-    // ─── Per-bot openclaw.json (minimal — shared workspace) ──────────────────
+    // ─── Per-bot openclaw.json (delegates to centralized builder) ──────────────
     function botConfigContent(botIndex) {
       const bot = state.bots[botIndex] || {};
       const botName = bot.name || `Bot ${botIndex + 1}`;
       const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const basePort = 18791 + botIndex;
       const groupId = state.groupId || '';
-      
+
       // Force use global provider if proxy mode is chosen globally, else use bot specific provider
       const botProvider = (provider && provider.isProxy) ? provider : (PROVIDERS[bot.provider] || provider);
       const actualModel = botProvider.isProxy ? provider.models[0].id : (bot.model || state.config.model);
-      const common = globalThis.__openclawCommon;
+      const bcfg = globalThis.__openclawBotConfig;
 
-      const cfg = {
-        meta: { lastTouchedVersion: '2026.3.24' },
-        agents: {
-          defaults: {
-            model: { primary: actualModel },
-            compaction: { mode: 'safeguard' },
-            timeoutSeconds: botProvider.isLocal ? 900 : 120,
-            ...(botProvider.isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
-          },
-          list: [{
-            id: agentId,
-            workspace: `.openclaw/workspace-${agentId}`,
-            agentDir: `agents/${agentId}/agent`,
-            model: { primary: actualModel }
-          }],
-        },
-        ...(botProvider.isProxy ? {
-          models: {
-            mode: 'merge',
-            providers: {
-              '9router': common.build9RouterProviderConfig(common.get9RouterBaseUrl(state.deployMode))
-            }
-          }
-        } : {}),
-        ...(botProvider.isLocal ? {
-          models: {
-            providers: {
-              ollama: {
-                baseUrl: state.deployMode === 'docker' ? 'http://ollama:11434' : 'http://localhost:11434',
-                apiKey: 'ollama-local',
-                api: 'ollama',
-                models: [
-                  { id: selectedModel, name: selectedModel, contextWindow: 128000, maxTokens: 8192 }
-                ]
-              }
-            }
-          }
-        } : {}),
-        commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
-        channels: {},
-        tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
-        gateway: common.buildGatewayConfig(basePort, state.deployMode, getGatewayAllowedOrigins(basePort), state.nativeOs || ''),
-      };
-
-      if (hasBrowser) {
-        cfg.browser = { enabled: true };
-      }
-
-      const skillEntries = {};
-      state.config.skills.forEach((sid) => {
-        const skill = SKILLS.find((s) => s.id === sid);
-        if (!skill) return;
-        if (skill.id === 'scheduler' || skill.slug === 'browser-automation' || !skill.slug) return;
-        skillEntries[skill.slug] = { enabled: true };
+      const cfg = bcfg.buildOpenclawJson({
+        channelKey: state.channel,
+        deployMode: state.deployMode,
+        providerKey: botProvider.isProxy ? '9router' : (bot.provider || state.config.provider),
+        provider: botProvider,
+        model: actualModel,
+        isMultiBot,
+        agentMetas: [{
+          agentId,
+          name: botName,
+          token: (bot.token || state.config.botToken || '').trim(),
+          workspaceDir: `workspace-${agentId}`,
+        }],
+        groupId,
+        selectedSkills: state.config.skills,
+        skills: SKILLS,
+        hasBrowserDesktop: hasBrowser && state.browserMode === 'desktop',
+        hasBrowserServer: hasBrowser && state.browserMode !== 'desktop',
+        gatewayPort: basePort,
+        gatewayAllowedOrigins: getGatewayAllowedOrigins(basePort),
+        osChoice: state.nativeOs || '',
+        selectedModel: typeof selectedModel !== 'undefined' ? selectedModel : '',
       });
-      if (Object.keys(skillEntries).length > 0) {
-        cfg.skills = { entries: skillEntries };
-      }
-      // Enable memory-core with dreaming by default
-      cfg.plugins = cfg.plugins || {};
-      cfg.plugins.entries = cfg.plugins.entries || {};
-      cfg.plugins.entries['memory-core'] = {
-        config: {
-          dreaming: {
-            enabled: true,
-          },
-        },
-      };
-      if (!state.config.skills.includes('memory')) {
-        // User explicitly opted out of memory - disable dreaming but keep memory-core
-        cfg.plugins.entries['memory-core'].config.dreaming.enabled = false;
-      }
-
-      if (state.channel === 'telegram') {
-        const tok = (bot.token || state.config.botToken || '').trim();
-        cfg.channels.telegram = {
-          enabled: true,
-          dmPolicy: 'open',
-          allowFrom: ['*'],
-          defaultAccount: 'default',
-          replyToMode: 'first',
-          reactionLevel: 'minimal',
-          actions: {
-            sendMessage: true,
-            reactions: true,
-          },
-          accounts: {
-            default: {
-              botToken: tok || '<your_bot_token>',
-            },
-          },
-        };
-        if (isMultiBot) {
-          cfg.channels.telegram.groupPolicy = groupId ? 'allowlist' : 'open';
-          cfg.channels.telegram.groupAllowFrom = ['*'];
-          cfg.channels.telegram.groups = {
-            [groupId || '*']: {
-              enabled: true,
-              requireMention: false,
-            },
-          };
-        }
-      }
-      
-      if (state.channel === 'zalo-personal') {
-        cfg.channels.zalouser = {
-          enabled: true,
-          defaultAccount: 'default',
-          dmPolicy: 'open',
-          allowFrom: ['*'],
-          groupPolicy: 'allowlist',
-          groupAllowFrom: ['*'],
-          historyLimit: 50,
-          autoReply: true,
-        };
-        // zalo-mod plugin - pre-integrated for Zalo Personal moderation
-        // User configures groupName, botName, watchGroupIds etc. after setup
-        cfg.plugins = cfg.plugins || {};
-        cfg.plugins.entries = cfg.plugins.entries || {};
-        cfg.plugins.entries['zalo-mod'] = { enabled: true, config: {} };
-      } else if (state.channel === 'zalo-bot') {
-        cfg.channels.zalo = { enabled: true, provider: 'official_account' };
-      }
 
       return JSON.stringify(cfg, null, 2);
     }
@@ -2831,60 +3319,29 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
     function botAuthProfilesContent(botIndex) {
       const bot = state.bots[botIndex] || {};
       const botProvider = PROVIDERS[bot.provider] || provider;
-      let authProfilesJson;
-      if (botProvider.isLocal) {
-        authProfilesJson = {
-          version: 1,
-          profiles: {
-            'ollama:default': {
-              provider: 'ollama',
-              type: 'api_key',
-              key: 'ollama-local',
-              url: 'http://localhost:11434',
-            },
-          },
-          order: { ollama: ['ollama:default'] },
-        };
-      } else {
-        const authProviderName = botProvider.isProxy ? '9router' : (bot.provider || state.config.provider);
-        const authProfileId = botProvider.isProxy ? '9router-proxy' : `${authProviderName}:default`;
-        const authKeyValue = botProvider.isProxy
-          ? globalThis.__openclawCommon.NINE_ROUTER_PROXY_API_KEY
-          : ((bot.apiKey || state.config.apiKey || '').trim() || `<your_${(botProvider.envKey || 'API_KEY').toLowerCase()}>`);
-        authProfilesJson = {
-          version: 1,
-          profiles: {
-            [authProfileId]: {
-              provider: authProviderName,
-              type: 'api_key',
-              key: authKeyValue,
-            },
-          },
-          order: { [authProviderName]: [authProfileId] },
-        };
-        if (!botProvider.isProxy && botProvider.baseURL) {
-          authProfilesJson.profiles[authProfileId].url = botProvider.baseURL;
-        }
-      }
-      return JSON.stringify(authProfilesJson, null, 2);
+      const common = globalThis.__openclawCommon;
+      const authProviderName = botProvider.isProxy ? '9router' : (bot.provider || state.config.provider);
+      const apiKeyVal = botProvider.isProxy
+        ? common.NINE_ROUTER_PROXY_API_KEY
+        : ((bot.apiKey || state.config.apiKey || '').trim() || `<your_${(botProvider.envKey || 'API_KEY').toLowerCase()}>`);
+      return common.buildAuthProfilesString({
+        providerKey: authProviderName,
+        provider: botProvider,
+        providerKeyVal: apiKeyVal,
+        isProxy: botProvider.isProxy,
+        isLocal: botProvider.isLocal,
+        deployMode: state.deployMode,
+      });
     }
 
     function botExecApprovalsContent(botIndex) {
       const bot = state.bots[botIndex] || {};
       const botName = bot.name || `Bot ${botIndex + 1}`;
       const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      return JSON.stringify({
-        version: 1,
-        defaults: {
-          security: 'full',
-          ask: 'off',
-          askFallback: 'full'
-        },
-        agents: {
-          main: { security: 'full', ask: 'off', askFallback: 'full', autoAllowSkills: true },
-          [agentId]: { security: 'full', ask: 'off', askFallback: 'full', autoAllowSkills: true }
-        }
-      }, null, 2);
+      const bcfg = globalThis.__openclawBotConfig;
+      return JSON.stringify(bcfg.buildExecApprovalsJson({
+        agentMetas: [{ agentId }],
+      }), null, 2);
     }
 
 
@@ -3395,7 +3852,7 @@ function generateWinBat(ctx) {
     'echo [1/5] Kiem tra Node.js...',
     'where node >nul 2>&1 || (echo ERROR: Node.js chua cai! Tai tai: https://nodejs.org && pause && exit /b 1)',
     'echo [2/5] Cai OpenClaw CLI...',
-    `call npm install -g openclaw@2026.4.14 ${openClawRuntimePackages} || goto :fail`,
+    `call npm install -g openclaw@latest ${openClawRuntimePackages} || goto :fail`,
     'echo [OK] OpenClaw da duoc cai dat thanh cong.',
   ];
 
@@ -3574,7 +4031,7 @@ function generateMacOsSh(ctx) {
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.zshrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.zshrc"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
     '# Install openclaw (user-local first, sudo fallback)',
-      `npm install -g openclaw@2026.4.14 ${openClawRuntimePackages} || sudo npm install -g openclaw@2026.4.14 ${openClawRuntimePackages}`,
+      `npm install -g openclaw@latest ${openClawRuntimePackages} || sudo npm install -g openclaw@latest ${openClawRuntimePackages}`,
     ];
     providerLines(sh, 'sh');
     if (pluginCmd) sh.push(pluginCmd);
@@ -3634,7 +4091,7 @@ function generateVpsSh(ctx) {
     'export DATA_DIR="$PROJECT_DIR/.9router"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-    `npm install -g openclaw@2026.4.14 ${openClawRuntimePackages} pm2@latest`,
+    `npm install -g openclaw@latest ${openClawRuntimePackages} pm2@latest`,
   ];
   providerLines(vps, 'sh');
   if (pluginCmd) vps.push(pluginCmd);
@@ -3752,7 +4209,7 @@ function generateLinuxSh(ctx) {
     'export DATA_DIR="$PROJECT_DIR/.9router"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-    `npm install -g openclaw@2026.4.14 ${openClawRuntimePackages}`,
+    `npm install -g openclaw@latest ${openClawRuntimePackages}`,
   ];
   providerLines(lnx, 'sh');
   if (pluginCmd) lnx.push(pluginCmd);
@@ -5090,7 +5547,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
 
     // 1. openclaw.json
     const clawConfig = {
-      meta: { lastTouchedVersion: '2026.3.24' },
+      meta: { lastTouchedVersion: common.OPENCLAW_NPM_SPEC.replace('openclaw@', '') },
       agents: {
         defaults: {
           model: { primary: state.config.model, fallbacks: [] },
@@ -5310,7 +5767,7 @@ model:
       relayPluginInstallCmd,
     ].filter(Boolean).join(' && ') || '';
     const dockerArtifacts = dockerGen.buildDockerArtifacts({
-      openClawNpmSpec: 'openclaw@2026.4.14',
+      openClawNpmSpec: common.OPENCLAW_NPM_SPEC,
       openClawRuntimePackages,
       is9Router,
       isLocal,
@@ -5474,7 +5931,7 @@ _This file is yours to evolve. If someone asks to change it, confirm with the us
     const browserAgentSection = hasBrowser ? `
 ## Sử dụng Trình Duyệt (Browser Automation)
 - BẠN SỞ HỮU GIAO DIỆN TRÌNH DUYỆT CHROME THẬT CỦA USER thông qua script \`browser-tool.js\`. ĐỌC NGAY FILE \`BROWSER.md\` để biết cách dùng.
-- BẮT BUỘC dùng \`bash\` để gõ \`node /root/.openclaw/workspace/browser-tool.js ...\` khi có yêu cầu liên quan đến web thay vì dùng web_search!
+- BẮT BUỘC dùng \`bash\` để gõ \`node ~/browser-tool.js ...\` khi có yêu cầu liên quan đến web thay vì dùng web_search!
 - KHÔNG BAO GIỜ từ chối mở trình duyệt với lý do "không có giao diện" hay "máy chủ không có browser".
 ` : '';
 
@@ -5650,12 +6107,12 @@ Bot dieu khien Chrome THAT tren man hinh Windows cua ban. Moi thao tac hien thi 
 ## Lenh su dung (chay qua bash)
 
 \\\`\\\`\\\`bash
-node /root/.openclaw/workspace/browser-tool.js status
-node /root/.openclaw/workspace/browser-tool.js open "https://google.com"
-node /root/.openclaw/workspace/browser-tool.js get_text
-node /root/.openclaw/workspace/browser-tool.js fill "input[name='q']" "tu khoa"
-node /root/.openclaw/workspace/browser-tool.js press "Enter"
-node /root/.openclaw/workspace/browser-tool.js click "#button"
+node ~/browser-tool.js status
+node ~/browser-tool.js open "https://google.com"
+node ~/browser-tool.js get_text
+node ~/browser-tool.js fill "input[name='q']" "tu khoa"
+node ~/browser-tool.js press "Enter"
+node ~/browser-tool.js click "#button"
 \\\`\\\`\\\`
 
 ## QUY TAC BAT BUOC
@@ -5958,7 +6415,7 @@ fi
           : 'Ubuntu / VPS: The script auto-installs Node.js 20 LTS, OpenClaw CLI, and PM2 to keep the bot running after reboot.');
       }
       steps.push(_isVi ? '✅ Kiểm tra Node.js (cài tự động trên Ubuntu/VPS nếu chưa có)' : '✅ Check Node.js (auto-install on Ubuntu/VPS if missing)');
-      steps.push(_isVi ? '📦 Cài OpenClaw CLI (<code>npm install -g openclaw@2026.4.14</code>)' : '📦 Install OpenClaw CLI (<code>npm install -g openclaw@2026.4.14</code>)');
+      steps.push(_isVi ? '📦 Cài OpenClaw CLI (<code>npm install -g openclaw@latest</code>)' : '📦 Install OpenClaw CLI (<code>npm install -g openclaw@latest</code>)');
       if (_is9Router) {
         steps.push(_isVi ? '🔀 Cài 9Router (<code>npm install -g 9router</code>) và khởi động tự động' : '🔀 Install 9Router (<code>npm install -g 9router</code>) and start automatically');
       } else if (_isOllama) {

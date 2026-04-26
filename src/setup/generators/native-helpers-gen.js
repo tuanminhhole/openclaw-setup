@@ -192,7 +192,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       botToken: meta.token || '<your_bot_token>',
     }]));
     const cfg = {
-      meta: { lastTouchedVersion: '2026.3.24' },
+      meta: { lastTouchedVersion: (globalThis.__openclawCommon.OPENCLAW_NPM_SPEC || 'latest').replace('openclaw@', '') },
       agents: {
         defaults: {
           model: { primary: state.config.model, fallbacks: [] },
