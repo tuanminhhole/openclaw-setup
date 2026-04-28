@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 /* eslint-disable no-undef, no-unused-vars */
 /**
  * @fileoverview Part of the OpenClaw Setup Wizard IIFE bundle.
@@ -97,11 +97,18 @@ function generateZaloLoginSh(opts) {
     `if [ -f "${credPath}" ]; then`,
     `  echo "[OK] Session Zalo da ton tai. Bo qua buoc dang nhap."`,
     `else`,
-    `  echo "[Zalo] Chua co session. Chay lenh sau trong terminal khac:"`,
-    `  echo "  ${loginCmd}"`,
+    `  echo "[Zalo] Chua co session. Bat dau dang nhap..."`,
+    `  ${loginCmd}`,
+    `  ZALO_QR="/tmp/openclaw/openclaw-zalouser-qr${useInstance ? '-default' : ''}.png"`,
     `  echo ""`,
-    `  echo "  QR code se xuat hien trong terminal do."`,
-    `  echo "  Sau khi quet QR thanh cong, nhay Enter de tiep tuc."`,
+    `  echo "=== HUONG DAN DANG NHAP ZALO ==="`,
+    `  echo "  1. Tim file QR tai: $ZALO_QR"`,
+    `  echo "  2. Copy file QR ra may: scp user@host:$ZALO_QR ./zalo-qr.png"`,
+    `  echo "     Hoac mo truc tiep: xdg-open $ZALO_QR 2>/dev/null || open $ZALO_QR 2>/dev/null || echo 'Mo file QR thu cong'"`,
+    `  echo "  3. Mo app Zalo > Quet QR > quet ma trong file QR"`,
+    `  echo "  4. Doi thay Login successful trong terminal"`,
+    `  echo "================================"`,
+    `  echo ""`,
     `  read -p "Nhan Enter sau khi dang nhap Zalo thanh cong... "`,
     `fi`,
   ];

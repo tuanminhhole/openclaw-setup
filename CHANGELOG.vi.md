@@ -1,5 +1,18 @@
 # Changelog (Tiếng Việt)
 
+## [5.7.1] — 2026-04-28
+
+### Chuẩn hóa Đăng nhập Zalo QR & Tích hợp Workspace
+
+- **Cải thiện: Chuẩn hóa đăng nhập Zalo QR trên mọi nền tảng** — Tất cả mục tiêu triển khai (Docker, Windows, macOS, Linux, VPS) đều dùng chung luồng đăng nhập dựa trên file QR: ảnh QR được lưu tại `/tmp/openclaw/openclaw-zalouser-qr-default.png`, người dùng tự lấy file QR (qua Docker Desktop tab Files, `docker cp`, `scp`, hoặc mở trực tiếp). Thay thế hướng dẫn quét QR qua terminal bằng hướng dẫn từng bước cho mỗi nền tảng.
+- **Cải thiện: Docker login dùng `docker exec` thay vì `docker compose exec`** — Hướng dẫn sau cài đặt và download scripts giờ dùng `docker exec -it <container>` và `docker cp` trực tiếp, ổn định hơn trên các phiên bản Docker Compose.
+- **Cải thiện: Download scripts Wizard tự động chạy Zalo login** — Cả Windows (PowerShell) và Unix (bash) download scripts do Wizard tạo giờ tự đợi container khởi động và chạy lệnh đăng nhập Zalo, bỏ bước thủ công sau cài đặt.
+- **Cải thiện: VPS setup chèn Zalo login trước khi start gateway** — Script cài VPS giờ chèn luồng đăng nhập Zalo (qua `generateZaloLoginSh()`) trước khi PM2 khởi động gateway, đảm bảo session được thiết lập ngay lần deploy đầu.
+- **Cải thiện: Workspace docs tích hợp zalo-mod** — `TOOLS.md` và `SOUL.md` giờ bao gồm tài liệu plugin zalo-mod (slash commands `/rules`, `/noi-quy`, `/menu`, `/groupid`, `/report` và hành vi xử lý media) khi `hasZaloMod = true`.
+- **Sửa: Escape đường dẫn Windows BAT** — Sửa lỗi escape backslash trong `win-bat.js` gây hỏng đường dẫn `PROJECT_DIR`, `OPENCLAW_HOME`, `DATA_DIR` và script khởi động gateway PowerShell.
+- **Sửa: Script đăng nhập Zalo trên VPS/Linux** — `zalo-login-gen.js` giờ chạy trực tiếp lệnh login và hướng dẫn lấy QR qua file thay vì yêu cầu user mở terminal riêng.
+- **Chore: Đồng bộ ARCHITECTURE.md** — Bổ sung tài liệu `bot-config-gen.js`, `test-matrix.mjs`, cập nhật lệnh `npm test`, ghi chú tham số `hasZaloMod` và mục Zalo QR Login Protocol.
+
 ## [5.7.0] — 2026-04-27
 
 ### Kiến trúc Config Tập trung & Bộ Test Ma trận

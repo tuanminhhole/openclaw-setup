@@ -31,6 +31,26 @@ function generateMacOsSh(ctx) {
     sh.push('if docker compose version > /dev/null 2>&1; then COMPOSE="docker compose"; else COMPOSE="docker-compose"; fi');
     sh.push('cd docker/openclaw');
     sh.push('$COMPOSE up --detach --build');
+    if (state.channel === 'zalo-personal') {
+      const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const containerName = `openclaw-${botName}`;
+      const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
+      sh.push('echo ""');
+      sh.push('echo "=== DANG NHAP ZALO ==="');
+      sh.push('echo "Doi container khoi dong 10 giay..."');
+      sh.push('sleep 10');
+      sh.push('echo "Huong dan dang nhap Zalo:"');
+      sh.push(`echo "  1. cd docker/openclaw"`);
+      sh.push(`echo "  2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose"`);
+      sh.push(`echo "  3. Tim file QR trong container: ${qrPath}"`);
+      sh.push(`echo "     Hoac chay: docker cp ${containerName}:${qrPath} ./zalo-qr.png"`);
+      sh.push('echo "  4. Mo app Zalo > Quet QR > quet ma"');
+      sh.push('echo "  5. Doi thay Login successful"');
+      sh.push('echo "  6. Restart: $COMPOSE restart"');
+      sh.push('echo ""');
+      sh.push(`docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose || true`);
+      sh.push('$COMPOSE restart');
+    }
     sh.push('echo "\u2705 Bot dang chay via Docker. Xem log: docker logs -f openclaw-bot"');
     scriptContent = sh.filter(Boolean).join('\n');
   } else {
@@ -64,13 +84,19 @@ function generateMacOsSh(ctx) {
       appendShWriteCommands(sh, sharedNativeFileMap());
       const _uninstallMacMulti = generateUninstallScript();
       if (_uninstallMacMulti) appendShWriteCommands(sh, { [_uninstallMacMulti.name]: _uninstallMacMulti.content });
-      sh.push('echo "Starting shared multi-bot gateway..."');
-      sh.push('openclaw gateway run');
+    sh.push('echo "Starting shared multi-bot gateway..."');
+    if (state.channel === 'zalo-personal') {
+      sh.push(...generateZaloLoginSh({ homeVar: '$OPENCLAW_HOME', projectDirVar: '$PROJECT_DIR' }));
+    }
+    sh.push('openclaw gateway run');
     } else {
       appendShWriteCommands(sh, botFiles(0));
       const _uninstallMac = generateUninstallScript();
       if (_uninstallMac) appendShWriteCommands(sh, { [_uninstallMac.name]: _uninstallMac.content });
-      sh.push('openclaw gateway run');
+    if (state.channel === 'zalo-personal') {
+      sh.push(...generateZaloLoginSh({ homeVar: '$OPENCLAW_HOME', projectDirVar: '$PROJECT_DIR' }));
+    }
+    sh.push('openclaw gateway run');
     }
     scriptContent = sh.filter(Boolean).join('\n');
   }

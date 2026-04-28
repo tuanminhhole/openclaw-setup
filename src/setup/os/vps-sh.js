@@ -85,10 +85,15 @@ GWEOF`);
   vps.push('NODE_BIN="$(command -v node)"');
 
   if (is9Router) {
-    vps.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);
+    vps.push(`NINE_ROUTER_ENTRY="$(${native9RouterServerEntryLookup()})"`);\r
     vps.push(`PORT=20128 HOSTNAME=0.0.0.0 DATA_DIR="$DATA_DIR" pm2 start "$NINE_ROUTER_ENTRY" --name ${appName}-9router --interpreter "$NODE_BIN"`);
     // 9Router sync: start the actual JS file directly with node interpreter
     vps.push(`pm2 start "$PROJECT_DIR/.9router/9router-smart-route-sync.js" --name ${appName}-9router-sync --interpreter "$NODE_BIN" --env DATA_DIR="$DATA_DIR"`);
+  }
+
+  // ── Zalo Personal Login (before gateway) ──────────────────────────────
+  if (state.channel === 'zalo-personal') {
+    vps.push(...generateZaloLoginSh({ homeVar: '$OPENCLAW_HOME', projectDirVar: '$PROJECT_DIR' }));
   }
 
   // Gateway: start the bash wrapper script (has all env setup baked in)

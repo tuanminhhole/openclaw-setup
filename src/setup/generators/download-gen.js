@@ -97,6 +97,32 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
   ps += `Write-Host "[3/4] ${isVi ? 'Build Docker image...' : 'Building Docker image...'}" -ForegroundColor Yellow\n`;
   ps += `Set-Location "$projectDir\\docker\\openclaw"\n$cacheBust = (Get-Date -Format 'yyyyMMddHHmmss')\n& docker compose build --build-arg CACHE_BUST=$cacheBust\n`;
   ps += `Write-Host "[4/4] ${isVi ? 'Khoi dong bot...' : 'Starting bot...'}" -ForegroundColor Yellow\n& docker compose up -d\n`;
+
+  if (state.channel === 'zalo-personal') {
+    const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const containerName = `openclaw-${botName}`;
+    const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
+    ps += `\nWrite-Host "" -ForegroundColor White\n`;
+    ps += `Write-Host "${isVi ? '=== DANG NHAP ZALO ===' : '=== ZALO LOGIN ==='}" -ForegroundColor Cyan\n`;
+    ps += `Write-Host "${isVi ? 'Doi container khoi dong 10 giay...' : 'Waiting 10s for container to start...'}" -ForegroundColor Yellow\n`;
+    ps += `Start-Sleep -Seconds 10\n`;
+    ps += `Write-Host "" -ForegroundColor White\n`;
+    ps += `Write-Host "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '1. cd docker\\\\openclaw' : '1. cd docker\\\\openclaw'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose' : '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '3. Mo Docker Desktop > container ${containerName} > tab Files > tim file: ${qrPath}' : '3. Open Docker Desktop > container ${containerName} > Files tab > find: ${qrPath}'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png' : '   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma trong file QR' : '4. Open Zalo app > Scan QR > scan the QR image'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '5. Doi thay chu Login successful trong terminal' : '5. Wait for Login successful in terminal'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '6. Restart container:  docker compose restart' : '6. Restart container:  docker compose restart'}" -ForegroundColor White\n`;
+    ps += `Write-Host "" -ForegroundColor White\n`;
+    ps += `Write-Host "${isVi ? 'Dang chay lenh login...' : 'Running login command...'}" -ForegroundColor Yellow\n`;
+    ps += `& docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose\n`;
+    ps += `Write-Host "" -ForegroundColor White\n`;
+    ps += `Write-Host "${isVi ? 'Restart container de ap dung...' : 'Restarting container to apply...'}" -ForegroundColor Green\n`;
+    ps += `& docker compose restart\n`;
+  }
+
   ps += `} catch { Write-Host $_.Exception.Message -ForegroundColor Red }\nRead-Host "${isVi ? 'Nhan Enter de thoat' : 'Press Enter to exit'}"\n`;
   return `@echo off
 chcp 65001>nul
@@ -134,6 +160,17 @@ echo ""
     script += `cat > "${path}" << 'CLAWEOF'\n${String(content)}${String(content).endsWith('\n') ? '' : '\n'}CLAWEOF\n\n`;
   });
   script += `echo "${isVi ? 'Files created' : 'Files created'}"\ncd "docker/openclaw"\ndocker compose build --build-arg CACHE_BUST=$(date +%s)\ndocker compose up --detach\n`;
+
+  if (state.channel === 'zalo-personal') {
+    const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const containerName = `openclaw-${botName}`;
+    const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
+    script += `\necho ""\necho "${isVi ? '=== DANG NHAP ZALO ===' : '=== ZALO LOGIN ==='}"\necho "${isVi ? 'Doi container khoi dong 10 giay...' : 'Waiting 10s for container to start...'}"\nsleep 10\n`;
+    script += `echo "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}"\necho "  ${isVi ? '1. cd docker/openclaw' : '1. cd docker/openclaw'}"\necho "  ${isVi ? '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose' : '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose'}"\necho "  ${isVi ? '3. Tim file QR trong container: ${qrPath}' : '3. Find QR image in container: ${qrPath}'}"\necho "  ${isVi ? '   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png' : '   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png'}"\necho "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma' : '4. Open Zalo app > Scan QR > scan'}"\necho "  ${isVi ? '5. Doi thay Login successful' : '5. Wait for Login successful'}"\necho "  ${isVi ? '6. Restart:  docker compose restart' : '6. Restart:  docker compose restart'}"\necho ""\n`;
+    script += `docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose\n`;
+    script += `echo "${isVi ? 'Restart container...' : 'Restarting container...'}"\ndocker compose restart\n`;
+  }
+
   return script;
 }
 

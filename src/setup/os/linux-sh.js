@@ -42,11 +42,17 @@ function generateLinuxSh(ctx) {
     const _uninstallLnxMulti = generateUninstallScript();
     if (_uninstallLnxMulti) appendShWriteCommands(lnx, { [_uninstallLnxMulti.name]: _uninstallLnxMulti.content });
     lnx.push('echo "Starting shared multi-bot gateway..."');
+    if (state.channel === 'zalo-personal') {
+      lnx.push(...generateZaloLoginSh({ homeVar: '$OPENCLAW_HOME', projectDirVar: '$PROJECT_DIR' }));
+    }
     lnx.push('openclaw gateway run');
   } else {
     appendShWriteCommands(lnx, botFiles(0));
     const _uninstallLnx = generateUninstallScript();
     if (_uninstallLnx) appendShWriteCommands(lnx, { [_uninstallLnx.name]: _uninstallLnx.content });
+    if (state.channel === 'zalo-personal') {
+      lnx.push(...generateZaloLoginSh({ homeVar: '$OPENCLAW_HOME', projectDirVar: '$PROJECT_DIR' }));
+    }
     lnx.push('openclaw gateway run');
   }
   scriptContent = lnx.filter(Boolean).join('\n');

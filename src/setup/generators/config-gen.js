@@ -152,6 +152,7 @@
         hasBrowser,
         soulVariant: 'wizard',
         memoryVariant: 'wizard',
+        hasZaloMod: state.channel === 'zalo-personal',
       });
     }
 

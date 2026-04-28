@@ -16,21 +16,34 @@ const workspaceRoot = /** @type {OpenClawWorkspaceRoot} */ (
     return `# Identity\n\n- **Name:** ${name}\n- **Role:** ${desc}${emoji ? `\n- **Emoji:** ${emoji}` : ''}\n\n---\n\nI am **${name}**. When asked my name, I answer: _\"I'm ${name}\"_.${richAiNote ? "\nI don't pretend to be human — I'm an AI, and I'm proud of it." : ''}`;
   }
 
+  function buildZaloSoulSection(isVi, botName) {
+    const name = botName || 'Bot';
+    if (isVi) {
+      return `\n\n**RULE — Zalo Group: Phản hồi theo chế độ Silent Mode:**\nKhi nhận tin từ \`channel: zalouser\` và \`group_id\` có giá trị:\n\n- Nếu tin nhắn chứa \`@${name}\` → **LUÔN reply** (bất kể silent mode).\n- Nếu tin nhắn bắt đầu bằng \`/\` (slash command) → KHÔNG reply, plugin đã xử lý rồi.\n- Tin thường trong group (không mention, không slash):\n  - Nếu **Silent Mode BẬT** → tin này KHÔNG đến được bot (plugin đã chặn).\n  - Nếu **Silent Mode TẮT** → tin này ĐẾN ĐƯỢC bot → **reply bình thường** như DM.\n- DM (không có group_id) → reply bình thường.`;
+    }
+    return `\n\n**RULE — Zalo Group: Reply based on Silent Mode:**\nWhen receiving messages from \`channel: zalouser\` with a \`group_id\`:\n\n- If the message contains \`@${name}\` → **ALWAYS reply** (regardless of silent mode).\n- If the message starts with \`/\` (slash command) → DO NOT reply, the plugin already handled it.\n- Regular group messages (no mention, no slash):\n  - If **Silent Mode is ON** → this message does NOT reach the bot (plugin blocks it).\n  - If **Silent Mode is OFF** → this message DOES reach the bot → **reply normally** like DM.\n- DM (no group_id) → reply normally.`;
+  }
+
   function buildSoulDoc(options = {}) {
-    const { isVi = true, persona = '', variant = 'wizard' } = options;
+    const { isVi = true, persona = '', variant = 'wizard', hasZaloMod = false, botName = 'Bot' } = options;
+    let doc;
     if (variant === 'cli-simple') {
-      return isVi
+      doc = isVi
         ? `# Tính cách\n\n${persona || 'Thân thiện, rõ ràng, giải quyết việc thẳng vào mục tiêu.'}\n`
         : `# Soul\n\n${persona || 'Friendly, clear, and outcome-focused.'}\n`;
-    }
-    if (variant === 'cli-rich') {
-      return isVi
+    } else if (variant === 'cli-rich') {
+      doc = isVi
         ? `# Tính cách\n\n**Hữu ích thật sự.** Bỏ qua câu nệ — cứ giúp thẳng.\n**Có cá tính.** Trợ lý không có cá tính thì chỉ là công cụ.\n\n## Phong cách\n- Tự nhiên, gần gũi như bạn bè\n- Trực tiếp, không parrot câu hỏi.${persona ? `\n\n## Custom Rules\n${persona}` : ''}`
         : `# Soul\n\n**Be genuinely helpful.** Skip filler and help directly.\n**Have personality.** An assistant without personality is just a tool.\n\n## Style\n- Natural and approachable\n- Direct, do not parrot the prompt.${persona ? `\n\n## Custom Rules\n${persona}` : ''}`;
+    } else {
+      doc = isVi
+        ? `# Tính cách\n\n**Hữu ích thật sự.** Bỏ qua câu nệ, cứ giúp thẳng.\n**Có cá tính.** Trợ lý không có cá tính thì chỉ là công cụ.\n\n## Phong cách\n- Tự nhiên, gần gũi\n- Trực tiếp, ngắn gọn${persona ? `\n\n## Custom Rules\n${persona}` : ''}`
+        : `# Soul\n\n**Be genuinely helpful.** Skip filler and just help.\n**Have personality.** An assistant with no personality is just a tool.\n\n## Style\n- Natural and concise\n- Direct and practical${persona ? `\n\n## Custom Rules\n${persona}` : ''}`;
     }
-    return isVi
-      ? `# Tính cách\n\n**Hữu ích thật sự.** Bỏ qua câu nệ, cứ giúp thẳng.\n**Có cá tính.** Trợ lý không có cá tính thì chỉ là công cụ.\n\n## Phong cách\n- Tự nhiên, gần gũi\n- Trực tiếp, ngắn gọn${persona ? `\n\n## Custom Rules\n${persona}` : ''}`
-      : `# Soul\n\n**Be genuinely helpful.** Skip filler and just help.\n**Have personality.** An assistant with no personality is just a tool.\n\n## Style\n- Natural and concise\n- Direct and practical${persona ? `\n\n## Custom Rules\n${persona}` : ''}`;
+    if (hasZaloMod) {
+      doc += buildZaloSoulSection(isVi, botName);
+    }
+    return doc;
   }
 
   function buildTeamDoc(options = {}) {
@@ -305,6 +318,7 @@ const CDP_URL = 'http://127.0.0.1:9222';
       agentWorkspaceDir = 'workspace',
       hasBrowser = false,
       hasScheduler = false,
+      hasZaloMod = false,
       browserDocVariant = '',
     } = options;
 
@@ -332,19 +346,25 @@ const CDP_URL = 'http://127.0.0.1:9222';
         : `\n\n## \u23F0 Cron / Scheduled Tasks\n- OpenClaw natively supports system tools for Cron Jobs.\n- When the user asks to schedule tasks or reminders, use the built-in tools automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.\n- When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.\n- Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`)
       : '';
 
+    const zaloModSection = hasZaloMod
+      ? (isVi
+        ? `\n\n## 💬 Zalo Group — Slash Commands (xử lý bởi plugin)\n\nPlugin \`zalo-mod\` tự động xử lý các slash command sau trong group. Bot KHÔNG cần reply cho chúng:\n\n| Command | Mô tả |\n|---------|-------|\n| \`/rules status\` | Xem cấu hình bot |\n| \`/rules silent-on/off\` | Bật/tắt silent mode |\n| \`/rules welcome-on/off\` | Bật/tắt welcome message |\n| \`/rules tracking-on/off\` | Bật/tắt ghi log chat |\n| \`/noi-quy\` | Hiện nội quy group |\n| \`/menu\` | Danh sách lệnh |\n| \`/groupid\` | Scan và cập nhật config |\n| \`/report\` | Báo cáo hoạt động group |\n\n### Zalo Sticker & Media\n- Sticker Zalo gửi dạng JSON → plugin tự convert thành \`[Sticker]\`\n- Ảnh/video/file trong group: zalouser channel chỉ forward text, media bị drop`
+        : `\n\n## 💬 Zalo Group — Slash Commands (handled by plugin)\n\nThe \`zalo-mod\` plugin automatically handles these slash commands in group. Bot does NOT need to reply:\n\n| Command | Description |\n|---------|-------------|\n| \`/rules status\` | View bot config |\n| \`/rules silent-on/off\` | Toggle silent mode |\n| \`/rules welcome-on/off\` | Toggle welcome message |\n| \`/rules tracking-on/off\` | Toggle chat logging |\n| \`/noi-quy\` | Show group rules |\n| \`/menu\` | List commands |\n| \`/groupid\` | Scan and update config |\n| \`/report\` | Group activity report |\n\n### Zalo Sticker & Media\n- Zalo stickers arrive as JSON → plugin auto-converts to \`[Sticker]\`\n- Images/videos/files in groups: zalouser channel only forwards text, media is dropped`)
+      : '';
+
     const dmOverride = isVi
       ? `\n\n## Override: DM và Telegram reaction\n- Nếu metadata không nói rõ đây là group/supergroup, mặc định xem là chat riêng/DM và trả lời bình thường.\n- Quy tắc im lặng khi không ai được gọi chỉ áp dụng cho group chat, không áp dụng cho DM/chat riêng.\n- Trước MỖI phản hồi Telegram nhìn thấy bởi user, nếu turn hiện tại có tool/action reaction native thì ưu tiên dùng nó để thả \`👍\` trước, trừ khi \`👍\` đã có sẵn.\n- Nếu turn hiện tại không expose tool reaction hoặc chat đích không hỗ trợ reaction thật, cứ trả lời đúng vai trò và không được nói là mình đã thả reaction.`
       : `\n\n## Override: DM and Telegram reaction\n- If metadata does not clearly say this is a group/supergroup, treat it as a private DM and reply normally.\n- The stay-silent rule for unaddressed messages applies only to group chats, never to DMs.\n- Before EVERY user-visible Telegram reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- If the reaction tool is unavailable or the target chat does not support real reactions, just reply in-character and do not claim that you reacted.`;
 
     if (variant === 'relay') {
       return isVi
-        ? `# Hướng dẫn dùng tool\n\n## Tools có sẵn\n${skillsSection}\n\n## Quy tắc chung\n- Tóm tắt kết quả tool thay vì dump raw output.\n- Mọi bot đều có quyền sử dụng tất cả tool (scheduler, browser, exec). Vai trò (dev/marketing/...) chỉ là persona, KHÔNG giới hạn quyền dùng tool.\n- Workspace của bạn là \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}${dmOverride}\n`
-        : `# Tool Usage Guide\n\n## Available Tools\n${skillsSection}\n\n## General Rules\n- Summarize tool output instead of dumping raw output.\n- All bots have equal access to all tools (scheduler, browser, exec). Roles (dev/marketing/...) are persona only, NOT tool permissions.\n- Your workspace is \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}${dmOverride}\n`;
+        ? `# Hướng dẫn dùng tool\n\n## Tools có sẵn\n${skillsSection}\n\n## Quy tắc chung\n- Tóm tắt kết quả tool thay vì dump raw output.\n- Mọi bot đều có quyền sử dụng tất cả tool (scheduler, browser, exec). Vai trò (dev/marketing/...) chỉ là persona, KHÔNG giới hạn quyền dùng tool.\n- Workspace của bạn là \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}${zaloModSection}${dmOverride}\n`
+        : `# Tool Usage Guide\n\n## Available Tools\n${skillsSection}\n\n## General Rules\n- Summarize tool output instead of dumping raw output.\n- All bots have equal access to all tools (scheduler, browser, exec). Roles (dev/marketing/...) are persona only, NOT tool permissions.\n- Your workspace is \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}${zaloModSection}${dmOverride}\n`;
     }
 
     return isVi
-      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillsSection}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output${browserRef}\n\n## Quy ước\n- Web Search: chỉ dùng khi cần thông tin realtime hoặc user yêu cầu\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông tin tự nhiên, không cần user nhắc${cronSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround${dmOverride}\n`
-      : `# Tool Usage Guide\n\n## Installed Skills\n${skillsSection}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error — retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data${browserRef}\n\n## Conventions\n- Web Search: only use when needing real-time info or user explicitly asks\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting${cronSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround${dmOverride}\n`;
+      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillsSection}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output${browserRef}\n\n## Quy ước\n- Web Search: chỉ dùng khi cần thông tin realtime hoặc user yêu cầu\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông tin tự nhiên, không cần user nhắc${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround${dmOverride}\n`
+      : `# Tool Usage Guide\n\n## Installed Skills\n${skillsSection}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error — retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data${browserRef}\n\n## Conventions\n- Web Search: only use when needing real-time info or user explicitly asks\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround${dmOverride}\n`;
   }
   function buildTeamsDoc(options = {}) {
     const {
@@ -418,20 +438,21 @@ const CDP_URL = 'http://127.0.0.1:9222';
       teamRosterFormatted = '',
       emoji = '',
       hasScheduler = false,
+      hasZaloMod = false,
     } = opts;
 
     const isMultiBot = variant === 'relay';
 
     const files = {
       'IDENTITY.md': buildIdentityDoc({ isVi, name: botName, desc: botDesc, emoji }),
-      'SOUL.md': buildSoulDoc({ isVi, persona, variant: soulVariant }),
+      'SOUL.md': buildSoulDoc({ isVi, persona, variant: soulVariant, hasZaloMod, botName }),
       'AGENTS.md': buildAgentsDoc({
         isVi, botName, botDesc, ownAliases, otherAgents, workspacePath,
         variant, includeSecurity: true, replyToDirectMessages: true,
       }),
       'USER.md': buildUserDoc({ isVi, userInfo, variant: userVariant || (isMultiBot ? 'cli-multi' : 'wizard') }),
       'TOOLS.md': buildToolsDoc({
-        isVi, skillListStr, workspacePath, variant, agentWorkspaceDir, hasBrowser, hasScheduler, browserDocVariant,
+        isVi, skillListStr, workspacePath, variant, agentWorkspaceDir, hasBrowser, hasScheduler, hasZaloMod, browserDocVariant,
       }),
       'MEMORY.md': buildMemoryDoc({ isVi, variant: memoryVariant }),
       'HEARTBEAT.md': buildHeartbeatDoc({ isVi }),
