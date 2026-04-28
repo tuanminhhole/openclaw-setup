@@ -193,7 +193,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function printZaloPersonalLoginInfo\(\{ isVi, deployMode, projectDir \}\) \{[\s\S]*docker exec -it ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*openclaw-zalouser-qr-default\.png[\s\S]*Copy-Item[\s\S]*docker cp ai-bot:\$\{qrPath\} \.\/zalo-qr\.png/s,
+  /function printZaloPersonalLoginInfo\(\{ isVi, deployMode, projectDir \}\) \{[\s\S]*docker exec -it openclaw-bot openclaw channels login --channel zalouser --verbose[\s\S]*openclaw-zalouser-qr-default\.png[\s\S]*Copy-Item[\s\S]*docker cp openclaw-bot:\$\{qrPath\} \.\/zalo-qr\.png/s,
   'CLI must print the dedicated Docker/native Zalo Personal login commands and QR copy path instead of onboarding'
 ));
 
@@ -645,7 +645,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*docker compose cp ai-bot:\/tmp\/openclaw\/[\s\S]*openclaw-zalouser-qr-default\.png \./s,
+  /docker exec -it \$\{containerName\} openclaw channels login --channel zalouser --verbose[\s\S]*docker cp \$\{containerName\}:[\s\S]*openclaw-zalouser-qr-default\.png/s,
   'Wizard must show dedicated Docker Zalo login and QR copy commands'
 ));
 

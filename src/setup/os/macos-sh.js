@@ -32,13 +32,15 @@ function generateMacOsSh(ctx) {
     sh.push('cd docker/openclaw');
     sh.push('$COMPOSE up --detach --build');
     if (state.channel === 'zalo-personal') {
-      const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const containerName = `openclaw-${botName}`;
+      const containerName = 'openclaw-bot';
       const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
       sh.push('echo ""');
       sh.push('echo "=== DANG NHAP ZALO ==="');
       sh.push('echo "Doi container khoi dong 10 giay..."');
       sh.push('sleep 10');
+      sh.push('echo "Dung gateway de login..."');
+      sh.push(`docker exec ${containerName} openclaw gateway stop 2>/dev/null || true`);
+      sh.push('sleep 3');
       sh.push('echo "Huong dan dang nhap Zalo:"');
       sh.push(`echo "  1. cd docker/openclaw"`);
       sh.push(`echo "  2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose"`);

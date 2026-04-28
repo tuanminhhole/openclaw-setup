@@ -356,7 +356,7 @@ model:
     // 3. Dockerfile + docker-compose.yml
     const allPlugins = [];
     if (ch.pluginInstall) allPlugins.push(ch.pluginInstall);
-    if (ch.hasZaloPersonal) allPlugins.push('zalo-mod');
+    if (ch.hasZaloPersonal) allPlugins.push('openclaw-zalo-mod');
     state.config.plugins.forEach((pid) => {
       const plug = PLUGINS.find((p) => p.id === pid);
       if (plug) allPlugins.push(plug.package);
@@ -384,6 +384,7 @@ model:
       selectedModel: state.config.model || 'ollama/gemma4:e2b',
       agentId: 'bot',
       allSkills,
+      dockerfilePlugins: [],
       dockerfileSkillInstallMode: 'build',
       runtimeCommandParts: [
         pluginInstallCmd,

@@ -1,5 +1,14 @@
 # Changelog (English)
 
+## [5.7.3] — 2026-04-29
+
+### Docker Gateway Stability & Zalo Login Flow
+
+- **Fix: Gateway crash loop due to missing `gateway.mode`** — Docker entrypoint config injection now explicitly sets `gateway.mode` (defaults to `local`), preventing the `Gateway start blocked: existing config is missing gateway.mode` error that caused infinite restart loops on OpenClaw 2026.4.26+.
+- **Fix: ClawHub zalouser plugin overriding bundled version** — The entrypoint was downloading `@openclaw/zalouser@2026.3.22` from ClawHub, which does not support `channels login`. Removed runtime plugin install from generated entrypoints; the bundled version in OpenClaw is now used directly.
+- **Fix: Correct `openclaw-zalo-mod` npm package name** — Updated `output.js` and `native-helpers-gen.js` to use `openclaw-zalo-mod` for plugin installation commands, matching the actual npm registry package name.
+- **Improve: Login flow stops gateway before Zalo QR** — Download scripts (Windows/macOS) now stop the gateway service before initiating the Zalo login, preventing WebSocket contention during channel authentication.
+
 ## [5.7.2] — 2026-04-28
 
 ### Zalo Plugin Name & Build Output Fixes

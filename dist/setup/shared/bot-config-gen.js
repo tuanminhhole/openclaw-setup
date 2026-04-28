@@ -295,11 +295,11 @@
       },
     };
 
-    const allow = [];
+    const allow = ['memory-core'];
 
     // zalo-mod plugin for Zalo Personal
     if (isZaloPersonal(channelKey)) {
-      allow.push('zalo-mod');
+      allow.push('zalo-mod', 'zalouser');
       entries['zalo-mod'] = {
         enabled: true,
         config: {
@@ -311,12 +311,11 @@
           spamWindowSeconds: 300,
         },
       };
+      entries.zalouser = { enabled: true };
     }
 
     const plugins = { entries };
-    if (allow.length > 0) {
-      plugins.allow = allow;
-    }
+    plugins.allow = allow;
 
     return { plugins };
   }

@@ -1,5 +1,15 @@
 # Changelog (Tiếng Việt)
 
+## [5.7.3] — 2026-04-29
+
+### Ổn định Gateway Docker & Luồng đăng nhập Zalo
+
+- **Fix: Gateway crash loop do thiếu `gateway.mode`** — Entrypoint config trong Docker giờ tự set `gateway.mode` (mặc định `local`), ngăn lỗi `Gateway start blocked: existing config is missing gateway.mode` gây restart vô hạn trên OpenClaw 2026.4.26+.
+- **Fix: Plugin zalouser từ ClawHub ghi đè bản bundled** — Entrypoint tải `@openclaw/zalouser@2026.3.22` từ ClawHub (không hỗ trợ `channels login`). Đã bỏ install plugin runtime trong entrypoint, dùng trực tiếp bản bundled trong OpenClaw.
+- **Fix: Đúng tên npm package `openclaw-zalo-mod`** — Cập nhật `output.js` và `native-helpers-gen.js` dùng `openclaw-zalo-mod` cho lệnh cài plugin, khớp tên package thực trên npm registry.
+- **Improve: Dừng gateway trước khi đăng nhập Zalo** — Script tải (Windows/macOS) giờ dừng gateway trước khi chạy login Zalo, tránh xung đột WebSocket khi xác thực channel.
+
+
 ## [5.7.2] — 2026-04-28
 
 ### Sửa lỗi cài đặt Plugin Zalo và Rebuild UI

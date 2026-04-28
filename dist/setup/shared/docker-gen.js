@@ -152,6 +152,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       selectedModel,
       agentId,
       allSkills = [],
+      dockerfilePlugins = [],
       dockerfileSkillInstallMode = 'none',
       runtimeCommandParts = [],
       volumeMount = '../..:/root/project',
@@ -185,16 +186,26 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     const skillLines = dockerfileSkillInstallMode === 'build' && allSkills.length > 0
       ? `\n# Install skills (ClawHub)\n${allSkills.map((skill) => `RUN openclaw skills install ${skill} || echo "Warning: Failed to install ${skill} due to rate limits."`).join('\n')}\n`
       : '';
+    const pluginLines = dockerfilePlugins.length > 0
+      ? `\n# Install plugins (ClawHub)\n${dockerfilePlugins.map((p) => `RUN openclaw plugins install ${p} || echo "Warning: Failed to install plugin ${p}"`).join('\n')}\n`
+      : '';
     const patchLine = `RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const files=fs.readdirSync(dir).filter(n=>/\\.js$/.test(n));let patched=0;for(const file of files){const p=path.join(dir,file);let s='';try{s=fs.readFileSync(p,'utf8');}catch{continue;}if(s.includes(to)||!s.includes(from))continue;s=s.replace(from,to);fs.writeFileSync(p,s);patched++;}if(!patched){process.exit(0);}"`;
     
-    // Dynamic runtime configuration injection for container internal IPs
-    const setupInternalIpScript = `const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
-    const setupInternalIpB64 = encodeBase64Utf8(setupInternalIpScript);
+    // Dynamic runtime configuration: backup config before plugin install, restore after
+    // Plugin install may clobber openclaw.json, so we backup critical fields first
+    const backupConfigScript = `const fs=require('fs'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)){fs.copyFileSync(p,b);}`;
+    const backupConfigB64 = encodeBase64Utf8(backupConfigScript);
+
+    const restoreConfigScript = `const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)&&fs.existsSync(b)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const bk=JSON.parse(fs.readFileSync(b,'utf8'));const keep=['agents','channels','bindings','commands','models','browser','skills'];for(const k of keep){if(bk[k]&&!c[k])c[k]=bk[k];}const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://'+entry.address+':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',mode:c.gateway?.mode||bk.gateway?.mode||'local',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));fs.unlinkSync(b);}`;
+    const restoreConfigB64 = encodeBase64Utf8(restoreConfigScript);
 
     const runtimeParts = runtimeCommandParts.filter(Boolean);
     runtimeParts.unshift('export OPENCLAW_HOME="$PWD/.openclaw"');
     runtimeParts.unshift('export OPENCLAW_STATE_DIR="$PWD/.openclaw"');
-    runtimeParts.unshift(`node -e 'eval(Buffer.from("${setupInternalIpB64}","base64").toString())'`);
+    // Backup config BEFORE plugin installs (runtimeCommandParts may contain plugin install commands)
+    runtimeParts.unshift(`node -e 'eval(Buffer.from("${backupConfigB64}","base64").toString())'`);
+    // Restore config AFTER plugin installs (which may clobber openclaw.json)
+    runtimeParts.push(`node -e 'eval(Buffer.from("${restoreConfigB64}","base64").toString())'`);
     if (hasBrowser) {
       runtimeParts.push('socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &');
       runtimeParts.push('Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 & DISPLAY=:99 openclaw gateway run');
@@ -209,7 +220,7 @@ RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /v
 ${browserInstallLines}
 ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""
-RUN npm install -g ${openClawNpmSpec} ${openClawRuntimePackages}${skillLines}
+RUN npm install -g ${openClawNpmSpec} ${openClawRuntimePackages}${skillLines}${pluginLines}
 ${patchLine}
 RUN node -e "require('fs').writeFileSync('/usr/local/bin/openclaw-entrypoint.sh', Buffer.from('${runtimeScriptB64}','base64').toString())" && chmod +x /usr/local/bin/openclaw-entrypoint.sh
 WORKDIR /root/project

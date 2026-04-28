@@ -1733,11 +1733,11 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
       },
     };
 
-    const allow = [];
+    const allow = ['memory-core'];
 
     // zalo-mod plugin for Zalo Personal
     if (isZaloPersonal(channelKey)) {
-      allow.push('zalo-mod');
+      allow.push('zalo-mod', 'zalouser');
       entries['zalo-mod'] = {
         enabled: true,
         config: {
@@ -1749,12 +1749,11 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
           spamWindowSeconds: 300,
         },
       };
+      entries.zalouser = { enabled: true };
     }
 
     const plugins = { entries };
-    if (allow.length > 0) {
-      plugins.allow = allow;
-    }
+    plugins.allow = allow;
 
     return { plugins };
   }
@@ -2627,6 +2626,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       selectedModel,
       agentId,
       allSkills = [],
+      dockerfilePlugins = [],
       dockerfileSkillInstallMode = 'none',
       runtimeCommandParts = [],
       volumeMount = '../..:/root/project',
@@ -2660,16 +2660,26 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     const skillLines = dockerfileSkillInstallMode === 'build' && allSkills.length > 0
       ? `\n# Install skills (ClawHub)\n${allSkills.map((skill) => `RUN openclaw skills install ${skill} || echo "Warning: Failed to install ${skill} due to rate limits."`).join('\n')}\n`
       : '';
+    const pluginLines = dockerfilePlugins.length > 0
+      ? `\n# Install plugins (ClawHub)\n${dockerfilePlugins.map((p) => `RUN openclaw plugins install ${p} || echo "Warning: Failed to install plugin ${p}"`).join('\n')}\n`
+      : '';
     const patchLine = `RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const files=fs.readdirSync(dir).filter(n=>/\\.js$/.test(n));let patched=0;for(const file of files){const p=path.join(dir,file);let s='';try{s=fs.readFileSync(p,'utf8');}catch{continue;}if(s.includes(to)||!s.includes(from))continue;s=s.replace(from,to);fs.writeFileSync(p,s);patched++;}if(!patched){process.exit(0);}"`;
     
-    // Dynamic runtime configuration injection for container internal IPs
-    const setupInternalIpScript = `const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
-    const setupInternalIpB64 = encodeBase64Utf8(setupInternalIpScript);
+    // Dynamic runtime configuration: backup config before plugin install, restore after
+    // Plugin install may clobber openclaw.json, so we backup critical fields first
+    const backupConfigScript = `const fs=require('fs'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)){fs.copyFileSync(p,b);}`;
+    const backupConfigB64 = encodeBase64Utf8(backupConfigScript);
+
+    const restoreConfigScript = `const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)&&fs.existsSync(b)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const bk=JSON.parse(fs.readFileSync(b,'utf8'));const keep=['agents','channels','bindings','commands','models','browser','skills'];for(const k of keep){if(bk[k]&&!c[k])c[k]=bk[k];}const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://'+entry.address+':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',mode:c.gateway?.mode||bk.gateway?.mode||'local',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));fs.unlinkSync(b);}`;
+    const restoreConfigB64 = encodeBase64Utf8(restoreConfigScript);
 
     const runtimeParts = runtimeCommandParts.filter(Boolean);
     runtimeParts.unshift('export OPENCLAW_HOME="$PWD/.openclaw"');
     runtimeParts.unshift('export OPENCLAW_STATE_DIR="$PWD/.openclaw"');
-    runtimeParts.unshift(`node -e 'eval(Buffer.from("${setupInternalIpB64}","base64").toString())'`);
+    // Backup config BEFORE plugin installs (runtimeCommandParts may contain plugin install commands)
+    runtimeParts.unshift(`node -e 'eval(Buffer.from("${backupConfigB64}","base64").toString())'`);
+    // Restore config AFTER plugin installs (which may clobber openclaw.json)
+    runtimeParts.push(`node -e 'eval(Buffer.from("${restoreConfigB64}","base64").toString())'`);
     if (hasBrowser) {
       runtimeParts.push('socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &');
       runtimeParts.push('Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 & DISPLAY=:99 openclaw gateway run');
@@ -2684,7 +2694,7 @@ RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /v
 ${browserInstallLines}
 ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""
-RUN npm install -g ${openClawNpmSpec} ${openClawRuntimePackages}${skillLines}
+RUN npm install -g ${openClawNpmSpec} ${openClawRuntimePackages}${skillLines}${pluginLines}
 ${patchLine}
 RUN node -e "require('fs').writeFileSync('/usr/local/bin/openclaw-entrypoint.sh', Buffer.from('${runtimeScriptB64}','base64').toString())" && chmod +x /usr/local/bin/openclaw-entrypoint.sh
 WORKDIR /root/project
@@ -2953,7 +2963,7 @@ function buildNativeScriptCtx(options) {
     const p = PLUGINS.find((x) => x.id === pid);
     if (p) allPlugins.push(p.package);
   });
-  if (ch && ch.hasZaloPersonal) allPlugins.push('zalo-mod');
+  if (ch && ch.hasZaloPersonal) allPlugins.push('openclaw-zalo-mod');
   if (isMultiBot && state.channel === 'telegram') allPlugins.push(relayPluginSpec);
   const uniquePlugins = [...new Set(allPlugins)];
   const pluginCmd = uniquePlugins.length > 0 ? uniquePlugins.map(function(pkg) { return 'call npm exec -- openclaw plugins install ' + pkg + ' || echo [WARN] Plugin ' + pkg + ' cai dat that bai (co the do rate limit). Ban co the cai thu cong sau.'; }).join('\r\n') : '';
@@ -3742,23 +3752,25 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
   ps += `Write-Host "[4/4] ${isVi ? 'Khoi dong bot...' : 'Starting bot...'}" -ForegroundColor Yellow\n& docker compose up -d\n`;
 
   if (state.channel === 'zalo-personal') {
-    const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const containerName = `openclaw-${botName}`;
+    const containerName = 'openclaw-bot';
     const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
     ps += `\nWrite-Host "" -ForegroundColor White\n`;
     ps += `Write-Host "${isVi ? '=== DANG NHAP ZALO ===' : '=== ZALO LOGIN ==='}" -ForegroundColor Cyan\n`;
-    ps += `Write-Host "${isVi ? 'Doi container khoi dong 10 giay...' : 'Waiting 10s for container to start...'}" -ForegroundColor Yellow\n`;
-    ps += `Start-Sleep -Seconds 10\n`;
+    ps += `Write-Host "${isVi ? 'Doi gateway khoi dong xong (30 giay)...' : 'Waiting for gateway to start (30s)...'}" -ForegroundColor Yellow\n`;
+    ps += `Start-Sleep -Seconds 30\n`;
     ps += `Write-Host "" -ForegroundColor White\n`;
     ps += `Write-Host "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? '1. cd docker\\\\openclaw' : '1. cd docker\\\\openclaw'}" -ForegroundColor White\n`;
-    ps += `Write-Host "  ${isVi ? '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose' : '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose'}" -ForegroundColor White\n`;
-    ps += `Write-Host "  ${isVi ? '3. Mo Docker Desktop > container ${containerName} > tab Files > tim file: ${qrPath}' : '3. Open Docker Desktop > container ${containerName} > Files tab > find: ${qrPath}'}" -ForegroundColor White\n`;
-    ps += `Write-Host "  ${isVi ? '   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png' : '   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? `2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose` : `2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose`}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? `3. Mo Docker Desktop > container ${containerName} > tab Files > tim file: ${qrPath}` : `3. Open Docker Desktop > container ${containerName} > Files tab > find: ${qrPath}`}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? `   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png` : `   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png`}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma trong file QR' : '4. Open Zalo app > Scan QR > scan the QR image'}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? '5. Doi thay chu Login successful trong terminal' : '5. Wait for Login successful in terminal'}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? '6. Restart container:  docker compose restart' : '6. Restart container:  docker compose restart'}" -ForegroundColor White\n`;
     ps += `Write-Host "" -ForegroundColor White\n`;
+    ps += `Write-Host "${isVi ? 'Dung gateway de login...' : 'Stopping gateway for login...'}" -ForegroundColor Yellow\\n`;
+    ps += `& docker exec ${containerName} openclaw gateway stop 2>$null\\n`;
+    ps += `Start-Sleep -Seconds 3\\n`;
     ps += `Write-Host "${isVi ? 'Dang chay lenh login...' : 'Running login command...'}" -ForegroundColor Yellow\n`;
     ps += `& docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose\n`;
     ps += `Write-Host "" -ForegroundColor White\n`;
@@ -3805,11 +3817,10 @@ echo ""
   script += `echo "${isVi ? 'Files created' : 'Files created'}"\ncd "docker/openclaw"\ndocker compose build --build-arg CACHE_BUST=$(date +%s)\ndocker compose up --detach\n`;
 
   if (state.channel === 'zalo-personal') {
-    const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const containerName = `openclaw-${botName}`;
+    const containerName = 'openclaw-bot';
     const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
     script += `\necho ""\necho "${isVi ? '=== DANG NHAP ZALO ===' : '=== ZALO LOGIN ==='}"\necho "${isVi ? 'Doi container khoi dong 10 giay...' : 'Waiting 10s for container to start...'}"\nsleep 10\n`;
-    script += `echo "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}"\necho "  ${isVi ? '1. cd docker/openclaw' : '1. cd docker/openclaw'}"\necho "  ${isVi ? '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose' : '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose'}"\necho "  ${isVi ? '3. Tim file QR trong container: ${qrPath}' : '3. Find QR image in container: ${qrPath}'}"\necho "  ${isVi ? '   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png' : '   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png'}"\necho "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma' : '4. Open Zalo app > Scan QR > scan'}"\necho "  ${isVi ? '5. Doi thay Login successful' : '5. Wait for Login successful'}"\necho "  ${isVi ? '6. Restart:  docker compose restart' : '6. Restart:  docker compose restart'}"\necho ""\n`;
+    script += `echo "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}"\necho "  ${isVi ? '1. cd docker/openclaw' : '1. cd docker/openclaw'}"\necho "  2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose"\necho "  ${isVi ? `3. Tim file QR trong container: ${qrPath}` : `3. Find QR image in container: ${qrPath}`}"\necho "  ${isVi ? `   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png` : `   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png`}"\necho "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma' : '4. Open Zalo app > Scan QR > scan'}"\necho "  ${isVi ? '5. Doi thay Login successful' : '5. Wait for Login successful'}"\necho "  ${isVi ? '6. Restart:  docker compose restart' : '6. Restart:  docker compose restart'}"\necho ""\n`;
     script += `docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose\n`;
     script += `echo "${isVi ? 'Restart container...' : 'Restarting container...'}"\ndocker compose restart\n`;
   }
@@ -4065,13 +4076,15 @@ function generateMacOsSh(ctx) {
     sh.push('cd docker/openclaw');
     sh.push('$COMPOSE up --detach --build');
     if (state.channel === 'zalo-personal') {
-      const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const containerName = `openclaw-${botName}`;
+      const containerName = 'openclaw-bot';
       const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
       sh.push('echo ""');
       sh.push('echo "=== DANG NHAP ZALO ==="');
       sh.push('echo "Doi container khoi dong 10 giay..."');
       sh.push('sleep 10');
+      sh.push('echo "Dung gateway de login..."');
+      sh.push(`docker exec ${containerName} openclaw gateway stop 2>/dev/null || true`);
+      sh.push('sleep 3');
       sh.push('echo "Huong dan dang nhap Zalo:"');
       sh.push(`echo "  1. cd docker/openclaw"`);
       sh.push(`echo "  2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose"`);
@@ -5842,7 +5855,7 @@ model:
     // 3. Dockerfile + docker-compose.yml
     const allPlugins = [];
     if (ch.pluginInstall) allPlugins.push(ch.pluginInstall);
-    if (ch.hasZaloPersonal) allPlugins.push('zalo-mod');
+    if (ch.hasZaloPersonal) allPlugins.push('openclaw-zalo-mod');
     state.config.plugins.forEach((pid) => {
       const plug = PLUGINS.find((p) => p.id === pid);
       if (plug) allPlugins.push(plug.package);
@@ -5870,6 +5883,7 @@ model:
       selectedModel: state.config.model || 'ollama/gemma4:e2b',
       agentId: 'bot',
       allSkills,
+      dockerfilePlugins: [],
       dockerfileSkillInstallMode: 'build',
       runtimeCommandParts: [
         pluginInstallCmd,
