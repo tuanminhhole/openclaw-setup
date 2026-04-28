@@ -613,26 +613,54 @@ function printNativeDashboardAccessInfo({ isVi, providerKey, projectDir, gateway
 
 function printZaloPersonalLoginInfo({ isVi, deployMode, projectDir }) {
   const nativeCmd = 'openclaw channels login --channel zalouser --verbose';
-  const dockerCmd = 'docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose';
+  const dockerCmd = 'docker exec -it ai-bot openclaw channels login --channel zalouser --verbose';
   const cmd = deployMode === 'native' ? nativeCmd : dockerCmd;
   const qrPath = deployMode === 'native'
     ? path.join(os.tmpdir(), 'openclaw', 'openclaw-zalouser-qr-default.png')
     : '/tmp/openclaw/openclaw-zalouser-qr-default.png';
-  const projectQrPath = path.join(projectDir, 'zalo-login-qr.png');
   const copyCmd = deployMode === 'native'
     ? (process.platform === 'win32'
-      ? `Copy-Item "${qrPath}" "${projectQrPath}"`
-      : `cp "${qrPath}" "${projectQrPath}"`)
-    : `docker compose cp ai-bot:${qrPath} ./zalo-login-qr.png`;
+      ? `Copy-Item "${qrPath}" "${path.join(projectDir, 'zalo-login-qr.png')}"`
+      : `cp "${qrPath}" "${path.join(projectDir, 'zalo-login-qr.png')}"`)
+    : `docker cp ai-bot:${qrPath} ./zalo-qr.png`;
 
   console.log(chalk.yellow(`\n📱 ${isVi ? 'Đăng nhập Zalo Personal (1 lần):' : 'Zalo Personal login (one time):'}`));
-  console.log(chalk.white(`   cd ${projectDir}${deployMode === 'native' ? '' : '/docker/openclaw'} ${process.platform === 'win32' ? ';' : '&&'} ${cmd}`));
-  console.log(chalk.gray(isVi
-    ? `   → OpenClaw sẽ tạo file QR tại: ${qrPath}`
-    : `   → OpenClaw will generate a QR image at: ${qrPath}`));
-  console.log(chalk.gray(isVi
-    ? `   → Nếu cần copy QR ra thư mục project, dùng: ${copyCmd}`
-    : `   → If needed, copy the QR into the project folder with: ${copyCmd}`));
+  if (deployMode === 'docker') {
+    console.log(chalk.white(isVi
+      ? `   1. cd ${projectDir}/docker/openclaw`
+      : `   1. cd ${projectDir}/docker/openclaw`));
+    console.log(chalk.white(isVi
+      ? `   2. ${cmd}`
+      : `   2. ${cmd}`));
+    console.log(chalk.white(isVi
+      ? `   3. Tìm file QR trong container: ${qrPath}`
+      : `   3. Find QR image in container: ${qrPath}`));
+    console.log(chalk.gray(isVi
+      ? `      → Mở Docker Desktop > container ai-bot > tab Files > tìm file trên`
+      : `      → Open Docker Desktop > container ai-bot > Files tab > find file above`));
+    console.log(chalk.gray(isVi
+      ? `      → Hoặc chạy: ${copyCmd}`
+      : `      → Or run: ${copyCmd}`));
+    console.log(chalk.white(isVi
+      ? '   4. Mở app Zalo > Quét QR > quét mã trong file QR'
+      : '   4. Open Zalo app > Scan QR > scan the QR image'));
+    console.log(chalk.white(isVi
+      ? '   5. Đợi thấy "Login successful" trong terminal'
+      : '   5. Wait for "Login successful" in terminal'));
+    console.log(chalk.white(isVi
+      ? '   6. docker compose restart'
+      : '   6. docker compose restart'));
+  } else {
+    console.log(chalk.white(`   cd ${projectDir} ${process.platform === 'win32' ? ';' : '&&'} ${cmd}`));
+    console.log(chalk.gray(isVi
+      ? `   → File QR sẽ tạo tại: ${qrPath}`
+      : `   → QR file will be created at: ${qrPath}`));
+    if (process.platform === 'win32') {
+      console.log(chalk.gray(isVi
+        ? `   → Copy QR ra project: ${copyCmd}`
+        : `   → Copy QR to project: ${copyCmd}`));
+    }
+  }
 }
 
 async function waitForFile(filePath, timeoutMs = 15000, intervalMs = 500) {
@@ -1831,6 +1859,7 @@ async function writeWorkspaceFiles({
     includeBrowserTool: isDesktop,
     teamRosterFormatted,
     hasScheduler: selectedSkills.includes('scheduler'),
+    hasZaloMod: channelKey === 'zalo-personal',
   });
 
   await fs.ensureDir(workspaceDir);
@@ -2137,6 +2166,9 @@ async function main() {
   const relayInstallCmd = (isMultiBot && channelKey === 'telegram')
     ? buildRelayPluginInstallCommand('openclaw')
     : '';
+  const zaloModInstallCmd = hasZaloPersonal(channelKey)
+    ? 'openclaw plugins install zalo-mod 2>/dev/null || true'
+    : '';
   const socatBridge = hasBrowserDesktop ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &' : '';
   const deviceApproveLoop = 'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &';
 
@@ -2154,6 +2186,7 @@ async function main() {
     runtimeCommandParts: [
       skillInstallCmd ? skillInstallCmd + ' &&' : '',
       relayInstallCmd ? relayInstallCmd + ' &&' : '',
+      zaloModInstallCmd ? zaloModInstallCmd + ' &&' : '',
       socatBridge,
       deviceApproveLoop,
     ].filter(Boolean),

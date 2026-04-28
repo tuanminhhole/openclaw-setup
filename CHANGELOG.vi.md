@@ -1,5 +1,13 @@
 # Changelog (Tiếng Việt)
 
+## [5.7.2] — 2026-04-28
+
+### Sửa lỗi cài đặt Plugin Zalo và Rebuild UI
+
+- **Fix: Tên cài đặt plugin zalo-mod** — Cập nhật lệnh cài đặt plugin trong CLI từ `openclaw-zalo-mod` thành `zalo-mod` để khớp với tên package trên ClawHub, sửa lỗi cảnh báo "plugin not found" khi khởi động.
+- **Fix: Cài đặt zalo-mod trong Docker** — Đưa `zalo-mod` vào danh sách `allPlugins` khi chọn kênh Zalo Personal ở chế độ Docker, giúp quá trình build image tải đúng plugin về.
+- **Fix: Rebuild Setup Wizard UI** — Chạy lại script build (`build.mjs`) để đóng gói các bản sửa lỗi gần đây vào file `dist/setup.js`. Khắc phục lỗi file `.bat` và `.sh` tải về từ giao diện Web Wizard không có dòng hướng dẫn đăng nhập Zalo đã được thêm trước đó.
+
 ## [5.7.1] — 2026-04-28
 
 ### Chuẩn hóa Đăng nhập Zalo QR & Tích hợp Workspace

@@ -2167,7 +2167,7 @@ async function main() {
     ? buildRelayPluginInstallCommand('openclaw')
     : '';
   const zaloModInstallCmd = hasZaloPersonal(channelKey)
-    ? 'openclaw plugins install openclaw-zalo-mod 2>/dev/null || true'
+    ? 'openclaw plugins install zalo-mod 2>/dev/null || true'
     : '';
   const socatBridge = hasBrowserDesktop ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &' : '';
   const deviceApproveLoop = 'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &';

@@ -952,21 +952,34 @@ const workspaceRoot = /** @type {OpenClawWorkspaceRoot} */ (
     return `# Identity\n\n- **Name:** ${name}\n- **Role:** ${desc}${emoji ? `\n- **Emoji:** ${emoji}` : ''}\n\n---\n\nI am **${name}**. When asked my name, I answer: _\"I'm ${name}\"_.${richAiNote ? "\nI don't pretend to be human — I'm an AI, and I'm proud of it." : ''}`;
   }
 
+  function buildZaloSoulSection(isVi, botName) {
+    const name = botName || 'Bot';
+    if (isVi) {
+      return `\n\n**RULE — Zalo Group: Phản hồi theo chế độ Silent Mode:**\nKhi nhận tin từ \`channel: zalouser\` và \`group_id\` có giá trị:\n\n- Nếu tin nhắn chứa \`@${name}\` → **LUÔN reply** (bất kể silent mode).\n- Nếu tin nhắn bắt đầu bằng \`/\` (slash command) → KHÔNG reply, plugin đã xử lý rồi.\n- Tin thường trong group (không mention, không slash):\n  - Nếu **Silent Mode BẬT** → tin này KHÔNG đến được bot (plugin đã chặn).\n  - Nếu **Silent Mode TẮT** → tin này ĐẾN ĐƯỢC bot → **reply bình thường** như DM.\n- DM (không có group_id) → reply bình thường.`;
+    }
+    return `\n\n**RULE — Zalo Group: Reply based on Silent Mode:**\nWhen receiving messages from \`channel: zalouser\` with a \`group_id\`:\n\n- If the message contains \`@${name}\` → **ALWAYS reply** (regardless of silent mode).\n- If the message starts with \`/\` (slash command) → DO NOT reply, the plugin already handled it.\n- Regular group messages (no mention, no slash):\n  - If **Silent Mode is ON** → this message does NOT reach the bot (plugin blocks it).\n  - If **Silent Mode is OFF** → this message DOES reach the bot → **reply normally** like DM.\n- DM (no group_id) → reply normally.`;
+  }
+
   function buildSoulDoc(options = {}) {
-    const { isVi = true, persona = '', variant = 'wizard' } = options;
+    const { isVi = true, persona = '', variant = 'wizard', hasZaloMod = false, botName = 'Bot' } = options;
+    let doc;
     if (variant === 'cli-simple') {
-      return isVi
+      doc = isVi
         ? `# Tính cách\n\n${persona || 'Thân thiện, rõ ràng, giải quyết việc thẳng vào mục tiêu.'}\n`
         : `# Soul\n\n${persona || 'Friendly, clear, and outcome-focused.'}\n`;
-    }
-    if (variant === 'cli-rich') {
-      return isVi
+    } else if (variant === 'cli-rich') {
+      doc = isVi
         ? `# Tính cách\n\n**Hữu ích thật sự.** Bỏ qua câu nệ — cứ giúp thẳng.\n**Có cá tính.** Trợ lý không có cá tính thì chỉ là công cụ.\n\n## Phong cách\n- Tự nhiên, gần gũi như bạn bè\n- Trực tiếp, không parrot câu hỏi.${persona ? `\n\n## Custom Rules\n${persona}` : ''}`
         : `# Soul\n\n**Be genuinely helpful.** Skip filler and help directly.\n**Have personality.** An assistant without personality is just a tool.\n\n## Style\n- Natural and approachable\n- Direct, do not parrot the prompt.${persona ? `\n\n## Custom Rules\n${persona}` : ''}`;
+    } else {
+      doc = isVi
+        ? `# Tính cách\n\n**Hữu ích thật sự.** Bỏ qua câu nệ, cứ giúp thẳng.\n**Có cá tính.** Trợ lý không có cá tính thì chỉ là công cụ.\n\n## Phong cách\n- Tự nhiên, gần gũi\n- Trực tiếp, ngắn gọn${persona ? `\n\n## Custom Rules\n${persona}` : ''}`
+        : `# Soul\n\n**Be genuinely helpful.** Skip filler and just help.\n**Have personality.** An assistant with no personality is just a tool.\n\n## Style\n- Natural and concise\n- Direct and practical${persona ? `\n\n## Custom Rules\n${persona}` : ''}`;
     }
-    return isVi
-      ? `# Tính cách\n\n**Hữu ích thật sự.** Bỏ qua câu nệ, cứ giúp thẳng.\n**Có cá tính.** Trợ lý không có cá tính thì chỉ là công cụ.\n\n## Phong cách\n- Tự nhiên, gần gũi\n- Trực tiếp, ngắn gọn${persona ? `\n\n## Custom Rules\n${persona}` : ''}`
-      : `# Soul\n\n**Be genuinely helpful.** Skip filler and just help.\n**Have personality.** An assistant with no personality is just a tool.\n\n## Style\n- Natural and concise\n- Direct and practical${persona ? `\n\n## Custom Rules\n${persona}` : ''}`;
+    if (hasZaloMod) {
+      doc += buildZaloSoulSection(isVi, botName);
+    }
+    return doc;
   }
 
   function buildTeamDoc(options = {}) {
@@ -1241,6 +1254,7 @@ const CDP_URL = 'http://127.0.0.1:9222';
       agentWorkspaceDir = 'workspace',
       hasBrowser = false,
       hasScheduler = false,
+      hasZaloMod = false,
       browserDocVariant = '',
     } = options;
 
@@ -1268,19 +1282,25 @@ const CDP_URL = 'http://127.0.0.1:9222';
         : `\n\n## \u23F0 Cron / Scheduled Tasks\n- OpenClaw natively supports system tools for Cron Jobs.\n- When the user asks to schedule tasks or reminders, use the built-in tools automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.\n- When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.\n- Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`)
       : '';
 
+    const zaloModSection = hasZaloMod
+      ? (isVi
+        ? `\n\n## 💬 Zalo Group — Slash Commands (xử lý bởi plugin)\n\nPlugin \`zalo-mod\` tự động xử lý các slash command sau trong group. Bot KHÔNG cần reply cho chúng:\n\n| Command | Mô tả |\n|---------|-------|\n| \`/rules status\` | Xem cấu hình bot |\n| \`/rules silent-on/off\` | Bật/tắt silent mode |\n| \`/rules welcome-on/off\` | Bật/tắt welcome message |\n| \`/rules tracking-on/off\` | Bật/tắt ghi log chat |\n| \`/noi-quy\` | Hiện nội quy group |\n| \`/menu\` | Danh sách lệnh |\n| \`/groupid\` | Scan và cập nhật config |\n| \`/report\` | Báo cáo hoạt động group |\n\n### Zalo Sticker & Media\n- Sticker Zalo gửi dạng JSON → plugin tự convert thành \`[Sticker]\`\n- Ảnh/video/file trong group: zalouser channel chỉ forward text, media bị drop`
+        : `\n\n## 💬 Zalo Group — Slash Commands (handled by plugin)\n\nThe \`zalo-mod\` plugin automatically handles these slash commands in group. Bot does NOT need to reply:\n\n| Command | Description |\n|---------|-------------|\n| \`/rules status\` | View bot config |\n| \`/rules silent-on/off\` | Toggle silent mode |\n| \`/rules welcome-on/off\` | Toggle welcome message |\n| \`/rules tracking-on/off\` | Toggle chat logging |\n| \`/noi-quy\` | Show group rules |\n| \`/menu\` | List commands |\n| \`/groupid\` | Scan and update config |\n| \`/report\` | Group activity report |\n\n### Zalo Sticker & Media\n- Zalo stickers arrive as JSON → plugin auto-converts to \`[Sticker]\`\n- Images/videos/files in groups: zalouser channel only forwards text, media is dropped`)
+      : '';
+
     const dmOverride = isVi
       ? `\n\n## Override: DM và Telegram reaction\n- Nếu metadata không nói rõ đây là group/supergroup, mặc định xem là chat riêng/DM và trả lời bình thường.\n- Quy tắc im lặng khi không ai được gọi chỉ áp dụng cho group chat, không áp dụng cho DM/chat riêng.\n- Trước MỖI phản hồi Telegram nhìn thấy bởi user, nếu turn hiện tại có tool/action reaction native thì ưu tiên dùng nó để thả \`👍\` trước, trừ khi \`👍\` đã có sẵn.\n- Nếu turn hiện tại không expose tool reaction hoặc chat đích không hỗ trợ reaction thật, cứ trả lời đúng vai trò và không được nói là mình đã thả reaction.`
       : `\n\n## Override: DM and Telegram reaction\n- If metadata does not clearly say this is a group/supergroup, treat it as a private DM and reply normally.\n- The stay-silent rule for unaddressed messages applies only to group chats, never to DMs.\n- Before EVERY user-visible Telegram reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- If the reaction tool is unavailable or the target chat does not support real reactions, just reply in-character and do not claim that you reacted.`;
 
     if (variant === 'relay') {
       return isVi
-        ? `# Hướng dẫn dùng tool\n\n## Tools có sẵn\n${skillsSection}\n\n## Quy tắc chung\n- Tóm tắt kết quả tool thay vì dump raw output.\n- Mọi bot đều có quyền sử dụng tất cả tool (scheduler, browser, exec). Vai trò (dev/marketing/...) chỉ là persona, KHÔNG giới hạn quyền dùng tool.\n- Workspace của bạn là \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}${dmOverride}\n`
-        : `# Tool Usage Guide\n\n## Available Tools\n${skillsSection}\n\n## General Rules\n- Summarize tool output instead of dumping raw output.\n- All bots have equal access to all tools (scheduler, browser, exec). Roles (dev/marketing/...) are persona only, NOT tool permissions.\n- Your workspace is \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}${dmOverride}\n`;
+        ? `# Hướng dẫn dùng tool\n\n## Tools có sẵn\n${skillsSection}\n\n## Quy tắc chung\n- Tóm tắt kết quả tool thay vì dump raw output.\n- Mọi bot đều có quyền sử dụng tất cả tool (scheduler, browser, exec). Vai trò (dev/marketing/...) chỉ là persona, KHÔNG giới hạn quyền dùng tool.\n- Workspace của bạn là \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}${zaloModSection}${dmOverride}\n`
+        : `# Tool Usage Guide\n\n## Available Tools\n${skillsSection}\n\n## General Rules\n- Summarize tool output instead of dumping raw output.\n- All bots have equal access to all tools (scheduler, browser, exec). Roles (dev/marketing/...) are persona only, NOT tool permissions.\n- Your workspace is \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}${zaloModSection}${dmOverride}\n`;
     }
 
     return isVi
-      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillsSection}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output${browserRef}\n\n## Quy ước\n- Web Search: chỉ dùng khi cần thông tin realtime hoặc user yêu cầu\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông tin tự nhiên, không cần user nhắc${cronSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround${dmOverride}\n`
-      : `# Tool Usage Guide\n\n## Installed Skills\n${skillsSection}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error — retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data${browserRef}\n\n## Conventions\n- Web Search: only use when needing real-time info or user explicitly asks\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting${cronSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround${dmOverride}\n`;
+      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillsSection}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output${browserRef}\n\n## Quy ước\n- Web Search: chỉ dùng khi cần thông tin realtime hoặc user yêu cầu\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông tin tự nhiên, không cần user nhắc${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround${dmOverride}\n`
+      : `# Tool Usage Guide\n\n## Installed Skills\n${skillsSection}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error — retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data${browserRef}\n\n## Conventions\n- Web Search: only use when needing real-time info or user explicitly asks\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround${dmOverride}\n`;
   }
   function buildTeamsDoc(options = {}) {
     const {
@@ -1354,20 +1374,21 @@ const CDP_URL = 'http://127.0.0.1:9222';
       teamRosterFormatted = '',
       emoji = '',
       hasScheduler = false,
+      hasZaloMod = false,
     } = opts;
 
     const isMultiBot = variant === 'relay';
 
     const files = {
       'IDENTITY.md': buildIdentityDoc({ isVi, name: botName, desc: botDesc, emoji }),
-      'SOUL.md': buildSoulDoc({ isVi, persona, variant: soulVariant }),
+      'SOUL.md': buildSoulDoc({ isVi, persona, variant: soulVariant, hasZaloMod, botName }),
       'AGENTS.md': buildAgentsDoc({
         isVi, botName, botDesc, ownAliases, otherAgents, workspacePath,
         variant, includeSecurity: true, replyToDirectMessages: true,
       }),
       'USER.md': buildUserDoc({ isVi, userInfo, variant: userVariant || (isMultiBot ? 'cli-multi' : 'wizard') }),
       'TOOLS.md': buildToolsDoc({
-        isVi, skillListStr, workspacePath, variant, agentWorkspaceDir, hasBrowser, hasScheduler, browserDocVariant,
+        isVi, skillListStr, workspacePath, variant, agentWorkspaceDir, hasBrowser, hasScheduler, hasZaloMod, browserDocVariant,
       }),
       'MEMORY.md': buildMemoryDoc({ isVi, variant: memoryVariant }),
       'HEARTBEAT.md': buildHeartbeatDoc({ isVi }),
@@ -2932,6 +2953,7 @@ function buildNativeScriptCtx(options) {
     const p = PLUGINS.find((x) => x.id === pid);
     if (p) allPlugins.push(p.package);
   });
+  if (ch && ch.hasZaloPersonal) allPlugins.push('zalo-mod');
   if (isMultiBot && state.channel === 'telegram') allPlugins.push(relayPluginSpec);
   const uniquePlugins = [...new Set(allPlugins)];
   const pluginCmd = uniquePlugins.length > 0 ? uniquePlugins.map(function(pkg) { return 'call npm exec -- openclaw plugins install ' + pkg + ' || echo [WARN] Plugin ' + pkg + ' cai dat that bai (co the do rate limit). Ban co the cai thu cong sau.'; }).join('\r\n') : '';
@@ -3379,6 +3401,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
         hasBrowser,
         soulVariant: 'wizard',
         memoryVariant: 'wizard',
+        hasZaloMod: state.channel === 'zalo-personal',
       });
     }
 
@@ -3553,11 +3576,18 @@ function generateZaloLoginSh(opts) {
     `if [ -f "${credPath}" ]; then`,
     `  echo "[OK] Session Zalo da ton tai. Bo qua buoc dang nhap."`,
     `else`,
-    `  echo "[Zalo] Chua co session. Chay lenh sau trong terminal khac:"`,
-    `  echo "  ${loginCmd}"`,
+    `  echo "[Zalo] Chua co session. Bat dau dang nhap..."`,
+    `  ${loginCmd}`,
+    `  ZALO_QR="/tmp/openclaw/openclaw-zalouser-qr${useInstance ? '-default' : ''}.png"`,
     `  echo ""`,
-    `  echo "  QR code se xuat hien trong terminal do."`,
-    `  echo "  Sau khi quet QR thanh cong, nhay Enter de tiep tuc."`,
+    `  echo "=== HUONG DAN DANG NHAP ZALO ==="`,
+    `  echo "  1. Tim file QR tai: $ZALO_QR"`,
+    `  echo "  2. Copy file QR ra may: scp user@host:$ZALO_QR ./zalo-qr.png"`,
+    `  echo "     Hoac mo truc tiep: xdg-open $ZALO_QR 2>/dev/null || open $ZALO_QR 2>/dev/null || echo 'Mo file QR thu cong'"`,
+    `  echo "  3. Mo app Zalo > Quet QR > quet ma trong file QR"`,
+    `  echo "  4. Doi thay Login successful trong terminal"`,
+    `  echo "================================"`,
+    `  echo ""`,
     `  read -p "Nhan Enter sau khi dang nhap Zalo thanh cong... "`,
     `fi`,
   ];
@@ -3710,6 +3740,32 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
   ps += `Write-Host "[3/4] ${isVi ? 'Build Docker image...' : 'Building Docker image...'}" -ForegroundColor Yellow\n`;
   ps += `Set-Location "$projectDir\\docker\\openclaw"\n$cacheBust = (Get-Date -Format 'yyyyMMddHHmmss')\n& docker compose build --build-arg CACHE_BUST=$cacheBust\n`;
   ps += `Write-Host "[4/4] ${isVi ? 'Khoi dong bot...' : 'Starting bot...'}" -ForegroundColor Yellow\n& docker compose up -d\n`;
+
+  if (state.channel === 'zalo-personal') {
+    const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const containerName = `openclaw-${botName}`;
+    const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
+    ps += `\nWrite-Host "" -ForegroundColor White\n`;
+    ps += `Write-Host "${isVi ? '=== DANG NHAP ZALO ===' : '=== ZALO LOGIN ==='}" -ForegroundColor Cyan\n`;
+    ps += `Write-Host "${isVi ? 'Doi container khoi dong 10 giay...' : 'Waiting 10s for container to start...'}" -ForegroundColor Yellow\n`;
+    ps += `Start-Sleep -Seconds 10\n`;
+    ps += `Write-Host "" -ForegroundColor White\n`;
+    ps += `Write-Host "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '1. cd docker\\\\openclaw' : '1. cd docker\\\\openclaw'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose' : '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '3. Mo Docker Desktop > container ${containerName} > tab Files > tim file: ${qrPath}' : '3. Open Docker Desktop > container ${containerName} > Files tab > find: ${qrPath}'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png' : '   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma trong file QR' : '4. Open Zalo app > Scan QR > scan the QR image'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '5. Doi thay chu Login successful trong terminal' : '5. Wait for Login successful in terminal'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '6. Restart container:  docker compose restart' : '6. Restart container:  docker compose restart'}" -ForegroundColor White\n`;
+    ps += `Write-Host "" -ForegroundColor White\n`;
+    ps += `Write-Host "${isVi ? 'Dang chay lenh login...' : 'Running login command...'}" -ForegroundColor Yellow\n`;
+    ps += `& docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose\n`;
+    ps += `Write-Host "" -ForegroundColor White\n`;
+    ps += `Write-Host "${isVi ? 'Restart container de ap dung...' : 'Restarting container to apply...'}" -ForegroundColor Green\n`;
+    ps += `& docker compose restart\n`;
+  }
+
   ps += `} catch { Write-Host $_.Exception.Message -ForegroundColor Red }\nRead-Host "${isVi ? 'Nhan Enter de thoat' : 'Press Enter to exit'}"\n`;
   return `@echo off
 chcp 65001>nul
@@ -3747,6 +3803,17 @@ echo ""
     script += `cat > "${path}" << 'CLAWEOF'\n${String(content)}${String(content).endsWith('\n') ? '' : '\n'}CLAWEOF\n\n`;
   });
   script += `echo "${isVi ? 'Files created' : 'Files created'}"\ncd "docker/openclaw"\ndocker compose build --build-arg CACHE_BUST=$(date +%s)\ndocker compose up --detach\n`;
+
+  if (state.channel === 'zalo-personal') {
+    const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const containerName = `openclaw-${botName}`;
+    const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
+    script += `\necho ""\necho "${isVi ? '=== DANG NHAP ZALO ===' : '=== ZALO LOGIN ==='}"\necho "${isVi ? 'Doi container khoi dong 10 giay...' : 'Waiting 10s for container to start...'}"\nsleep 10\n`;
+    script += `echo "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}"\necho "  ${isVi ? '1. cd docker/openclaw' : '1. cd docker/openclaw'}"\necho "  ${isVi ? '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose' : '2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose'}"\necho "  ${isVi ? '3. Tim file QR trong container: ${qrPath}' : '3. Find QR image in container: ${qrPath}'}"\necho "  ${isVi ? '   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png' : '   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png'}"\necho "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma' : '4. Open Zalo app > Scan QR > scan'}"\necho "  ${isVi ? '5. Doi thay Login successful' : '5. Wait for Login successful'}"\necho "  ${isVi ? '6. Restart:  docker compose restart' : '6. Restart:  docker compose restart'}"\necho ""\n`;
+    script += `docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose\n`;
+    script += `echo "${isVi ? 'Restart container...' : 'Restarting container...'}"\ndocker compose restart\n`;
+  }
+
   return script;
 }
 
@@ -3935,18 +4002,7 @@ function generateWinBat(ctx) {
 
     if (state.channel === 'zalo-personal') {
       lines.push('echo [5/6] Dang nhap Zalo Personal...');
-      lines.push('echo.');
-      lines.push('echo === HUONG DAN DANG NHAP ZALO ===');
-      lines.push('echo Cua so Zalo Login se mo. Hay:');
-      lines.push('echo   1. Doi QR hien ra trong cua so Zalo Login');
-      lines.push('echo   2. Mo app Zalo, chon Quet QR va quet ma');
-      lines.push('echo   3. Doi thay chu "Login successful" trong cua so do');
-      lines.push('echo   4. Dong cua so Zalo Login');
-      lines.push('echo ================================');
-      lines.push('echo.');
-      lines.push('start "Zalo Login" cmd /k "cd /d \"%PROJECT_DIR%\" && set OPENCLAW_HOME=%OPENCLAW_HOME% && set OPENCLAW_STATE_DIR=%OPENCLAW_HOME% && openclaw channels login --channel zalouser --verbose"');
-      lines.push('echo Nhan phim bat ky sau khi dong cua so Zalo Login...');
-      lines.push('pause >nul');
+      lines.push(...generateZaloLoginBat({ homeVar: '%OPENCLAW_HOME%', projectDirVar: '%PROJECT_DIR%', label: 'win' }));
       lines.push('call openclaw gateway stop 2>nul');
       lines.push('timeout /t 2 /nobreak >nul');
       lines.push('echo [6/6] Khoi dong bot...');
@@ -4008,6 +4064,26 @@ function generateMacOsSh(ctx) {
     sh.push('if docker compose version > /dev/null 2>&1; then COMPOSE="docker compose"; else COMPOSE="docker-compose"; fi');
     sh.push('cd docker/openclaw');
     sh.push('$COMPOSE up --detach --build');
+    if (state.channel === 'zalo-personal') {
+      const botName = (state.bots[0]?.name || 'openclaw').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const containerName = `openclaw-${botName}`;
+      const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
+      sh.push('echo ""');
+      sh.push('echo "=== DANG NHAP ZALO ==="');
+      sh.push('echo "Doi container khoi dong 10 giay..."');
+      sh.push('sleep 10');
+      sh.push('echo "Huong dan dang nhap Zalo:"');
+      sh.push(`echo "  1. cd docker/openclaw"`);
+      sh.push(`echo "  2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose"`);
+      sh.push(`echo "  3. Tim file QR trong container: ${qrPath}"`);
+      sh.push(`echo "     Hoac chay: docker cp ${containerName}:${qrPath} ./zalo-qr.png"`);
+      sh.push('echo "  4. Mo app Zalo > Quet QR > quet ma"');
+      sh.push('echo "  5. Doi thay Login successful"');
+      sh.push('echo "  6. Restart: $COMPOSE restart"');
+      sh.push('echo ""');
+      sh.push(`docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose || true`);
+      sh.push('$COMPOSE restart');
+    }
     sh.push('echo "\u2705 Bot dang chay via Docker. Xem log: docker logs -f openclaw-bot"');
     scriptContent = sh.filter(Boolean).join('\n');
   } else {
@@ -4041,13 +4117,19 @@ function generateMacOsSh(ctx) {
       appendShWriteCommands(sh, sharedNativeFileMap());
       const _uninstallMacMulti = generateUninstallScript();
       if (_uninstallMacMulti) appendShWriteCommands(sh, { [_uninstallMacMulti.name]: _uninstallMacMulti.content });
-      sh.push('echo "Starting shared multi-bot gateway..."');
-      sh.push('openclaw gateway run');
+    sh.push('echo "Starting shared multi-bot gateway..."');
+    if (state.channel === 'zalo-personal') {
+      sh.push(...generateZaloLoginSh({ homeVar: '$OPENCLAW_HOME', projectDirVar: '$PROJECT_DIR' }));
+    }
+    sh.push('openclaw gateway run');
     } else {
       appendShWriteCommands(sh, botFiles(0));
       const _uninstallMac = generateUninstallScript();
       if (_uninstallMac) appendShWriteCommands(sh, { [_uninstallMac.name]: _uninstallMac.content });
-      sh.push('openclaw gateway run');
+    if (state.channel === 'zalo-personal') {
+      sh.push(...generateZaloLoginSh({ homeVar: '$OPENCLAW_HOME', projectDirVar: '$PROJECT_DIR' }));
+    }
+    sh.push('openclaw gateway run');
     }
     scriptContent = sh.filter(Boolean).join('\n');
   }
@@ -4149,6 +4231,11 @@ GWEOF`);
     vps.push(`pm2 start "$PROJECT_DIR/.9router/9router-smart-route-sync.js" --name ${appName}-9router-sync --interpreter "$NODE_BIN" --env DATA_DIR="$DATA_DIR"`);
   }
 
+  // ── Zalo Personal Login (before gateway) ──────────────────────────────
+  if (state.channel === 'zalo-personal') {
+    vps.push(...generateZaloLoginSh({ homeVar: '$OPENCLAW_HOME', projectDirVar: '$PROJECT_DIR' }));
+  }
+
   // Gateway: start the bash wrapper script (has all env setup baked in)
   vps.push(`pm2 start "$PROJECT_DIR/.openclaw/start-gateway.sh" --name ${appName} --interpreter bash`);
   vps.push('pm2 save && pm2 startup');
@@ -4220,11 +4307,17 @@ function generateLinuxSh(ctx) {
     const _uninstallLnxMulti = generateUninstallScript();
     if (_uninstallLnxMulti) appendShWriteCommands(lnx, { [_uninstallLnxMulti.name]: _uninstallLnxMulti.content });
     lnx.push('echo "Starting shared multi-bot gateway..."');
+    if (state.channel === 'zalo-personal') {
+      lnx.push(...generateZaloLoginSh({ homeVar: '$OPENCLAW_HOME', projectDirVar: '$PROJECT_DIR' }));
+    }
     lnx.push('openclaw gateway run');
   } else {
     appendShWriteCommands(lnx, botFiles(0));
     const _uninstallLnx = generateUninstallScript();
     if (_uninstallLnx) appendShWriteCommands(lnx, { [_uninstallLnx.name]: _uninstallLnx.content });
+    if (state.channel === 'zalo-personal') {
+      lnx.push(...generateZaloLoginSh({ homeVar: '$OPENCLAW_HOME', projectDirVar: '$PROJECT_DIR' }));
+    }
     lnx.push('openclaw gateway run');
   }
   scriptContent = lnx.filter(Boolean).join('\n');
@@ -5749,6 +5842,7 @@ model:
     // 3. Dockerfile + docker-compose.yml
     const allPlugins = [];
     if (ch.pluginInstall) allPlugins.push(ch.pluginInstall);
+    if (ch.hasZaloPersonal) allPlugins.push('zalo-mod');
     state.config.plugins.forEach((pid) => {
       const plug = PLUGINS.find((p) => p.id === pid);
       if (plug) allPlugins.push(plug.package);

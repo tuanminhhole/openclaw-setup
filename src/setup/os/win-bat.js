@@ -1,8 +1,8 @@
 // @ts-nocheck
 /* eslint-disable no-undef, no-unused-vars */
 /**
- * OS generator — called from generateNativeScript() via ctx dispatch.
- * @param {object} ctx  Built by generateNativeScript() — see buildNativeScriptCtx()
+ * OS generator � called from generateNativeScript() via ctx dispatch.
+ * @param {object} ctx  Built by generateNativeScript() � see buildNativeScriptCtx()
  * @returns {{ scriptName: string, scriptContent: string }}
  */
 function generateWinBat(ctx) {
@@ -18,13 +18,13 @@ function generateWinBat(ctx) {
     '@echo off',
     'setlocal EnableExtensions',
     'chcp 65001 >nul',
-    `set "PROJECT_DIR=${projectDir.replace(/\//g, '\\\\')}"`,
+    `set "PROJECT_DIR=${projectDir.replace(/\//g, '\\')}"`,
     'if not exist "%PROJECT_DIR%" mkdir "%PROJECT_DIR%"',
     'cd /d "%PROJECT_DIR%"',
-    'set "OPENCLAW_HOME=%PROJECT_DIR%\\\\.openclaw"',
-    'set "OPENCLAW_STATE_DIR=%PROJECT_DIR%\\\\.openclaw"',
-    'set "DATA_DIR=%PROJECT_DIR%\\\\.9router"',
-    'set "PATH=%APPDATA%\\\\npm;%PATH%"',
+    'set "OPENCLAW_HOME=%PROJECT_DIR%\\.openclaw"',
+    'set "OPENCLAW_STATE_DIR=%PROJECT_DIR%\\.openclaw"',
+    'set "DATA_DIR=%PROJECT_DIR%\\.9router"',
+    'set "PATH=%APPDATA%\\npm;%PATH%"',
     'powershell -NoProfile -Command "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force" >nul 2>&1',
     `echo === OpenClaw Setup - Windows${isDocker ? ' Docker' : ' Native'} ===`,
     'echo.',
@@ -36,15 +36,15 @@ function generateWinBat(ctx) {
   ];
 
   function appendGatewayStart(arr) {
-    arr.push('echo $env:OPENCLAW_HOME = \'%OPENCLAW_HOME%\' > "%TEMP%\\\\oc-startgw.ps1"');
-    arr.push('echo $env:OPENCLAW_STATE_DIR = \'%OPENCLAW_HOME%\' >> "%TEMP%\\\\oc-startgw.ps1"');
-    arr.push("echo $envFile = Join-Path '%PROJECT_DIR%' '.env' >> \"%TEMP%\\\\oc-startgw.ps1\"");
-    arr.push("echo if ^(Test-Path $envFile^) { Get-Content $envFile ^| ForEach-Object { if ^($_ -match '^[ ]*#' -or $_ -notmatch '='^) { return }; $parts = $_.Split('=', 2); if ^($parts.Length -eq 2^) { [Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1], 'Process') } } } >> \"%TEMP%\\\\oc-startgw.ps1\"");
-    arr.push('echo $b = Join-Path $env:APPDATA \'npm\\\\openclaw.cmd\' >> "%TEMP%\\\\oc-startgw.ps1"');
-    arr.push('echo if ^(-not ^(Test-Path $b^)^) { $b = Join-Path $env:APPDATA \'npm\\\\openclaw\' } >> "%TEMP%\\\\oc-startgw.ps1"');
-    arr.push("echo Start-Process 'cmd.exe' -WindowStyle Normal -WorkingDirectory '%PROJECT_DIR%' -ArgumentList ^('/c \\\"' + $b + '\\\" gateway run'^) >> \"%TEMP%\\\\oc-startgw.ps1\"");
-    arr.push('powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\\\\oc-startgw.ps1"');
-    arr.push('del "%TEMP%\\\\oc-startgw.ps1" >nul 2>&1');
+    arr.push('echo $env:OPENCLAW_HOME = \'%OPENCLAW_HOME%\' > "%TEMP%\\oc-startgw.ps1"');
+    arr.push('echo $env:OPENCLAW_STATE_DIR = \'%OPENCLAW_HOME%\' >> "%TEMP%\\oc-startgw.ps1"');
+    arr.push("echo $envFile = Join-Path '%PROJECT_DIR%' '.env' >> \"%TEMP%\\oc-startgw.ps1\"");
+    arr.push("echo if ^(Test-Path $envFile^) { Get-Content $envFile ^| ForEach-Object { if ^($_ -match '^[ ]*#' -or $_ -notmatch '='^) { return }; $parts = $_.Split('=', 2); if ^($parts.Length -eq 2^) { [Environment]::SetEnvironmentVariable($parts[0].Trim(), $parts[1], 'Process') } } } >> \"%TEMP%\\oc-startgw.ps1\"");
+    arr.push('echo $b = Join-Path $env:APPDATA \'npm\\openclaw.cmd\' >> "%TEMP%\\oc-startgw.ps1"');
+    arr.push('echo if ^(-not ^(Test-Path $b^)^) { $b = Join-Path $env:APPDATA \'npm\\openclaw\' } >> "%TEMP%\\oc-startgw.ps1"');
+    arr.push("echo Start-Process 'cmd.exe' -WindowStyle Normal -WorkingDirectory '%PROJECT_DIR%' -ArgumentList ^('/c \"' + $b + '\" gateway run'^) >> \"%TEMP%\\oc-startgw.ps1\"");
+    arr.push('powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\\oc-startgw.ps1"');
+    arr.push('del "%TEMP%\\oc-startgw.ps1" >nul 2>&1');
   }
 
   function appendDashboardInfo(arr) {
@@ -88,9 +88,9 @@ function generateWinBat(ctx) {
       appendBatWriteCommands(lines, mapWindowsNativeFiles({ [startScriptMulti.name]: startScriptMulti.content }));
     }
     if (is9Router) {
-      lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
+      lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
     }
-    lines.push('if not exist "%OPENCLAW_HOME%\\\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\\\openclaw.json" && goto :fail)');
+    lines.push('if not exist "%OPENCLAW_HOME%\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\openclaw.json" && goto :fail)');
     lines.push('echo [5/5] Khoi dong gateway multi-bot...');
     appendGatewayStart(lines);
     lines.push('timeout /t 5 /nobreak >nul');
@@ -108,25 +108,13 @@ function generateWinBat(ctx) {
       appendBatWriteCommands(lines, mapWindowsNativeFiles({ [startScript.name]: startScript.content }));
     }
     if (is9Router) {
-      lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
+      lines.push(windowsHiddenNodeLaunch('%DATA_DIR%\\9router-smart-route-sync.js', { DATA_DIR: '%DATA_DIR%' }));
     }
-    lines.push('if not exist "%OPENCLAW_HOME%\\\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\\\openclaw.json" && goto :fail)');
+    lines.push('if not exist "%OPENCLAW_HOME%\\openclaw.json" (echo ERROR: Khong tim thay "%OPENCLAW_HOME%\\openclaw.json" && goto :fail)');
 
     if (state.channel === 'zalo-personal') {
       lines.push('echo [5/6] Dang nhap Zalo Personal...');
-      lines.push('echo.');
-      lines.push('echo === HUONG DAN DANG NHAP ZALO ===');
-      lines.push('echo Cua so login se mo rieng. Hay:');
-      lines.push('echo   1. Doi lenh chay xong trong cua so login');
-      lines.push('echo   2. Tim file QR tai: %TEMP%\\openclaw\\openclaw-zalouser-qr-default.png');
-      lines.push('echo   3. Mo app Zalo, chon Quet QR, quet ma trong file QR');
-      lines.push('echo   4. Doi thay chu Login successful trong cua so login');
-      lines.push('echo   5. Dong cua so login va quay lai day');
-      lines.push('echo ================================');
-      lines.push('echo.');
-      lines.push('start "Zalo Login" cmd /k "cd /d \"%PROJECT_DIR%\" && set OPENCLAW_HOME=%OPENCLAW_HOME% && set OPENCLAW_STATE_DIR=%OPENCLAW_HOME% && openclaw channels login --channel zalouser --verbose"');
-      lines.push('echo Nhan phim bat ky sau khi dong cua so Zalo Login...');
-      lines.push('pause >nul');
+      lines.push(...generateZaloLoginBat({ homeVar: '%OPENCLAW_HOME%', projectDirVar: '%PROJECT_DIR%', label: 'win' }));
       lines.push('call openclaw gateway stop 2>nul');
       lines.push('timeout /t 2 /nobreak >nul');
       lines.push('echo [6/6] Khoi dong bot...');
@@ -149,7 +137,7 @@ function generateWinBat(ctx) {
   lines.push(':end');
   lines.push('pause');
   lines.push('endlocal');
-  scriptContent = lines.filter(Boolean).join('\\r\\n');
+  scriptContent = lines.filter(Boolean).join('\r\n');
 
   return { scriptName, scriptContent };
 }

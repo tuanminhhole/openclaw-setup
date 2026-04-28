@@ -1,5 +1,13 @@
 # Changelog (English)
 
+## [5.7.2] — 2026-04-28
+
+### Zalo Plugin Name & Build Output Fixes
+
+- **Fix: Zalo-mod plugin installation name** — Corrected the plugin installation command in the CLI to use `zalo-mod` instead of `openclaw-zalo-mod` to match the package name published on ClawHub, resolving the "plugin not found" startup warning.
+- **Fix: Zalo-mod Docker installation** — Added `zalo-mod` to the `allPlugins` array during Docker generation when Zalo Personal channel is selected, ensuring the plugin is downloaded during the image build process.
+- **Fix: Unbuilt Setup Wizard UI** — Re-ran the build script (`build.mjs`) to properly package recent fixes into `dist/setup.js`, resolving an issue where downloaded `.bat` and `.sh` files from the Web Wizard were missing the newly added Zalo QR Login instructions.
+
 ## [5.7.1] — 2026-04-28
 
 ### Zalo QR Login Standardization & Workspace Integration

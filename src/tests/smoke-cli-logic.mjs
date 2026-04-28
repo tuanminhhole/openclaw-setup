@@ -1,4 +1,4 @@
-﻿import fs from 'fs';
+import fs from 'fs';
 import path from 'path';
 
 const root = process.cwd();
@@ -193,7 +193,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function printZaloPersonalLoginInfo\(\{ isVi, deployMode, projectDir \}\) \{[\s\S]*docker compose exec -it ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*openclaw-zalouser-qr-default\.png[\s\S]*Copy-Item[\s\S]*docker compose cp ai-bot:\$\{qrPath\} \.\/zalo-login-qr\.png/s,
+  /function printZaloPersonalLoginInfo\(\{ isVi, deployMode, projectDir \}\) \{[\s\S]*docker exec -it ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*openclaw-zalouser-qr-default\.png[\s\S]*Copy-Item[\s\S]*docker cp ai-bot:\$\{qrPath\} \.\/zalo-qr\.png/s,
   'CLI must print the dedicated Docker/native Zalo Personal login commands and QR copy path instead of onboarding'
 ));
 
