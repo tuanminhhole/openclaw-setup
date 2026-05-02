@@ -191,8 +191,8 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       : '';
     const patchLine = `RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const files=fs.readdirSync(dir).filter(n=>/\\.js$/.test(n));let patched=0;for(const file of files){const p=path.join(dir,file);let s='';try{s=fs.readFileSync(p,'utf8');}catch{continue;}if(s.includes(to)||!s.includes(from))continue;s=s.replace(from,to);fs.writeFileSync(p,s);patched++;}if(!patched){process.exit(0);}"`;
     
-    // Dynamic runtime configuration: backup config before plugin install, restore after
-    // Plugin install may clobber openclaw.json, so we backup critical fields first
+    // Dynamic runtime configuration: backup config before any first-run install, restore after.
+    // Missing plugin install may touch openclaw.json, so preserve critical fields.
     const backupConfigScript = `const fs=require('fs'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)){fs.copyFileSync(p,b);}`;
     const backupConfigB64 = encodeBase64Utf8(backupConfigScript);
 
@@ -200,8 +200,41 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     const restoreConfigB64 = encodeBase64Utf8(restoreConfigScript);
 
     const runtimeParts = runtimeCommandParts.filter(Boolean);
-    runtimeParts.unshift('export OPENCLAW_HOME="$PWD/.openclaw"');
-    runtimeParts.unshift('export OPENCLAW_STATE_DIR="$PWD/.openclaw"');
+    const runtimePrelude = [
+      'export OPENCLAW_HOME="${OPENCLAW_HOME:-$PWD/.openclaw}"',
+      'export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$OPENCLAW_HOME}"',
+      'mkdir -p "$OPENCLAW_HOME" "$OPENCLAW_STATE_DIR"',
+      'if [ "$OPENCLAW_STATE_DIR" != "$OPENCLAW_HOME" ]; then',
+      '  for path in "$OPENCLAW_HOME"/*; do',
+      '    [ -e "$path" ] || continue',
+      '    name="$(basename "$path")"',
+      '    [ "$name" = "plugin-runtime-deps" ] && continue',
+      '    [ "$name" = "logs" ] && continue',
+      '    [ -e "$OPENCLAW_STATE_DIR/$name" ] || ln -s "$path" "$OPENCLAW_STATE_DIR/$name"',
+      '  done',
+      'fi',
+      'ensure_plugin() {',
+      '  id="$1"',
+      '  spec="$2"',
+      '  if [ -d "$OPENCLAW_HOME/extensions/$id" ]; then',
+      '    echo "[entrypoint] plugin $id already installed"',
+      '    return 0',
+      '  fi',
+      '  echo "[entrypoint] plugin $id missing; installing $spec"',
+      '  openclaw plugins install "$spec" 2>/dev/null || echo "[entrypoint] warning: failed to install plugin $spec"',
+      '}',
+      'ensure_skill() {',
+      '  id="$1"',
+      '  if find "$OPENCLAW_HOME" -maxdepth 4 -type d -path "*/skills/$id" -print -quit 2>/dev/null | grep -q .; then',
+      '    echo "[entrypoint] skill $id already installed"',
+      '    return 0',
+      '  fi',
+      '  echo "[entrypoint] skill $id missing; installing"',
+      '  openclaw skills install "$id" 2>/dev/null || echo "[entrypoint] warning: failed to install skill $id"',
+      '}',
+      'echo "[entrypoint] ensuring runtime assets, then starting gateway"',
+    ];
+    runtimeParts.unshift(...runtimePrelude);
     // Backup config BEFORE plugin installs (runtimeCommandParts may contain plugin install commands)
     runtimeParts.unshift(`node -e 'eval(Buffer.from("${backupConfigB64}","base64").toString())'`);
     // Restore config AFTER plugin installs (which may clobber openclaw.json)
@@ -236,7 +269,7 @@ CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
     const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
-    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n';
+    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/var/lib/openclaw-state\n';
 
     let compose;
     if (isMultiBot) {
@@ -427,6 +460,18 @@ ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    
       - ${volumeMount}
     ports:
       - "18791:18791"`;
+    }
+
+    compose = compose.replaceAll(
+      `      - ${volumeMount}`,
+      `      - ${volumeMount}\n      - openclaw-state:/var/lib/openclaw-state`
+    );
+    if (compose.includes('\nvolumes:\n')) {
+      if (!compose.includes('  openclaw-state:')) {
+        compose = compose.replace('\nvolumes:\n', '\nvolumes:\n  openclaw-state:\n');
+      }
+    } else {
+      compose += '\n\nvolumes:\n  openclaw-state:';
     }
 
     return {

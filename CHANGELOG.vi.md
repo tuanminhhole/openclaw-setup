@@ -1,5 +1,11 @@
 # Changelog (Tiếng Việt)
 
+## [5.7.4] — 2026-05-02
+
+### Hotfix: CLI crash trên mọi cấu hình — `channelKey is not defined`
+
+- **Sửa: `ReferenceError: channelKey is not defined` trong `writeWorkspaceFiles()`** — Hàm này tham chiếu biến `channelKey` từ scope ngoài (`main()`) nhưng không khai báo trong danh sách tham số của chính nó. Đã thêm `channelKey = 'telegram'` làm tham số với giá trị mặc định an toàn, đồng thời truyền tường minh từ cả 2 call site (single-bot và multi-bot relay). Lỗi này ảnh hưởng mọi nền tảng (Telegram, Zalo) ngay khi bắt đầu ghi workspace files.
+
 ## [5.7.3] — 2026-04-29
 
 ### Ổn định Gateway Docker & Luồng đăng nhập Zalo

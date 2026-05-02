@@ -370,10 +370,15 @@ model:
     });
     const dockerGen = globalThis.__openclawDockerGen;
     const relayPluginInstallCmd = isMultiBot ? buildRelayPluginInstallCommand('openclaw') : '';
+    const pluginRuntimeSpecs = allPlugins.filter((p) => p && p !== '@openclaw/zalouser');
+    const pluginIdForSpec = (spec) => {
+      if (String(spec).includes('zalo-mod')) return 'zalo-mod';
+      return String(spec).replace(/^@openclaw\//, '').replace(/^openclaw-/, '');
+    };
     const pluginInstallCmd = [
-      ...allPlugins.map((p) => `openclaw plugins install ${p} 2>/dev/null || true`),
+      ...pluginRuntimeSpecs.map((p) => `ensure_plugin ${pluginIdForSpec(p)} ${p}`),
       relayPluginInstallCmd,
-    ].filter(Boolean).join(' && ') || '';
+    ].filter(Boolean).join('\n') || '';
     const dockerArtifacts = dockerGen.buildDockerArtifacts({
       openClawNpmSpec: common.OPENCLAW_NPM_SPEC,
       openClawRuntimePackages,

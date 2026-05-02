@@ -1,5 +1,11 @@
 # Changelog (English)
 
+## [5.7.4] — 2026-05-02
+
+### Hotfix: CLI crash on all setups — `channelKey is not defined`
+
+- **Fix: `ReferenceError: channelKey is not defined` in `writeWorkspaceFiles()`** — The function referenced the outer `channelKey` variable from `main()` but it was never declared in its own parameter list. Added `channelKey = 'telegram'` as a parameter with a safe default, and passed the value explicitly from both call sites (single-bot and multi-bot relay). This crash affected every platform (Telegram, Zalo) during workspace file generation.
+
 ## [5.7.3] — 2026-04-29
 
 ### Docker Gateway Stability & Zalo Login Flow
