@@ -1,5 +1,12 @@
 # Changelog (Tiếng Việt)
 
+## [5.7.5] — 2026-05-03
+
+### Hotfix: Sửa CLI Crash & Lỗi Encoding Tiếng Việt
+
+- **Sửa: `ReferenceError: channelKey is not defined` trong `writeWorkspaceFiles()`** — Thêm `channelKey` làm tham số tường minh (mặc định `'telegram'`) và truyền từ cả 2 call site (single-bot và multi-bot relay). Lỗi này ảnh hưởng mọi nền tảng (Telegram, Zalo) ngay khi bắt đầu ghi workspace files.
+- **Sửa: Tính toàn vẹn UTF-8 trong `cli.src.js`** — Khôi phục encoding UTF-8 đúng bằng cách dùng Python I/O cho mọi thao tác file, ngăn double-encoding ký tự tiếng Việt do PowerShell Windows gây ra.
+
 ## [5.7.4] — 2026-05-02
 
 ### Hotfix: CLI crash trên mọi cấu hình — `channelKey is not defined`

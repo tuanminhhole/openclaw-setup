@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.7.2-0EA5E9?style=for-the-badge" alt="Version 5.7.2" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.7.5-0EA5E9?style=for-the-badge" alt="Version 5.7.5" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,7 +24,13 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ---
 
-## 🆕 What's new in v5.7.2
+## 🆕 What's new in v5.7.5
+
+- 🐛 **Hotfix: CLI crash on all platforms** — Fixed `ReferenceError: channelKey is not defined` that caused the CLI to crash immediately after completing the setup wizard on every platform (Telegram, Zalo). The `writeWorkspaceFiles()` function now correctly receives `channelKey` as an explicit parameter.
+- 🔤 **Fix: Vietnamese text encoding** — Restored proper UTF-8 encoding integrity in `cli.src.js` to prevent double-encoding of Vietnamese characters from Windows tools.
+
+<details>
+<summary><b>Previous: What's new in v5.7.2</b></summary>
 
 - 🏗️ **Centralized config architecture** — All `openclaw.json`, `.env`, and `exec-approvals.json` generation now flows through a single `bot-config-gen.js` module. Both the Web Wizard and CLI share the same builder, eliminating config drift between surfaces.
 - 🔄 **Rolling `@latest` versioning** — Installation scripts now use `openclaw@latest` instead of pinned versions, ensuring users always get the newest release without waiting for a setup update.
@@ -32,16 +38,7 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 - 🐛 **Removed `autoReply` bug** — The `autoReply: true` field that caused gateway startup crashes on Zalo Personal has been permanently removed from all generators.
 - 💬 **Standardized Zalo Personal config** — Zalo Personal (`zalouser`) channel now uses production-matching config with `groups`, `groupPolicy`, `historyLimit`, and proper `bindings`.
 
-<details>
-<summary><b>Previous: What's new in v5.7.2</b></summary>
-
-- 🔧 **OpenAI Codex provider fix** — Updated Codex model registry to match OpenAI's current API. Removed 6 deprecated models, retained 4 active ones: `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.4-mini`.
-- 🔀 **9Router API mode switch** — Switched from `openai-completions` to `openai-responses` to align with OpenAI's Responses API.
-- 🩹 **Auto-patch 9Router** — New `patch-9router.js` automatically patches 9Router source files on setup, upgrade, and before every launch to stay compatible with Codex API changes.
-- 🎯 **Direct Codex model targeting** — 9Router config now exposes individual Codex models alongside `smart-route` so users can pick a specific model.
-
 </details>
-
 ---
 
 ## ✨ Features

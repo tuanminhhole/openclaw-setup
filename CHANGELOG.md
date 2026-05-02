@@ -1,5 +1,12 @@
 # Changelog (English)
 
+## [5.7.5] — 2026-05-03
+
+### Hotfix: CLI Crash & Vietnamese Encoding Fix
+
+- **Fix: `ReferenceError: channelKey is not defined` in `writeWorkspaceFiles()`** — Added `channelKey` as an explicit parameter (default `'telegram'`) and passed it from both call sites (single-bot and multi-bot relay). This crash affected every platform (Telegram, Zalo) during workspace file generation.
+- **Fix: UTF-8 encoding integrity in `cli.src.js`** — Restored proper UTF-8 source encoding by using Python-safe I/O for all file modifications, preventing double-encoding of Vietnamese characters introduced by Windows PowerShell string operations.
+
 ## [5.7.4] — 2026-05-02
 
 ### Hotfix: CLI crash on all setups — `channelKey is not defined`
