@@ -268,7 +268,7 @@ RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /v
 ${browserInstallLines}
 ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""
-RUN echo "CACHE_BUST=$CACHE_BUST" && npm install -g ${openClawNpmSpec} ${openClawRuntimePackages}${skillLines}${pluginLines}
+RUN echo "CACHE_BUST=$CACHE_BUST" && npm install -g $OPENCLAW_VER ${openClawRuntimePackages}${skillLines}${pluginLines}
 ${patchLine}
 RUN node -e "require('fs').writeFileSync('/usr/local/bin/openclaw-entrypoint.sh', Buffer.from('${runtimeScriptB64}','base64').toString())" && chmod +x /usr/local/bin/openclaw-entrypoint.sh
 WORKDIR /root/project

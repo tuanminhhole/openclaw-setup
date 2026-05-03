@@ -292,7 +292,7 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /RUN echo "CACHE_BUST=\$CACHE_BUST" && npm install -g \$\{openClawNpmSpec\} \$\{openClawRuntimePackages\}/,
+  /RUN echo "CACHE_BUST=\$CACHE_BUST" && npm install -g \$OPENCLAW_VER \$\{openClawRuntimePackages\}/,
   'Docker setup.js image must cache-bust and install the full OpenClaw runtime package set alongside openclaw'
 ));
 
@@ -445,7 +445,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /RUN echo "CACHE_BUST=\$CACHE_BUST" && npm install -g \$\{openClawNpmSpec\} \$\{openClawRuntimePackages\}/,
+  /RUN echo "CACHE_BUST=\$CACHE_BUST" && npm install -g \$OPENCLAW_VER \$\{openClawRuntimePackages\}/,
   'Wizard Dockerfile generation must cache-bust and install the full OpenClaw runtime package set alongside openclaw'
 ));
 
