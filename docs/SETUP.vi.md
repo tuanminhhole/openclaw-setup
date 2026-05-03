@@ -270,7 +270,7 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 
 ```json
 {
-  "meta": { "lastTouchedVersion": "2026.3.27" },
+  "meta": { "lastTouchedVersion": "latest" },
   "agents": {
     "defaults": {
       "model": { "primary": "google/gemini-2.5-flash", "fallbacks": [] },

@@ -2743,7 +2743,7 @@ CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
     const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
-    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/var/lib/openclaw-state\n';
+    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n';
 
     let compose;
     if (isMultiBot) {
@@ -2934,18 +2934,6 @@ ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    
       - ${volumeMount}
     ports:
       - "18791:18791"`;
-    }
-
-    compose = compose.replaceAll(
-      `      - ${volumeMount}`,
-      `      - ${volumeMount}\n      - openclaw-state:/var/lib/openclaw-state`
-    );
-    if (compose.includes('\nvolumes:\n')) {
-      if (!compose.includes('  openclaw-state:')) {
-        compose = compose.replace('\nvolumes:\n', '\nvolumes:\n  openclaw-state:\n');
-      }
-    } else {
-      compose += '\n\nvolumes:\n  openclaw-state:';
     }
 
     return {

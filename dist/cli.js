@@ -2191,7 +2191,7 @@ async function main() {
       socatBridge,
       deviceApproveLoop,
     ].filter(Boolean),
-    volumeMount: '../../.openclaw:/root/project/.openclaw',
+    volumeMount: '../..:/root/project',
     singleComposeName: `oc-${agentId}`,
     multiComposeName: 'oc-multibot',
     singleAppContainerName: `openclaw-${agentId}`,

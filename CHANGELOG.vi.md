@@ -1,5 +1,15 @@
 # Changelog (Tiếng Việt)
 
+## [5.7.6] — 2026-05-03
+
+### Sửa lỗi: Docker Bind-Mount State Directory
+
+- **Sửa: `OPENCLAW_STATE_DIR` giờ nằm trong thư mục bind-mount của project** — Thay đổi `OPENCLAW_STATE_DIR` từ `/var/lib/openclaw-state` (volume độc lập) sang `/root/project/.openclaw`, khớp với thư mục project đã bind-mount. Đảm bảo state (sessions, memory, plugins) tồn tại qua các lần restart container mà không cần named volume riêng.
+- **Sửa: CLI volume mount giờ bind toàn bộ thư mục project** — Đổi `volumeMount` từ `../../.openclaw:/root/project/.openclaw` thành `../..:/root/project`, giúp container thấy toàn bộ cây thư mục project trên host. Khắc phục lỗi path mismatch khi bot không tìm được file config nằm bên cạnh `.openclaw`.
+- **Sửa: Xóa named volume `openclaw-state` lỗi thời** — Loại bỏ logic inject `openclaw-state:/var/lib/openclaw-state` khỏi `docker-gen.js`. State directory giờ được quản lý hoàn toàn qua bind-mount của project.
+- **Chore: Cập nhật smoke tests** — Bổ sung assertions kiểm tra strategy bind-mount mới (`../..:/root/project`, `OPENCLAW_STATE_DIR=/root/project/.openclaw`) và xác nhận named volume `openclaw-state` vắng mặt trong compose output được generate.
+- **Chore: Cập nhật `lastTouchedVersion` trong docs** — Ví dụ config trong `SETUP.md` và `SETUP.vi.md` giờ hiển thị `"lastTouchedVersion": "latest"` thay vì version cụ thể.
+
 ## [5.7.5] — 2026-05-03
 
 ### Hotfix: Sửa CLI Crash & Lỗi Encoding Tiếng Việt

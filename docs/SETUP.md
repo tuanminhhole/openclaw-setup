@@ -256,7 +256,7 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```json
 {
   "meta": {
-    "lastTouchedVersion": "2026.3.27"
+    "lastTouchedVersion": "latest"
   },
   "agents": {
     "defaults": {

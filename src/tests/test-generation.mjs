@@ -240,7 +240,7 @@ section('5. Docker artifacts');
       'openclaw skills install browser-automation 2>/dev/null || true &&',
       'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &',
     ],
-    volumeMount: '../../.openclaw:/root/project/.openclaw',
+    volumeMount: '../..:/root/project',
     singleComposeName: 'oc-williams',
     singleAppContainerName: 'openclaw-williams',
     singleRouterContainerName: '9router-williams',
@@ -255,10 +255,10 @@ section('5. Docker artifacts');
   assertIncludes('Dockerfile writes a dedicated entrypoint script', single.dockerfile, '/usr/local/bin/openclaw-entrypoint.sh');
   assertIncludes('Dockerfile uses JSON-array CMD for entrypoint', single.dockerfile, 'CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]');
   assertIncludes('compose includes 9Router sidecar when requested', single.compose, '9router-williams');
-  assertIncludes('compose mounts .openclaw volume into project workspace', single.compose, '../../.openclaw:/root/project/.openclaw');
+  assertIncludes('compose mounts full project into container workspace', single.compose, '../..:/root/project');
   assertIncludes('compose sets project-local OPENCLAW_HOME', single.compose, 'OPENCLAW_HOME=/root/project/.openclaw');
-  assertIncludes('compose sets volume-backed OPENCLAW_STATE_DIR', single.compose, 'OPENCLAW_STATE_DIR=/var/lib/openclaw-state');
-  assertIncludes('compose mounts volume-backed runtime state', single.compose, 'openclaw-state:/var/lib/openclaw-state');
+  assertIncludes('compose sets bind-mounted OPENCLAW_STATE_DIR', single.compose, 'OPENCLAW_STATE_DIR=/root/project/.openclaw');
+  assertNotIncludes('compose does not hide runtime state in a named volume', single.compose, 'openclaw-state:/var/lib/openclaw-state');
   assertIncludes('compose includes host gateway for desktop browser', single.compose, 'host.docker.internal');
   assertNotIncludes('compose does not leak old interpolation bug', single.compose, "Buffer.from('${Buffer.from");
   assertNotIncludes('Docker output excludes removed combo channel', JSON.stringify(single), 'telegram+zalo-personal');
@@ -272,7 +272,7 @@ section('5. Docker artifacts');
     hasBrowser: false,
     selectedModel: 'llama3.1',
     runtimeCommandParts: [common.buildRelayPluginInstallCommand('openclaw') + ' &&'],
-    volumeMount: '../../.openclaw:/root/project/.openclaw',
+    volumeMount: '../..:/root/project',
     multiComposeName: 'oc-multibot',
     multiAppContainerName: 'openclaw-multibot',
     multiOllamaContainerName: 'ollama-multibot',

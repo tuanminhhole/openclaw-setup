@@ -1,5 +1,15 @@
 # Changelog (English)
 
+## [5.7.6] — 2026-05-03
+
+### Fix: Docker Bind-Mount State Directory
+
+- **Fix: `OPENCLAW_STATE_DIR` now collocated with project bind-mount** — Changed `OPENCLAW_STATE_DIR` from `/var/lib/openclaw-state` (an isolated anonymous volume) to `/root/project/.openclaw`, matching the bind-mounted project directory. This ensures state (sessions, memory, plugins) persists across container restarts without a separate named volume.
+- **Fix: CLI volume mount now binds the full project directory** — Changed `volumeMount` from `../../.openclaw:/root/project/.openclaw` to `../..:/root/project`, so the container sees the full host project tree (not just `.openclaw`). This resolves path mismatch errors where the bot could not locate config files adjacent to `.openclaw`.
+- **Fix: Remove orphaned `openclaw-state` named volume** — Removed the `openclaw-state:/var/lib/openclaw-state` volume injection logic from `docker-gen.js`. The state directory is now handled entirely through the project bind-mount.
+- **Chore: Update smoke tests** — Added assertions to verify the new bind-mount strategy (`../..:/root/project`, `OPENCLAW_STATE_DIR=/root/project/.openclaw`) and that the old `openclaw-state` named volume is absent from generated compose output.
+- **Chore: Update `lastTouchedVersion` in docs** — `SETUP.md` and `SETUP.vi.md` example configs now show `"lastTouchedVersion": "latest"` instead of a pinned version string.
+
 ## [5.7.5] — 2026-05-03
 
 ### Hotfix: CLI Crash & Vietnamese Encoding Fix

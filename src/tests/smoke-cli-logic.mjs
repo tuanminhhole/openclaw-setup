@@ -266,10 +266,23 @@ checks.push(() => expectMatch(
   'Docker CLI flow must ensure docker/openclaw exists immediately before writing Dockerfile and docker-compose.yml'
 ));
 
+checks.push(() => expect(
+  cli.includes("volumeMount: '../..:/root/project'")
+    && !cli.includes("volumeMount: '../../.openclaw:/root/project/.openclaw'"),
+  'Docker CLI flow must bind-mount the full chosen bot directory into /root/project'
+));
+
 checks.push(() => expectMatch(
   setup,
   /RUN npm install -g \$\{openClawNpmSpec\} \$\{openClawRuntimePackages\}/,
   'Docker setup.js image must install the full OpenClaw runtime package set alongside openclaw'
+));
+
+checks.push(() => expect(
+  setup.includes('OPENCLAW_STATE_DIR=/root/project/.openclaw')
+    && !setup.includes('openclaw-state:/var/lib/openclaw-state')
+    && !setup.includes('OPENCLAW_STATE_DIR=/var/lib/openclaw-state'),
+  'Wizard Docker compose must keep OpenClaw state in the bind-mounted project .openclaw directory'
 ));
 
 checks.push(() => expect(
