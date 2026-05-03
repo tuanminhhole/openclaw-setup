@@ -1,5 +1,16 @@
 # Changelog (Tiếng Việt)
 
+
+## [5.7.7] — 2026-05-03
+
+### 🛠️ Ổn Định Infrastructure & Zalo Bot
+
+- **Ghim Phiên Bản**: Tự động ghim `openclaw@2026.4.15` trên tất cả script cài đặt để đảm bảo ổn định cho Zalo bot.
+- **Tối Ưu Docker**: Thay thế việc mount toàn bộ dự án bằng mount độc lập thư mục `.openclaw` để tránh nghẽn I/O.
+- **Sửa Lỗi Deadlock Gateway**: Thêm `tmpfs` cho thư mục `plugin-runtime-deps` ngay trong cấu hình Compose environment.
+- **Đồng Bộ 9Router**: Tự động lấy danh sách model từ các provider đang kết nối và đồng bộ vào combo `smart-route` mỗi khi gateway khởi động.
+- **Chuẩn Hoá Cấu Hình Zalo**: Hợp nhất logic sinh cấu hình để đảm bảo plugin `zalo-mod` luôn xuất ra schema chuẩn xác nhất.
+
 ## [5.7.6] — 2026-05-03
 
 ### Sửa lỗi: Docker Bind-Mount State Directory

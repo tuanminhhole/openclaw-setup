@@ -1,5 +1,16 @@
 # Changelog (English)
 
+
+## [5.7.7] — 2026-05-03
+
+### 🛠️ Infrastructure & Zalo Bot Stabilization
+
+- **Version Pinning**: Automatically pins `openclaw@2026.4.15` across all deployment scripts to ensure Zalo integration stability.
+- **Docker Optimization**: Replaced full project bind-mounts with isolated `.openclaw` mounts to resolve I/O bottlenecks.
+- **Gateway Deadlock Fix**: Implemented `tmpfs` for `plugin-runtime-deps` directly within the Compose environment block.
+- **9Router Sync**: Automated dynamic synchronization of `smart-route` combos based on active provider models during gateway startup.
+- **Zalo Config Compliance**: Unified the bot config generation pipeline to ensure Zalo channels strictly output compliant schemas.
+
 ## [5.7.6] — 2026-05-03
 
 ### Fix: Docker Bind-Mount State Directory

@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.7.6-0EA5E9?style=for-the-badge" alt="Version 5.7.6" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.7.7-0EA5E9?style=for-the-badge" alt="Version 5.7.7" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,19 +24,18 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
-## 🆕 Có gì mới trong v5.7.5
+## 🆕 Có gì mới trong v5.7.7
 
-- 🐛 **Hotfix: CLI crash trên mọi nền tảng** — Sửa lỗi `ReferenceError: channelKey is not defined` khiến CLI crash ngay sau khi hoàn thành wizard trên mọi nền tảng (Telegram, Zalo). Hàm `writeWorkspaceFiles()` giờ nhận `channelKey` như một tham số tường minh.
-- 🔤 **Sửa: Encoding tiếng Việt trong CLI** — Khôi phục tính toàn vẹn UTF-8 trong `cli.src.js`, ngăn double-encoding ký tự tiếng Việt do công cụ Windows gây ra.
+- 🛠️ **Ổn Định Infrastructure & Zalo Bot** — Tự động ghim `openclaw@2026.4.15` cho mọi nền tảng, loại bỏ hoàn toàn các lỗi crash do lệch version khi cài Zalo Personal.
+- 📦 **Tối Ưu Docker Volume & Gateway Deadlock** — Thiết kế lại cơ chế mount thư mục `.openclaw` và triển khai `tmpfs` cho `plugin-runtime-deps`, triệt để ngăn chặn tình trạng I/O lock trên Windows/WSL2.
+- 🔄 **9Router Smart-Sync** — Tự động nhận diện và đồng bộ danh sách models (Gemini, Claude, GPT) từ các AI provider đang kích hoạt trực tiếp vào combo `smart-route` mỗi khi khởi động hệ thống.
 
 <details>
-<summary><b>Trước đó: Có gì mới ở v5.7.2</b></summary>
+<summary><b>Trước đó: Có gì mới ở v5.7.6</b></summary>
 
-- 🏗️ **Kiến trúc config tập trung** — Toàn bộ logic tạo `openclaw.json`, `.env`, và `exec-approvals.json` giờ chạy qua module duy nhất `bot-config-gen.js`. Cả Web Wizard và CLI dùng chung cùng một builder, loại bỏ sai lệch config giữa 2 bề mặt.
-- 🔄 **Phiên bản rolling `@latest`** — Script cài đặt giờ dùng `openclaw@latest` thay vì version cố định, đảm bảo người dùng luôn nhận bản mới nhất.
-- 🧪 **Bộ test matrix toàn diện** — Thêm 422 test mới phủ tất cả tổ hợp OS × Deploy × Channel × Số bot, kèm sandbox Wizard IIFE và kiểm tra cấu trúc CLI.
-- 🐛 **Xóa lỗi `autoReply`** — Trường `autoReply: true` gây crash gateway khi khởi động Zalo Personal đã bị loại bỏ vĩnh viễn khỏi mọi generator.
-- 💬 **Chuẩn hóa config Zalo Personal** — Kênh Zalo Personal (`zalouser`) giờ dùng config khớp production với `groups`, `groupPolicy`, `historyLimit`, và `bindings` đúng.
+- 🧹 **Tự Động Tạo Script Gỡ Cài Đặt** — Sinh sẵn file `uninstall-openclaw` dọn sạch tài nguyên hệ thống/container.
+- 🐛 **Hotfix CLI Crash** — Fix triệt để lỗi `channelKey is not defined` và double-encoding tiếng Việt.
+- 🏗️ **Kiến trúc config tập trung** — Toàn bộ logic config giờ hợp nhất qua `bot-config-gen.js`, xoá triệt để lỗi `autoReply: true`.
 
 ## </details>
 
