@@ -331,7 +331,7 @@ section('4. OS script generation via Wizard IIFE');
   // Windows BAT checks
   assert('win-bat has setup-openclaw-docker-win.bat', setupCode.includes("'setup-openclaw-docker-win.bat'"));
   assert('win-bat has setup-openclaw-win.bat', setupCode.includes("'setup-openclaw-win.bat'"));
-  assert('win-bat has npm install openclaw@latest', setupCode.includes('npm install -g openclaw@latest'));
+  assert('win-bat has npm install openclaw version', setupCode.includes('npm install -g ${OPENCLAW_NPM_SPEC}'));
   assert('win-bat has openclaw gateway run', setupCode.includes('openclaw gateway run') || setupCode.includes('openclaw.cmd'));
   assert('win-bat has OPENCLAW_HOME', setupCode.includes('OPENCLAW_HOME'));
   assert('win-bat has chcp 65001', setupCode.includes('chcp 65001'));
@@ -341,7 +341,7 @@ section('4. OS script generation via Wizard IIFE');
   assert('macos-sh has setup-openclaw-docker-macos.sh', setupCode.includes("'setup-openclaw-docker-macos.sh'"));
   assert('macos-sh has setup-openclaw-macos.sh', setupCode.includes("'setup-openclaw-macos.sh'"));
   assert('macos-sh has npm config set prefix', setupCode.includes('npm config set prefix'));
-  assert('macos-sh has openclaw@latest', setupCode.includes('openclaw@latest'));
+  assert('macos-sh has openclaw version', setupCode.includes('${OPENCLAW_NPM_SPEC}'));
   assert('macos-sh has chmod +x', setupCode.includes('chmod +x'));
 
   // VPS SH checks
@@ -355,7 +355,7 @@ section('4. OS script generation via Wizard IIFE');
   assert('linux-sh has openclaw gateway run', setupCode.includes('openclaw gateway run'));
 
   // All OS scripts must NOT have old pinned version
-  assert('no scripts have pinned 2026 version', !setupCode.includes('openclaw@2026'));
+  assert('scripts have pinned 2026.4.15 version', setupCode.includes('openclaw@2026.4.15'));
   assert('no scripts have autoReply', !setupCode.includes("autoReply: true"));
 
   // Verify CLAWEOF pattern exists in SH generators (used for heredoc file writing)
@@ -387,7 +387,7 @@ section('5. CLI script validation');
 
   // CLI must not have old inline patterns
   assert('CLI no inline autoReply', !cli.includes("autoReply: true"));
-  assert('CLI no pinned 2026 version', !cli.includes('openclaw@2026'));
+  assert('CLI uses OPENCLAW_NPM_SPEC', cli.includes('OPENCLAW_NPM_SPEC'));
 
   // CLI must have zalouser handling via centralized builder
   assert('CLI handles zalo-personal', cli.includes('zalo-personal') || cli.includes('zalouser'));

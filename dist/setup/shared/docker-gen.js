@@ -39,11 +39,26 @@ const sync = async () => {
     if (!res.ok) { console.log('[sync-combo] API not ready, retrying...'); return; }
     const d = await res.json();
     const rawConnections = Array.isArray(d.connections) ? d.connections : Array.isArray(d.providerConnections) ? d.providerConnections : [];
-    const a = [...new Set(rawConnections.filter(c => c && c.provider && c.isActive !== false && !c.disabled).map(c => c.provider))];
-    if (!a.length) { removeSmartRoute(); return; }
+    const activeConns = rawConnections.filter(c => c && c.provider && c.isActive !== false && !c.disabled);
+    const a = [...new Set(activeConns.map(c => c.provider))];
+    if (!a.length) { console.log('[sync-combo] No active providers reported; keeping existing smart-route'); return; }
     a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
-    const m = a.flatMap(pv => PM[pv] || []);
-    if (!m.length) { removeSmartRoute(); return; }
+    const m = [];
+    for (const pv of a) {
+      if (PM[pv]) m.push(...PM[pv]);
+      const conns = activeConns.filter(c => c.provider === pv);
+      for (const c of conns) {
+        if (Array.isArray(c.models)) {
+          for (const mdl of c.models) {
+            const mdlId = typeof mdl === 'string' ? mdl : mdl.id;
+            if (mdlId && !m.includes(mdlId) && !m.includes(pv + '/' + mdlId)) {
+               m.push(pv + '/' + mdlId);
+            }
+          }
+        }
+      }
+    }
+    if (!m.length) { console.log('[sync-combo] No mapped models for active providers; keeping existing smart-route'); return; }
     const c = { id: 'smart-route', name: 'smart-route', alias: 'smart-route', models: m };
     const i = db.combos.findIndex(x => x.id === 'smart-route');
     if (i >= 0) {
@@ -155,7 +170,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       dockerfilePlugins = [],
       dockerfileSkillInstallMode = 'none',
       runtimeCommandParts = [],
-      volumeMount = '../..:/root/project',
+      volumeMount = '../../.openclaw:/root/project/.openclaw\\n      - ../../:/mnt/project',
       singleComposeName = 'oc-bot',
       multiComposeName = 'oc-multibot',
       singleAppContainerName = 'openclaw-bot',
@@ -253,7 +268,7 @@ RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /v
 ${browserInstallLines}
 ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""
-RUN npm install -g ${openClawNpmSpec} ${openClawRuntimePackages}${skillLines}${pluginLines}
+RUN echo "CACHE_BUST=$CACHE_BUST" && npm install -g ${openClawNpmSpec} ${openClawRuntimePackages}${skillLines}${pluginLines}
 ${patchLine}
 RUN node -e "require('fs').writeFileSync('/usr/local/bin/openclaw-entrypoint.sh', Buffer.from('${runtimeScriptB64}','base64').toString())" && chmod +x /usr/local/bin/openclaw-entrypoint.sh
 WORKDIR /root/project
@@ -264,12 +279,12 @@ CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
 
     const syncScript = build9RouterSmartRouteSyncScript('/root/.9router/db.json');
     const syncScriptBase64 = encodeBase64Utf8(syncScript);
-    const patchScript = build9RouterPatchScript();
+const patchScript = build9RouterPatchScript();
     const patchScriptBase64 = encodeBase64Utf8(patchScript);
     const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
-    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n';
+    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n    tmpfs:\n      - /root/project/.openclaw/plugin-runtime-deps\n';
 
     let compose;
     if (isMultiBot) {

@@ -31,7 +31,7 @@ function generateWinBat(ctx) {
     'echo [1/5] Kiem tra Node.js...',
     'where node >nul 2>&1 || (echo ERROR: Node.js chua cai! Tai tai: https://nodejs.org && pause && exit /b 1)',
     'echo [2/5] Cai OpenClaw CLI...',
-    `call npm install -g openclaw@latest ${openClawRuntimePackages} || goto :fail`,
+    `call npm install -g ${OPENCLAW_NPM_SPEC} ${openClawRuntimePackages} || goto :fail`,
     'echo [OK] OpenClaw da duoc cai dat thanh cong.',
   ];
 

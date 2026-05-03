@@ -272,17 +272,36 @@ checks.push(() => expect(
   'Docker CLI flow must bind-mount the full chosen bot directory into /root/project'
 ));
 
+checks.push(() => expect(
+  cli.includes('runtimeCommandParts: [')
+    && cli.includes('zaloModInstallCmd,')
+    && cli.includes('relayInstallCmd,')
+    && cli.includes('skillInstallCmd,')
+    && cli.includes('ensure_plugin zalo-mod openclaw-zalo-mod')
+    && cli.includes('ensure_skill ${s}')
+    && !cli.includes("skillInstallCmd ? skillInstallCmd + ' &&' : ''")
+    && !cli.includes("zaloModInstallCmd ? zaloModInstallCmd + ' &&' : ''")
+    && !cli.includes('const socatBridge ='),
+  'Docker CLI runtime installs must use idempotent ensure_* commands without trailing && or duplicate browser bridge'
+));
+
+checks.push(() => expect(
+  !setup.includes("hasBrowser ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &' : ''"),
+  'Wizard Docker runtime parts must not pass a duplicate browser socat bridge'
+));
+
 checks.push(() => expectMatch(
   setup,
-  /RUN npm install -g \$\{openClawNpmSpec\} \$\{openClawRuntimePackages\}/,
-  'Docker setup.js image must install the full OpenClaw runtime package set alongside openclaw'
+  /RUN echo "CACHE_BUST=\$CACHE_BUST" && npm install -g \$\{openClawNpmSpec\} \$\{openClawRuntimePackages\}/,
+  'Docker setup.js image must cache-bust and install the full OpenClaw runtime package set alongside openclaw'
 ));
 
 checks.push(() => expect(
   setup.includes('OPENCLAW_STATE_DIR=/root/project/.openclaw')
+    && setup.includes('OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1')
     && !setup.includes('openclaw-state:/var/lib/openclaw-state')
     && !setup.includes('OPENCLAW_STATE_DIR=/var/lib/openclaw-state'),
-  'Wizard Docker compose must keep OpenClaw state in the bind-mounted project .openclaw directory'
+  'Wizard Docker compose must keep OpenClaw state in the bind-mounted project .openclaw directory and allow the published Docker gateway bind'
 ));
 
 checks.push(() => expect(
@@ -414,20 +433,20 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /const scriptName = isDocker \? 'setup-openclaw-docker-win\.bat' : 'setup-openclaw-win\.bat';[\s\S]*npm install -g openclaw@latest[\s\S]*openclaw gateway run/s,
+  /const scriptName = isDocker \? 'setup-openclaw-docker-win\.bat' : 'setup-openclaw-win\.bat';[\s\S]*npm install -g \$\{OPENCLAW_NPM_SPEC\}[\s\S]*openclaw gateway run/s,
   'Windows native/docker script generation must use the correct file name and start command'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /const scriptName = isDocker \? 'setup-openclaw-docker-macos\.sh' : 'setup-openclaw-macos\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@latest[\s\S]*openclaw gateway run/s,
+  /const scriptName = isDocker \? 'setup-openclaw-docker-macos\.sh' : 'setup-openclaw-macos\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g \$\{OPENCLAW_NPM_SPEC\}[\s\S]*openclaw gateway run/s,
   'macOS script generation must use the correct file name and start command'
 ));
 
 checks.push(() => expectMatch(
   setup,
-  /RUN npm install -g \$\{openClawNpmSpec\} \$\{openClawRuntimePackages\}/,
-  'Wizard Dockerfile generation must install the full OpenClaw runtime package set alongside openclaw'
+  /RUN echo "CACHE_BUST=\$CACHE_BUST" && npm install -g \$\{openClawNpmSpec\} \$\{openClawRuntimePackages\}/,
+  'Wizard Dockerfile generation must cache-bust and install the full OpenClaw runtime package set alongside openclaw'
 ));
 
 checks.push(() => expect(
@@ -443,7 +462,7 @@ checks.push(() => expect(
 
 checks.push(() => expectMatch(
   setup,
-  /scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*PROJECT_DIR="[\s\S]*export OPENCLAW_HOME="\$PROJECT_DIR\/\.openclaw"[\s\S]*export OPENCLAW_STATE_DIR="\$PROJECT_DIR\/\.openclaw"[\s\S]*export DATA_DIR="\$PROJECT_DIR\/\.9router"[\s\S]*npm install -g openclaw@latest[\s\S]*pm2@latest[\s\S]*pm2 save && pm2 startup/s,
+  /scriptName = 'setup-openclaw-vps\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*PROJECT_DIR="[\s\S]*export OPENCLAW_HOME="\$PROJECT_DIR\/\.openclaw"[\s\S]*export OPENCLAW_STATE_DIR="\$PROJECT_DIR\/\.openclaw"[\s\S]*export DATA_DIR="\$PROJECT_DIR\/\.9router"[\s\S]*npm install -g \$\{OPENCLAW_NPM_SPEC\}[\s\S]*pm2@latest[\s\S]*pm2 save && pm2 startup/s,
   'VPS native script generation must keep runtime files project-local, install openclaw+pm2, and persist PM2 startup'
 ));
 
@@ -640,7 +659,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /scriptName = 'setup-openclaw-linux\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g openclaw@latest[\s\S]*openclaw gateway run/s,
+  /scriptName = 'setup-openclaw-linux\.sh';[\s\S]*npm config set prefix "\$HOME\/\.local"[\s\S]*npm install -g \$\{OPENCLAW_NPM_SPEC\}[\s\S]*openclaw gateway run/s,
   'Linux Desktop native script generation must install openclaw and run the gateway'
 ));
 
@@ -652,7 +671,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /steps\.push\(_isVi \? '.*Cài OpenClaw CLI.*' : '.*Install OpenClaw CLI.*'\);/s,
+  /steps\.push\(_isVi \? `.*Cài OpenClaw CLI.*` : `.*Install OpenClaw CLI.*`\);/s,
   'Auto-steps summary must mention OpenClaw CLI installation'
 ));
 

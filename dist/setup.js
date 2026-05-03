@@ -619,7 +619,7 @@
   // â”€â”€ Shared runtime constants, relay helpers, auth profile builders (setup/shared/common-gen.js) 
 // @ts-nocheck
 (function (root) {
-  const OPENCLAW_NPM_SPEC = 'openclaw@latest';
+  const OPENCLAW_NPM_SPEC = 'openclaw@2026.4.15';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const NINE_ROUTER_PORT = 20128;
@@ -1699,6 +1699,14 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
       channels.zalouser = {
         enabled: true,
         defaultAccount: 'default',
+        accounts: {
+          default: {
+            dmPolicy: 'open',
+            allowFrom: ['*'],
+            groupPolicy: 'allowlist',
+            groupAllowFrom: ['*'],
+          },
+        },
         dmPolicy: 'open',
         allowFrom: ['*'],
         groupPolicy: 'allowlist',
@@ -1742,6 +1750,7 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
         enabled: true,
         config: {
           botName: botName,
+          ownerId: "",
           groupNames: {},
           zaloDisplayNames: [botName],
           welcomeEnabled: true,
@@ -1749,7 +1758,6 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
           spamWindowSeconds: 300,
         },
       };
-      entries.zalouser = { enabled: true };
     }
 
     const plugins = { entries };
@@ -2513,11 +2521,26 @@ const sync = async () => {
     if (!res.ok) { console.log('[sync-combo] API not ready, retrying...'); return; }
     const d = await res.json();
     const rawConnections = Array.isArray(d.connections) ? d.connections : Array.isArray(d.providerConnections) ? d.providerConnections : [];
-    const a = [...new Set(rawConnections.filter(c => c && c.provider && c.isActive !== false && !c.disabled).map(c => c.provider))];
-    if (!a.length) { removeSmartRoute(); return; }
+    const activeConns = rawConnections.filter(c => c && c.provider && c.isActive !== false && !c.disabled);
+    const a = [...new Set(activeConns.map(c => c.provider))];
+    if (!a.length) { console.log('[sync-combo] No active providers reported; keeping existing smart-route'); return; }
     a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
-    const m = a.flatMap(pv => PM[pv] || []);
-    if (!m.length) { removeSmartRoute(); return; }
+    const m = [];
+    for (const pv of a) {
+      if (PM[pv]) m.push(...PM[pv]);
+      const conns = activeConns.filter(c => c.provider === pv);
+      for (const c of conns) {
+        if (Array.isArray(c.models)) {
+          for (const mdl of c.models) {
+            const mdlId = typeof mdl === 'string' ? mdl : mdl.id;
+            if (mdlId && !m.includes(mdlId) && !m.includes(pv + '/' + mdlId)) {
+               m.push(pv + '/' + mdlId);
+            }
+          }
+        }
+      }
+    }
+    if (!m.length) { console.log('[sync-combo] No mapped models for active providers; keeping existing smart-route'); return; }
     const c = { id: 'smart-route', name: 'smart-route', alias: 'smart-route', models: m };
     const i = db.combos.findIndex(x => x.id === 'smart-route');
     if (i >= 0) {
@@ -2629,7 +2652,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       dockerfilePlugins = [],
       dockerfileSkillInstallMode = 'none',
       runtimeCommandParts = [],
-      volumeMount = '../..:/root/project',
+      volumeMount = '../../.openclaw:/root/project/.openclaw\\n      - ../../:/mnt/project',
       singleComposeName = 'oc-bot',
       multiComposeName = 'oc-multibot',
       singleAppContainerName = 'openclaw-bot',
@@ -2727,7 +2750,7 @@ RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /v
 ${browserInstallLines}
 ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""
-RUN npm install -g ${openClawNpmSpec} ${openClawRuntimePackages}${skillLines}${pluginLines}
+RUN echo "CACHE_BUST=$CACHE_BUST" && npm install -g ${openClawNpmSpec} ${openClawRuntimePackages}${skillLines}${pluginLines}
 ${patchLine}
 RUN node -e "require('fs').writeFileSync('/usr/local/bin/openclaw-entrypoint.sh', Buffer.from('${runtimeScriptB64}','base64').toString())" && chmod +x /usr/local/bin/openclaw-entrypoint.sh
 WORKDIR /root/project
@@ -2738,12 +2761,12 @@ CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
 
     const syncScript = build9RouterSmartRouteSyncScript('/root/.9router/db.json');
     const syncScriptBase64 = encodeBase64Utf8(syncScript);
-    const patchScript = build9RouterPatchScript();
+const patchScript = build9RouterPatchScript();
     const patchScriptBase64 = encodeBase64Utf8(patchScript);
     const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
-    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n';
+    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n    tmpfs:\n      - /root/project/.openclaw/plugin-runtime-deps\n';
 
     let compose;
     if (isMultiBot) {
@@ -3963,7 +3986,7 @@ function generateWinBat(ctx) {
     'echo [1/5] Kiem tra Node.js...',
     'where node >nul 2>&1 || (echo ERROR: Node.js chua cai! Tai tai: https://nodejs.org && pause && exit /b 1)',
     'echo [2/5] Cai OpenClaw CLI...',
-    `call npm install -g openclaw@latest ${openClawRuntimePackages} || goto :fail`,
+    `call npm install -g ${OPENCLAW_NPM_SPEC} ${openClawRuntimePackages} || goto :fail`,
     'echo [OK] OpenClaw da duoc cai dat thanh cong.',
   ];
 
@@ -4153,7 +4176,7 @@ function generateMacOsSh(ctx) {
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.zshrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.zshrc"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
     '# Install openclaw (user-local first, sudo fallback)',
-      `npm install -g openclaw@latest ${openClawRuntimePackages} || sudo npm install -g openclaw@latest ${openClawRuntimePackages}`,
+      `npm install -g ${OPENCLAW_NPM_SPEC} ${openClawRuntimePackages} || sudo npm install -g ${OPENCLAW_NPM_SPEC} ${openClawRuntimePackages}`,
     ];
     providerLines(sh, 'sh');
     if (pluginCmd) sh.push(pluginCmd);
@@ -4219,7 +4242,7 @@ function generateVpsSh(ctx) {
     'export DATA_DIR="$PROJECT_DIR/.9router"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-    `npm install -g openclaw@latest ${openClawRuntimePackages} pm2@latest`,
+    `npm install -g ${OPENCLAW_NPM_SPEC} ${openClawRuntimePackages} pm2@latest`,
   ];
   providerLines(vps, 'sh');
   if (pluginCmd) vps.push(pluginCmd);
@@ -4342,7 +4365,7 @@ function generateLinuxSh(ctx) {
     'export DATA_DIR="$PROJECT_DIR/.9router"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-    `npm install -g openclaw@latest ${openClawRuntimePackages}`,
+    `npm install -g ${OPENCLAW_NPM_SPEC} ${openClawRuntimePackages}`,
   ];
   providerLines(lnx, 'sh');
   if (pluginCmd) lnx.push(pluginCmd);
@@ -5832,7 +5855,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       };
       clawConfig.plugins = {
         entries: {
-          ...(ch.hasZaloPersonal ? { 'zalo-mod': { enabled: true, config: {} } } : {}),
+          ...(ch.hasZaloPersonal ? { 'zalo-mod': { enabled: true, config: { botName: botName, ownerId: "", groupNames: {}, zaloDisplayNames: [botName], welcomeEnabled: true, spamRepeatN: 3, spamWindowSeconds: 300 } } } : {}),
           'memory-core': {
             config: { dreaming: { enabled: state.config.skills.includes('memory') } },
           },
@@ -5847,7 +5870,18 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         pluginEntries[plugin.package || pid] = { enabled: true };
       });
       if (ch.hasZaloPersonal) {
-        pluginEntries['zalo-mod'] = { enabled: true, config: {} };
+        pluginEntries['zalo-mod'] = {
+          enabled: true,
+          config: {
+            botName: botName,
+            ownerId: "",
+            groupNames: {},
+            zaloDisplayNames: [botName],
+            welcomeEnabled: true,
+            spamRepeatN: 3,
+            spamWindowSeconds: 300
+          }
+        };
       }
       pluginEntries['memory-core'] = {
         config: { dreaming: { enabled: state.config.skills.includes('memory') } },
@@ -5925,7 +5959,6 @@ model:
       dockerfileSkillInstallMode: 'build',
       runtimeCommandParts: [
         pluginInstallCmd,
-        hasBrowser ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &' : '',
         'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &'
       ],
       plainSingleExtraHosts: true,
@@ -6561,7 +6594,7 @@ fi
           : 'Ubuntu / VPS: The script auto-installs Node.js 20 LTS, OpenClaw CLI, and PM2 to keep the bot running after reboot.');
       }
       steps.push(_isVi ? '✅ Kiểm tra Node.js (cài tự động trên Ubuntu/VPS nếu chưa có)' : '✅ Check Node.js (auto-install on Ubuntu/VPS if missing)');
-      steps.push(_isVi ? '📦 Cài OpenClaw CLI (<code>npm install -g openclaw@latest</code>)' : '📦 Install OpenClaw CLI (<code>npm install -g openclaw@latest</code>)');
+      steps.push(_isVi ? `📦 Cài OpenClaw CLI (<code>npm install -g ${common.OPENCLAW_NPM_SPEC}</code>)` : `📦 Install OpenClaw CLI (<code>npm install -g ${common.OPENCLAW_NPM_SPEC}</code>)`);
       if (_is9Router) {
         steps.push(_isVi ? '🔀 Cài 9Router (<code>npm install -g 9router</code>) và khởi động tự động' : '🔀 Install 9Router (<code>npm install -g 9router</code>) and start automatically');
       } else if (_isOllama) {

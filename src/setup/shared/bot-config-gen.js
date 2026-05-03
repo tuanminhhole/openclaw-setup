@@ -261,6 +261,14 @@
       channels.zalouser = {
         enabled: true,
         defaultAccount: 'default',
+        accounts: {
+          default: {
+            dmPolicy: 'open',
+            allowFrom: ['*'],
+            groupPolicy: 'allowlist',
+            groupAllowFrom: ['*'],
+          },
+        },
         dmPolicy: 'open',
         allowFrom: ['*'],
         groupPolicy: 'allowlist',
@@ -304,6 +312,7 @@
         enabled: true,
         config: {
           botName: botName,
+          ownerId: "",
           groupNames: {},
           zaloDisplayNames: [botName],
           welcomeEnabled: true,
@@ -311,7 +320,6 @@
           spamWindowSeconds: 300,
         },
       };
-      entries.zalouser = { enabled: true };
     }
 
     const plugins = { entries };

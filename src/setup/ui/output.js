@@ -300,7 +300,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       };
       clawConfig.plugins = {
         entries: {
-          ...(ch.hasZaloPersonal ? { 'zalo-mod': { enabled: true, config: {} } } : {}),
+          ...(ch.hasZaloPersonal ? { 'zalo-mod': { enabled: true, config: { botName: botName, ownerId: "", groupNames: {}, zaloDisplayNames: [botName], welcomeEnabled: true, spamRepeatN: 3, spamWindowSeconds: 300 } } } : {}),
           'memory-core': {
             config: { dreaming: { enabled: state.config.skills.includes('memory') } },
           },
@@ -315,7 +315,18 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         pluginEntries[plugin.package || pid] = { enabled: true };
       });
       if (ch.hasZaloPersonal) {
-        pluginEntries['zalo-mod'] = { enabled: true, config: {} };
+        pluginEntries['zalo-mod'] = {
+          enabled: true,
+          config: {
+            botName: botName,
+            ownerId: "",
+            groupNames: {},
+            zaloDisplayNames: [botName],
+            welcomeEnabled: true,
+            spamRepeatN: 3,
+            spamWindowSeconds: 300
+          }
+        };
       }
       pluginEntries['memory-core'] = {
         config: { dreaming: { enabled: state.config.skills.includes('memory') } },
@@ -393,7 +404,6 @@ model:
       dockerfileSkillInstallMode: 'build',
       runtimeCommandParts: [
         pluginInstallCmd,
-        hasBrowser ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &' : '',
         'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &'
       ],
       plainSingleExtraHosts: true,
@@ -1029,7 +1039,7 @@ fi
           : 'Ubuntu / VPS: The script auto-installs Node.js 20 LTS, OpenClaw CLI, and PM2 to keep the bot running after reboot.');
       }
       steps.push(_isVi ? '✅ Kiểm tra Node.js (cài tự động trên Ubuntu/VPS nếu chưa có)' : '✅ Check Node.js (auto-install on Ubuntu/VPS if missing)');
-      steps.push(_isVi ? '📦 Cài OpenClaw CLI (<code>npm install -g openclaw@latest</code>)' : '📦 Install OpenClaw CLI (<code>npm install -g openclaw@latest</code>)');
+      steps.push(_isVi ? `📦 Cài OpenClaw CLI (<code>npm install -g ${common.OPENCLAW_NPM_SPEC}</code>)` : `📦 Install OpenClaw CLI (<code>npm install -g ${common.OPENCLAW_NPM_SPEC}</code>)`);
       if (_is9Router) {
         steps.push(_isVi ? '🔀 Cài 9Router (<code>npm install -g 9router</code>) và khởi động tự động' : '🔀 Install 9Router (<code>npm install -g 9router</code>) and start automatically');
       } else if (_isOllama) {

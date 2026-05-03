@@ -493,6 +493,10 @@ async function patchProjectDocker9Router(projectDir) {
     "cp /opt/sync.js /tmp/sync.js"
   );
   compose = compose.replace(
+    /\s*node -e "require\('fs'\)\.writeFileSync\('\/tmp\/patch-9router\.js',Buffer\.from\('[^']*','base64'\)\.toString\(\)\)"\n/,
+    ''
+  );
+  compose = compose.replace(
     /(npm install -g [^\n]+\n)/,
     `$1        cp /opt/patch-9router.js /tmp/patch-9router.js\n`
   );
@@ -2162,15 +2166,14 @@ async function main() {
     .filter(s => selectedSkills.includes(s.value) && s.slug)
     .map(s => s.slug);
   const skillInstallCmd = skillSlugs.length > 0
-    ? skillSlugs.map(s => `openclaw skills install ${s} 2>/dev/null || true`).join(' && ')
+    ? skillSlugs.map(s => `ensure_skill ${s}`).join('\n')
     : '';
   const relayInstallCmd = (isMultiBot && channelKey === 'telegram')
     ? buildRelayPluginInstallCommand('openclaw')
     : '';
   const zaloModInstallCmd = hasZaloPersonal(channelKey)
-    ? 'openclaw plugins install openclaw-zalo-mod 2>/dev/null || true'
+    ? 'ensure_plugin zalo-mod openclaw-zalo-mod'
     : '';
-  const socatBridge = hasBrowserDesktop ? 'socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &' : '';
   const deviceApproveLoop = 'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &';
 
   // buildDockerArtifacts joins runtimeCommandParts with spaces, then appends 'openclaw gateway run'
@@ -2185,10 +2188,9 @@ async function main() {
     selectedModel: modelsPrimary,
     agentId,
     runtimeCommandParts: [
-      skillInstallCmd ? skillInstallCmd + ' &&' : '',
-      relayInstallCmd ? relayInstallCmd + ' &&' : '',
-      zaloModInstallCmd ? zaloModInstallCmd + ' &&' : '',
-      socatBridge,
+      zaloModInstallCmd,
+      relayInstallCmd,
+      skillInstallCmd,
       deviceApproveLoop,
     ].filter(Boolean),
     volumeMount: '../..:/root/project',

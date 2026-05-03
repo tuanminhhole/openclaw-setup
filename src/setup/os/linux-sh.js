@@ -31,7 +31,7 @@ function generateLinuxSh(ctx) {
     'export DATA_DIR="$PROJECT_DIR/.9router"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.bashrc" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.bashrc"',
     'grep -Fqx \'export PATH="$HOME/.local/bin:$PATH"\' "$HOME/.profile" 2>/dev/null || echo \'export PATH="$HOME/.local/bin:$PATH"\' >> "$HOME/.profile"',
-    `npm install -g openclaw@latest ${openClawRuntimePackages}`,
+    `npm install -g ${OPENCLAW_NPM_SPEC} ${openClawRuntimePackages}`,
   ];
   providerLines(lnx, 'sh');
   if (pluginCmd) lnx.push(pluginCmd);
