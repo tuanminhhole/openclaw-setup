@@ -2171,9 +2171,6 @@ async function main() {
   const relayInstallCmd = (isMultiBot && channelKey === 'telegram')
     ? buildRelayPluginInstallCommand('openclaw')
     : '';
-  const zaloModInstallCmd = hasZaloPersonal(channelKey)
-    ? 'ensure_plugin zalo-mod openclaw-zalo-mod'
-    : '';
   const deviceApproveLoop = 'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &';
 
   // buildDockerArtifacts joins runtimeCommandParts with spaces, then appends 'openclaw gateway run'
@@ -2188,7 +2185,6 @@ async function main() {
     selectedModel: modelsPrimary,
     agentId,
     runtimeCommandParts: [
-      zaloModInstallCmd,
       relayInstallCmd,
       skillInstallCmd,
       deviceApproveLoop,

@@ -1,6 +1,18 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.7.8] — 2026-05-05
+
+### 🧹 Dọn dẹp: Gỡ bỏ Auto-Install Zalo Mod
+
+- **Sửa: Gỡ auto-inject `zalo-mod` khỏi config Zalo Personal** — `plugins.entries['zalo-mod']` không còn được tự điền bởi `bot-config-gen.js`, `output.js`, hay `native-helpers-gen.js`. Plugin này gây ra vòng lặp cài đặt liên tục và xung đột quyền trong Docker. Người dùng cần cài `openclaw-zalo-mod` thủ công qua ClawHub sau khi setup.
+- **Sửa: Gỡ `zalo-mod` khỏi lệnh runtime trong Docker** — Xóa `ensure_plugin zalo-mod openclaw-zalo-mod` khỏi `runtimeCommandParts` trong entrypoint Docker. OpenClaw phiên bản bundled đã xử lý channel này trực tiếp.
+- **Sửa: Gỡ `openclaw-zalo-mod` khỏi danh sách allPlugins khi build Docker** — Tránh plugin bị nhúng vào Docker image trong quá trình `docker build`, vốn thừa và gây xung đột.
+- **Chore: Cập nhật smoke tests và test-matrix** — Cập nhật assertions để xác nhận `zalo-mod` KHÔNG được auto-inject vào config và KHÔNG có trong lệnh install runtime của Docker.
+- **Chore: Đồng bộ ARCHITECTURE.md** — Ghi rõ `zalo-mod` phải cài thủ công qua ClawHub; `hasZaloMod` trong workspace-gen chỉ ảnh hưởng nội dung docs, không liên quan config generation.
+- **Chore: Thêm `.agent/workflows/update.md`** — Tài liệu workflow release chuẩn hóa cho repo này.
+
+
 ## [5.7.7] — 2026-05-03
 
 ### 🛠️ Ổn Định Infrastructure & Zalo Bot

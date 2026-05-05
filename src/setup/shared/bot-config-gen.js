@@ -305,21 +305,9 @@
 
     const allow = ['memory-core'];
 
-    // zalo-mod plugin for Zalo Personal
+    // Zalo Personal channel is native; install openclaw-zalo-mod manually via ClawHub when needed.
     if (isZaloPersonal(channelKey)) {
-      allow.push('zalo-mod', 'zalouser');
-      entries['zalo-mod'] = {
-        enabled: true,
-        config: {
-          botName: botName,
-          ownerId: "",
-          groupNames: {},
-          zaloDisplayNames: [botName],
-          welcomeEnabled: true,
-          spamRepeatN: 3,
-          spamWindowSeconds: 300,
-        },
-      };
+      allow.push('zalouser');
     }
 
     const plugins = { entries };

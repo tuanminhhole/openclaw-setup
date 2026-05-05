@@ -151,7 +151,6 @@ section('1. openclaw.json generation matrix');
           assert(`[${label}] zalouser groupPolicy=allowlist`, cfg.channels.zalouser.groupPolicy === 'allowlist');
           assert(`[${label}] no autoReply in zalouser`, !JSON.stringify(cfg.channels).includes('autoReply'));
           assert(`[${label}] zalouser binding present`, cfg.bindings?.some(b => b.match?.channel === 'zalouser'));
-          assert(`[${label}] zalo-mod plugin present`, !!cfg.plugins?.entries?.['zalo-mod']);
         }
 
         // Memory-core dreaming always present
@@ -425,7 +424,7 @@ section('6. Cross-channel config integrity');
   assert('zalo prod format: dmPolicy open', zaloParsed.channels.zalouser.dmPolicy === 'open');
   assert('zalo prod format: groups wildcard', !!zaloParsed.channels.zalouser.groups?.['*']);
   assert('zalo prod format: no autoReply', !zaloJson.includes('autoReply'));
-  assert('zalo prod format: zalo-mod plugin', !!zaloParsed.plugins.entries['zalo-mod']);
+  assert('zalo prod format: no bundled zalo-mod plugin', !zaloParsed.plugins.entries['zalo-mod']);
   assert('zalo prod format: memory-core dreaming on', zaloParsed.plugins.entries['memory-core'].config.dreaming.enabled === true);
   assert('zalo prod format: binding present', zaloParsed.bindings?.some(b => b.match.channel === 'zalouser'));
   assert('zalo prod format: gateway bind custom (VPS)', zaloParsed.gateway.bind === 'custom');

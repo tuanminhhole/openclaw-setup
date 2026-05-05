@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.7.7-0EA5E9?style=for-the-badge" alt="Version 5.7.7" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.7.8-0EA5E9?style=for-the-badge" alt="Version 5.7.8" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,18 +24,18 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
-## 🆕 Có gì mới trong v5.7.7
+## 🆕 Có gì mới trong v5.7.8
+
+- 🧹 **Dọn dẹp Plugin Zalo Mod** — Gỡ bỏ auto-inject `zalo-mod` khỏi config được generate. Plugin giờ phải cài thủ công qua ClawHub, loại bỏ vòng lặp cài đặt liên tục và xung đột quyền trong Docker.
+- 🔧 **Docker Build Sạch Hơn** — `openclaw-zalo-mod` không còn được nhúng vào Docker image khi build hoặc trong entrypoint runtime, giảm kích thước image và lỗi khởi động.
+- 📝 **Chuẩn Hóa Workflow Release** — Thêm `.agent/workflows/update.md` làm checklist release chuẩn cho repo này.
+
+<details>
+<summary><b>Trước đó: Có gì mới ở v5.7.7</b></summary>
 
 - 🛠️ **Ổn Định Infrastructure & Zalo Bot** — Tự động ghim `openclaw@2026.4.15` cho mọi nền tảng, loại bỏ hoàn toàn các lỗi crash do lệch version khi cài Zalo Personal.
 - 📦 **Tối Ưu Docker Volume & Gateway Deadlock** — Thiết kế lại cơ chế mount thư mục `.openclaw` và triển khai `tmpfs` cho `plugin-runtime-deps`, triệt để ngăn chặn tình trạng I/O lock trên Windows/WSL2.
 - 🔄 **9Router Smart-Sync** — Tự động nhận diện và đồng bộ danh sách models (Gemini, Claude, GPT) từ các AI provider đang kích hoạt trực tiếp vào combo `smart-route` mỗi khi khởi động hệ thống.
-
-<details>
-<summary><b>Trước đó: Có gì mới ở v5.7.6</b></summary>
-
-- 🧹 **Tự Động Tạo Script Gỡ Cài Đặt** — Sinh sẵn file `uninstall-openclaw` dọn sạch tài nguyên hệ thống/container.
-- 🐛 **Hotfix CLI Crash** — Fix triệt để lỗi `channelKey is not defined` và double-encoding tiếng Việt.
-- 🏗️ **Kiến trúc config tập trung** — Toàn bộ logic config giờ hợp nhất qua `bot-config-gen.js`, xoá triệt để lỗi `autoReply: true`.
 
 ## </details>
 

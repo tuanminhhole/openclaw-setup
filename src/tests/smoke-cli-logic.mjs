@@ -274,15 +274,14 @@ checks.push(() => expect(
 
 checks.push(() => expect(
   cli.includes('runtimeCommandParts: [')
-    && cli.includes('zaloModInstallCmd,')
     && cli.includes('relayInstallCmd,')
     && cli.includes('skillInstallCmd,')
-    && cli.includes('ensure_plugin zalo-mod openclaw-zalo-mod')
     && cli.includes('ensure_skill ${s}')
     && !cli.includes("skillInstallCmd ? skillInstallCmd + ' &&' : ''")
-    && !cli.includes("zaloModInstallCmd ? zaloModInstallCmd + ' &&' : ''")
+    && !cli.includes('zaloModInstallCmd')
+    && !cli.includes('ensure_plugin zalo-mod openclaw-zalo-mod')
     && !cli.includes('const socatBridge ='),
-  'Docker CLI runtime installs must use idempotent ensure_* commands without trailing && or duplicate browser bridge'
+  'Docker CLI runtime installs must not auto-install Zalo mod and must avoid trailing && or duplicate browser bridge'
 ));
 
 checks.push(() => expect(

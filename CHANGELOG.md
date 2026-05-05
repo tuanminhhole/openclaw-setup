@@ -1,6 +1,18 @@
 # Changelog (English)
 
 
+## [5.7.8] — 2026-05-05
+
+### 🧹 Cleanup: Remove Zalo Mod Auto-Install
+
+- **Fix: Remove `zalo-mod` auto-inject from Zalo Personal config** — `plugins.entries['zalo-mod']` is no longer pre-populated by `bot-config-gen.js`, `output.js`, or `native-helpers-gen.js`. The plugin caused persistent installation loops and permission conflicts in Docker. Users should install `openclaw-zalo-mod` manually via ClawHub after setup.
+- **Fix: Remove `zalo-mod` from Docker runtime install commands** — Removed `ensure_plugin zalo-mod openclaw-zalo-mod` from the generated Docker entrypoint `runtimeCommandParts`. The bundled OpenClaw version handles the channel natively.
+- **Fix: Remove `openclaw-zalo-mod` from Docker build allPlugins list** — Prevents the plugin from being baked into the Docker image during `docker build`, which was redundant and caused conflicts.
+- **Chore: Update smoke tests and test-matrix** — Updated assertions to verify `zalo-mod` is NOT auto-injected into generated configs and NOT present in Docker runtime install commands.
+- **Chore: Sync ARCHITECTURE.md** — Documented that `zalo-mod` must be installed manually via ClawHub; `hasZaloMod` in workspace-gen only affects workspace docs, not config generation.
+- **Chore: Add `.agent/workflows/update.md`** — Standardized release workflow document for this repo.
+
+
 ## [5.7.7] — 2026-05-03
 
 ### 🛠️ Infrastructure & Zalo Bot Stabilization

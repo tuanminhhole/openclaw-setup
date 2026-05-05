@@ -33,7 +33,6 @@ function buildNativeScriptCtx(options) {
     const p = PLUGINS.find((x) => x.id === pid);
     if (p) allPlugins.push(p.package);
   });
-  if (ch && ch.hasZaloPersonal) allPlugins.push('openclaw-zalo-mod');
   if (isMultiBot && state.channel === 'telegram') allPlugins.push(relayPluginSpec);
   const uniquePlugins = [...new Set(allPlugins)];
   const pluginCmd = uniquePlugins.length > 0 ? uniquePlugins.map(function(pkg) { return 'call npm exec -- openclaw plugins install ' + pkg + ' || echo [WARN] Plugin ' + pkg + ' cai dat that bai (co the do rate limit). Ban co the cai thu cong sau.'; }).join('\r\n') : '';

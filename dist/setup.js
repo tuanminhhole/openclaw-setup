@@ -1743,21 +1743,9 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
 
     const allow = ['memory-core'];
 
-    // zalo-mod plugin for Zalo Personal
+    // Zalo Personal channel is native; install openclaw-zalo-mod manually via ClawHub when needed.
     if (isZaloPersonal(channelKey)) {
-      allow.push('zalo-mod', 'zalouser');
-      entries['zalo-mod'] = {
-        enabled: true,
-        config: {
-          botName: botName,
-          ownerId: "",
-          groupNames: {},
-          zaloDisplayNames: [botName],
-          welcomeEnabled: true,
-          spamRepeatN: 3,
-          spamWindowSeconds: 300,
-        },
-      };
+      allow.push('zalouser');
     }
 
     const plugins = { entries };
@@ -3019,7 +3007,6 @@ function buildNativeScriptCtx(options) {
     const p = PLUGINS.find((x) => x.id === pid);
     if (p) allPlugins.push(p.package);
   });
-  if (ch && ch.hasZaloPersonal) allPlugins.push('openclaw-zalo-mod');
   if (isMultiBot && state.channel === 'telegram') allPlugins.push(relayPluginSpec);
   const uniquePlugins = [...new Set(allPlugins)];
   const pluginCmd = uniquePlugins.length > 0 ? uniquePlugins.map(function(pkg) { return 'call npm exec -- openclaw plugins install ' + pkg + ' || echo [WARN] Plugin ' + pkg + ' cai dat that bai (co the do rate limit). Ban co the cai thu cong sau.'; }).join('\r\n') : '';
@@ -5855,7 +5842,6 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       };
       clawConfig.plugins = {
         entries: {
-          ...(ch.hasZaloPersonal ? { 'zalo-mod': { enabled: true, config: { botName: botName, ownerId: "", groupNames: {}, zaloDisplayNames: [botName], welcomeEnabled: true, spamRepeatN: 3, spamWindowSeconds: 300 } } } : {}),
           'memory-core': {
             config: { dreaming: { enabled: state.config.skills.includes('memory') } },
           },
@@ -5869,20 +5855,6 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         if (!plugin || plugin.hidden) return;
         pluginEntries[plugin.package || pid] = { enabled: true };
       });
-      if (ch.hasZaloPersonal) {
-        pluginEntries['zalo-mod'] = {
-          enabled: true,
-          config: {
-            botName: botName,
-            ownerId: "",
-            groupNames: {},
-            zaloDisplayNames: [botName],
-            welcomeEnabled: true,
-            spamRepeatN: 3,
-            spamWindowSeconds: 300
-          }
-        };
-      }
       pluginEntries['memory-core'] = {
         config: { dreaming: { enabled: state.config.skills.includes('memory') } },
       };
@@ -5922,7 +5894,6 @@ model:
     // 3. Dockerfile + docker-compose.yml
     const allPlugins = [];
     if (ch.pluginInstall) allPlugins.push(ch.pluginInstall);
-    if (ch.hasZaloPersonal) allPlugins.push('openclaw-zalo-mod');
     state.config.plugins.forEach((pid) => {
       const plug = PLUGINS.find((p) => p.id === pid);
       if (plug) allPlugins.push(plug.package);
@@ -5938,7 +5909,6 @@ model:
     const relayPluginInstallCmd = isMultiBot ? buildRelayPluginInstallCommand('openclaw') : '';
     const pluginRuntimeSpecs = allPlugins.filter((p) => p && p !== '@openclaw/zalouser');
     const pluginIdForSpec = (spec) => {
-      if (String(spec).includes('zalo-mod')) return 'zalo-mod';
       return String(spec).replace(/^@openclaw\//, '').replace(/^openclaw-/, '');
     };
     const pluginInstallCmd = [
