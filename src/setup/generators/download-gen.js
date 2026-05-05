@@ -113,7 +113,8 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
     ps += `Write-Host "  ${isVi ? `   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png` : `   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png`}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma trong file QR' : '4. Open Zalo app > Scan QR > scan the QR image'}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? '5. Doi thay chu Login successful trong terminal' : '5. Wait for Login successful in terminal'}" -ForegroundColor White\n`;
-    ps += `Write-Host "  ${isVi ? '6. Restart container:  docker compose restart' : '6. Restart container:  docker compose restart'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? `6. Restart container:  docker restart ${containerName}` : `6. Restart container:  docker restart ${containerName}`}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? `7. Kiem tra:  docker exec ${containerName} openclaw channels status  (phai thay running)` : `7. Verify:  docker exec ${containerName} openclaw channels status  (should show running)`}" -ForegroundColor White\n`;
     ps += `Write-Host "" -ForegroundColor White\n`;
     ps += `Write-Host "${isVi ? 'Dung gateway de login...' : 'Stopping gateway for login...'}" -ForegroundColor Yellow\\n`;
     ps += `& docker exec ${containerName} openclaw gateway stop 2>$null\\n`;
@@ -121,8 +122,10 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
     ps += `Write-Host "${isVi ? 'Dang chay lenh login...' : 'Running login command...'}" -ForegroundColor Yellow\n`;
     ps += `& docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose\n`;
     ps += `Write-Host "" -ForegroundColor White\n`;
-    ps += `Write-Host "${isVi ? 'Restart container de ap dung...' : 'Restarting container to apply...'}" -ForegroundColor Green\n`;
-    ps += `& docker compose restart\n`;
+    ps += `Write-Host "${isVi ? 'Restart container de nap session Zalo...' : 'Restarting container to reload the Zalo session...'}" -ForegroundColor Green\n`;
+    ps += `& docker restart ${containerName}\n`;
+    ps += `Start-Sleep -Seconds 25\n`;
+    ps += `& docker exec ${containerName} openclaw channels status\n`;
   }
 
   ps += `} catch { Write-Host $_.Exception.Message -ForegroundColor Red }\nRead-Host "${isVi ? 'Nhan Enter de thoat' : 'Press Enter to exit'}"\n`;
@@ -167,9 +170,9 @@ echo ""
     const containerName = 'openclaw-bot';
     const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
     script += `\necho ""\necho "${isVi ? '=== DANG NHAP ZALO ===' : '=== ZALO LOGIN ==='}"\necho "${isVi ? 'Doi container khoi dong 10 giay...' : 'Waiting 10s for container to start...'}"\nsleep 10\n`;
-    script += `echo "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}"\necho "  ${isVi ? '1. cd docker/openclaw' : '1. cd docker/openclaw'}"\necho "  2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose"\necho "  ${isVi ? `3. Tim file QR trong container: ${qrPath}` : `3. Find QR image in container: ${qrPath}`}"\necho "  ${isVi ? `   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png` : `   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png`}"\necho "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma' : '4. Open Zalo app > Scan QR > scan'}"\necho "  ${isVi ? '5. Doi thay Login successful' : '5. Wait for Login successful'}"\necho "  ${isVi ? '6. Restart:  docker compose restart' : '6. Restart:  docker compose restart'}"\necho ""\n`;
+    script += `echo "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}"\necho "  ${isVi ? '1. cd docker/openclaw' : '1. cd docker/openclaw'}"\necho "  2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose"\necho "  ${isVi ? `3. Tim file QR trong container: ${qrPath}` : `3. Find QR image in container: ${qrPath}`}"\necho "  ${isVi ? `   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png` : `   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png`}"\necho "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma' : '4. Open Zalo app > Scan QR > scan'}"\necho "  ${isVi ? '5. Doi thay Login successful' : '5. Wait for Login successful'}"\necho "  ${isVi ? `6. Restart:  docker restart ${containerName}` : `6. Restart:  docker restart ${containerName}`}"\necho "  ${isVi ? `7. Kiem tra: docker exec ${containerName} openclaw channels status (phai thay running)` : `7. Verify: docker exec ${containerName} openclaw channels status (should show running)`}"\necho ""\n`;
     script += `docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose\n`;
-    script += `echo "${isVi ? 'Restart container...' : 'Restarting container...'}"\ndocker compose restart\n`;
+    script += `echo "${isVi ? 'Restart container de nap session Zalo...' : 'Restarting container to reload the Zalo session...'}"\ndocker restart ${containerName}\nsleep 25\ndocker exec ${containerName} openclaw channels status || true\n`;
   }
 
   return script;

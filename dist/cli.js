@@ -618,6 +618,8 @@ function printNativeDashboardAccessInfo({ isVi, providerKey, projectDir, gateway
 function printZaloPersonalLoginInfo({ isVi, deployMode, projectDir }) {
   const nativeCmd = 'openclaw channels login --channel zalouser --verbose';
   const dockerCmd = 'docker exec -it openclaw-bot openclaw channels login --channel zalouser --verbose';
+  const dockerRestartCmd = 'docker restart openclaw-bot';
+  const dockerStatusCmd = 'docker exec openclaw-bot openclaw channels status';
   const cmd = deployMode === 'native' ? nativeCmd : dockerCmd;
   const qrPath = deployMode === 'native'
     ? path.join(os.tmpdir(), 'openclaw', 'openclaw-zalouser-qr-default.png')
@@ -652,8 +654,14 @@ function printZaloPersonalLoginInfo({ isVi, deployMode, projectDir }) {
       ? '   5. Đợi thấy "Login successful" trong terminal'
       : '   5. Wait for "Login successful" in terminal'));
     console.log(chalk.white(isVi
-      ? '   6. docker compose restart'
-      : '   6. docker compose restart'));
+      ? `   6. ${dockerRestartCmd}`
+      : `   6. ${dockerRestartCmd}`));
+    console.log(chalk.white(isVi
+      ? `   7. ${dockerStatusCmd}  # phải thấy: running`
+      : `   7. ${dockerStatusCmd}  # should show: running`));
+    console.log(chalk.gray(isVi
+      ? '      Lý do: Zalo login ghi credentials sau khi gateway đã chạy; restart nạp lại session để tránh trạng thái stopped/not configured.'
+      : '      Why: Zalo login writes credentials after the gateway is already running; restart reloads the session and avoids stopped/not configured.'));
   } else {
     console.log(chalk.white(`   cd ${projectDir} ${process.platform === 'win32' ? ';' : '&&'} ${cmd}`));
     console.log(chalk.gray(isVi

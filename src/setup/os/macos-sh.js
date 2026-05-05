@@ -48,10 +48,12 @@ function generateMacOsSh(ctx) {
       sh.push(`echo "     Hoac chay: docker cp ${containerName}:${qrPath} ./zalo-qr.png"`);
       sh.push('echo "  4. Mo app Zalo > Quet QR > quet ma"');
       sh.push('echo "  5. Doi thay Login successful"');
-      sh.push('echo "  6. Restart: $COMPOSE restart"');
+      sh.push('echo "  6. Script se restart container de nap session Zalo vua tao"');
       sh.push('echo ""');
       sh.push(`docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose || true`);
-      sh.push('$COMPOSE restart');
+      sh.push(`docker restart ${containerName}`);
+      sh.push('sleep 25');
+      sh.push(`docker exec ${containerName} openclaw channels status || true`);
     }
     sh.push('echo "\u2705 Bot dang chay via Docker. Xem log: docker logs -f openclaw-bot"');
     scriptContent = sh.filter(Boolean).join('\n');
