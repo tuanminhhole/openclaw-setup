@@ -189,7 +189,7 @@
       cfg.skills = { entries: skillEntries };
     }
 
-    // ── plugins (memory-core dreaming + zalo-mod) ────────────────────────────
+    // ── plugins (memory-core dreaming + openclaw-zalo-mod) ────────────────────────────
     const pluginsConfig = buildPluginsConfig({
       channelKey,
       selectedSkills,

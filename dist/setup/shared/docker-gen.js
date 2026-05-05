@@ -264,7 +264,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     const runtimeScriptB64 = encodeBase64Utf8(runtimeScript);
     const dockerfile = `FROM node:22-slim
 
-RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git curl python3${browserAptExtra} && rm -rf /var/lib/apt/lists/*
 ${browserInstallLines}
 ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""

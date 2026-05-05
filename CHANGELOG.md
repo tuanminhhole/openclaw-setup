@@ -1,6 +1,13 @@
 # Changelog (English)
 
 
+## [5.7.9] — 2026-05-05
+
+### 🔧 Chore: Rename Zalo Plugin Reference
+
+- **Fix: Rename `zalo-mod` to `openclaw-zalo-mod`** — Updated internal string references in `workspace-gen.js`, `bot-config-gen.js`, and test suites to align with the new NPM package identity of the Zalo plugin (`openclaw-zalo-mod`).
+
+
 ## [5.7.8] — 2026-05-05
 
 ### 🧹 Cleanup: Remove Zalo Mod Auto-Install

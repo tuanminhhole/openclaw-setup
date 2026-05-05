@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.7.8-0EA5E9?style=for-the-badge" alt="Version 5.7.8" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.7.9-0EA5E9?style=for-the-badge" alt="Version 5.7.9" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -24,18 +24,16 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 
 ---
 
-## 🆕 What's new in v5.7.8
+## 🆕 What's new in v5.7.9
+
+- 🔧 **Rename Zalo Plugin Reference** — Updated internal string references from `zalo-mod` to `openclaw-zalo-mod` to align with the new NPM package identity.
+
+<details>
+<summary><b>Previous: What's new in v5.7.8</b></summary>
 
 - 🧹 **Zalo Mod Plugin Cleanup** — Removed auto-injection of `zalo-mod` into generated configs. The plugin now must be installed manually via ClawHub, eliminating persistent installation loops and Docker permission conflicts.
 - 🔧 **Cleaner Docker Build** — `openclaw-zalo-mod` is no longer baked into the Docker image during build or runtime entrypoint, reducing image size and startup errors.
 - 📝 **Standardized Release Workflow** — Added `.agent/workflows/update.md` as the canonical release checklist for this repo.
-
-<details>
-<summary><b>Previous: What's new in v5.7.7</b></summary>
-
-- 🛠️ **Infrastructure & Zalo Bot Stabilization** — Automatically pins `openclaw@2026.4.15` across all deployment scripts, eliminating gateway crashes caused by version mismatch when installing Zalo Personal.
-- 📦 **Docker Volume & Gateway Deadlock Optimization** — Redesigned the `.openclaw` mount mechanism and implemented `tmpfs` for `plugin-runtime-deps`, preventing I/O lock conditions on Windows/WSL2.
-- 🔄 **9Router Smart-Sync** — Automatically detects and syncs models (Gemini, Claude, GPT) from active AI providers directly into the `smart-route` combination every time the system starts up.
 
 ## </details>
 

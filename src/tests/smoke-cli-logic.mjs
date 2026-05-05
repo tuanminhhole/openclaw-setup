@@ -193,8 +193,8 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function printZaloPersonalLoginInfo\(\{ isVi, deployMode, projectDir \}\) \{[\s\S]*docker exec -it openclaw-bot openclaw channels login --channel zalouser --verbose[\s\S]*openclaw-zalouser-qr-default\.png[\s\S]*Copy-Item[\s\S]*docker cp openclaw-bot:\$\{qrPath\} \.\/zalo-qr\.png/s,
-  'CLI must print the dedicated Docker/native Zalo Personal login commands and QR copy path instead of onboarding'
+  /function printZaloPersonalLoginInfo\(\{ isVi, deployMode, projectDir \}\) \{[\s\S]*docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*docker compose stop ai-bot[\s\S]*docker compose up -d --force-recreate ai-bot[\s\S]*docker compose exec ai-bot openclaw channels status --probe[\s\S]*openclaw-zalouser-qr-default\.png[\s\S]*Copy-Item[\s\S]*docker cp openclaw-bot:\$\{qrPath\} \.\/zalo-qr\.png/s,
+  'CLI must print the dedicated Docker/native Zalo Personal one-shot login commands and QR copy path instead of onboarding'
 ));
 
 checks.push(() => expectMatch(
@@ -293,6 +293,14 @@ checks.push(() => expectMatch(
   setup,
   /RUN echo "CACHE_BUST=\$CACHE_BUST" && npm install -g \$OPENCLAW_VER \$\{openClawRuntimePackages\}/,
   'Docker setup.js image must cache-bust and install the full OpenClaw runtime package set alongside openclaw'
+));
+
+checks.push(() => expect(
+  setup.includes('apt-get install -y git curl python3')
+    && setup.includes('openclaw@2026.5.4')
+    && !cli.includes('ensure_plugin ${ZALOUSER_PLUGIN_ID} ${ZALOUSER_PLUGIN_SPEC}')
+    && !setup.includes('@openclaw/zalouser@2026.5.2'),
+  'Docker Zalo Personal flow must use the fixed bundled zalouser from pinned OpenClaw without installing a duplicate override'
 ));
 
 checks.push(() => expect(
@@ -676,8 +684,8 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   setup,
-  /docker exec -it \$\{containerName\} openclaw channels login --channel zalouser --verbose[\s\S]*docker cp \$\{containerName\}:[\s\S]*openclaw-zalouser-qr-default\.png/s,
-  'Wizard must show dedicated Docker Zalo login and QR copy commands'
+  /docker compose stop ai-bot[\s\S]*docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose[\s\S]*docker cp \$\{containerName\}:[\s\S]*openclaw-zalouser-qr-default\.png[\s\S]*docker compose up -d --force-recreate ai-bot[\s\S]*docker compose exec ai-bot openclaw channels status --probe/s,
+  'Wizard must show dedicated Docker Zalo one-shot login, QR copy, recreate, and probe commands'
 ));
 
 checks.push(() => expect(

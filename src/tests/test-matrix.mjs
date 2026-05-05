@@ -354,7 +354,7 @@ section('4. OS script generation via Wizard IIFE');
   assert('linux-sh has openclaw gateway run', setupCode.includes('openclaw gateway run'));
 
   // All OS scripts must NOT have old pinned version
-  assert('scripts have pinned 2026.4.15 version', setupCode.includes('openclaw@2026.4.15'));
+  assert('scripts have pinned 2026.5.4 version', setupCode.includes('openclaw@2026.5.4'));
   assert('no scripts have autoReply', !setupCode.includes("autoReply: true"));
 
   // Verify CLAWEOF pattern exists in SH generators (used for heredoc file writing)

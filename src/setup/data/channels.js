@@ -82,7 +82,7 @@
           historyLimit: 50,
         },
       },
-      pluginInstall: '@openclaw/zalouser',
+      pluginInstall: '',
     },
   };
 

@@ -617,9 +617,11 @@ function printNativeDashboardAccessInfo({ isVi, providerKey, projectDir, gateway
 
 function printZaloPersonalLoginInfo({ isVi, deployMode, projectDir }) {
   const nativeCmd = 'openclaw channels login --channel zalouser --verbose';
-  const dockerCmd = 'docker exec -it openclaw-bot openclaw channels login --channel zalouser --verbose';
-  const dockerRestartCmd = 'docker restart openclaw-bot';
-  const dockerStatusCmd = 'docker exec openclaw-bot openclaw channels status';
+  const dockerCmd = 'docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose';
+  const dockerStopCmd = 'docker compose stop ai-bot';
+  const dockerStartCmd = 'docker compose up -d --force-recreate ai-bot';
+  const dockerStatusCmd = 'docker compose exec ai-bot openclaw channels status --probe';
+  const dockerReloginCmd = 'docker compose run --rm --no-deps ai-bot openclaw channels logout --channel zalouser && docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose';
   const cmd = deployMode === 'native' ? nativeCmd : dockerCmd;
   const qrPath = deployMode === 'native'
     ? path.join(os.tmpdir(), 'openclaw', 'openclaw-zalouser-qr-default.png')
@@ -636,11 +638,14 @@ function printZaloPersonalLoginInfo({ isVi, deployMode, projectDir }) {
       ? `   1. cd ${projectDir}/docker/openclaw`
       : `   1. cd ${projectDir}/docker/openclaw`));
     console.log(chalk.white(isVi
-      ? `   2. ${cmd}`
-      : `   2. ${cmd}`));
+      ? `   2. ${dockerStopCmd}`
+      : `   2. ${dockerStopCmd}`));
     console.log(chalk.white(isVi
-      ? `   3. Tìm file QR trong container: ${qrPath}`
-      : `   3. Find QR image in container: ${qrPath}`));
+      ? `   3. ${cmd}`
+      : `   3. ${cmd}`));
+    console.log(chalk.white(isVi
+      ? `   4. Tìm file QR trong container: ${qrPath}`
+      : `   4. Find QR image in container: ${qrPath}`));
     console.log(chalk.gray(isVi
       ? `      → Mở Docker Desktop > container openclaw-bot > tab Files > tìm file trên`
       : `      → Open Docker Desktop > container openclaw-bot > Files tab > find file above`));
@@ -648,20 +653,20 @@ function printZaloPersonalLoginInfo({ isVi, deployMode, projectDir }) {
       ? `      → Hoặc chạy: ${copyCmd}`
       : `      → Or run: ${copyCmd}`));
     console.log(chalk.white(isVi
-      ? '   4. Mở app Zalo > Quét QR > quét mã trong file QR'
-      : '   4. Open Zalo app > Scan QR > scan the QR image'));
+      ? '   5. Mở app Zalo > Quét QR > quét mã trong file QR'
+      : '   5. Open Zalo app > Scan QR > scan the QR image'));
     console.log(chalk.white(isVi
-      ? '   5. Đợi thấy "Login successful" trong terminal'
-      : '   5. Wait for "Login successful" in terminal'));
+      ? '   6. Đợi thấy "Login successful" trong terminal'
+      : '   6. Wait for "Login successful" in terminal'));
     console.log(chalk.white(isVi
-      ? `   6. ${dockerRestartCmd}`
-      : `   6. ${dockerRestartCmd}`));
+      ? `   7. ${dockerStartCmd}`
+      : `   7. ${dockerStartCmd}`));
     console.log(chalk.white(isVi
-      ? `   7. ${dockerStatusCmd}  # phải thấy: running`
-      : `   7. ${dockerStatusCmd}  # should show: running`));
+      ? `   8. ${dockerStatusCmd}  # phải thấy: running`
+      : `   8. ${dockerStatusCmd}  # should show: running`));
     console.log(chalk.gray(isVi
-      ? '      Lý do: Zalo login ghi credentials sau khi gateway đã chạy; restart nạp lại session để tránh trạng thái stopped/not configured.'
-      : '      Why: Zalo login writes credentials after the gateway is already running; restart reloads the session and avoids stopped/not configured.'));
+      ? `      Nếu probe báo chưa auth: ${dockerReloginCmd}`
+      : `      If the probe says unauthenticated: ${dockerReloginCmd}`));
   } else {
     console.log(chalk.white(`   cd ${projectDir} ${process.platform === 'win32' ? ';' : '&&'} ${cmd}`));
     console.log(chalk.gray(isVi

@@ -388,7 +388,7 @@ model:
       runtimeCommandParts: [
         pluginInstallCmd,
         'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &'
-      ],
+      ].filter(Boolean),
       plainSingleExtraHosts: true,
       multiOllamaNumParallel: 1,
       singleOllamaNumParallel: 1,
@@ -1048,35 +1048,38 @@ fi
   // ========== Zalo Personal Login Guide (post-setup) ==========
   function generateZaloOnboardGuide() {
     const lang = document.getElementById('cfg-language')?.value || 'vi';
-    setOutput('out-zalo-onboard-cmd', `docker exec -it openclaw-bot openclaw channels login --channel zalouser --verbose`);
+    setOutput('out-zalo-onboard-cmd', `docker compose stop ai-bot
+docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose
+docker compose up -d --force-recreate ai-bot
+docker compose exec ai-bot openclaw channels status --probe`);
 
     if (lang === 'vi') {
       setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
 │  Chạy lệnh bên trái để OpenClaw tạo QR đăng nhập.   │
 ├─────────────────────────────────────────────────────┤
 │  1. Đảm bảo container/gateway đã chạy xong.         │
-│  2. Chạy lệnh login để tạo QR cho zalouser.         │
+│  2. Stop ai-bot, login bằng compose run one-shot.   │
 │  3. OpenClaw sẽ in ra đường dẫn file QR trong /tmp. │
 │  4. Copy file QR ra ngoài nếu cần:                  │
 │     docker cp openclaw-bot:/tmp/openclaw/           │
 │       openclaw-zalouser-qr-default.png .            │
 │  5. Mở ảnh QR → quét bằng app Zalo → xác nhận.      │
-│  6. Chạy: docker restart openclaw-bot               │
-│  7. Kiểm tra channels status phải thấy running.      │
+│  6. Start lại: docker compose up -d --force-recreate│
+│  7. Chạy channels status --probe, phải thấy running.│
 └─────────────────────────────────────────────────────┘`);
     } else {
       setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
 │  Run the command on the left to generate a Zalo QR. │
 ├─────────────────────────────────────────────────────┤
 │  1. Make sure the container/gateway is already up.  │
-│  2. Run the login command for zalouser.             │
+│  2. Stop ai-bot; login with compose run one-shot.   │
 │  3. OpenClaw prints the QR image path under /tmp.   │
 │  4. Copy the QR out if needed:                      │
 │     docker cp openclaw-bot:/tmp/openclaw/           │
 │       openclaw-zalouser-qr-default.png .            │
 │  5. Open the image → scan with Zalo mobile app.     │
-│  6. Run: docker restart openclaw-bot                │
-│  7. Check channels status; it should show running.  │
+│  6. Start again: docker compose up -d --force-re... │
+│  7. Run channels status --probe; it should run.     │
 └─────────────────────────────────────────────────────┘`);
     }
   }

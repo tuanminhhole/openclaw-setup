@@ -1,6 +1,13 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.7.9] — 2026-05-05
+
+### 🔧 Cập nhật tên Plugin Zalo
+
+- **Sửa: Đổi tên `zalo-mod` thành `openclaw-zalo-mod`** — Cập nhật các tham chiếu chuỗi nội bộ trong `workspace-gen.js`, `bot-config-gen.js`, và test suites để đồng bộ với định danh package NPM mới của plugin Zalo (`openclaw-zalo-mod`).
+
+
 ## [5.7.8] — 2026-05-05
 
 ### 🧹 Dọn dẹp: Gỡ bỏ Auto-Install Zalo Mod

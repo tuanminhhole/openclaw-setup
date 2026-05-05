@@ -297,7 +297,7 @@
           historyLimit: 50,
         },
       },
-      pluginInstall: '@openclaw/zalouser',
+      pluginInstall: '',
     },
   };
 
@@ -619,7 +619,7 @@
   // â”€â”€ Shared runtime constants, relay helpers, auth profile builders (setup/shared/common-gen.js) 
 // @ts-nocheck
 (function (root) {
-  const OPENCLAW_NPM_SPEC = 'openclaw@2026.4.15';
+  const OPENCLAW_NPM_SPEC = 'openclaw@2026.5.4';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const NINE_ROUTER_PORT = 20128;
@@ -1284,8 +1284,8 @@ const CDP_URL = 'http://127.0.0.1:9222';
 
     const zaloModSection = hasZaloMod
       ? (isVi
-        ? `\n\n## 💬 Zalo Group — Slash Commands (xử lý bởi plugin)\n\nPlugin \`zalo-mod\` tự động xử lý các slash command sau trong group. Bot KHÔNG cần reply cho chúng:\n\n| Command | Mô tả |\n|---------|-------|\n| \`/rules status\` | Xem cấu hình bot |\n| \`/rules silent-on/off\` | Bật/tắt silent mode |\n| \`/rules welcome-on/off\` | Bật/tắt welcome message |\n| \`/rules tracking-on/off\` | Bật/tắt ghi log chat |\n| \`/noi-quy\` | Hiện nội quy group |\n| \`/menu\` | Danh sách lệnh |\n| \`/groupid\` | Scan và cập nhật config |\n| \`/report\` | Báo cáo hoạt động group |\n\n### Zalo Sticker & Media\n- Sticker Zalo gửi dạng JSON → plugin tự convert thành \`[Sticker]\`\n- Ảnh/video/file trong group: zalouser channel chỉ forward text, media bị drop`
-        : `\n\n## 💬 Zalo Group — Slash Commands (handled by plugin)\n\nThe \`zalo-mod\` plugin automatically handles these slash commands in group. Bot does NOT need to reply:\n\n| Command | Description |\n|---------|-------------|\n| \`/rules status\` | View bot config |\n| \`/rules silent-on/off\` | Toggle silent mode |\n| \`/rules welcome-on/off\` | Toggle welcome message |\n| \`/rules tracking-on/off\` | Toggle chat logging |\n| \`/noi-quy\` | Show group rules |\n| \`/menu\` | List commands |\n| \`/groupid\` | Scan and update config |\n| \`/report\` | Group activity report |\n\n### Zalo Sticker & Media\n- Zalo stickers arrive as JSON → plugin auto-converts to \`[Sticker]\`\n- Images/videos/files in groups: zalouser channel only forwards text, media is dropped`)
+        ? `\n\n## 💬 Zalo Group — Slash Commands (xử lý bởi plugin)\n\nPlugin \`openclaw-zalo-mod\` tự động xử lý các slash command sau trong group. Bot KHÔNG cần reply cho chúng:\n\n| Command | Mô tả |\n|---------|-------|\n| \`/rules status\` | Xem cấu hình bot |\n| \`/rules silent-on/off\` | Bật/tắt silent mode |\n| \`/rules welcome-on/off\` | Bật/tắt welcome message |\n| \`/rules tracking-on/off\` | Bật/tắt ghi log chat |\n| \`/noi-quy\` | Hiện nội quy group |\n| \`/menu\` | Danh sách lệnh |\n| \`/groupid\` | Scan và cập nhật config |\n| \`/report\` | Báo cáo hoạt động group |\n\n### Zalo Sticker & Media\n- Sticker Zalo gửi dạng JSON → plugin tự convert thành \`[Sticker]\`\n- Ảnh/video/file trong group: zalouser channel chỉ forward text, media bị drop`
+        : `\n\n## 💬 Zalo Group — Slash Commands (handled by plugin)\n\nThe \`openclaw-zalo-mod\` plugin automatically handles these slash commands in group. Bot does NOT need to reply:\n\n| Command | Description |\n|---------|-------------|\n| \`/rules status\` | View bot config |\n| \`/rules silent-on/off\` | Toggle silent mode |\n| \`/rules welcome-on/off\` | Toggle welcome message |\n| \`/rules tracking-on/off\` | Toggle chat logging |\n| \`/noi-quy\` | Show group rules |\n| \`/menu\` | List commands |\n| \`/groupid\` | Scan and update config |\n| \`/report\` | Group activity report |\n\n### Zalo Sticker & Media\n- Zalo stickers arrive as JSON → plugin auto-converts to \`[Sticker]\`\n- Images/videos/files in groups: zalouser channel only forwards text, media is dropped`)
       : '';
 
     const dmOverride = isVi
@@ -1627,7 +1627,7 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
       cfg.skills = { entries: skillEntries };
     }
 
-    // ── plugins (memory-core dreaming + zalo-mod) ────────────────────────────
+    // ── plugins (memory-core dreaming + openclaw-zalo-mod) ────────────────────────────
     const pluginsConfig = buildPluginsConfig({
       channelKey,
       selectedSkills,
@@ -2734,7 +2734,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     const runtimeScriptB64 = encodeBase64Utf8(runtimeScript);
     const dockerfile = `FROM node:22-slim
 
-RUN apt-get update && apt-get install -y git curl${browserAptExtra} && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git curl python3${browserAptExtra} && rm -rf /var/lib/apt/lists/*
 ${browserInstallLines}
 ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""
@@ -3804,24 +3804,31 @@ New-Item -ItemType Directory -Force -Path "$projectDir" | Out-Null
     ps += `Write-Host "" -ForegroundColor White\n`;
     ps += `Write-Host "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? '1. cd docker\\\\openclaw' : '1. cd docker\\\\openclaw'}" -ForegroundColor White\n`;
-    ps += `Write-Host "  ${isVi ? `2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose` : `2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose`}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '2. docker compose stop ai-bot' : '2. docker compose stop ai-bot'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '3. docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose' : '3. docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose'}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? `3. Mo Docker Desktop > container ${containerName} > tab Files > tim file: ${qrPath}` : `3. Open Docker Desktop > container ${containerName} > Files tab > find: ${qrPath}`}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? `   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png` : `   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png`}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma trong file QR' : '4. Open Zalo app > Scan QR > scan the QR image'}" -ForegroundColor White\n`;
     ps += `Write-Host "  ${isVi ? '5. Doi thay chu Login successful trong terminal' : '5. Wait for Login successful in terminal'}" -ForegroundColor White\n`;
-    ps += `Write-Host "  ${isVi ? `6. Restart container:  docker restart ${containerName}` : `6. Restart container:  docker restart ${containerName}`}" -ForegroundColor White\n`;
-    ps += `Write-Host "  ${isVi ? `7. Kiem tra:  docker exec ${containerName} openclaw channels status  (phai thay running)` : `7. Verify:  docker exec ${containerName} openclaw channels status  (should show running)`}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '6. docker compose up -d --force-recreate ai-bot' : '6. docker compose up -d --force-recreate ai-bot'}" -ForegroundColor White\n`;
+    ps += `Write-Host "  ${isVi ? '7. Kiem tra:  docker compose exec ai-bot openclaw channels status --probe  (phai thay running)' : '7. Verify:  docker compose exec ai-bot openclaw channels status --probe  (should show running)'}" -ForegroundColor White\n`;
     ps += `Write-Host "" -ForegroundColor White\n`;
-    ps += `Write-Host "${isVi ? 'Dung gateway de login...' : 'Stopping gateway for login...'}" -ForegroundColor Yellow\\n`;
-    ps += `& docker exec ${containerName} openclaw gateway stop 2>$null\\n`;
-    ps += `Start-Sleep -Seconds 3\\n`;
+    ps += `Write-Host "${isVi ? 'Dung app container de login one-shot...' : 'Stopping the app container for one-shot login...'}" -ForegroundColor Yellow\\n`;
+    ps += `& docker compose stop ai-bot\\n`;
     ps += `Write-Host "${isVi ? 'Dang chay lenh login...' : 'Running login command...'}" -ForegroundColor Yellow\n`;
-    ps += `& docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose\n`;
+    ps += `& docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose\n`;
     ps += `Write-Host "" -ForegroundColor White\n`;
-    ps += `Write-Host "${isVi ? 'Restart container de nap session Zalo...' : 'Restarting container to reload the Zalo session...'}" -ForegroundColor Green\n`;
-    ps += `& docker restart ${containerName}\n`;
-    ps += `Start-Sleep -Seconds 25\n`;
-    ps += `& docker exec ${containerName} openclaw channels status\n`;
+    ps += `Write-Host "${isVi ? 'Recreate app container de nap session Zalo...' : 'Recreating the app container to load the Zalo session...'}" -ForegroundColor Green\n`;
+    ps += `& docker compose up -d --force-recreate ai-bot\n`;
+    ps += `Start-Sleep -Seconds 30\n`;
+    ps += `$statusOut = (& docker compose exec ai-bot openclaw channels status --probe) -join "\n"\n`;
+    ps += `Write-Host $statusOut\n`;
+    ps += `if ($statusOut -notmatch 'running') {\n`;
+    ps += `  Write-Host "${isVi ? 'Channel chua running, recreate container ai-bot...' : 'Channel is not running; recreating ai-bot container...'}" -ForegroundColor Yellow\n`;
+    ps += `  & docker compose up -d --force-recreate ai-bot\n`;
+    ps += `  Start-Sleep -Seconds 30\n`;
+    ps += `  & docker compose exec ai-bot openclaw channels status --probe\n`;
+    ps += `}\n`;
   }
 
   ps += `} catch { Write-Host $_.Exception.Message -ForegroundColor Red }\nRead-Host "${isVi ? 'Nhan Enter de thoat' : 'Press Enter to exit'}"\n`;
@@ -3866,9 +3873,10 @@ echo ""
     const containerName = 'openclaw-bot';
     const qrPath = '/tmp/openclaw/openclaw-zalouser-qr-default.png';
     script += `\necho ""\necho "${isVi ? '=== DANG NHAP ZALO ===' : '=== ZALO LOGIN ==='}"\necho "${isVi ? 'Doi container khoi dong 10 giay...' : 'Waiting 10s for container to start...'}"\nsleep 10\n`;
-    script += `echo "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}"\necho "  ${isVi ? '1. cd docker/openclaw' : '1. cd docker/openclaw'}"\necho "  2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose"\necho "  ${isVi ? `3. Tim file QR trong container: ${qrPath}` : `3. Find QR image in container: ${qrPath}`}"\necho "  ${isVi ? `   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png` : `   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png`}"\necho "  ${isVi ? '4. Mo app Zalo > Quet QR > quet ma' : '4. Open Zalo app > Scan QR > scan'}"\necho "  ${isVi ? '5. Doi thay Login successful' : '5. Wait for Login successful'}"\necho "  ${isVi ? `6. Restart:  docker restart ${containerName}` : `6. Restart:  docker restart ${containerName}`}"\necho "  ${isVi ? `7. Kiem tra: docker exec ${containerName} openclaw channels status (phai thay running)` : `7. Verify: docker exec ${containerName} openclaw channels status (should show running)`}"\necho ""\n`;
-    script += `docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose\n`;
-    script += `echo "${isVi ? 'Restart container de nap session Zalo...' : 'Restarting container to reload the Zalo session...'}"\ndocker restart ${containerName}\nsleep 25\ndocker exec ${containerName} openclaw channels status || true\n`;
+    script += `echo "${isVi ? 'Huong dan dang nhap Zalo:' : 'Zalo login instructions:'}"\necho "  ${isVi ? '1. cd docker/openclaw' : '1. cd docker/openclaw'}"\necho "  ${isVi ? '2. docker compose stop ai-bot' : '2. docker compose stop ai-bot'}"\necho "  3. docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose"\necho "  ${isVi ? `4. Tim file QR trong container: ${qrPath}` : `4. Find QR image in container: ${qrPath}`}"\necho "  ${isVi ? `   Hoac chay:  docker cp ${containerName}:${qrPath} ./zalo-qr.png` : `   Or run:  docker cp ${containerName}:${qrPath} ./zalo-qr.png`}"\necho "  ${isVi ? '5. Mo app Zalo > Quet QR > quet ma' : '5. Open Zalo app > Scan QR > scan'}"\necho "  ${isVi ? '6. Doi thay Login successful' : '6. Wait for Login successful'}"\necho "  ${isVi ? '7. Start lai: docker compose up -d --force-recreate ai-bot' : '7. Start again: docker compose up -d --force-recreate ai-bot'}"\necho "  ${isVi ? '8. Kiem tra: docker compose exec ai-bot openclaw channels status --probe (phai thay running)' : '8. Verify: docker compose exec ai-bot openclaw channels status --probe (should show running)'}"\necho ""\n`;
+    script += `docker compose stop ai-bot\n`;
+    script += `docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose\n`;
+    script += `echo "${isVi ? 'Recreate container de nap session Zalo...' : 'Recreating container to load the Zalo session...'}"\ndocker compose up -d --force-recreate ai-bot\nsleep 30\nSTATUS="$(docker compose exec ai-bot openclaw channels status --probe || true)"\necho "$STATUS"\nif ! printf '%s' "$STATUS" | grep -q running; then\n  echo "${isVi ? 'Channel van chua running. Hay logout/login lai bang compose run one-shot.' : 'Channel is still not running. Re-run logout/login with compose run one-shot.'}"\nfi\n`;
   }
 
   return script;
@@ -4128,22 +4136,29 @@ function generateMacOsSh(ctx) {
       sh.push('echo "=== DANG NHAP ZALO ==="');
       sh.push('echo "Doi container khoi dong 10 giay..."');
       sh.push('sleep 10');
-      sh.push('echo "Dung gateway de login..."');
-      sh.push(`docker exec ${containerName} openclaw gateway stop 2>/dev/null || true`);
-      sh.push('sleep 3');
+      sh.push('echo "Dung app container de login one-shot..."');
+      sh.push('$COMPOSE stop ai-bot');
       sh.push('echo "Huong dan dang nhap Zalo:"');
       sh.push(`echo "  1. cd docker/openclaw"`);
-      sh.push(`echo "  2. docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose"`);
-      sh.push(`echo "  3. Tim file QR trong container: ${qrPath}"`);
+      sh.push(`echo "  2. docker compose stop ai-bot"`);
+      sh.push(`echo "  3. docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose"`);
+      sh.push(`echo "  4. Tim file QR trong container: ${qrPath}"`);
       sh.push(`echo "     Hoac chay: docker cp ${containerName}:${qrPath} ./zalo-qr.png"`);
-      sh.push('echo "  4. Mo app Zalo > Quet QR > quet ma"');
-      sh.push('echo "  5. Doi thay Login successful"');
-      sh.push('echo "  6. Script se restart container de nap session Zalo vua tao"');
+      sh.push('echo "  5. Mo app Zalo > Quet QR > quet ma"');
+      sh.push('echo "  6. Doi thay Login successful"');
+      sh.push('echo "  7. Script se recreate container de nap session Zalo vua tao"');
       sh.push('echo ""');
-      sh.push(`docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose || true`);
-      sh.push(`docker restart ${containerName}`);
-      sh.push('sleep 25');
-      sh.push(`docker exec ${containerName} openclaw channels status || true`);
+      sh.push(`$COMPOSE run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose || true`);
+      sh.push(`$COMPOSE up -d --force-recreate ai-bot`);
+      sh.push('sleep 30');
+      sh.push(`STATUS="$($COMPOSE exec ai-bot openclaw channels status --probe || true)"`);
+      sh.push('echo "$STATUS"');
+      sh.push('if ! printf "%s" "$STATUS" | grep -q running; then');
+      sh.push('  echo "Channel chua running, recreate container ai-bot..."');
+      sh.push('  $COMPOSE up -d --force-recreate ai-bot');
+      sh.push('  sleep 30');
+      sh.push(`  $COMPOSE exec ai-bot openclaw channels status --probe || true`);
+      sh.push('fi');
     }
     sh.push('echo "\u2705 Bot dang chay via Docker. Xem log: docker logs -f openclaw-bot"');
     scriptContent = sh.filter(Boolean).join('\n');
@@ -5935,7 +5950,7 @@ model:
       runtimeCommandParts: [
         pluginInstallCmd,
         'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &'
-      ],
+      ].filter(Boolean),
       plainSingleExtraHosts: true,
       multiOllamaNumParallel: 1,
       singleOllamaNumParallel: 1,
@@ -6595,35 +6610,38 @@ fi
   // ========== Zalo Personal Login Guide (post-setup) ==========
   function generateZaloOnboardGuide() {
     const lang = document.getElementById('cfg-language')?.value || 'vi';
-    setOutput('out-zalo-onboard-cmd', `docker exec -it openclaw-bot openclaw channels login --channel zalouser --verbose`);
+    setOutput('out-zalo-onboard-cmd', `docker compose stop ai-bot
+docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose
+docker compose up -d --force-recreate ai-bot
+docker compose exec ai-bot openclaw channels status --probe`);
 
     if (lang === 'vi') {
       setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
 │  Chạy lệnh bên trái để OpenClaw tạo QR đăng nhập.   │
 ├─────────────────────────────────────────────────────┤
 │  1. Đảm bảo container/gateway đã chạy xong.         │
-│  2. Chạy lệnh login để tạo QR cho zalouser.         │
+│  2. Stop ai-bot, login bằng compose run one-shot.   │
 │  3. OpenClaw sẽ in ra đường dẫn file QR trong /tmp. │
 │  4. Copy file QR ra ngoài nếu cần:                  │
 │     docker cp openclaw-bot:/tmp/openclaw/           │
 │       openclaw-zalouser-qr-default.png .            │
 │  5. Mở ảnh QR → quét bằng app Zalo → xác nhận.      │
-│  6. Chạy: docker restart openclaw-bot               │
-│  7. Kiểm tra channels status phải thấy running.      │
+│  6. Start lại: docker compose up -d --force-recreate│
+│  7. Chạy channels status --probe, phải thấy running.│
 └─────────────────────────────────────────────────────┘`);
     } else {
       setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
 │  Run the command on the left to generate a Zalo QR. │
 ├─────────────────────────────────────────────────────┤
 │  1. Make sure the container/gateway is already up.  │
-│  2. Run the login command for zalouser.             │
+│  2. Stop ai-bot; login with compose run one-shot.   │
 │  3. OpenClaw prints the QR image path under /tmp.   │
 │  4. Copy the QR out if needed:                      │
 │     docker cp openclaw-bot:/tmp/openclaw/           │
 │       openclaw-zalouser-qr-default.png .            │
 │  5. Open the image → scan with Zalo mobile app.     │
-│  6. Run: docker restart openclaw-bot                │
-│  7. Check channels status; it should show running.  │
+│  6. Start again: docker compose up -d --force-re... │
+│  7. Run channels status --probe; it should run.     │
 └─────────────────────────────────────────────────────┘`);
     }
   }
