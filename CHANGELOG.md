@@ -1,6 +1,15 @@
 # Changelog (English)
 
 
+## [5.7.10] — 2026-05-06
+
+### 🚀 Features & Documentation Updates
+
+- **Browser Automation v2**: Replaced legacy browser documentation with the updated `BROWSER.md` covering the full suite of v2 Chrome CDP commands (`get_posts`, `screenshot_full`, `pdf`, etc.).
+- **Agent Workspace Standardization**: Updated `AGENTS.md` generator to correctly reference all generated `.md` files (`BROWSER.md`, `BOOT.md`, `SOUL.md`, `DREAMS.md`, `HEARTBEAT.md`, `USER.md`).
+- **Tools Guide Cleanup**: Removed obsolete Zalo Group Slash Commands section from `TOOLS.md` generation as it is no longer necessary.
+
+
 ## [5.7.9] — 2026-05-05
 
 ### 🔧 Chore: Rename Zalo Plugin Reference

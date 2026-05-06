@@ -249,19 +249,47 @@ const CDP_URL = 'http://127.0.0.1:9222';
 
   function buildBrowserDoc(options = {}) {
     const { isVi = true, variant = 'wizard', workspaceRoot = '' } = options;
-    // Normalize: strip trailing slash so path joins work cleanly
     const wsRoot = workspaceRoot.replace(/\/+$/, '');
     const btPath = wsRoot ? `${wsRoot}/browser-tool.js` : 'browser-tool.js';
 
-    if (variant === 'cli-desktop') {
-      return `# Browser Automation (Desktop Mode)\n\nBot controls your actual Chrome on screen through Chrome Debug at \`http://127.0.0.1:9222\`. Every action is visible.\n\n## Usage (v2)\n\`\`\`bash\n# Navigation\nnode ${btPath} status\nnode ${btPath} open "https://google.com"\nnode ${btPath} get_url\n\n# Content extraction\nnode ${btPath} get_text\nnode ${btPath} get_text 8000      # custom max length\nnode ${btPath} get_links           # all links\nnode ${btPath} get_links "/posts/" # filtered\nnode ${btPath} get_posts           # Facebook group posts w/ permalinks\nnode ${btPath} evaluate "document.title"\nnode ${btPath} console\n\n# Screenshots & export\nnode ${btPath} screenshot\nnode ${btPath} screenshot_full\nnode ${btPath} pdf\n\n# Interactions\nnode ${btPath} click "button.submit"\nnode ${btPath} fill "input[name='q']" "search"\nnode ${btPath} press "Enter"\nnode ${btPath} hover "a.link"\nnode ${btPath} select "select#country" "VN"\nnode ${btPath} upload "input[type=file]" "/tmp/photo.jpg"\n\n# Scrolling & viewport\nnode ${btPath} scroll\nnode ${btPath} scroll 1500\nnode ${btPath} wait 3000\nnode ${btPath} resize 1920 1080\n\n# Tab management\nnode ${btPath} tabs\nnode ${btPath} new_tab "https://example.com"\nnode ${btPath} switch_tab 1\nnode ${btPath} close_tab 2\n\`\`\`\n\n## MANDATORY RULES\n- NEVER refuse to open the browser when user asks.\n- In Desktop mode, always target the \`host-chrome\` / Chrome Debug session first.\n- If Chrome Debug is unreachable or returns \`ECONNREFUSED\`, tell user to run \`start-chrome-debug.bat\` again.\n- Use \`get_posts\` instead of \`get_text\` when scraping Facebook — it extracts permalinks.\n`;
-    }
-    if (variant === 'cli-server') {
-      return `# Browser Automation (Headless Server Mode)\n\nBot uses a headless Chromium instance running inside the Docker container. No GUI needed!\n\n## Notes\n- Running on Ubuntu Server / VPS (no GUI required)\n- Uses Playwright + Headless Chromium installed inside Docker\n- For Cloudflare bypass, switch to Desktop mode (requires Windows/Mac with Chrome)\n`;
-    }
-    return isVi
-      ? `# Browser Automation\n\nDùng file \`browser-tool.js\` để điều khiển Chrome debug tại \`http://127.0.0.1:9222\`.\nScript: \`${btPath}\`\nPhiên bản v2 hỗ trợ: open, get_text, get_links, get_posts, evaluate, screenshot, pdf, click, fill, press, hover, select, upload, scroll, tabs, và nhiều lệnh khác.`
-      : `# Browser Automation\n\nUse \`browser-tool.js\` to control Chrome debug on \`http://127.0.0.1:9222\`.\nScript: \`${btPath}\`\nVersion v2 supports: open, get_text, get_links, get_posts, evaluate, screenshot, pdf, click, fill, press, hover, select, upload, scroll, tabs, and more.`;
+    return `# Navigation
+node ${btPath} status
+node ${btPath} open "https://google.com"
+node ${btPath} get_url
+
+# ⭐ Content extraction — LUÔN dùng get_posts cho Facebook
+node ${btPath} get_posts
+node ${btPath} get_text
+node ${btPath} get_text 8000
+node ${btPath} get_links
+node ${btPath} get_links "/posts/"
+node ${btPath} evaluate "document.title"
+node ${btPath} console
+
+# Screenshots & export
+node ${btPath} screenshot
+node ${btPath} screenshot_full
+node ${btPath} pdf
+
+# Interactions
+node ${btPath} click "button.submit"
+node ${btPath} fill "input[name='q']" "search"
+node ${btPath} press "Enter"
+node ${btPath} hover "a.link"
+node ${btPath} select "select#id" "value"
+node ${btPath} upload "input[type=file]" "/tmp/photo.jpg"
+
+# Scrolling & viewport
+node ${btPath} scroll
+node ${btPath} scroll 1500
+node ${btPath} wait 3000
+node ${btPath} resize 1920 1080
+
+# Tab management
+node ${btPath} tabs
+node ${btPath} new_tab "https://example.com"
+node ${btPath} switch_tab 1
+node ${btPath} close_tab 2`;
   }
 
   function buildSecurityRules(isVi = true) {
@@ -299,14 +327,14 @@ const CDP_URL = 'http://127.0.0.1:9222';
         ? '- If metadata does not clearly say this is a group/supergroup, treat it as a private DM and reply normally.\n'
         : '';
       return isVi
-        ? `# Hướng dẫn vận hành\n\n## Vai trò\nBạn là **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'trợ lý AI'}.\n\n## Quy tắc trả lời\n- Trả lời ngắn gọn, súc tích\n- Ưu tiên tiếng Việt\n- Khi hỏi tên: _\"Mình là ${botName}\"_\n- Không bịa thông tin\n- Bạn ĐÃ biết sẵn danh tính, vai trò, tính cách của mình từ **IDENTITY.md**, **SOUL.md**, **AGENTS.md**\n- KHÔNG hỏi user đặt lại tên, vibe, persona, emoji ký tên, hay \"bạn muốn mình là kiểu trợ lý nào\"\n- KHÔNG tự giới thiệu kiểu \"mới tỉnh dậy\", \"vừa online\", \"đang chọn danh tính\" hoặc onboarding tương tự\n- Nếu user chỉ nhắn ngắn như \"alo\", hãy chào ngắn gọn và trả lời đúng vai trò hiện tại của bạn\n\n## Khi nào nên trả lời\n${directMessageRuleVi}- Trong group, coi user đang gọi bạn nếu tin nhắn có một trong các alias: ${aliasStr}.\n- Nếu user tag username Telegram của bạn thì luôn trả lời.\n- Nếu group message đang gọi rõ bot khác ${relayTargetNames} thì không cướp lời.\n- Quy tắc im lặng khi không ai được gọi chỉ áp dụng cho group chat, không áp dụng cho DM/chat riêng.\n\n## Tài liệu tham chiếu\n- \uD83D\uDCCB **TOOLS.md** — Danh sách skill/tool đã cài và cách sử dụng\n- \uD83E\uDD1D **TEAMS.md** — Quy tắc phối hợp team, handoff protocol, và anti-pattern\n- \uD83D\uDCAD **MEMORY.md** — Bộ nhớ dài hạn\n- \uD83C\uDFAD **IDENTITY.md** — Danh tính và tính cách${security}`
-        : `# Operating Manual\n\n## Role\nYou are **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'an AI assistant'}.\n\n## Reply Rules\n- Reply concisely\n- Prefer English\n- When asked your name: _\"I'm ${botName}\"_\n- Do not fabricate information\n- You ALREADY know your identity, role, and personality from **IDENTITY.md**, **SOUL.md**, and **AGENTS.md**\n- DO NOT ask the user to redefine your name, vibe, persona, signature emoji, or \"what kind of assistant\" you should be\n- DO NOT act like you just woke up, just came online, or are still choosing your identity\n- If the user sends a short opener like \"hi\" or \"alo\", reply briefly and stay in-character\n\n## When To Reply\n${directMessageRuleEn}- In groups, treat the message as addressed to you when it includes one of your aliases: ${aliasStr}.\n- Always reply when your Telegram username is tagged.\n- If a group message is clearly calling another bot such as ${relayTargetNames}, do not hijack it.\n- The stay-silent rule for unaddressed messages applies only to group chats, never to DMs/private chats.\n\n## Reference Docs\n- \uD83D\uDCCB **TOOLS.md** — Installed skills/tools and usage guide\n- \uD83E\uDD1D **TEAMS.md** — Team coordination rules, handoff protocol, and anti-patterns\n- \uD83D\uDCAD **MEMORY.md** — Long-term memory\n- \uD83C\uDFAD **IDENTITY.md** — Identity and personality${security}`;
+        ? `# Hướng dẫn vận hành\n\n## Vai trò\nBạn là **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'trợ lý AI'}.\n\n## Quy tắc trả lời\n- Trả lời ngắn gọn, súc tích\n- Ưu tiên tiếng Việt\n- Khi hỏi tên: _\"Mình là ${botName}\"_\n- Không bịa thông tin\n- Bạn ĐÃ biết sẵn danh tính, vai trò, tính cách của mình từ **IDENTITY.md**, **SOUL.md**, **AGENTS.md**\n- KHÔNG hỏi user đặt lại tên, vibe, persona, emoji ký tên, hay \"bạn muốn mình là kiểu trợ lý nào\"\n- KHÔNG tự giới thiệu kiểu \"mới tỉnh dậy\", \"vừa online\", \"đang chọn danh tính\" hoặc onboarding tương tự\n- Nếu user chỉ nhắn ngắn như \"alo\", hãy chào ngắn gọn và trả lời đúng vai trò hiện tại của bạn\n\n## Khi nào nên trả lời\n${directMessageRuleVi}- Trong group, coi user đang gọi bạn nếu tin nhắn có một trong các alias: ${aliasStr}.\n- Nếu user tag username Telegram của bạn thì luôn trả lời.\n- Nếu group message đang gọi rõ bot khác ${relayTargetNames} thì không cướp lời.\n- Quy tắc im lặng khi không ai được gọi chỉ áp dụng cho group chat, không áp dụng cho DM/chat riêng.\n\n## Tài liệu tham chiếu\n- 📋 **TOOLS.md** — Danh sách skill/tool đã cài và cách sử dụng\n- 🤝 **TEAMS.md** — Quy tắc phối hợp team, handoff protocol, và anti-pattern\n- 💭 **MEMORY.md** — Bộ nhớ dài hạn\n- 🎭 **IDENTITY.md** — Danh tính và tính cách\n- 🌍 **BROWSER.md** — Hướng dẫn sử dụng Browser Automation\n- 🚀 **BOOT.md** — Hướng dẫn khởi động và thiết lập\n- 🧠 **SOUL.md** — Định hướng phát triển và giá trị cốt lõi\n- ✨ **DREAMS.md** — Mục tiêu dài hạn và ý tưởng\n- 💓 **HEARTBEAT.md** — Nhịp độ hoạt động và cron jobs\n- 👤 **USER.md** — Thông tin và bối cảnh về User\n- 🤖 **AGENTS.md** — Vai trò và quy tắc chung (file này)${security}`
+        : `# Operating Manual\n\n## Role\nYou are **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'an AI assistant'}.\n\n## Reply Rules\n- Reply concisely\n- Prefer English\n- When asked your name: _\"I'm ${botName}\"_\n- Do not fabricate information\n- You ALREADY know your identity, role, and personality from **IDENTITY.md**, **SOUL.md**, and **AGENTS.md**\n- DO NOT ask the user to redefine your name, vibe, persona, signature emoji, or \"what kind of assistant\" you should be\n- DO NOT act like you just woke up, just came online, or are still choosing your identity\n- If the user sends a short opener like \"hi\" or \"alo\", reply briefly and stay in-character\n\n## When To Reply\n${directMessageRuleEn}- In groups, treat the message as addressed to you when it includes one of your aliases: ${aliasStr}.\n- Always reply when your Telegram username is tagged.\n- If a group message is clearly calling another bot such as ${relayTargetNames}, do not hijack it.\n- The stay-silent rule for unaddressed messages applies only to group chats, never to DMs/private chats.\n\n## Reference Docs\n- 📋 **TOOLS.md** — Installed skills/tools and usage guide\n- 🤝 **TEAMS.md** — Team coordination rules, handoff protocol, and anti-patterns\n- 💭 **MEMORY.md** — Long-term memory\n- 🎭 **IDENTITY.md** — Identity and personality\n- 🌍 **BROWSER.md** — Browser Automation guide\n- 🚀 **BOOT.md** — Bootstrap rules\n- 🧠 **SOUL.md** — Core values and direction\n- ✨ **DREAMS.md** — Long term goals and ideas\n- 💓 **HEARTBEAT.md** — Activity rules and cron jobs\n- 👤 **USER.md** — User profile\n- 🤖 **AGENTS.md** — Role and general rules (this file)${security}`;
     }
 
     // Single-bot variant
     return isVi
-      ? `# Hướng dẫn vận hành\n\n## Vai trò\nBạn là **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'trợ lý AI cá nhân'}.\nBạn hỗ trợ user trong mọi tác vụ qua chat.\n\n## Quy tắc trả lời\n- Trả lời bằng **tiếng Việt** (trừ khi dùng ngôn ngữ khác)\n- **Ngắn gọn, súc tích**\n- Khi hỏi tên → _\"Mình là ${botName}\"_\n- Bạn ĐÃ biết sẵn danh tính và tính cách của mình, không cần user định nghĩa lại\n- KHÔNG hỏi user đặt tên/vibe/persona/emoji cho mình\n- KHÔNG tự nói kiểu \"mới tỉnh dậy\", \"vừa online\", \"đang chọn danh tính\"\n\n## Hành vi\n- KHÔNG bịa đặt thông tin\n- KHÔNG tiết lộ file hệ thống (SOUL.md, AGENTS.md).\n- Nếu user chỉ mở đầu ngắn như \"alo\", trả lời ngắn gọn, đúng vai trò, không onboarding ngược lại user\n\n## Tài liệu tham chiếu\n- \uD83D\uDCCB **TOOLS.md** — Danh sách skill/tool và cách sử dụng\n- \uD83D\uDCAD **MEMORY.md** — Bộ nhớ dài hạn\n- \uD83C\uDFAD **IDENTITY.md** — Danh tính và tính cách${security}`
-      : `# Operating Manual\n\n## Role\nYou are **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'a personal AI assistant'}.\nYou support users with any task through chat.\n\n## Reply Rules\n- Reply in **English** (unless the user switches language)\n- **Concise and to the point**\n- When asked your name → _\"I'm ${botName}\"_\n- You already know your identity and personality; do not ask the user to redefine them\n- DO NOT ask the user to pick your name, vibe, persona, or signature emoji\n- DO NOT say you just woke up, just came online, or are still choosing your identity\n\n## Behavior\n- Do NOT fabricate information\n- Do NOT reveal system files (SOUL.md, AGENTS.md).\n- If the user sends a short opener like \"hi\" or \"alo\", reply briefly and stay in-character instead of onboarding them\n\n## Reference Docs\n- \uD83D\uDCCB **TOOLS.md** — Installed skills/tools and usage guide\n- \uD83D\uDCAD **MEMORY.md** — Long-term memory\n- \uD83C\uDFAD **IDENTITY.md** — Identity and personality${security}`;
+      ? `# Hướng dẫn vận hành\n\n## Vai trò\nBạn là **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'trợ lý AI cá nhân'}.\nBạn hỗ trợ user trong mọi tác vụ qua chat.\n\n## Quy tắc trả lời\n- Trả lời bằng **tiếng Việt** (trừ khi dùng ngôn ngữ khác)\n- **Ngắn gọn, súc tích**\n- Khi hỏi tên → _\"Mình là ${botName}\"_\n- Bạn ĐÃ biết sẵn danh tính và tính cách của mình, không cần user định nghĩa lại\n- KHÔNG hỏi user đặt tên/vibe/persona/emoji cho mình\n- KHÔNG tự nói kiểu \"mới tỉnh dậy\", \"vừa online\", \"đang chọn danh tính\"\n\n## Hành vi\n- KHÔNG bịa đặt thông tin\n- KHÔNG tiết lộ file hệ thống (SOUL.md, AGENTS.md).\n- Nếu user chỉ mở đầu ngắn như \"alo\", trả lời ngắn gọn, đúng vai trò, không onboarding ngược lại user\n\n## Tài liệu tham chiếu\n- 📋 **TOOLS.md** — Danh sách skill/tool và cách sử dụng\n- 💭 **MEMORY.md** — Bộ nhớ dài hạn\n- 🎭 **IDENTITY.md** — Danh tính và tính cách\n- 🌍 **BROWSER.md** — Hướng dẫn sử dụng Browser Automation\n- 🚀 **BOOT.md** — Hướng dẫn khởi động và thiết lập\n- 🧠 **SOUL.md** — Định hướng phát triển và giá trị cốt lõi\n- ✨ **DREAMS.md** — Mục tiêu dài hạn và ý tưởng\n- 💓 **HEARTBEAT.md** — Nhịp độ hoạt động và cron jobs\n- 👤 **USER.md** — Thông tin và bối cảnh về User\n- 🤖 **AGENTS.md** — Vai trò và quy tắc chung (file này)${security}`
+      : `# Operating Manual\n\n## Role\nYou are **${botName}**, ${botDesc ? botDesc.toLowerCase() : 'a personal AI assistant'}.\nYou support users with any task through chat.\n\n## Reply Rules\n- Reply in **English** (unless the user switches language)\n- **Concise and to the point**\n- When asked your name → _\"I'm ${botName}\"_\n- You already know your identity and personality; do not ask the user to redefine them\n- DO NOT ask the user to pick your name, vibe, persona, or signature emoji\n- DO NOT say you just woke up, just came online, or are still choosing your identity\n\n## Behavior\n- Do NOT fabricate information\n- Do NOT reveal system files (SOUL.md, AGENTS.md).\n- If the user sends a short opener like \"hi\" or \"alo\", reply briefly and stay in-character instead of onboarding them\n\n## Reference Docs\n- 📋 **TOOLS.md** — Installed skills/tools and usage guide\n- 💭 **MEMORY.md** — Long-term memory\n- 🎭 **IDENTITY.md** — Identity and personality\n- 🌍 **BROWSER.md** — Browser Automation guide\n- 🚀 **BOOT.md** — Bootstrap rules\n- 🧠 **SOUL.md** — Core values and direction\n- ✨ **DREAMS.md** — Long term goals and ideas\n- 💓 **HEARTBEAT.md** — Activity rules and cron jobs\n- 👤 **USER.md** — User profile\n- 🤖 **AGENTS.md** — Role and general rules (this file)${security}`;
   }
 
   function buildToolsDoc(options = {}) {
@@ -346,11 +374,7 @@ const CDP_URL = 'http://127.0.0.1:9222';
         : `\n\n## \u23F0 Cron / Scheduled Tasks\n- OpenClaw natively supports system tools for Cron Jobs.\n- When the user asks to schedule tasks or reminders, use the built-in tools automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.\n- When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.\n- Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`)
       : '';
 
-    const zaloModSection = hasZaloMod
-      ? (isVi
-        ? `\n\n## 💬 Zalo Group — Slash Commands (xử lý bởi plugin)\n\nPlugin \`openclaw-zalo-mod\` tự động xử lý các slash command sau trong group. Bot KHÔNG cần reply cho chúng:\n\n| Command | Mô tả |\n|---------|-------|\n| \`/rules status\` | Xem cấu hình bot |\n| \`/rules silent-on/off\` | Bật/tắt silent mode |\n| \`/rules welcome-on/off\` | Bật/tắt welcome message |\n| \`/rules tracking-on/off\` | Bật/tắt ghi log chat |\n| \`/noi-quy\` | Hiện nội quy group |\n| \`/menu\` | Danh sách lệnh |\n| \`/groupid\` | Scan và cập nhật config |\n| \`/report\` | Báo cáo hoạt động group |\n\n### Zalo Sticker & Media\n- Sticker Zalo gửi dạng JSON → plugin tự convert thành \`[Sticker]\`\n- Ảnh/video/file trong group: zalouser channel chỉ forward text, media bị drop`
-        : `\n\n## 💬 Zalo Group — Slash Commands (handled by plugin)\n\nThe \`openclaw-zalo-mod\` plugin automatically handles these slash commands in group. Bot does NOT need to reply:\n\n| Command | Description |\n|---------|-------------|\n| \`/rules status\` | View bot config |\n| \`/rules silent-on/off\` | Toggle silent mode |\n| \`/rules welcome-on/off\` | Toggle welcome message |\n| \`/rules tracking-on/off\` | Toggle chat logging |\n| \`/noi-quy\` | Show group rules |\n| \`/menu\` | List commands |\n| \`/groupid\` | Scan and update config |\n| \`/report\` | Group activity report |\n\n### Zalo Sticker & Media\n- Zalo stickers arrive as JSON → plugin auto-converts to \`[Sticker]\`\n- Images/videos/files in groups: zalouser channel only forwards text, media is dropped`)
-      : '';
+    const zaloModSection = '';
 
     const dmOverride = isVi
       ? `\n\n## Override: DM và Telegram reaction\n- Nếu metadata không nói rõ đây là group/supergroup, mặc định xem là chat riêng/DM và trả lời bình thường.\n- Quy tắc im lặng khi không ai được gọi chỉ áp dụng cho group chat, không áp dụng cho DM/chat riêng.\n- Trước MỖI phản hồi Telegram nhìn thấy bởi user, nếu turn hiện tại có tool/action reaction native thì ưu tiên dùng nó để thả \`👍\` trước, trừ khi \`👍\` đã có sẵn.\n- Nếu turn hiện tại không expose tool reaction hoặc chat đích không hỗ trợ reaction thật, cứ trả lời đúng vai trò và không được nói là mình đã thả reaction.`
@@ -405,6 +429,7 @@ const CDP_URL = 'http://127.0.0.1:9222';
    * @property {string} [teamRosterFormatted]
    * @property {string} [emoji]
    * @property {boolean} [hasScheduler]
+   * @property {boolean} [hasZaloMod]
    */
 
   /**

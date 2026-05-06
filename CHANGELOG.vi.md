@@ -1,6 +1,15 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.7.10] — 2026-05-06
+
+### 🚀 Cập nhật Tính năng & Tài liệu
+
+- **Browser Automation v2**: Thay thế tài liệu browser cũ bằng bản `BROWSER.md` mới nhất bao gồm đầy đủ lệnh Chrome CDP v2 (`get_posts`, `screenshot_full`, `pdf`, v.v.).
+- **Chuẩn hóa Agent Workspace**: Cập nhật generator của `AGENTS.md` để tham chiếu đúng và đầy đủ tất cả các file `.md` được sinh ra (`BROWSER.md`, `BOOT.md`, `SOUL.md`, `DREAMS.md`, `HEARTBEAT.md`, `USER.md`).
+- **Dọn dẹp Tools Guide**: Xóa bỏ phần hướng dẫn Zalo Group Slash Commands đã lỗi thời khỏi quá trình tạo `TOOLS.md`.
+
+
 ## [5.7.9] — 2026-05-05
 
 ### 🔧 Cập nhật tên Plugin Zalo
