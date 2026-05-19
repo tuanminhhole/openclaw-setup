@@ -254,7 +254,10 @@ section('5. Docker artifacts');
   assertIncludes('Dockerfile uses CACHE_BUST on npm install layer', single.dockerfile, 'echo "CACHE_BUST=$CACHE_BUST" && npm install -g');
   assertIncludes('Dockerfile includes browser dependencies when requested', single.dockerfile, 'playwright install chromium');
   assertIncludes('Dockerfile writes a dedicated entrypoint script', single.dockerfile, '/usr/local/bin/openclaw-entrypoint.sh');
+  assertIncludes('Dockerfile copies external entrypoint script', single.dockerfile, 'COPY entrypoint.sh /usr/local/bin/openclaw-entrypoint.sh');
   assertIncludes('Dockerfile uses JSON-array CMD for entrypoint', single.dockerfile, 'CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]');
+  assertIncludes('entrypoint patches 9Router private network request', single.entrypointScript, 'allowPrivateNetwork:true');
+  assertIncludes('entrypoint grants paired device admin scope', single.entrypointScript, 'operator.admin');
   assertIncludes('compose includes 9Router sidecar when requested', single.compose, '9router-williams');
   assertIncludes('compose mounts full project into container workspace', single.compose, '../..:/root/project');
   assertIncludes('compose sets project-local OPENCLAW_HOME', single.compose, 'OPENCLAW_HOME=/root/project/.openclaw');
@@ -284,6 +287,7 @@ section('5. Docker artifacts');
   assertIncludes('multi compose includes app container', multi.compose, 'openclaw-multibot');
   assertIncludes('multi compose includes Ollama service for local provider', multi.compose, 'ollama-multibot');
   assertIncludes('multi Dockerfile also uses dedicated entrypoint script', multi.dockerfile, '/usr/local/bin/openclaw-entrypoint.sh');
+  assertIncludes('multi artifact includes external entrypoint content', multi.entrypointScript, '#!/bin/sh');
   assertIncludes('relay plugin runtime install helper is idempotent', common.buildRelayPluginInstallCommand('openclaw'), 'extensions/telegram-multibot-relay');
 
   const patchScript = docker.build9RouterPatchScript();

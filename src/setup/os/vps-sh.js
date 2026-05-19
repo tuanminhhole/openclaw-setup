@@ -111,7 +111,7 @@ GWEOF`);
   }
 
   vps.push('echo ""');
-  vps.push('echo "Dashboard: http://127.0.0.1:18791"');
+  vps.push('echo "Dashboard: http://127.0.0.1:18789"');
   if (is9Router) vps.push('echo "9Router:   http://127.0.0.1:20128/dashboard"');
   vps.push('echo ""');
   vps.push(`echo "Restart:   bash start-bot.sh"`);

@@ -1,6 +1,6 @@
 // @ts-nocheck
 (function (root) {
-  const OPENCLAW_NPM_SPEC = 'openclaw@2026.5.4';
+  const OPENCLAW_NPM_SPEC = 'openclaw@2026.5.12';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const NINE_ROUTER_PORT = 20128;
@@ -251,6 +251,9 @@ If setup reported a plugin install error, run this after the bot is running:
       baseUrl,
       apiKey: NINE_ROUTER_PROXY_API_KEY,
       api: 'openai-completions',
+      request: {
+        allowPrivateNetwork: true,
+      },
       models: [
         {
           id: 'smart-route',
@@ -268,8 +271,8 @@ If setup reported a plugin install error, run this after the bot is running:
     };
   }
 
-  function buildGatewayConfig(port = 18791, deployMode = 'native', allowedOrigins = [], osChoice = '') {
-    const normalizedPort = Number(port) || 18791;
+  function buildGatewayConfig(port = 18789, deployMode = 'native', allowedOrigins = [], osChoice = '') {
+    const normalizedPort = Number(port) || 18789;
     const cfg = {
       port: normalizedPort,
       mode: 'local',

@@ -208,7 +208,13 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
           model: { primary: state.config.model, fallbacks: [] },
         })),
       },
-      commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
+      commands: {
+        native: 'auto',
+        nativeSkills: 'auto',
+        restart: true,
+        ownerDisplay: 'raw',
+        ...(state.config.skills.includes('scheduler') ? { ownerAllowFrom: ['*'] } : {}),
+      },
       bindings: multiBotAgentMetas.map((meta) => ({
         agentId: meta.agentId,
         match: { channel: 'telegram', accountId: meta.accountId },
@@ -235,6 +241,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       },
       tools: {
         profile: 'full',
+        ...(state.config.skills.includes('scheduler') ? { alsoAllow: ['group:automation'] } : {}),
         exec: { host: 'gateway', security: 'full', ask: 'off' },
         agentToAgent: {
           enabled: true,
@@ -255,12 +262,12 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
         }
       } : {}),
       gateway: {
-        port: 18791,
+        port: 18789,
         mode: 'local',
         bind: state.nativeOs === 'vps' ? 'custom' : 'loopback',
         ...(state.nativeOs === 'vps' ? { customBindHost: '0.0.0.0' } : {}),
         controlUi: {
-          allowedOrigins: getGatewayAllowedOrigins(18791),
+          allowedOrigins: getGatewayAllowedOrigins(18789),
         },
         auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
       },

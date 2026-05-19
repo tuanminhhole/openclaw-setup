@@ -116,12 +116,12 @@ fi
     }
 
     if (os === 'vps') {
-      return { name: 'uninstall-openclaw-vps.sh', content: `#!/usr/bin/env bash\nset -e\nPROJECT_DIR="${absUnix}"\nAPP_NAME="${appName}"\necho ""\necho "============================================================"\necho "  OpenClaw Uninstaller - VPS / Ubuntu Server"\necho "  Project: $PROJECT_DIR"\necho "  PM2 app: $APP_NAME"\necho "============================================================"\necho ""\nread -rp "Type YES to confirm full removal: " CONFIRM\nif [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi\necho "[1/5] Stopping PM2 processes..."\nif command -v pm2 &>/dev/null; then\n  pm2 delete "$APP_NAME" "$APP_NAME-9router" "$APP_NAME-9router-sync" openclaw openclaw-multibot 2>/dev/null || true\n  pm2 save --force 2>/dev/null || true\nfi\necho "[2/5] Killing leftover processes on ports 18791 / 20128..."\nfor port in 18791 20128; do\n  pid=$(lsof -ti tcp:$port 2>/dev/null || true)\n  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true\ndone\necho "[3/5] Uninstalling npm packages..."\nnpm uninstall -g openclaw 9router pm2 grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true\necho "[4/5] Removing project directory..."\n[ -d "$PROJECT_DIR" ] && rm -rf "$PROJECT_DIR" && echo "   OK: Deleted $PROJECT_DIR" || echo "   INFO: Not found."\necho "[5/5] Checking home-level .9router / .openclaw..."\nfor dir in "$HOME/.9router" "$HOME/.openclaw"; do\n  if [ -d "$dir" ]; then\n    read -rp "Delete $dir ? [YES/no]: " CLEAN\n    [ "$CLEAN" = "YES" ] && rm -rf "$dir" && echo "   OK: Deleted $dir" || echo "   Kept: $dir"\n  fi\ndone\n` };
+      return { name: 'uninstall-openclaw-vps.sh', content: `#!/usr/bin/env bash\nset -e\nPROJECT_DIR="${absUnix}"\nAPP_NAME="${appName}"\necho ""\necho "============================================================"\necho "  OpenClaw Uninstaller - VPS / Ubuntu Server"\necho "  Project: $PROJECT_DIR"\necho "  PM2 app: $APP_NAME"\necho "============================================================"\necho ""\nread -rp "Type YES to confirm full removal: " CONFIRM\nif [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi\necho "[1/5] Stopping PM2 processes..."\nif command -v pm2 &>/dev/null; then\n  pm2 delete "$APP_NAME" "$APP_NAME-9router" "$APP_NAME-9router-sync" openclaw openclaw-multibot 2>/dev/null || true\n  pm2 save --force 2>/dev/null || true\nfi\necho "[2/5] Killing leftover processes on ports 18789 / 20128..."\nfor port in 18789 20128; do\n  pid=$(lsof -ti tcp:$port 2>/dev/null || true)\n  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true\ndone\necho "[3/5] Uninstalling npm packages..."\nnpm uninstall -g openclaw 9router pm2 grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true\necho "[4/5] Removing project directory..."\n[ -d "$PROJECT_DIR" ] && rm -rf "$PROJECT_DIR" && echo "   OK: Deleted $PROJECT_DIR" || echo "   INFO: Not found."\necho "[5/5] Checking home-level .9router / .openclaw..."\nfor dir in "$HOME/.9router" "$HOME/.openclaw"; do\n  if [ -d "$dir" ]; then\n    read -rp "Delete $dir ? [YES/no]: " CLEAN\n    [ "$CLEAN" = "YES" ] && rm -rf "$dir" && echo "   OK: Deleted $dir" || echo "   Kept: $dir"\n  fi\ndone\n` };
     }
 
     if (os === 'linux' || os === 'linux-desktop' || os === 'macos') {
       const label = os === 'macos' ? 'macOS' : 'Linux Desktop';
-      return { name: 'uninstall-openclaw.sh', content: `#!/usr/bin/env bash\nset -e\nPROJECT_DIR="${absUnix}"\necho ""\necho "============================================================"\necho "  OpenClaw Uninstaller - ${label} Native"\necho "  Project: $PROJECT_DIR"\necho "============================================================"\necho ""\nread -rp "Type YES to confirm full removal: " CONFIRM\nif [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi\necho "[1/4] Stopping openclaw and 9router processes..."\npkill -f "openclaw gateway run" 2>/dev/null || true\npkill -f "9router.*20128" 2>/dev/null || true\npkill -f "9router-smart-route" 2>/dev/null || true\npkill -f "$PROJECT_DIR" 2>/dev/null || true\nfor port in 18791 20128; do\n  pid=$(lsof -ti tcp:$port 2>/dev/null || true)\n  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true\ndone\necho "[2/4] Uninstalling npm packages..."\nnpm uninstall -g openclaw 9router grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true\nsudo npm uninstall -g openclaw 9router 2>/dev/null || true\necho "[3/4] Removing project directory..."\n[ -d "$PROJECT_DIR" ] && rm -rf "$PROJECT_DIR" && echo "   OK: Deleted $PROJECT_DIR" || echo "   INFO: Not found."\necho "[4/4] Checking home-level .9router / .openclaw..."\nfor dir in "$HOME/.9router" "$HOME/.openclaw"; do\n  if [ -d "$dir" ]; then\n    read -rp "Delete $dir ? [YES/no]: " CLEAN\n    [ "$CLEAN" = "YES" ] && rm -rf "$dir" && echo "   OK: Deleted $dir" || echo "   Kept: $dir"\n  fi\ndone\n` };
+      return { name: 'uninstall-openclaw.sh', content: `#!/usr/bin/env bash\nset -e\nPROJECT_DIR="${absUnix}"\necho ""\necho "============================================================"\necho "  OpenClaw Uninstaller - ${label} Native"\necho "  Project: $PROJECT_DIR"\necho "============================================================"\necho ""\nread -rp "Type YES to confirm full removal: " CONFIRM\nif [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi\necho "[1/4] Stopping openclaw and 9router processes..."\npkill -f "openclaw gateway run" 2>/dev/null || true\npkill -f "9router.*20128" 2>/dev/null || true\npkill -f "9router-smart-route" 2>/dev/null || true\npkill -f "$PROJECT_DIR" 2>/dev/null || true\nfor port in 18789 20128; do\n  pid=$(lsof -ti tcp:$port 2>/dev/null || true)\n  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true\ndone\necho "[2/4] Uninstalling npm packages..."\nnpm uninstall -g openclaw 9router grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true\nsudo npm uninstall -g openclaw 9router 2>/dev/null || true\necho "[3/4] Removing project directory..."\n[ -d "$PROJECT_DIR" ] && rm -rf "$PROJECT_DIR" && echo "   OK: Deleted $PROJECT_DIR" || echo "   INFO: Not found."\necho "[4/4] Checking home-level .9router / .openclaw..."\nfor dir in "$HOME/.9router" "$HOME/.openclaw"; do\n  if [ -d "$dir" ]; then\n    read -rp "Delete $dir ? [YES/no]: " CLEAN\n    [ "$CLEAN" = "YES" ] && rm -rf "$dir" && echo "   OK: Deleted $dir" || echo "   Kept: $dir"\n  fi\ndone\n` };
     }
 
     return null;
@@ -217,7 +217,7 @@ fi
     L.push('echo.');
     L.push(isVi ? 'echo [OK] OpenClaw Gateway da khoi dong trong cua so moi!' : 'echo [OK] OpenClaw Gateway started in a new window!');
     L.push('echo.');
-    L.push('echo OpenClaw Dashboard:  http://127.0.0.1:18791');
+    L.push('echo OpenClaw Dashboard:  http://127.0.0.1:18789');
     if (is9Router) L.push('echo 9Router Dashboard:  http://127.0.0.1:20128/dashboard');
     L.push('echo.');
     L.push(isVi ? 'echo Ban co the dong cua so nay.' : 'echo You may close this window.');
@@ -291,7 +291,7 @@ fi
       }
       L.push('pm2 save >/dev/null 2>&1 || true');
       L.push('echo ""');
-      L.push('echo "OpenClaw Dashboard: http://127.0.0.1:18791"');
+      L.push('echo "OpenClaw Dashboard: http://127.0.0.1:18789"');
       if (is9Router) L.push('echo "9Router Dashboard:  http://127.0.0.1:20128/dashboard"');
       L.push('echo ""');
       L.push(isVi ? 'echo "Log gateway: pm2 logs $APP_NAME"' : 'echo "Gateway logs: pm2 logs $APP_NAME"');
@@ -342,7 +342,7 @@ fi
     L.push(isVi ? `echo "[OK] Gateway khoi dong (PID $GW_PID). Log: ${logFileGw}"` : `echo "[OK] Gateway started (PID $GW_PID). Log: ${logFileGw}"`);
     L.push('');
     L.push('echo ""');
-    L.push('echo "OpenClaw Dashboard: http://127.0.0.1:18791"');
+    L.push('echo "OpenClaw Dashboard: http://127.0.0.1:18789"');
     if (is9Router) L.push('echo "9Router Dashboard:  http://127.0.0.1:20128/dashboard"');
     L.push('echo ""');
     L.push(isVi ? 'echo "Bot dang chay background. Dung: openclaw gateway stop"' : 'echo "Bot running in background. Stop: openclaw gateway stop"');
@@ -440,7 +440,7 @@ fi
     "Write-Host \"\"",
     "if ($exitCode -eq 0) {",
     "    Write-Host \"  🎉 Upgrade hoan tat!\" -ForegroundColor Green",
-    "    Write-Host \"     Dashboard: http://localhost:18791\" -ForegroundColor Cyan",
+    "    Write-Host \"     Dashboard: http://localhost:18789\" -ForegroundColor Cyan",
     "} else {",
     "    Write-Host \"  ⚠️  Ma loi: $exitCode — xem log o tren.\" -ForegroundColor Yellow",
     "}",
@@ -529,7 +529,7 @@ fi
     "echo \"\"",
     "if [ $EXIT_CODE -eq 0 ]; then",
     "    echo -e \"${GREEN}  🎉 Upgrade hoan tat!${NC}\"",
-    "    echo -e \"${CYAN}     Dashboard: http://localhost:18791${NC}\"",
+    "    echo -e \"${CYAN}     Dashboard: http://localhost:18789${NC}\"",
     "else",
     "    echo -e \"${YELLOW}  ⚠️  Ma loi: $EXIT_CODE — xem log o tren.${NC}\"",
     "fi",

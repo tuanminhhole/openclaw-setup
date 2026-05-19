@@ -51,7 +51,7 @@
    * @param {Array}  opts.skills           - Full SKILLS registry array
    * @param {boolean} opts.hasBrowserDesktop - Browser desktop mode
    * @param {boolean} opts.hasBrowserServer  - Browser server mode
-   * @param {number} [opts.gatewayPort=18791]
+   * @param {number} [opts.gatewayPort=18789]
    * @param {Array}  [opts.gatewayAllowedOrigins]
    * @param {string} [opts.osChoice]       - 'windows' | 'macos' | 'vps' | 'ubuntu'
    * @param {string} [opts.selectedModel]  - For Ollama: specific model selected
@@ -70,7 +70,7 @@
       skills = [],
       hasBrowserDesktop = false,
       hasBrowserServer = false,
-      gatewayPort = 18791,
+      gatewayPort = 18789,
       gatewayAllowedOrigins = [],
       osChoice = '',
       selectedModel = '',
@@ -134,6 +134,9 @@
 
     // ── commands ──────────────────────────────────────────────────────────────
     cfg.commands = { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' };
+    if (selectedSkills.includes('scheduler')) {
+      cfg.commands.ownerAllowFrom = ['*'];
+    }
 
     // ── bindings (multi-bot or Zalo) ─────────────────────────────────────────
     if (isMultiBot && channelKey === 'telegram') {
@@ -151,6 +154,9 @@
 
     // ── tools ────────────────────────────────────────────────────────────────
     cfg.tools = { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
+    if (selectedSkills.includes('scheduler')) {
+      cfg.tools.alsoAllow = ['group:automation'];
+    }
     if (isMultiBot) {
       cfg.tools.agentToAgent = {
         enabled: true,

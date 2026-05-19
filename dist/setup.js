@@ -76,7 +76,7 @@
     || 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
 
   function getGatewayAllowedOrigins(port) {
-    const normalizedPort = Number(port) || 18791;
+    const normalizedPort = Number(port) || 18789;
     const origins = new Set([
       `http://localhost:${normalizedPort}`,
       `http://127.0.0.1:${normalizedPort}`,
@@ -619,7 +619,7 @@
   // â”€â”€ Shared runtime constants, relay helpers, auth profile builders (setup/shared/common-gen.js) 
 // @ts-nocheck
 (function (root) {
-  const OPENCLAW_NPM_SPEC = 'openclaw@2026.5.4';
+  const OPENCLAW_NPM_SPEC = 'openclaw@2026.5.12';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const NINE_ROUTER_PORT = 20128;
@@ -870,6 +870,9 @@ If setup reported a plugin install error, run this after the bot is running:
       baseUrl,
       apiKey: NINE_ROUTER_PROXY_API_KEY,
       api: 'openai-completions',
+      request: {
+        allowPrivateNetwork: true,
+      },
       models: [
         {
           id: 'smart-route',
@@ -887,8 +890,8 @@ If setup reported a plugin install error, run this after the bot is running:
     };
   }
 
-  function buildGatewayConfig(port = 18791, deployMode = 'native', allowedOrigins = [], osChoice = '') {
-    const normalizedPort = Number(port) || 18791;
+  function buildGatewayConfig(port = 18789, deployMode = 'native', allowedOrigins = [], osChoice = '') {
+    const normalizedPort = Number(port) || 18789;
     const cfg = {
       port: normalizedPort,
       mode: 'local',
@@ -1187,8 +1190,9 @@ const CDP_URL = 'http://127.0.0.1:9222';
     const { isVi = true, variant = 'wizard', workspaceRoot = '' } = options;
     const wsRoot = workspaceRoot.replace(/\/+$/, '');
     const btPath = wsRoot ? `${wsRoot}/browser-tool.js` : 'browser-tool.js';
+    const modeHeading = variant === 'cli-server' ? '# Headless Server Mode\n\n' : '';
 
-    return `# Navigation
+    return `${modeHeading}# Navigation
 node ${btPath} status
 node ${btPath} open "https://google.com"
 node ${btPath} get_url
@@ -1514,7 +1518,7 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
    * @param {Array}  opts.skills           - Full SKILLS registry array
    * @param {boolean} opts.hasBrowserDesktop - Browser desktop mode
    * @param {boolean} opts.hasBrowserServer  - Browser server mode
-   * @param {number} [opts.gatewayPort=18791]
+   * @param {number} [opts.gatewayPort=18789]
    * @param {Array}  [opts.gatewayAllowedOrigins]
    * @param {string} [opts.osChoice]       - 'windows' | 'macos' | 'vps' | 'ubuntu'
    * @param {string} [opts.selectedModel]  - For Ollama: specific model selected
@@ -1533,7 +1537,7 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
       skills = [],
       hasBrowserDesktop = false,
       hasBrowserServer = false,
-      gatewayPort = 18791,
+      gatewayPort = 18789,
       gatewayAllowedOrigins = [],
       osChoice = '',
       selectedModel = '',
@@ -1597,6 +1601,9 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
 
     // ── commands ──────────────────────────────────────────────────────────────
     cfg.commands = { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' };
+    if (selectedSkills.includes('scheduler')) {
+      cfg.commands.ownerAllowFrom = ['*'];
+    }
 
     // ── bindings (multi-bot or Zalo) ─────────────────────────────────────────
     if (isMultiBot && channelKey === 'telegram') {
@@ -1614,6 +1621,9 @@ if (typeof exports !== 'undefined' && workspaceRoot.__openclawWorkspace) {
 
     // ── tools ────────────────────────────────────────────────────────────────
     cfg.tools = { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
+    if (selectedSkills.includes('scheduler')) {
+      cfg.tools.alsoAllow = ['group:automation'];
+    }
     if (isMultiBot) {
       cfg.tools.agentToAgent = {
         enabled: true,
@@ -2043,12 +2053,12 @@ fi
     }
 
     if (os === 'vps') {
-      return { name: 'uninstall-openclaw-vps.sh', content: `#!/usr/bin/env bash\nset -e\nPROJECT_DIR="${absUnix}"\nAPP_NAME="${appName}"\necho ""\necho "============================================================"\necho "  OpenClaw Uninstaller - VPS / Ubuntu Server"\necho "  Project: $PROJECT_DIR"\necho "  PM2 app: $APP_NAME"\necho "============================================================"\necho ""\nread -rp "Type YES to confirm full removal: " CONFIRM\nif [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi\necho "[1/5] Stopping PM2 processes..."\nif command -v pm2 &>/dev/null; then\n  pm2 delete "$APP_NAME" "$APP_NAME-9router" "$APP_NAME-9router-sync" openclaw openclaw-multibot 2>/dev/null || true\n  pm2 save --force 2>/dev/null || true\nfi\necho "[2/5] Killing leftover processes on ports 18791 / 20128..."\nfor port in 18791 20128; do\n  pid=$(lsof -ti tcp:$port 2>/dev/null || true)\n  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true\ndone\necho "[3/5] Uninstalling npm packages..."\nnpm uninstall -g openclaw 9router pm2 grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true\necho "[4/5] Removing project directory..."\n[ -d "$PROJECT_DIR" ] && rm -rf "$PROJECT_DIR" && echo "   OK: Deleted $PROJECT_DIR" || echo "   INFO: Not found."\necho "[5/5] Checking home-level .9router / .openclaw..."\nfor dir in "$HOME/.9router" "$HOME/.openclaw"; do\n  if [ -d "$dir" ]; then\n    read -rp "Delete $dir ? [YES/no]: " CLEAN\n    [ "$CLEAN" = "YES" ] && rm -rf "$dir" && echo "   OK: Deleted $dir" || echo "   Kept: $dir"\n  fi\ndone\n` };
+      return { name: 'uninstall-openclaw-vps.sh', content: `#!/usr/bin/env bash\nset -e\nPROJECT_DIR="${absUnix}"\nAPP_NAME="${appName}"\necho ""\necho "============================================================"\necho "  OpenClaw Uninstaller - VPS / Ubuntu Server"\necho "  Project: $PROJECT_DIR"\necho "  PM2 app: $APP_NAME"\necho "============================================================"\necho ""\nread -rp "Type YES to confirm full removal: " CONFIRM\nif [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi\necho "[1/5] Stopping PM2 processes..."\nif command -v pm2 &>/dev/null; then\n  pm2 delete "$APP_NAME" "$APP_NAME-9router" "$APP_NAME-9router-sync" openclaw openclaw-multibot 2>/dev/null || true\n  pm2 save --force 2>/dev/null || true\nfi\necho "[2/5] Killing leftover processes on ports 18789 / 20128..."\nfor port in 18789 20128; do\n  pid=$(lsof -ti tcp:$port 2>/dev/null || true)\n  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true\ndone\necho "[3/5] Uninstalling npm packages..."\nnpm uninstall -g openclaw 9router pm2 grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true\necho "[4/5] Removing project directory..."\n[ -d "$PROJECT_DIR" ] && rm -rf "$PROJECT_DIR" && echo "   OK: Deleted $PROJECT_DIR" || echo "   INFO: Not found."\necho "[5/5] Checking home-level .9router / .openclaw..."\nfor dir in "$HOME/.9router" "$HOME/.openclaw"; do\n  if [ -d "$dir" ]; then\n    read -rp "Delete $dir ? [YES/no]: " CLEAN\n    [ "$CLEAN" = "YES" ] && rm -rf "$dir" && echo "   OK: Deleted $dir" || echo "   Kept: $dir"\n  fi\ndone\n` };
     }
 
     if (os === 'linux' || os === 'linux-desktop' || os === 'macos') {
       const label = os === 'macos' ? 'macOS' : 'Linux Desktop';
-      return { name: 'uninstall-openclaw.sh', content: `#!/usr/bin/env bash\nset -e\nPROJECT_DIR="${absUnix}"\necho ""\necho "============================================================"\necho "  OpenClaw Uninstaller - ${label} Native"\necho "  Project: $PROJECT_DIR"\necho "============================================================"\necho ""\nread -rp "Type YES to confirm full removal: " CONFIRM\nif [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi\necho "[1/4] Stopping openclaw and 9router processes..."\npkill -f "openclaw gateway run" 2>/dev/null || true\npkill -f "9router.*20128" 2>/dev/null || true\npkill -f "9router-smart-route" 2>/dev/null || true\npkill -f "$PROJECT_DIR" 2>/dev/null || true\nfor port in 18791 20128; do\n  pid=$(lsof -ti tcp:$port 2>/dev/null || true)\n  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true\ndone\necho "[2/4] Uninstalling npm packages..."\nnpm uninstall -g openclaw 9router grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true\nsudo npm uninstall -g openclaw 9router 2>/dev/null || true\necho "[3/4] Removing project directory..."\n[ -d "$PROJECT_DIR" ] && rm -rf "$PROJECT_DIR" && echo "   OK: Deleted $PROJECT_DIR" || echo "   INFO: Not found."\necho "[4/4] Checking home-level .9router / .openclaw..."\nfor dir in "$HOME/.9router" "$HOME/.openclaw"; do\n  if [ -d "$dir" ]; then\n    read -rp "Delete $dir ? [YES/no]: " CLEAN\n    [ "$CLEAN" = "YES" ] && rm -rf "$dir" && echo "   OK: Deleted $dir" || echo "   Kept: $dir"\n  fi\ndone\n` };
+      return { name: 'uninstall-openclaw.sh', content: `#!/usr/bin/env bash\nset -e\nPROJECT_DIR="${absUnix}"\necho ""\necho "============================================================"\necho "  OpenClaw Uninstaller - ${label} Native"\necho "  Project: $PROJECT_DIR"\necho "============================================================"\necho ""\nread -rp "Type YES to confirm full removal: " CONFIRM\nif [ "$CONFIRM" != "YES" ]; then echo "Cancelled."; exit 0; fi\necho "[1/4] Stopping openclaw and 9router processes..."\npkill -f "openclaw gateway run" 2>/dev/null || true\npkill -f "9router.*20128" 2>/dev/null || true\npkill -f "9router-smart-route" 2>/dev/null || true\npkill -f "$PROJECT_DIR" 2>/dev/null || true\nfor port in 18789 20128; do\n  pid=$(lsof -ti tcp:$port 2>/dev/null || true)\n  [ -n "$pid" ] && kill -9 $pid 2>/dev/null || true\ndone\necho "[2/4] Uninstalling npm packages..."\nnpm uninstall -g openclaw 9router grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api 2>/dev/null || true\nsudo npm uninstall -g openclaw 9router 2>/dev/null || true\necho "[3/4] Removing project directory..."\n[ -d "$PROJECT_DIR" ] && rm -rf "$PROJECT_DIR" && echo "   OK: Deleted $PROJECT_DIR" || echo "   INFO: Not found."\necho "[4/4] Checking home-level .9router / .openclaw..."\nfor dir in "$HOME/.9router" "$HOME/.openclaw"; do\n  if [ -d "$dir" ]; then\n    read -rp "Delete $dir ? [YES/no]: " CLEAN\n    [ "$CLEAN" = "YES" ] && rm -rf "$dir" && echo "   OK: Deleted $dir" || echo "   Kept: $dir"\n  fi\ndone\n` };
     }
 
     return null;
@@ -2144,7 +2154,7 @@ fi
     L.push('echo.');
     L.push(isVi ? 'echo [OK] OpenClaw Gateway da khoi dong trong cua so moi!' : 'echo [OK] OpenClaw Gateway started in a new window!');
     L.push('echo.');
-    L.push('echo OpenClaw Dashboard:  http://127.0.0.1:18791');
+    L.push('echo OpenClaw Dashboard:  http://127.0.0.1:18789');
     if (is9Router) L.push('echo 9Router Dashboard:  http://127.0.0.1:20128/dashboard');
     L.push('echo.');
     L.push(isVi ? 'echo Ban co the dong cua so nay.' : 'echo You may close this window.');
@@ -2218,7 +2228,7 @@ fi
       }
       L.push('pm2 save >/dev/null 2>&1 || true');
       L.push('echo ""');
-      L.push('echo "OpenClaw Dashboard: http://127.0.0.1:18791"');
+      L.push('echo "OpenClaw Dashboard: http://127.0.0.1:18789"');
       if (is9Router) L.push('echo "9Router Dashboard:  http://127.0.0.1:20128/dashboard"');
       L.push('echo ""');
       L.push(isVi ? 'echo "Log gateway: pm2 logs $APP_NAME"' : 'echo "Gateway logs: pm2 logs $APP_NAME"');
@@ -2269,7 +2279,7 @@ fi
     L.push(isVi ? `echo "[OK] Gateway khoi dong (PID $GW_PID). Log: ${logFileGw}"` : `echo "[OK] Gateway started (PID $GW_PID). Log: ${logFileGw}"`);
     L.push('');
     L.push('echo ""');
-    L.push('echo "OpenClaw Dashboard: http://127.0.0.1:18791"');
+    L.push('echo "OpenClaw Dashboard: http://127.0.0.1:18789"');
     if (is9Router) L.push('echo "9Router Dashboard:  http://127.0.0.1:20128/dashboard"');
     L.push('echo ""');
     L.push(isVi ? 'echo "Bot dang chay background. Dung: openclaw gateway stop"' : 'echo "Bot running in background. Stop: openclaw gateway stop"');
@@ -2367,7 +2377,7 @@ fi
     "Write-Host \"\"",
     "if ($exitCode -eq 0) {",
     "    Write-Host \"  🎉 Upgrade hoan tat!\" -ForegroundColor Green",
-    "    Write-Host \"     Dashboard: http://localhost:18791\" -ForegroundColor Cyan",
+    "    Write-Host \"     Dashboard: http://localhost:18789\" -ForegroundColor Cyan",
     "} else {",
     "    Write-Host \"  ⚠️  Ma loi: $exitCode — xem log o tren.\" -ForegroundColor Yellow",
     "}",
@@ -2456,7 +2466,7 @@ fi
     "echo \"\"",
     "if [ $EXIT_CODE -eq 0 ]; then",
     "    echo -e \"${GREEN}  🎉 Upgrade hoan tat!${NC}\"",
-    "    echo -e \"${CYAN}     Dashboard: http://localhost:18791${NC}\"",
+    "    echo -e \"${CYAN}     Dashboard: http://localhost:18789${NC}\"",
     "else",
     "    echo -e \"${YELLOW}  ⚠️  Ma loi: $EXIT_CODE — xem log o tren.${NC}\"",
     "fi",
@@ -2648,7 +2658,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
   }
 
   function buildGatewayPatchCmd() {
-    return `node -e \\"const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\"`;
+    return `node -e \\"const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18789','http://127.0.0.1:18789','http://0.0.0.0:18789']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18789');}}const p9=c.models&&c.models.providers&&c.models.providers['9router'];if(p9){p9.request=Object.assign({},p9.request,{allowPrivateNetwork:true});}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18789,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\"`;
   }
 
   function buildDockerArtifacts(options) {
@@ -2706,8 +2716,9 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     const backupConfigScript = `const fs=require('fs'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)){fs.copyFileSync(p,b);}`;
     const backupConfigB64 = encodeBase64Utf8(backupConfigScript);
 
-    const restoreConfigScript = `const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)&&fs.existsSync(b)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const bk=JSON.parse(fs.readFileSync(b,'utf8'));const keep=['agents','channels','bindings','commands','models','browser','skills'];for(const k of keep){if(bk[k]&&!c[k])c[k]=bk[k];}const a=new Set(['http://localhost:18791','http://127.0.0.1:18791','http://0.0.0.0:18791']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://'+entry.address+':18791');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18791,bind:'custom',customBindHost:'0.0.0.0',mode:c.gateway?.mode||bk.gateway?.mode||'local',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));fs.unlinkSync(b);}`;
+    const restoreConfigScript = `const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)&&fs.existsSync(b)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const bk=JSON.parse(fs.readFileSync(b,'utf8'));const keep=['agents','channels','bindings','commands','models','browser','skills','plugins','tools'];for(const k of keep){if(bk[k]&&!c[k])c[k]=bk[k];}const a=new Set(['http://localhost:18789','http://127.0.0.1:18789','http://0.0.0.0:18789']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://'+entry.address+':18789');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18789,bind:'custom',customBindHost:'0.0.0.0',mode:c.gateway?.mode||bk.gateway?.mode||'local',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));fs.unlinkSync(b);}`;
     const restoreConfigB64 = encodeBase64Utf8(restoreConfigScript);
+    const securityCompatScript = `const fs=require('fs'),path=require('path');const scopes=['operator.admin','operator.pairing','operator.approvals'];function uniq(a){return Array.from(new Set([...(Array.isArray(a)?a:[]),...scopes]));}function walk(v){if(!v||typeof v!=='object')return;if(Array.isArray(v)){v.forEach(walk);return;}if(Array.isArray(v.scopes)||Array.isArray(v.approvedScopes)){v.scopes=uniq(v.scopes);v.approvedScopes=uniq(v.approvedScopes);}Object.values(v).forEach(walk);}const home=process.env.OPENCLAW_HOME||path.join(process.cwd(),'.openclaw');const state=process.env.OPENCLAW_STATE_DIR||home;const cfgPath=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(cfgPath)){const c=JSON.parse(fs.readFileSync(cfgPath,'utf8'));const p=c.models&&c.models.providers&&c.models.providers['9router'];if(p){p.request=Object.assign({},p.request,{allowPrivateNetwork:true});}fs.writeFileSync(cfgPath,JSON.stringify(c,null,2));}for(const root of Array.from(new Set([home,state]))){const f=path.join(root,'devices','paired.json');if(fs.existsSync(f)){const d=JSON.parse(fs.readFileSync(f,'utf8'));walk(d);fs.writeFileSync(f,JSON.stringify(d,null,2));}}`;
 
     const runtimeParts = runtimeCommandParts.filter(Boolean);
     const runtimePrelude = [
@@ -2749,6 +2760,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     runtimeParts.unshift(`node -e 'eval(Buffer.from("${backupConfigB64}","base64").toString())'`);
     // Restore config AFTER plugin installs (which may clobber openclaw.json)
     runtimeParts.push(`node -e 'eval(Buffer.from("${restoreConfigB64}","base64").toString())'`);
+    runtimeParts.push(`node - <<'NODE'\n${securityCompatScript}\nNODE`);
     if (hasBrowser) {
       runtimeParts.push('socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &');
       runtimeParts.push('Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 & DISPLAY=:99 openclaw gateway run');
@@ -2756,7 +2768,6 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       runtimeParts.push('openclaw gateway run');
     }
     const runtimeScript = ['#!/bin/sh', 'set -e', ...runtimeParts].join('\n');
-    const runtimeScriptB64 = encodeBase64Utf8(runtimeScript);
     const dockerfile = `FROM node:22-slim
 
 RUN apt-get update && apt-get install -y git curl python3${browserAptExtra} && rm -rf /var/lib/apt/lists/*
@@ -2765,10 +2776,11 @@ ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""
 RUN echo "CACHE_BUST=$CACHE_BUST" && npm install -g $OPENCLAW_VER ${openClawRuntimePackages}${skillLines}${pluginLines}
 ${patchLine}
-RUN node -e "require('fs').writeFileSync('/usr/local/bin/openclaw-entrypoint.sh', Buffer.from('${runtimeScriptB64}','base64').toString())" && chmod +x /usr/local/bin/openclaw-entrypoint.sh
+COPY entrypoint.sh /usr/local/bin/openclaw-entrypoint.sh
+RUN chmod +x /usr/local/bin/openclaw-entrypoint.sh
 WORKDIR /root/project
 
-EXPOSE 18791
+EXPOSE 18789
 
 CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
 
@@ -2779,7 +2791,7 @@ const patchScript = build9RouterPatchScript();
     const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
-    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n    tmpfs:\n      - /root/project/.openclaw/plugin-runtime-deps\n';
+    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n      - OPENCLAW_GATEWAY_PORT=18789\n      - OPENCLAW_PORT=18789\n    tmpfs:\n      - /root/project/.openclaw/plugin-runtime-deps\n';
 
     let compose;
     if (isMultiBot) {
@@ -2801,7 +2813,7 @@ services:
 ${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
-      - "18791:18791"
+      - "18789:18789"
 
   9router:
     image: node:22-slim
@@ -2836,7 +2848,7 @@ services:
 ${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
-      - "18791:18791"
+      - "18789:18789"
 
   ollama:
     image: ollama/ollama:latest
@@ -2876,7 +2888,7 @@ services:
 ${appEnvironmentBlock}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
-      - "18791:18791"`;
+      - "18789:18789"`;
       }
     } else if (is9Router) {
       compose = `name: ${singleComposeName}
@@ -2892,7 +2904,7 @@ services:
 ${appEnvironmentBlock}${hasBrowser ? `${extraHostsBlock}\n` : ''}    volumes:
       - ${volumeMount}
     ports:
-      - "18791:18791"
+      - "18789:18789"
 
   9router:
     image: node:22-slim
@@ -2927,7 +2939,7 @@ ${appEnvironmentBlock}    depends_on:
       ollama:
         condition: service_healthy
 ${hasBrowser ? `${extraHostsBlock}\n` : ''}    ports:
-      - "18791:18791"
+      - "18789:18789"
     volumes:
       - ${volumeMount}
 
@@ -2969,12 +2981,13 @@ services:
 ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    volumes:
       - ${volumeMount}
     ports:
-      - "18791:18791"`;
+      - "18789:18789"`;
     }
 
     return {
       dockerfile,
       compose,
+      entrypointScript: runtimeScript,
       syncScript,
       docker9RouterEntrypointScript,
       gatewayPatchCmd: buildGatewayPatchCmd(),
@@ -2995,6 +3008,8 @@ ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    
 if (typeof exports !== 'undefined' && typeof globalThis !== 'undefined' && globalThis.__openclawDockerGen) {
   Object.assign(exports, globalThis.__openclawDockerGen);
 }
+
+
 
   // â”€â”€ buildNativeScriptCtx and shared native runtime helpers (setup/generators/native-helpers-gen.js) 
 // @ts-nocheck
@@ -3207,7 +3222,13 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
           model: { primary: state.config.model, fallbacks: [] },
         })),
       },
-      commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
+      commands: {
+        native: 'auto',
+        nativeSkills: 'auto',
+        restart: true,
+        ownerDisplay: 'raw',
+        ...(state.config.skills.includes('scheduler') ? { ownerAllowFrom: ['*'] } : {}),
+      },
       bindings: multiBotAgentMetas.map((meta) => ({
         agentId: meta.agentId,
         match: { channel: 'telegram', accountId: meta.accountId },
@@ -3234,6 +3255,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       },
       tools: {
         profile: 'full',
+        ...(state.config.skills.includes('scheduler') ? { alsoAllow: ['group:automation'] } : {}),
         exec: { host: 'gateway', security: 'full', ask: 'off' },
         agentToAgent: {
           enabled: true,
@@ -3254,12 +3276,12 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
         }
       } : {}),
       gateway: {
-        port: 18791,
+        port: 18789,
         mode: 'local',
         bind: state.nativeOs === 'vps' ? 'custom' : 'loopback',
         ...(state.nativeOs === 'vps' ? { customBindHost: '0.0.0.0' } : {}),
         controlUi: {
-          allowedOrigins: getGatewayAllowedOrigins(18791),
+          allowedOrigins: getGatewayAllowedOrigins(18789),
         },
         auth: { mode: 'token', token: crypto.randomUUID().replace(/-/g, '') },
       },
@@ -3381,7 +3403,7 @@ const sync=async()=>{try{const res=await fetch(ROUTER+'/api/providers');if(!res.
       const bot = state.bots[botIndex] || {};
       const botName = bot.name || `Bot ${botIndex + 1}`;
       const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const basePort = 18791 + botIndex;
+      const basePort = 18789 + botIndex;
       const groupId = state.groupId || '';
 
       // Force use global provider if proxy mode is chosen globally, else use bot specific provider
@@ -4027,8 +4049,8 @@ function generateWinBat(ctx) {
 
   function appendDashboardInfo(arr) {
     arr.push('echo.');
-    arr.push('echo OpenClaw Dashboard: http://127.0.0.1:18791');
-    arr.push('echo Other reachable URLs: http://localhost:18791');
+    arr.push('echo OpenClaw Dashboard: http://127.0.0.1:18789');
+    arr.push('echo Other reachable URLs: http://localhost:18789');
     arr.push('echo If the dashboard asks for a Gateway Token, run: openclaw dashboard');
     if (is9Router) {
       arr.push('echo.');
@@ -4352,7 +4374,7 @@ GWEOF`);
   }
 
   vps.push('echo ""');
-  vps.push('echo "Dashboard: http://127.0.0.1:18791"');
+  vps.push('echo "Dashboard: http://127.0.0.1:18789"');
   if (is9Router) vps.push('echo "9Router:   http://127.0.0.1:20128/dashboard"');
   vps.push('echo ""');
   vps.push(`echo "Restart:   bash start-bot.sh"`);
@@ -5756,10 +5778,20 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
           model: { primary: state.config.model, fallbacks: [] },
         }],
       },
-      commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
+      commands: {
+        native: 'auto',
+        nativeSkills: 'auto',
+        restart: true,
+        ownerDisplay: 'raw',
+        ...(state.config.skills.includes('scheduler') ? { ownerAllowFrom: ['*'] } : {}),
+      },
       channels: ch.channelConfig,
-      tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
-      gateway: common.buildGatewayConfig(18791, 'native', getGatewayAllowedOrigins(18791)),
+      tools: {
+        profile: 'full',
+        ...(state.config.skills.includes('scheduler') ? { alsoAllow: ['group:automation'] } : {}),
+        exec: { host: 'gateway', security: 'full', ask: 'off' },
+      },
+      gateway: common.buildGatewayConfig(18789, 'native', getGatewayAllowedOrigins(18789)),
     };
 
     // 9Router: add proxy endpoint config under models.providers
@@ -5880,6 +5912,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       };
       clawConfig.tools = {
         ...(clawConfig.tools || {}),
+        ...(state.config.skills.includes('scheduler') ? { alsoAllow: ['group:automation'] } : {}),
         agentToAgent: {
           enabled: true,
           allow: multiBotAgentMetas.map((meta) => meta.agentId),
@@ -5983,6 +6016,7 @@ model:
     });
     const dockerfile = dockerArtifacts.dockerfile;
     const compose = dockerArtifacts.compose;
+    const entrypointScript = dockerArtifacts.entrypointScript;
     // isMultiBot => unified into isMultiBot above
     setOutput('out-dockerfile', dockerfile);
     setOutput('out-compose', compose);
@@ -6396,6 +6430,7 @@ fi
       if (!isNativeMode) {
         sharedFiles['docker/openclaw/Dockerfile'] = dockerfile;
         sharedFiles['docker/openclaw/docker-compose.yml'] = compose;
+        sharedFiles['docker/openclaw/entrypoint.sh'] = entrypointScript;
         sharedFiles['docker/openclaw/.env'] = rootEnvContent;
       }
       sharedFiles[globalThis.__openclawCommon.TELEGRAM_SETUP_GUIDE_FILENAME] = buildTelegramPostInstallChecklist();
@@ -6467,6 +6502,7 @@ fi
       if (!isNativeMode) {
         singleFiles['docker/openclaw/Dockerfile'] = dockerfile;
         singleFiles['docker/openclaw/docker-compose.yml'] = compose;
+        singleFiles['docker/openclaw/entrypoint.sh'] = entrypointScript;
         singleFiles['docker/openclaw/.env'] = rootEnvContent;
       }
       state._generatedFiles = singleFiles;

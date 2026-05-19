@@ -49,8 +49,8 @@ function generateWinBat(ctx) {
 
   function appendDashboardInfo(arr) {
     arr.push('echo.');
-    arr.push('echo OpenClaw Dashboard: http://127.0.0.1:18791');
-    arr.push('echo Other reachable URLs: http://localhost:18791');
+    arr.push('echo OpenClaw Dashboard: http://127.0.0.1:18789');
+    arr.push('echo Other reachable URLs: http://localhost:18789');
     arr.push('echo If the dashboard asks for a Gateway Token, run: openclaw dashboard');
     if (is9Router) {
       arr.push('echo.');

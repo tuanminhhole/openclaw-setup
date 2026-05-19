@@ -169,10 +169,20 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
           model: { primary: state.config.model, fallbacks: [] },
         }],
       },
-      commands: { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' },
+      commands: {
+        native: 'auto',
+        nativeSkills: 'auto',
+        restart: true,
+        ownerDisplay: 'raw',
+        ...(state.config.skills.includes('scheduler') ? { ownerAllowFrom: ['*'] } : {}),
+      },
       channels: ch.channelConfig,
-      tools: { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } },
-      gateway: common.buildGatewayConfig(18791, 'native', getGatewayAllowedOrigins(18791)),
+      tools: {
+        profile: 'full',
+        ...(state.config.skills.includes('scheduler') ? { alsoAllow: ['group:automation'] } : {}),
+        exec: { host: 'gateway', security: 'full', ask: 'off' },
+      },
+      gateway: common.buildGatewayConfig(18789, 'native', getGatewayAllowedOrigins(18789)),
     };
 
     // 9Router: add proxy endpoint config under models.providers
@@ -293,6 +303,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       };
       clawConfig.tools = {
         ...(clawConfig.tools || {}),
+        ...(state.config.skills.includes('scheduler') ? { alsoAllow: ['group:automation'] } : {}),
         agentToAgent: {
           enabled: true,
           allow: multiBotAgentMetas.map((meta) => meta.agentId),
@@ -396,6 +407,7 @@ model:
     });
     const dockerfile = dockerArtifacts.dockerfile;
     const compose = dockerArtifacts.compose;
+    const entrypointScript = dockerArtifacts.entrypointScript;
     // isMultiBot => unified into isMultiBot above
     setOutput('out-dockerfile', dockerfile);
     setOutput('out-compose', compose);
@@ -809,6 +821,7 @@ fi
       if (!isNativeMode) {
         sharedFiles['docker/openclaw/Dockerfile'] = dockerfile;
         sharedFiles['docker/openclaw/docker-compose.yml'] = compose;
+        sharedFiles['docker/openclaw/entrypoint.sh'] = entrypointScript;
         sharedFiles['docker/openclaw/.env'] = rootEnvContent;
       }
       sharedFiles[globalThis.__openclawCommon.TELEGRAM_SETUP_GUIDE_FILENAME] = buildTelegramPostInstallChecklist();
@@ -880,6 +893,7 @@ fi
       if (!isNativeMode) {
         singleFiles['docker/openclaw/Dockerfile'] = dockerfile;
         singleFiles['docker/openclaw/docker-compose.yml'] = compose;
+        singleFiles['docker/openclaw/entrypoint.sh'] = entrypointScript;
         singleFiles['docker/openclaw/.env'] = rootEnvContent;
       }
       state._generatedFiles = singleFiles;

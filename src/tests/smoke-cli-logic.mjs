@@ -187,7 +187,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expectMatch(
   cli,
-  /function printNativeDashboardAccessInfo\(\{ isVi, providerKey, projectDir, gatewayPort = 18791 \}\) \{[\s\S]*getReachableDashboardHosts\(gatewayPort\)[\s\S]*rewriteDashboardUrlHost[\s\S]*Other reachable URLs[\s\S]*getReachableDashboardHosts\(20128\)/s,
+  /function printNativeDashboardAccessInfo\(\{ isVi, providerKey, projectDir, gatewayPort = 18789 \}\) \{[\s\S]*getReachableDashboardHosts\(gatewayPort\)[\s\S]*rewriteDashboardUrlHost[\s\S]*Other reachable URLs[\s\S]*getReachableDashboardHosts\(20128\)/s,
   'Native PM2 flow must expose dashboard access info and the tokenized dashboard command'
 ));
 
@@ -240,7 +240,7 @@ checks.push(() => expect(
 ));
 
 checks.push(() => expect(
-  setup.includes('gatewayPort = 18791')
+  setup.includes('gatewayPort = 18789')
     && setup.includes('gatewayAllowedOrigins')
     && setup.includes('port: gatewayPort'),
   'Centralized gateway config builder must seed control UI allowed origins'
@@ -297,7 +297,7 @@ checks.push(() => expectMatch(
 
 checks.push(() => expect(
   setup.includes('apt-get install -y git curl python3')
-    && setup.includes('openclaw@2026.5.4')
+    && setup.includes('openclaw@2026.5.12')
     && !cli.includes('ensure_plugin ${ZALOUSER_PLUGIN_ID} ${ZALOUSER_PLUGIN_SPEC}')
     && !setup.includes('@openclaw/zalouser@2026.5.2'),
   'Docker Zalo Personal flow must use the fixed bundled zalouser from pinned OpenClaw without installing a duplicate override'
@@ -312,13 +312,13 @@ checks.push(() => expect(
 ));
 
 checks.push(() => expect(
-  setup.includes("a.add('http://' + entry.address + ':18791')")
+  setup.includes("a.add('http://' + entry.address + ':18789')")
     && setup.includes('allowedOrigins:Array.from(a).filter(Boolean)')
     && setup.includes("bind:'custom',customBindHost:'0.0.0.0'")
     && !setup.includes("bind:'loopback'")
     && !setup.includes("delete c.gateway.customBindHost;")
-    && !setup.includes("const gatewayBridge = 'socat TCP-LISTEN:18791")
-    && !setup.includes("a.add(`http://${entry.address}:18791`)"),
+    && !setup.includes("const gatewayBridge = 'socat TCP-LISTEN:18789")
+    && !setup.includes("a.add(`http://${entry.address}:18789`)"),
   'Docker setup.js patch script must use bind:custom+customBindHost:0.0.0.0, skip socat gateway bridge, and avoid shell-expanding ${entry.address}'
 ));
 
@@ -457,13 +457,13 @@ checks.push(() => expectMatch(
 ));
 
 checks.push(() => expect(
-  setup.includes("a.add('http://' + entry.address + ':18791')")
+  setup.includes("a.add('http://' + entry.address + ':18789')")
     && setup.includes('allowedOrigins:Array.from(a).filter(Boolean)')
     && setup.includes("bind:'custom',customBindHost:'0.0.0.0'")
     && !setup.includes("bind:'loopback'")
     && !setup.includes("delete c.gateway.customBindHost;")
-    && !setup.includes("const gatewayBridgePrefix = 'socat TCP-LISTEN:18791")
-    && !setup.includes("a.add(\\`http://\\${entry.address}:18791\\`)"),
+    && !setup.includes("const gatewayBridgePrefix = 'socat TCP-LISTEN:18789")
+    && !setup.includes("a.add(\\`http://\\${entry.address}:18789\\`)"),
   'Wizard Docker patch command must use bind:custom+customBindHost:0.0.0.0, skip socat gateway bridge, and avoid shell-expanding ${entry.address}'
 ));
 
@@ -501,8 +501,8 @@ checks.push(() => expect(
 ));
 
 checks.push(() => expect(
-  setup.includes("echo OpenClaw Dashboard: http://127.0.0.1:18791")
-    && setup.includes("echo Other reachable URLs: http://localhost:18791")
+  setup.includes("echo OpenClaw Dashboard: http://127.0.0.1:18789")
+    && setup.includes("echo Other reachable URLs: http://localhost:18789")
     && setup.includes("echo If the dashboard asks for a Gateway Token, run: openclaw dashboard")
     && setup.includes("echo 9Router Dashboard: http://127.0.0.1:20128/dashboard")
     && !setup.includes('set "HOME=%PROJECT_DIR%"')

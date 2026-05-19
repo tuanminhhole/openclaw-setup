@@ -54,7 +54,7 @@
       const bot = state.bots[botIndex] || {};
       const botName = bot.name || `Bot ${botIndex + 1}`;
       const agentId = botName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const basePort = 18791 + botIndex;
+      const basePort = 18789 + botIndex;
       const groupId = state.groupId || '';
 
       // Force use global provider if proxy mode is chosen globally, else use bot specific provider

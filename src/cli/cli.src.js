@@ -474,6 +474,7 @@ async function patchProject9RouterOpenClawConfig(projectDir) {
   provider.baseUrl = get9RouterBaseUrl(detectProjectDeployMode(projectDir));
   provider.apiKey = NINE_ROUTER_PROXY_API_KEY;
   provider.api = 'openai-completions';
+  provider.request = { ...(provider.request || {}), allowPrivateNetwork: true };
   provider.models = build9RouterProviderConfig(provider.baseUrl).models;
   await fs.writeJson(configPath, config, { spaces: 2 });
   return true;
@@ -517,7 +518,7 @@ async function patchProjectDocker9Router(projectDir) {
 }
 
 function getGatewayAllowedOrigins(port) {
-  const normalizedPort = Number(port) || 18791;
+  const normalizedPort = Number(port) || 18789;
   const origins = new Set([
     `http://localhost:${normalizedPort}`,
     `http://127.0.0.1:${normalizedPort}`,
@@ -533,7 +534,7 @@ function getGatewayAllowedOrigins(port) {
 }
 
 function getReachableDashboardHosts(port) {
-  const normalizedPort = Number(port) || 18791;
+  const normalizedPort = Number(port) || 18789;
   const hosts = [];
   const seen = new Set();
   const pushHost = (host) => {
@@ -589,7 +590,7 @@ function getTokenizedDashboardUrl(projectDir) {
   }
 }
 
-function printNativeDashboardAccessInfo({ isVi, providerKey, projectDir, gatewayPort = 18791 }) {
+function printNativeDashboardAccessInfo({ isVi, providerKey, projectDir, gatewayPort = 18789 }) {
   const tokenizedUrl = getTokenizedDashboardUrl(projectDir);
   const gatewayUrls = getReachableDashboardHosts(gatewayPort);
   const dashboardUrl = gatewayUrls[0] || `http://127.0.0.1:${gatewayPort}`;
@@ -1905,7 +1906,7 @@ async function main() {
   const detectedOS = detectedPlatform === 'win32' ? 'windows'
     : detectedPlatform === 'darwin' ? 'macos'
     : 'linux';
-  let osChoice = detectedOS === 'linux' ? 'vps' : detectedOS;
+  let osChoice = detectedOS === 'linux' ? 'ubuntu' : detectedOS;
   let deployMode = 'docker';
   let channelKey = 'telegram';
   let channel = CHANNELS[channelKey];
@@ -1974,7 +1975,7 @@ async function main() {
         message: isVi ? 'Chọn cách chạy bot:' : 'How do you want to run the bot?',
         choices: [
           { name: isVi ? '🐳 Docker (Khuyên dùng cho Windows / macOS — dễ cài, chạy ngay)' : '🐳 Docker (Recommended for Windows / macOS — easy setup, runs immediately)', value: 'docker' },
-          { name: isVi ? '⚡ Native / PM2 (Khuyên dùng cho Ubuntu / VPS — ít RAM, ổn định hơn)' : '⚡ Native / PM2 (Recommended for Ubuntu / VPS — less RAM, more stable)', value: 'native' }
+          { name: isVi ? '⚡ Native (Khuyên dùng cho Ubuntu / VPS — ít RAM, ổn định hơn)' : '⚡ Native (Recommended for Ubuntu / VPS — less RAM, more stable)', value: 'native' }
         ],
         defaultValue: deployMode || deployModeDefault,
         allowBack: true,
@@ -2188,7 +2189,7 @@ async function main() {
 
   // buildDockerArtifacts joins runtimeCommandParts with spaces, then appends 'openclaw gateway run'
   // Each part should be a standalone command fragment (no trailing &&)
-  const { dockerfile, compose } = buildDockerArtifacts({
+  const { dockerfile, compose, entrypointScript } = buildDockerArtifacts({
     openClawNpmSpec: OPENCLAW_NPM_SPEC,
     openClawRuntimePackages: OPENCLAW_RUNTIME_PACKAGES,
     is9Router: providerKey === '9router',
@@ -2223,6 +2224,7 @@ async function main() {
   await fs.writeFile(path.join(dockerDir, 'Dockerfile'), dockerfile);
   await fs.ensureDir(dockerDir);
   await fs.writeFile(path.join(dockerDir, 'docker-compose.yml'), compose);
+  await fs.writeFile(path.join(dockerDir, 'entrypoint.sh'), entrypointScript);
 
   let authProfilesJson = {};
   if (provider.isLocal) {
@@ -2308,8 +2310,8 @@ async function main() {
       skills: SKILLS,
       hasBrowserDesktop,
       hasBrowserServer,
-      gatewayPort: 18791,
-      gatewayAllowedOrigins: getGatewayAllowedOrigins(18791),
+      gatewayPort: 18789,
+      gatewayAllowedOrigins: getGatewayAllowedOrigins(18789),
       osChoice,
     });
 
@@ -2429,7 +2431,7 @@ async function main() {
     }
 
 
-    const loopGatewayPort = 18791 + (isMultiBot ? bIndex : 0);
+    const loopGatewayPort = 18789 + (isMultiBot ? bIndex : 0);
     const botConfig = buildOpenclawJson({
       channelKey,
       deployMode,

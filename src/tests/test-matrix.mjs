@@ -96,11 +96,11 @@ section('1. openclaw.json generation matrix');
             isMultiBot,
             agentMetas,
             groupId: isMultiBot ? '-1001234567890' : '',
-            selectedSkills: ['browser', 'memory'],
+            selectedSkills: ['browser', 'memory', 'scheduler'],
             skills: SKILLS,
             hasBrowserDesktop: deploy === 'native',
             hasBrowserServer: deploy === 'docker',
-            gatewayPort: 18791,
+            gatewayPort: 18789,
             gatewayAllowedOrigins: [],
             osChoice: os,
           });
@@ -123,9 +123,11 @@ section('1. openclaw.json generation matrix');
         assert(`[${label}] has meta`,     !!cfg.meta);
         assert(`[${label}] has agents`,   !!cfg.agents && Array.isArray(cfg.agents.list) && cfg.agents.list.length === ch.botCount);
         assert(`[${label}] has channels`, !!cfg.channels && Object.keys(cfg.channels).length > 0);
-        assert(`[${label}] has gateway`,  !!cfg.gateway && cfg.gateway.port === 18791);
+        assert(`[${label}] has gateway`,  !!cfg.gateway && cfg.gateway.port === 18789);
         assert(`[${label}] has tools`,    !!cfg.tools);
         assert(`[${label}] has models`,   !!cfg.models);
+        assert(`[${label}] scheduler opens owner command gate`, Array.isArray(cfg.commands?.ownerAllowFrom) && cfg.commands.ownerAllowFrom.includes('*'));
+        assert(`[${label}] scheduler enables automation tools`, Array.isArray(cfg.tools?.alsoAllow) && cfg.tools.alsoAllow.includes('group:automation'));
 
         // Gateway bind mode: VPS and Docker should use custom, others native loopback
         const expectCustom = deploy === 'docker' || os === 'vps';
@@ -354,7 +356,7 @@ section('4. OS script generation via Wizard IIFE');
   assert('linux-sh has openclaw gateway run', setupCode.includes('openclaw gateway run'));
 
   // All OS scripts must NOT have old pinned version
-  assert('scripts have pinned 2026.5.4 version', setupCode.includes('openclaw@2026.5.4'));
+  assert('scripts have pinned 2026.5.12 version', setupCode.includes('openclaw@2026.5.12'));
   assert('no scripts have autoReply', !setupCode.includes("autoReply: true"));
 
   // Verify CLAWEOF pattern exists in SH generators (used for heredoc file writing)

@@ -251,8 +251,9 @@ const CDP_URL = 'http://127.0.0.1:9222';
     const { isVi = true, variant = 'wizard', workspaceRoot = '' } = options;
     const wsRoot = workspaceRoot.replace(/\/+$/, '');
     const btPath = wsRoot ? `${wsRoot}/browser-tool.js` : 'browser-tool.js';
+    const modeHeading = variant === 'cli-server' ? '# Headless Server Mode\n\n' : '';
 
-    return `# Navigation
+    return `${modeHeading}# Navigation
 node ${btPath} status
 node ${btPath} open "https://google.com"
 node ${btPath} get_url

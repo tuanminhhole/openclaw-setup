@@ -66,7 +66,7 @@
     || 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
 
   function getGatewayAllowedOrigins(port) {
-    const normalizedPort = Number(port) || 18791;
+    const normalizedPort = Number(port) || 18789;
     const origins = new Set([
       `http://localhost:${normalizedPort}`,
       `http://127.0.0.1:${normalizedPort}`,
