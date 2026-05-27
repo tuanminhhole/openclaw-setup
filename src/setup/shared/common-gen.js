@@ -1,6 +1,6 @@
 // @ts-nocheck
 (function (root) {
-  const OPENCLAW_NPM_SPEC = 'openclaw@2026.5.12';
+  const OPENCLAW_NPM_SPEC = 'openclaw@latest';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const NINE_ROUTER_PORT = 20128;
@@ -242,8 +242,9 @@ If setup reported a plugin install error, run this after the bot is running:
     return JSON.stringify(buildAuthProfilesJson(options), null, 2);
   }
 
-  function get9RouterBaseUrl(deployMode = 'native') {
-    return deployMode === 'docker' ? `${NINE_ROUTER_DOCKER_API_BASE_URL}/v1` : `${NINE_ROUTER_API_BASE_URL}/v1`;
+  function get9RouterBaseUrl(deployMode = 'native', routerPort) {
+    const port = routerPort || NINE_ROUTER_PORT;
+    return deployMode === 'docker' ? `http://9router:${port}/v1` : `http://localhost:${port}/v1`;
   }
 
   function build9RouterProviderConfig(baseUrl = `${NINE_ROUTER_API_BASE_URL}/v1`) {
@@ -261,12 +262,6 @@ If setup reported a plugin install error, run this after the bot is running:
           contextWindow: 200000,
           maxTokens: 8192,
         },
-        ...SUPPORTED_CODEX_MODELS.map((id) => ({
-          id,
-          name: `Codex ${id.slice(3).replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}`,
-          contextWindow: 200000,
-          maxTokens: 8192,
-        })),
       ],
     };
   }

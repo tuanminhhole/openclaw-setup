@@ -164,7 +164,8 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         },
         list: [{
           id: agentId,
-          workspace: `.openclaw/workspace-${agentId}`,
+          name: botName,
+          workspace: `/root/project/.openclaw/workspace-${agentId}`,
           agentDir: `agents/${agentId}/agent`,
           model: { primary: state.config.model, fallbacks: [] },
         }],
@@ -182,7 +183,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
         ...(state.config.skills.includes('scheduler') ? { alsoAllow: ['group:automation'] } : {}),
         exec: { host: 'gateway', security: 'full', ask: 'off' },
       },
-      gateway: common.buildGatewayConfig(18789, 'native', getGatewayAllowedOrigins(18789)),
+      gateway: common.buildGatewayConfig(18789, state.deployMode, getGatewayAllowedOrigins(18789), state.nativeOs || ''),
     };
 
     // 9Router: add proxy endpoint config under models.providers
@@ -272,7 +273,7 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       clawConfig.agents.list = multiBotAgentMetas.map((meta) => ({
         id: meta.agentId,
         name: meta.name,
-        workspace: '.openclaw/' + meta.workspaceDir,
+        workspace: `/root/project/.openclaw/${meta.workspaceDir}`,
         agentDir: `agents/${meta.agentId}/agent`,
         model: { primary: state.config.model, fallbacks: [] },
       }));
@@ -398,6 +399,9 @@ model:
       dockerfileSkillInstallMode: 'build',
       runtimeCommandParts: [
         pluginInstallCmd,
+        // zalouser: use npm install (not openclaw plugins install) to avoid openclaw.json writes
+        // ClawHub build gives error:not configured; npm version works correctly
+        state.channel === 'zalo-personal' ? 'ensure_zalouser' : '',
         'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &'
       ].filter(Boolean),
       plainSingleExtraHosts: true,
@@ -1062,38 +1066,46 @@ fi
   // ========== Zalo Personal Login Guide (post-setup) ==========
   function generateZaloOnboardGuide() {
     const lang = document.getElementById('cfg-language')?.value || 'vi';
-    setOutput('out-zalo-onboard-cmd', `docker compose stop ai-bot
-docker compose run --rm --no-deps ai-bot openclaw channels login --channel zalouser --verbose
-docker compose up -d --force-recreate ai-bot
-docker compose exec ai-bot openclaw channels status --probe`);
+    const isVi = lang === 'vi';
+    const containerName = state.botCount > 1 ? 'openclaw-multibot' : 'openclaw-bot';
 
-    if (lang === 'vi') {
+    setOutput('out-zalo-onboard-cmd', `# ${isVi ? 'Bước 1: Dọn dẹp session cũ' : 'Step 1: Clean up old session'}
+docker exec ${containerName} rm -f /root/project/.openclaw/credentials/zalouser/credentials.json
+
+# ${isVi ? 'Bước 2: Kích hoạt màn hình login QR (Quét mã trên terminal)' : 'Step 2: Start login QR (Scan on terminal)'}
+docker exec -it ${containerName} openclaw channels login --channel zalouser --verbose
+
+# ${isVi ? 'Bước 3: Khởi động lại container sau khi login thành công' : 'Step 3: Restart container after successful login'}
+docker restart ${containerName}`);
+
+    if (isVi) {
       setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
-│  Chạy lệnh bên trái để OpenClaw tạo QR đăng nhập.   │
+│  Chạy các lệnh bên trái để đăng nhập Zalo Personal  │
+│  theo quy trình chuẩn 4 bước.                       │
 ├─────────────────────────────────────────────────────┤
-│  1. Đảm bảo container/gateway đã chạy xong.         │
-│  2. Stop ai-bot, login bằng compose run one-shot.   │
-│  3. OpenClaw sẽ in ra đường dẫn file QR trong /tmp. │
-│  4. Copy file QR ra ngoài nếu cần:                  │
-│     docker cp openclaw-bot:/tmp/openclaw/           │
+│  1. Lệnh 1 xoá file credentials.json cũ để tránh     │
+│     lỗi xung đột "Already linked".                  │
+│  2. Lệnh 2 mở màn hình login. Quét mã QR hiện trên   │
+│     terminal hoặc lấy file từ container:            │
+│     docker cp ${containerName}:/tmp/openclaw/           │
 │       openclaw-zalouser-qr-default.png .            │
-│  5. Mở ảnh QR → quét bằng app Zalo → xác nhận.      │
-│  6. Start lại: docker compose up -d --force-recreate│
-│  7. Chạy channels status --probe, phải thấy running.│
+│  3. Sau khi quét xong và terminal báo thành công,    │
+│     nhấn Ctrl+C để thoát.                           │
+│  4. Chạy Lệnh 3 để restart container giúp nhận tin. │
 └─────────────────────────────────────────────────────┘`);
     } else {
       setOutput('out-zalo-onboard-guide', `┌─────────────────────────────────────────────────────┐
-│  Run the command on the left to generate a Zalo QR. │
+│  Run the commands on the left to login Zalo Personal│
+│  following the standard 4-step workflow.            │
 ├─────────────────────────────────────────────────────┤
-│  1. Make sure the container/gateway is already up.  │
-│  2. Stop ai-bot; login with compose run one-shot.   │
-│  3. OpenClaw prints the QR image path under /tmp.   │
-│  4. Copy the QR out if needed:                      │
-│     docker cp openclaw-bot:/tmp/openclaw/           │
+│  1. Command 1 deletes the old credentials.json file  │
+│     to avoid "Already linked" conflicts.            │
+│  2. Command 2 opens the login interface. Scan the   │
+│     QR on your terminal or copy the image file:      │
+│     docker cp ${containerName}:/tmp/openclaw/           │
 │       openclaw-zalouser-qr-default.png .            │
-│  5. Open the image → scan with Zalo mobile app.     │
-│  6. Start again: docker compose up -d --force-re... │
-│  7. Run channels status --probe; it should run.     │
+│  3. Once scanned and successful, press Ctrl+C.       │
+│  4. Run Command 3 to restart the container.         │
 └─────────────────────────────────────────────────────┘`);
     }
   }

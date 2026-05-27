@@ -1,5 +1,5 @@
 /**
- * OpenClaw Matrix Test — Config + Script Generation for all OS × Deploy × Channel × Bot Count
+ * OpenClaw Matrix Test â€” Config + Script Generation for all OS Ã— Deploy Ã— Channel Ã— Bot Count
  *
  * Tests every combination:
  *   OS:       windows, macos (linux), vps, linux-desktop
@@ -19,7 +19,7 @@ import { createRequire } from 'module';
 
 const _require = createRequire(import.meta.url);
 
-// ── Load shared modules ────────────────────────────────────────────────────────
+// â”€â”€ Load shared modules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _require('../setup/shared/common-gen.js');
 _require('../setup/shared/bot-config-gen.js');
 _require('../setup/data/index.js');
@@ -38,7 +38,7 @@ function assert(label, condition, detail = '') {
     process.stdout.write(`  \x1b[32mOK\x1b[0m ${label}\n`);
     passed++;
   } else {
-    process.stdout.write(`  \x1b[31mFAIL\x1b[0m ${label}${detail ? ` — ${detail}` : ''}\n`);
+    process.stdout.write(`  \x1b[31mFAIL\x1b[0m ${label}${detail ? ` â€” ${detail}` : ''}\n`);
     failed++;
     failures.push(label);
   }
@@ -48,12 +48,12 @@ function section(title) {
   console.log(`\n${title}`);
 }
 
-console.log('\nOpenClaw Matrix Tests — Config + Script Generation');
+console.log('\nOpenClaw Matrix Tests â€” Config + Script Generation');
 console.log('='.repeat(52));
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PART 1: openclaw.json generation matrix
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const DEPLOY_MODES = ['docker', 'native'];
 const CHANNELS = [
@@ -129,10 +129,9 @@ section('1. openclaw.json generation matrix');
         assert(`[${label}] scheduler opens owner command gate`, Array.isArray(cfg.commands?.ownerAllowFrom) && cfg.commands.ownerAllowFrom.includes('*'));
         assert(`[${label}] scheduler enables automation tools`, Array.isArray(cfg.tools?.alsoAllow) && cfg.tools.alsoAllow.includes('group:automation'));
 
-        // Gateway bind mode: VPS and Docker should use custom, others native loopback
-        const expectCustom = deploy === 'docker' || os === 'vps';
-        assert(`[${label}] gateway bind=${expectCustom ? 'custom' : 'loopback'}`,
-          expectCustom ? cfg.gateway.bind === 'custom' : cfg.gateway.bind === 'loopback');
+        const expectLan = deploy === 'docker' || os === 'vps';
+        assert(`[${label}] gateway bind=${expectLan ? 'custom' : 'loopback'}`,
+          expectLan ? cfg.gateway.bind === 'custom' : cfg.gateway.bind === 'loopback');
 
         // Auth token present and non-empty
         assert(`[${label}] gateway auth token`, cfg.gateway.auth?.token?.length > 10);
@@ -162,9 +161,9 @@ section('1. openclaw.json generation matrix');
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PART 2: exec-approvals.json generation
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 section('2. exec-approvals.json generation');
 {
@@ -187,9 +186,9 @@ section('2. exec-approvals.json generation');
   assert('multi-bot exec-approvals JSON valid', !!JSON.parse(JSON.stringify(multi, null, 2)));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PART 3: .env file generation
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 section('3. .env file generation');
 {
@@ -256,9 +255,9 @@ section('3. .env file generation');
   assert('env with email has SMTP', envWithSkills.includes('SMTP_USER=test@mail.com'));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PART 4: OS script generation (Wizard-side)
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 section('4. OS script generation via Wizard IIFE');
 {
@@ -268,7 +267,7 @@ section('4. OS script generation via Wizard IIFE');
   const setupPath = path.resolve(new URL('../../dist/setup.js', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1'));
   const setupCode = fs.readFileSync(setupPath, 'utf8');
 
-  // The setup.js requires DOM globals — we simulate the minimum needed
+  // The setup.js requires DOM globals â€” we simulate the minimum needed
   const noop = () => {};
   const fakeElement = { style: {}, appendChild: noop, setAttribute: noop, addEventListener: noop, classList: { add: noop, remove: noop, toggle: noop, contains: () => false }, textContent: '', innerHTML: '', dataset: {}, querySelectorAll: () => [], querySelector: () => null, closest: () => null, getBoundingClientRect: () => ({ top: 0, left: 0, width: 0, height: 0 }) };
   const fakeDocument = {
@@ -315,7 +314,7 @@ section('4. OS script generation via Wizard IIFE');
   // This tests that the bundle evaluates without throwing
   let evalError = null;
   try {
-    // The IIFE bundle expects window/document — use a simple eval approach
+    // The IIFE bundle expects window/document â€” use a simple eval approach
     const sandbox = { document: fakeDocument, window: fakeWindow, globalThis: global, navigator: fakeWindow.navigator, crypto };
     const vm = await import('vm');
     const context = vm.createContext(sandbox);
@@ -356,7 +355,7 @@ section('4. OS script generation via Wizard IIFE');
   assert('linux-sh has openclaw gateway run', setupCode.includes('openclaw gateway run'));
 
   // All OS scripts must NOT have old pinned version
-  assert('scripts have pinned 2026.5.12 version', setupCode.includes('openclaw@2026.5.12'));
+  assert('scripts have latest version', setupCode.includes('openclaw@latest'));
   assert('no scripts have autoReply', !setupCode.includes("autoReply: true"));
 
   // Verify CLAWEOF pattern exists in SH generators (used for heredoc file writing)
@@ -369,15 +368,15 @@ section('4. OS script generation via Wizard IIFE');
   assert('bundle has generateLinuxSh', setupCode.includes('function generateLinuxSh'));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PART 5: CLI script validation (dist/cli.js)
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 section('5. CLI script validation');
 {
   const fs = await import('fs');
   const path = await import('path');
-  const cliPath = path.resolve(new URL('../../dist/cli.js', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1'));
+  const cliPath = path.resolve(new URL('../../dist/legacy-cli.js', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1'));
   const cli = fs.readFileSync(cliPath, 'utf8');
 
   // CLI must reference centralized builder
@@ -393,15 +392,15 @@ section('5. CLI script validation');
   // CLI must have zalouser handling via centralized builder
   assert('CLI handles zalo-personal', cli.includes('zalo-personal') || cli.includes('zalouser'));
 
-  // CLI structure checks — verify key patterns exist
+  // CLI structure checks â€” verify key patterns exist
   assert('CLI has shebang', cli.startsWith('#!/'));
   assert('CLI has inquirer prompts', cli.includes('inquirer') || cli.includes('prompt'));
   assert('CLI delegates config to centralized builder', cli.includes('buildOpenclawJson') || cli.includes('__openclawBotConfig'));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PART 6: Cross-channel config integrity
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 section('6. Cross-channel config integrity');
 {
@@ -464,9 +463,9 @@ section('6. Cross-channel config integrity');
   assert('tele multi: 9router provider', !!telParsed.models?.providers?.['9router']);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Summary
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 console.log('\n' + '='.repeat(52));
 const color = failed > 0 ? '\x1b[31m' : '\x1b[32m';
@@ -477,3 +476,5 @@ if (failures.length > 0) {
   failures.forEach((f) => console.log(`  - ${f}`));
   process.exit(1);
 }
+
+

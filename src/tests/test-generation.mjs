@@ -1,4 +1,4 @@
-/**
+﻿/**
  * OpenClaw v5.5.x - Shared Generator Integration Tests
  *
  * This test calls the shared builders directly instead of driving the
@@ -83,7 +83,7 @@ section('1. Export surfaces');
 
   assert('docker-gen exports buildDockerArtifacts', typeof docker.buildDockerArtifacts === 'function');
   assert('docker-gen exports build9RouterPatchScript', typeof docker.build9RouterPatchScript === 'function');
-  assert('common-gen exposes pinned OpenClaw spec', typeof common.OPENCLAW_NPM_SPEC === 'string' && common.OPENCLAW_NPM_SPEC.length > 0);
+  assert('common-gen exposes latest OpenClaw spec', typeof common.OPENCLAW_NPM_SPEC === 'string' && common.OPENCLAW_NPM_SPEC.length > 0);
   assert('data exports providers and skills', !!data.PROVIDERS && Array.isArray(data.SKILLS));
 }
 
@@ -332,3 +332,4 @@ if (failures.length > 0) {
   failures.forEach((failure) => console.log(`  - ${failure}`));
   process.exit(1);
 }
+

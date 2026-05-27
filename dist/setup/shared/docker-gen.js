@@ -17,65 +17,106 @@
     return String(text).split('\n').map((line) => `${prefix}${line}`).join('\n');
   }
 
-  function build9RouterSmartRouteSyncScript(dbPath) {
-    return `const fs=require('fs');const INTERVAL=30000;const p='${dbPath}';
-const PM=${JSON.stringify(SMART_ROUTE_PROVIDER_MODELS)};
-const PREF=${JSON.stringify(SMART_ROUTE_PROVIDER_ORDER)};
-console.log('[sync-combo] 9Router sync loop started...');
-const sync = async () => {
-  try {
-    let db = {};
-    try { db = JSON.parse(fs.readFileSync(p, 'utf8')); } catch(e){}
-    if (!db.combos) db.combos = [];
-    const removeSmartRoute = () => {
-      const next = db.combos.filter(x => x.id !== 'smart-route');
-      if (next.length !== db.combos.length) {
-        db.combos = next;
-        fs.writeFileSync(p, JSON.stringify(db, null, 2));
-        console.log('[sync-combo] Removed smart-route (no active providers)');
-      }
-    };
-    const res = await fetch('http://localhost:20128/api/providers');
-    if (!res.ok) { console.log('[sync-combo] API not ready, retrying...'); return; }
-    const d = await res.json();
-    const rawConnections = Array.isArray(d.connections) ? d.connections : Array.isArray(d.providerConnections) ? d.providerConnections : [];
-    const activeConns = rawConnections.filter(c => c && c.provider && c.isActive !== false && !c.disabled);
-    const a = [...new Set(activeConns.map(c => c.provider))];
-    if (!a.length) { console.log('[sync-combo] No active providers reported; keeping existing smart-route'); return; }
-    a.sort((x, y) => (PREF.indexOf(x) === -1 ? 99 : PREF.indexOf(x)) - (PREF.indexOf(y) === -1 ? 99 : PREF.indexOf(y)));
-    const m = [];
-    for (const pv of a) {
-      if (PM[pv]) m.push(...PM[pv]);
-      const conns = activeConns.filter(c => c.provider === pv);
-      for (const c of conns) {
-        if (Array.isArray(c.models)) {
-          for (const mdl of c.models) {
-            const mdlId = typeof mdl === 'string' ? mdl : mdl.id;
-            if (mdlId && !m.includes(mdlId) && !m.includes(pv + '/' + mdlId)) {
-               m.push(pv + '/' + mdlId);
-            }
-          }
-        }
-      }
-    }
-    if (!m.length) { console.log('[sync-combo] No mapped models for active providers; keeping existing smart-route'); return; }
-    const c = { id: 'smart-route', name: 'smart-route', alias: 'smart-route', models: m };
-    const i = db.combos.findIndex(x => x.id === 'smart-route');
-    if (i >= 0) {
-      if (JSON.stringify(db.combos[i].models) !== JSON.stringify(c.models)) {
-        db.combos[i] = c;
-        fs.writeFileSync(p, JSON.stringify(db, null, 2));
-        console.log('[sync-combo] Updated smart-route: ' + c.models.length + ' models');
-      }
-    } else {
-      db.combos.push(c);
-      fs.writeFileSync(p, JSON.stringify(db, null, 2));
-      console.log('[sync-combo] Created smart-route: ' + c.models.length + ' models');
-    }
-  } catch (e) {}
-};
-setTimeout(sync, 5000);
-setInterval(sync, INTERVAL);`;
+  function build9RouterSmartRouteSyncScript() {
+    const lines = [
+      "const fs = require('fs');",
+      "const INTERVAL = 30000;",
+      "const DB_PATH = '/root/.9router/db/data.sqlite';",
+      "const PORT = process.env.PORT || 20128;",
+      "const COMBO_NAME = 'smart-route';",
+      "const API_BASE = `http://localhost:${PORT}`;",
+      "",
+      "function ensureSettings() {",
+      "  try {",
+      "    let db = null;",
+      "    try {",
+      "      const { DatabaseSync } = require('node:sqlite');",
+      "      db = new DatabaseSync(DB_PATH);",
+      "    } catch {",
+      "      let Database;",
+      "      try { Database = require('/usr/local/lib/node_modules/better-sqlite3'); } catch {",
+      "        try { Database = require('better-sqlite3'); } catch { return; }",
+      "      }",
+      "      db = Database(DB_PATH);",
+      "    }",
+      '    const existing = db.prepare("SELECT * FROM settings WHERE id = 1").get();',
+      "    if (!existing) {",
+      '      db.prepare("INSERT INTO settings (id, data) VALUES (1, ?)").run(JSON.stringify({ requireLogin: false }));',
+      "    } else {",
+      "      try {",
+      "        const data = JSON.parse(existing.data || '{}');",
+      "        if (data.requireLogin !== false) {",
+      "          data.requireLogin = false;",
+      '          db.prepare("UPDATE settings SET data = ? WHERE id = 1").run(JSON.stringify(data));',
+      "        }",
+      "      } catch {}",
+      "    }",
+      "    db.close();",
+      "  } catch (e) {}",
+      "}",
+      "",
+      "const sync = async () => {",
+      "  try {",
+      "    if (!fs.existsSync(DB_PATH)) return;",
+      "",
+      "    let existingCombo = null;",
+      "    try {",
+      "      const resp = await fetch(`${API_BASE}/api/combos`);",
+      "      if (resp.status === 401) {",
+      "        ensureSettings();",
+      "        return;",
+      "      }",
+      "      const data = await resp.json();",
+      "      if (data.combos) {",
+      "        existingCombo = data.combos.find(c => c.name === COMBO_NAME);",
+      "      }",
+      "    } catch (e) { return; }",
+      "",
+      "    if (existingCombo) return;",
+      "",
+      "    let activeProviders = [];",
+      "    try {",
+      "      const resp = await fetch(`${API_BASE}/api/providers`);",
+      "      const data = await resp.json();",
+      "      const conns = data.connections || data.providerConnections || [];",
+      "      activeProviders = [...new Set(",
+      "        conns.filter(c => c && c.provider && c.isActive !== false && !c.disabled).map(c => c.provider)",
+      "      )];",
+      "    } catch (e) { return; }",
+      "",
+      "    if (!activeProviders.length) return;",
+      "",
+      "    let models = [];",
+      "    try {",
+      "      const resp = await fetch(`${API_BASE}/api/models`);",
+      "      const data = await resp.json();",
+      "      if (data.models && Array.isArray(data.models)) {",
+      "        models = data.models",
+      "          .filter(m => activeProviders.includes(m.provider))",
+      "          .filter(m => !/(embedding|image|tts|stt|audio|vision)/i.test(m.model))",
+      "          .map(m => m.fullModel);",
+      "      }",
+      "      models = [...new Set(models)];",
+      "    } catch (e) { return; }",
+      "",
+      "    if (!models.length) return;",
+      "",
+      "    try {",
+      "      await fetch(`${API_BASE}/api/combos`, {",
+      "        method: 'POST',",
+      "        headers: { 'Content-Type': 'application/json' },",
+      "        body: JSON.stringify({ name: COMBO_NAME, models })",
+      "      });",
+      "      console.log('[sync-combo] Created smart-route with ' + models.length + ' models');",
+      "    } catch (e) {}",
+      "  } catch (e) {}",
+      "};",
+      "",
+      "if (fs.existsSync(DB_PATH)) ensureSettings();",
+      "setTimeout(sync, 10000);",
+      "setInterval(sync, INTERVAL);",
+    ];
+    return lines.join('\n');
   }
 
 function build9RouterPatchScript() {
@@ -140,20 +181,20 @@ for(const root of roots){if(!root||!fs.existsSync(root))continue;touched+=patchP
 if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}else{console.log('[patch-9router] No compatible 9router source files found to patch.');}`;
   }
 
-  function build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64) {
+  function build9RouterComposeEntrypointScript(routerPort) {
+      const port = routerPort || 20128;
       const nineRouterSpec = (typeof globalThis !== 'undefined' && globalThis.__openclawCommon && globalThis.__openclawCommon.NINE_ROUTER_NPM_SPEC) || '9router@latest';
       return [
-      `npm install -g ${nineRouterSpec}`,
-      `node -e "require('fs').writeFileSync('/tmp/patch-9router.js',Buffer.from('${patchScriptBase64}','base64').toString())"`,
-      `node -e "require('fs').writeFileSync('/tmp/sync.js',Buffer.from('${syncScriptBase64}','base64').toString())"`,
+      `npm install -g ` + nineRouterSpec + ` better-sqlite3`,
       'node /tmp/patch-9router.js || true',
+      'node -e "const fs=require(\'fs\'),path=require(\'path\'); const DB_PATH=\'/root/.9router/db/data.sqlite\'; const dir=path.dirname(DB_PATH); if(!fs.existsSync(dir))fs.mkdirSync(dir,{recursive:true}); try{ const {DatabaseSync}=require(\'node:sqlite\'); const db=new DatabaseSync(DB_PATH); db.prepare(\'CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)\').run(); const existing=db.prepare(\'SELECT * FROM settings WHERE id = 1\').get(); if(!existing){ db.prepare(\'INSERT INTO settings (id, data) VALUES (1, ?)\').run(JSON.stringify({requireLogin:false})); } db.close(); }catch(e){}" || true',
       'node /tmp/sync.js > /tmp/sync.log 2>&1 &',
-      'exec 9router -n -l -H 0.0.0.0 -p 20128 --skip-update'
+      `exec 9router -n -l -H 0.0.0.0 -p ${port} --skip-update`
     ].join('\n');
   }
 
   function buildGatewayPatchCmd() {
-    return `node -e \\"const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const a=new Set(['http://localhost:18789','http://127.0.0.1:18789','http://0.0.0.0:18789']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':18789');}}const p9=c.models&&c.models.providers&&c.models.providers['9router'];if(p9){p9.request=Object.assign({},p9.request,{allowPrivateNetwork:true});}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18789,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\"`;
+    return `node -e \\"const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const gp=Number(process.env.OPENCLAW_GATEWAY_PORT||process.env.OPENCLAW_PORT)||c.gateway?.port||18789;const a=new Set(['http://localhost:'+gp,'http://127.0.0.1:'+gp,'http://0.0.0.0:'+gp]);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':'+gp);}}const p9=c.models&&c.models.providers&&c.models.providers['9router'];if(p9){p9.request=Object.assign({},p9.request,{allowPrivateNetwork:true});}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:gp,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\"`;
   }
 
   function buildDockerArtifacts(options) {
@@ -170,7 +211,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       dockerfilePlugins = [],
       dockerfileSkillInstallMode = 'none',
       runtimeCommandParts = [],
-      volumeMount = '../../.openclaw:/root/project/.openclaw\\n      - ../../:/mnt/project',
+      volumeMount = '../../.openclaw:/root/project/.openclaw\n      - ../../:/mnt/project',
       singleComposeName = 'oc-bot',
       multiComposeName = 'oc-multibot',
       singleAppContainerName = 'openclaw-bot',
@@ -183,7 +224,8 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       multiOllamaNumParallel = 1,
       singleOllamaNumParallel = 1,
       emitBrowserInstall = true,
-
+      gatewayPort = 18789,
+      routerPort = 20128,
     } = options;
 
     const browserAptExtra = hasBrowser ? ' xvfb socat' : '';
@@ -209,10 +251,8 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     // Dynamic runtime configuration: backup config before any first-run install, restore after.
     // Missing plugin install may touch openclaw.json, so preserve critical fields.
     const backupConfigScript = `const fs=require('fs'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)){fs.copyFileSync(p,b);}`;
-    const backupConfigB64 = encodeBase64Utf8(backupConfigScript);
 
-    const restoreConfigScript = `const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)&&fs.existsSync(b)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const bk=JSON.parse(fs.readFileSync(b,'utf8'));const keep=['agents','channels','bindings','commands','models','browser','skills','plugins','tools'];for(const k of keep){if(bk[k]&&!c[k])c[k]=bk[k];}const a=new Set(['http://localhost:18789','http://127.0.0.1:18789','http://0.0.0.0:18789']);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://'+entry.address+':18789');}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:18789,bind:'custom',customBindHost:'0.0.0.0',mode:c.gateway?.mode||bk.gateway?.mode||'local',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));fs.unlinkSync(b);}`;
-    const restoreConfigB64 = encodeBase64Utf8(restoreConfigScript);
+    const restoreConfigScript = `const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json'),b=p.replace('openclaw.json','.openclaw-config-backup.json');if(fs.existsSync(p)&&fs.existsSync(b)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const bk=JSON.parse(fs.readFileSync(b,'utf8'));const keep=['agents','channels','bindings','commands','models','browser','skills','plugins','tools'];for(const k of keep){if(bk[k]&&!c[k])c[k]=bk[k];}const gp=Number(process.env.OPENCLAW_GATEWAY_PORT||process.env.OPENCLAW_PORT)||c.gateway?.port||bk.gateway?.port||18789;const a=new Set(['http://localhost:'+gp,'http://127.0.0.1:'+gp,'http://0.0.0.0:'+gp]);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://'+entry.address+':'+gp);}}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:gp,bind:'custom',customBindHost:'0.0.0.0',mode:c.gateway?.mode||bk.gateway?.mode||'local',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));fs.unlinkSync(b);}`;
     const securityCompatScript = `const fs=require('fs'),path=require('path');const scopes=['operator.admin','operator.pairing','operator.approvals'];function uniq(a){return Array.from(new Set([...(Array.isArray(a)?a:[]),...scopes]));}function walk(v){if(!v||typeof v!=='object')return;if(Array.isArray(v)){v.forEach(walk);return;}if(Array.isArray(v.scopes)||Array.isArray(v.approvedScopes)){v.scopes=uniq(v.scopes);v.approvedScopes=uniq(v.approvedScopes);}Object.values(v).forEach(walk);}const home=process.env.OPENCLAW_HOME||path.join(process.cwd(),'.openclaw');const state=process.env.OPENCLAW_STATE_DIR||home;const cfgPath=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(cfgPath)){const c=JSON.parse(fs.readFileSync(cfgPath,'utf8'));const p=c.models&&c.models.providers&&c.models.providers['9router'];if(p){p.request=Object.assign({},p.request,{allowPrivateNetwork:true});}fs.writeFileSync(cfgPath,JSON.stringify(c,null,2));}for(const root of Array.from(new Set([home,state]))){const f=path.join(root,'devices','paired.json');if(fs.existsSync(f)){const d=JSON.parse(fs.readFileSync(f,'utf8'));walk(d);fs.writeFileSync(f,JSON.stringify(d,null,2));}}`;
 
     const runtimeParts = runtimeCommandParts.filter(Boolean);
@@ -252,10 +292,34 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     ];
     runtimeParts.unshift(...runtimePrelude);
     // Backup config BEFORE plugin installs (runtimeCommandParts may contain plugin install commands)
-    runtimeParts.unshift(`node -e 'eval(Buffer.from("${backupConfigB64}","base64").toString())'`);
+    runtimeParts.unshift(`node - <<'NODE'\n${backupConfigScript}\nNODE`);
     // Restore config AFTER plugin installs (which may clobber openclaw.json)
-    runtimeParts.push(`node -e 'eval(Buffer.from("${restoreConfigB64}","base64").toString())'`);
+    runtimeParts.push(`node - <<'NODE'\n${restoreConfigScript}\nNODE`);
     runtimeParts.push(`node - <<'NODE'\n${securityCompatScript}\nNODE`);
+    // Zalouser stability: patch watchdog tolerance and add auto-restart monitor
+    runtimeParts.push([
+      '# Patch zalouser watchdog tolerance (35s -> 90s) to survive provider auth pre-warming',
+      'ZALO_JS=$(find "$OPENCLAW_HOME" -path "*/zalouser/dist/zalo-js-*.js" -type f 2>/dev/null | head -1)',
+      'if [ -n "$ZALO_JS" ] && grep -q "35e3" "$ZALO_JS" 2>/dev/null; then',
+      '  sed -i "s/LISTENER_WATCHDOG_MAX_GAP_MS\\\\s*=\\\\s*35e3/LISTENER_WATCHDOG_MAX_GAP_MS = 90e3/" "$ZALO_JS"',
+      '  echo "[entrypoint] patched zalouser watchdog gap: 35s -> 90s"',
+      'fi',
+    ].join('\\n'));
+    runtimeParts.push([
+      '# Zalo channel auto-restart monitor (background)',
+      '(',
+      '  sleep 180',
+      '  while true; do',
+      '    sleep 60',
+      '    STATUS=$(openclaw channels status 2>/dev/null | grep -i "Zalo Personal" || true)',
+      '    if echo "$STATUS" | grep -qi "stopped"; then',
+      '      echo "[zalo-monitor] Zalo channel stopped - restarting container in 5s"',
+      '      sleep 5',
+      '      kill 1 2>/dev/null || true',
+      '    fi',
+      '  done',
+      ') &',
+    ].join('\\n'));
     if (hasBrowser) {
       runtimeParts.push('socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &');
       runtimeParts.push('Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 & DISPLAY=:99 openclaw gateway run');
@@ -275,18 +339,16 @@ COPY entrypoint.sh /usr/local/bin/openclaw-entrypoint.sh
 RUN chmod +x /usr/local/bin/openclaw-entrypoint.sh
 WORKDIR /root/project
 
-EXPOSE 18789
+EXPOSE ${gatewayPort}
 
 CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
 
-    const syncScript = build9RouterSmartRouteSyncScript('/root/.9router/db.json');
-    const syncScriptBase64 = encodeBase64Utf8(syncScript);
-const patchScript = build9RouterPatchScript();
-    const patchScriptBase64 = encodeBase64Utf8(patchScript);
-    const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(syncScriptBase64, patchScriptBase64);
+    const syncScript = build9RouterSmartRouteSyncScript();
+    const patchScript = build9RouterPatchScript();
+    const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(routerPort);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
-    const appEnvironmentBlock = '    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n      - OPENCLAW_GATEWAY_PORT=18789\n      - OPENCLAW_PORT=18789\n    tmpfs:\n      - /root/project/.openclaw/plugin-runtime-deps\n';
+    const appEnvironmentBlock = `    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n      - OPENCLAW_GATEWAY_PORT=${gatewayPort}\n      - OPENCLAW_PORT=${gatewayPort}\n    tmpfs:\n      - /root/project/.openclaw/plugin-runtime-deps\n`;
 
     let compose;
     if (isMultiBot) {
@@ -304,11 +366,11 @@ services:
     container_name: ${multiAppContainerName}
     restart: always
     env_file:
-      - .env
+      - ../../.env
 ${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
-      - "18789:18789"
+      - "${gatewayPort}:${gatewayPort}"
 
   9router:
     image: node:22-slim
@@ -320,13 +382,15 @@ ${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
       - |
 ${indentBlock(docker9RouterEntrypointScript, 8)}
     environment:
-      - PORT=20128
+      - PORT=${routerPort}
       - HOSTNAME=0.0.0.0
       - CI=true
     volumes:
       - 9router-data:/root/.9router
+      - ./sync.js:/tmp/sync.js:ro
+      - ./patch-9router.js:/tmp/patch-9router.js:ro
     ports:
-      - "20128:20128"
+      - "${routerPort}:${routerPort}"
 
 volumes:
   9router-data:`;
@@ -339,11 +403,11 @@ services:
     container_name: ${multiAppContainerName}
     restart: always
     env_file:
-      - .env
+      - ../../.env
 ${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
-      - "18789:18789"
+      - "${gatewayPort}:${gatewayPort}"
 
   ollama:
     image: ollama/ollama:latest
@@ -379,11 +443,11 @@ services:
     container_name: ${multiAppContainerName}
     restart: always
     env_file:
-      - .env
+      - ../../.env
 ${appEnvironmentBlock}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
-      - "18789:18789"`;
+      - "${gatewayPort}:${gatewayPort}"`;
       }
     } else if (is9Router) {
       compose = `name: ${singleComposeName}
@@ -393,13 +457,14 @@ services:
     container_name: ${singleAppContainerName}
     restart: always
     env_file:
-      - .env
+      - ../../.env
     depends_on:
       - 9router
 ${appEnvironmentBlock}${hasBrowser ? `${extraHostsBlock}\n` : ''}    volumes:
       - ${volumeMount}
+      - openclaw-plugins:/root/project/.openclaw/npm
     ports:
-      - "18789:18789"
+      - "${gatewayPort}:${gatewayPort}"
 
   9router:
     image: node:22-slim
@@ -411,16 +476,19 @@ ${appEnvironmentBlock}${hasBrowser ? `${extraHostsBlock}\n` : ''}    volumes:
       - |
 ${indentBlock(docker9RouterEntrypointScript, 8)}
     environment:
-      - PORT=20128
+      - PORT=${routerPort}
       - HOSTNAME=0.0.0.0
       - CI=true
     volumes:
       - 9router-data:/root/.9router
+      - ./sync.js:/tmp/sync.js:ro
+      - ./patch-9router.js:/tmp/patch-9router.js:ro
     ports:
-      - "20128:20128"
+      - "${routerPort}:${routerPort}"
 
 volumes:
-  9router-data:`;
+  9router-data:
+  openclaw-plugins:`;
     } else if (isLocal) {
       const ollamaModelTag = String(selectedModel || 'ollama/gemma4:e2b').replace('ollama/', '');
       compose = `name: ${singleComposeName}
@@ -429,12 +497,12 @@ services:
     build: .
     container_name: ${singleAppContainerName}
     restart: always
-    env_file: .env
+    env_file: ../../.env
 ${appEnvironmentBlock}    depends_on:
       ollama:
         condition: service_healthy
 ${hasBrowser ? `${extraHostsBlock}\n` : ''}    ports:
-      - "18789:18789"
+      - "${gatewayPort}:${gatewayPort}"
     volumes:
       - ${volumeMount}
 
@@ -472,11 +540,11 @@ services:
     container_name: ${singleAppContainerName}
     restart: always
     env_file:
-      - .env
+      - ../../.env
 ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    volumes:
       - ${volumeMount}
     ports:
-      - "18789:18789"`;
+      - "${gatewayPort}:${gatewayPort}"`;
     }
 
     return {
@@ -484,6 +552,7 @@ ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    
       compose,
       entrypointScript: runtimeScript,
       syncScript,
+      patchScript,
       docker9RouterEntrypointScript,
       gatewayPatchCmd: buildGatewayPatchCmd(),
     };

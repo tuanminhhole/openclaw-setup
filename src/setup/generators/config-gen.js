@@ -59,7 +59,7 @@
 
       // Force use global provider if proxy mode is chosen globally, else use bot specific provider
       const botProvider = (provider && provider.isProxy) ? provider : (PROVIDERS[bot.provider] || provider);
-      const actualModel = botProvider.isProxy ? provider.models[0].id : (bot.model || state.config.model);
+      const actualModel = botProvider.isProxy ? 'smart-route' : (bot.model || state.config.model);
       const bcfg = globalThis.__openclawBotConfig;
 
       const cfg = bcfg.buildOpenclawJson({

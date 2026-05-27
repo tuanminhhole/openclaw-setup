@@ -34,15 +34,13 @@
  * @param {string} opts.projectDirVar  - BAT var for project dir    e.g. '%PROJECT_DIR%'
  * @param {string} opts.label          - Unique BAT label suffix (avoid duplicate labels)
  *                                       e.g. 'win', 'multi', 'combo'
- * @param {boolean} [opts.useInstance] - Use --instance default flag (for multi-bot flows)
+ * @param {boolean} [opts.useInstance] - Reserved for QR file suffix only.
  * @returns {string[]} Lines to push into the bat script
  */
 function generateZaloLoginBat(opts) {
   const { homeVar, projectDirVar, label = 'default', useInstance = false } = opts;
   const credPath = `${homeVar}\\credentials\\zalouser\\credentials.json`;
-  const loginCmd = useInstance
-    ? 'openclaw channels login --channel zalouser --instance default --verbose'
-    : 'openclaw channels login --channel zalouser --verbose';
+  const loginCmd = 'openclaw channels login --channel zalouser --verbose';
   const contLabel = `:zalo_continue_${label}`;
   const retryLabel = `:retry_zalo_${label}`;
 
@@ -82,15 +80,13 @@ function generateZaloLoginBat(opts) {
  * @param {object} opts
  * @param {string} opts.homeVar       - Shell var for OPENCLAW_HOME  e.g. '$OPENCLAW_HOME'
  * @param {string} opts.projectDirVar - Shell var for project dir    e.g. '$PROJECT_DIR'
- * @param {boolean} [opts.useInstance] - Use --instance default flag
+ * @param {boolean} [opts.useInstance] - Reserved for QR file suffix only.
  * @returns {string[]} Lines to push into the sh script
  */
 function generateZaloLoginSh(opts) {
   const { homeVar, projectDirVar, useInstance = false } = opts;
   const credPath = `${homeVar}/credentials/zalouser/credentials.json`;
-  const loginCmd = useInstance
-    ? 'openclaw channels login --channel zalouser --instance default --verbose'
-    : 'openclaw channels login --channel zalouser --verbose';
+  const loginCmd = 'openclaw channels login --channel zalouser --verbose';
 
   return [
     `# ── Zalo Personal Login (idempotent) ─────────────────────────────────`,

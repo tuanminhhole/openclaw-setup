@@ -24,6 +24,13 @@ Công cụ **CLI tương tác** và **Setup Wizard** để tự triển khai Bot
 
 ---
 
+## Local Web Installer vNext
+
+- `npx create-openclaw-bot` m? UI setup local ??/?en m?i.
+- `npx create-openclaw-bot legacy` gi? wizard terminal c?.
+- Runtime d?ng `openclaw@latest` v? `9router@latest`.
+
+
 ## 🆕 Có gì mới trong v5.7.10
 
 - 🔧 **Cập nhật tham chiếu Plugin Zalo** — Đổi tên `zalo-mod` thành `openclaw-zalo-mod` trong các chuỗi sinh cấu hình và test để đồng bộ với package mới.

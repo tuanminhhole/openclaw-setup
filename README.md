@@ -14,7 +14,7 @@
   <img src="https://flagcdn.com/24x18/vn.png" alt="Tiếng Việt" width="24" height="18" style="vertical-align: sub;"> <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot on Telegram or Zalo in minutes — supports **Windows, macOS, Ubuntu, and VPS**.
+A local **web installer launched by npx** plus a preserved legacy CLI to deploy your own free AI Bot on Telegram or Zalo in minutes — supports **Windows, macOS, Ubuntu, and VPS**.
 
 <a href="https://github.com/tuanminhhole/openclaw-setup">
   <img src="https://raw.githubusercontent.com/tuanminhhole/openclaw-setup/main/docs/preview.png" alt="OpenClaw Setup Hero Image" width="100%" style="border-radius: 8px; margin: 16px 0; border: 1px solid #333;" />
@@ -23,6 +23,13 @@ An interactive **CLI tool** and **Setup Wizard** to deploy your own free AI Bot 
 </div>
 
 ---
+
+## Local Web Installer vNext
+
+- `npx create-openclaw-bot` opens the new red/black local setup UI.
+- `npx create-openclaw-bot legacy` keeps the old terminal wizard.
+- Runtime installs use `openclaw@latest` and `9router@latest`.
+
 
 ## 🆕 What's new in v5.7.10
 

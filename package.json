@@ -12,7 +12,8 @@
   "scripts": {
     "build": "node src/build.mjs --deploy",
     "dev": "node src/build.mjs --deploy --watch",
-    "test": "node src/tests/smoke-cli-logic.mjs && node src/tests/test-generation.mjs && node src/tests/test-matrix.mjs",
+    "start": "node dist/cli.js",
+    "test": "node src/tests/smoke-cli-logic.mjs && node src/tests/test-generation.mjs && node src/tests/test-matrix.mjs && node src/tests/test-local-server.mjs",
     "bump": "node src/bump-version.mjs"
   },
   "keywords": [

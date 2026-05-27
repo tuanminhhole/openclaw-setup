@@ -1,0 +1,10 @@
+{
+  "projectDir": "E:\\minh-khang",
+  "mode": "docker",
+  "os": "win",
+  "installed": true,
+  "gatewayUrl": "http://127.0.0.1:18791",
+  "gatewayPort": 18791,
+  "routerUrl": "http://127.0.0.1:20129",
+  "routerPort": 20129
+}

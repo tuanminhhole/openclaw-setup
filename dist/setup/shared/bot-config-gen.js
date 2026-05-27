@@ -74,6 +74,7 @@
       gatewayAllowedOrigins = [],
       osChoice = '',
       selectedModel = '',
+      routerPort,
     } = opts;
 
     const common = _common;
@@ -84,7 +85,7 @@
     const agentsList = agentMetas.map((meta) => ({
       id: meta.agentId,
       ...(meta.name ? { name: meta.name } : {}),
-      workspace: `.openclaw/${meta.workspaceDir || 'workspace-' + meta.agentId}`,
+      workspace: `/root/project/.openclaw/${meta.workspaceDir || 'workspace-' + meta.agentId}`,
       agentDir: `agents/${meta.agentId}/agent`,
       model: { primary: model, fallbacks: [] },
     }));
@@ -108,7 +109,7 @@
         mode: 'merge',
         providers: {
           '9router': common.build9RouterProviderConfig(
-            common.get9RouterBaseUrl ? common.get9RouterBaseUrl(deployMode) : 'http://9router:20128/v1'
+            common.get9RouterBaseUrl ? common.get9RouterBaseUrl(deployMode, routerPort) : `http://9router:${routerPort || 20128}/v1`
           ),
         },
       };
