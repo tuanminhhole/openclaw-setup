@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 /* eslint-disable no-undef, no-unused-vars */
 /**
  * @fileoverview Part of the OpenClaw Setup Wizard IIFE bundle.
@@ -20,14 +20,6 @@
  */
   // ========== Available Skills (ClawHub registry — agent capabilities) ==========
   const SKILLS = [
-    {
-      id: 'browser',
-      name: 'Browser Automation ⭐(Khuyên dùng)',
-      icon: '🌐',
-      descVi: 'Tự động thao tác trình duyệt (Playwright)', descEn: 'Automated browser control (Playwright)',
-      slug: 'browser-automation',
-      noteVi: 'Cần bật Chrome Debug Mode trên máy host', noteEn: 'Requires Chrome Debug Mode on host',
-    },
     {
       id: 'memory',
       name: 'Long-term Memory ⭐(Khuyên dùng)',
@@ -126,7 +118,7 @@
         className: 'plugin-card__badge plugin-card__badge--recommended'
       };
     }
-    if (skill.id === 'browser' || skill.id === 'scheduler') {
+    if (skill.id === 'scheduler') {
       return {
         text: isVi ? 'Khuyên dùng' : 'Recommended',
         className: 'plugin-card__badge plugin-card__badge--recommended'

@@ -13,7 +13,6 @@
  * @global {boolean} isVi        - Vietnamese language mode
  * @global {object}  provider    - Current primary provider config
  * @global {boolean} isMultiBot  - Multi-bot mode flag
- * @global {boolean} hasBrowser  - Browser plugin selected
  * @global {boolean} is9Router   - 9Router proxy mode
  * @global {string}  projectDir  - Output project directory path
  * @global {Function} getGatewayAllowedOrigins
@@ -78,8 +77,8 @@
         groupId,
         selectedSkills: state.config.skills,
         skills: SKILLS,
-        hasBrowserDesktop: hasBrowser && state.browserMode === 'desktop',
-        hasBrowserServer: hasBrowser && state.browserMode !== 'desktop',
+        hasBrowserDesktop: false,
+        hasBrowserServer: false,
         gatewayPort: basePort,
         gatewayAllowedOrigins: getGatewayAllowedOrigins(basePort),
         osChoice: state.nativeOs || '',
@@ -149,7 +148,7 @@
         agentWorkspaceDir,
         persona: bot.persona || '',
         userInfo: state.config.userInfo || '',
-        hasBrowser,
+        hasBrowser: false,
         soulVariant: 'wizard',
         memoryVariant: 'wizard',
         hasZaloMod: state.channel === 'zalo-personal',

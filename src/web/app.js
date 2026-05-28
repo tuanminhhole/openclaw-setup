@@ -101,12 +101,19 @@ function sidebarExtras() {
   const socials = [
     ['facebook','https://www.facebook.com/holeminhtuan.it/'],
     ['telegram','https://t.me/holeminhtuan_it'],
-    ['zalo','https://www.zalo.me.vn/0962794917'],
+    ['zalo','https://zalo.me/0962794917'],
     ['github','https://github.com/tuanminhhole/']
   ];
-  return `<div class="sidebar-extra">
-    <div class="side-info"><b>OpenClaw Setup</b><p>${t('Tr\u00ecnh c\u00e0i \u0111\u1eb7t web c\u1ee5c b\u1ed9: t\u1ef1 nh\u1eadn di\u1ec7n OS, t\u1ea1o project, c\u00e0i runtime v\u00e0 kh\u1edfi \u0111\u1ed9ng bot.', 'Local web installer: detect OS, generate project, install runtime and start bot.')}</p></div>
-    <div class="side-info side-author"><b>openclaw-setup <span>v5.7.10</span></b><p>Author: tuanminhhole</p><div class="socials">${socials.map(([n,u])=>`<a href="${u}" target="_blank" rel="noopener" aria-label="${n}">${socialIcon(n)}</a>`).join('')}</div></div>
+  return `<div style="margin-top: auto; width: 100%;">
+    <hr style="border: 0; border-top: 1px solid var(--hair); margin: 16px 0 20px 0; opacity: 0.6;" />
+    <div class="sidebar-extra" style="margin-top: 0;">
+      <div class="side-info side-author" style="text-align: center; background: transparent; border: none; box-shadow: none; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
+        <p style="margin: 0 0 10px 0; font-weight: 600; color: var(--muted); font-size: 12.5px; display: inline-flex; align-items: center; gap: 4px;">Được làm ❤️ bởi <a href="https://zalo.me/0962794917" target="_blank" rel="noopener" style="color: var(--muted); text-decoration: none; font-weight: 700;">tuanminhole</a></p>
+        <div class="socials" style="justify-content: center; margin-top: 0; display: flex; gap: 8px; width: 100%;">
+          ${socials.map(([n,u])=>`<a href="${u}" target="_blank" rel="noopener" aria-label="${n}">${socialIcon(n)}</a>`).join('')}
+        </div>
+      </div>
+    </div>
   </div>`;
 }
 function donateModal() {
@@ -166,14 +173,14 @@ function installModal() {
     ['native', 'Native', t('C\u00e0i tr\u1ef1c ti\u1ebfp, runtime nh\u1eb9 h\u01a1n', 'Direct host install, lighter runtime')],
   ];
   return `<div class="modal-backdrop install-backdrop" data-install-modal="close">
-    <section class="donate-modal install-modal" role="dialog" aria-modal="true" aria-label="${t('T\u1ea1o project m\u1edbi','Create new project')}" onclick="event.stopPropagation()">
+    <section class="donate-modal install-modal" role="dialog" aria-modal="true" aria-label="${t('T\u1ea1o Project','Create Project')}" onclick="event.stopPropagation()">
       <button class="modal-x" data-install-modal="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-      <div class="donate-head"><span aria-hidden="true">+</span><div><p>${t('T\u1ea1o project m\u1edbi','Create new project')}</p><h2>${t('Ch\u1ecdn th\u01b0 m\u1ee5c project r\u1ed3i c\u00e0i \u0111\u1eb7t','Pick project folder then install')}</h2><small>${t('Ch\u1ecdn s\u1eb5n mode \u1edf tab tr\u00ean. B\u00ean d\u01b0\u1edbi ch\u1ec9 c\u1ea7n ch\u1ecdn OS v\u00e0 nh\u1eadp ho\u1eb7c ch\u1ecdn \u0111\u01b0\u1eddng d\u1eabn project.','Mode stays in the tabs above. Below, choose OS and enter or pick the project path.')}</small></div></div>
+      <div class="donate-head"><span aria-hidden="true">+</span><div><p>${t('T\u1ea1o Project','Create Project')}</p><h2>${t('T\u1ea1o Project','Create Project')}</h2><small>${t('Ch\u1ecdn s\u1eb5n ch\u1ebf \u0111\u1ed9 \u1edf tab tr\u00ean. B\u00ean d\u01b0\u1edbi ch\u1ec9 c\u1ea7n ch\u1ecdn OS v\u00e0 nh\u1eadp ho\u1eb7c ch\u1ecdn \u0111\u01b0\u1eddng d\u1eabn project.','Mode stays in the tabs above. Below, choose OS and enter or pick the project path.')}</small></div></div>
       <form id="install-form" class="install-form">
         <div class="install-tabs">${modeChoices.map(([id,label,desc]) => `<button type="button" class="install-tab ${mode===id?'is-active':''}" data-install-set="mode" data-value="${id}"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(desc)}</small></button>`).join('')}</div>
         <div class="install-grid install-grid--compact">
           <div class="field wide"><span>${t('H\u1ec7 \u0111i\u1ec1u h\u00e0nh','Operating system')}</span>${pillGroup('os', os, osChoices)}<small>${t('\u0110\u00e3 ch\u1ecdn s\u1eb5n theo m\u00e1y \u0111ang ch\u1ea1y','Preselected from the current machine')}</small></div>
-          <label class="field wide"><span>${t('???ng d?n project','Project path')}</span><input name="projectDir" placeholder="${escapeHtml(pathExample)}" value="${escapeHtml(draft.projectDir || pathExample)}" /><small>${t('V? d?: E:\\bot ho?c /home/you/openclaw-bot. B?n c? th? t? s?a t?n folder bot th?nh t?n b?t k?.','Example: E:\\bot or /home/you/openclaw-bot. You can rename folder bot to any name.')}</small></label>
+          <label class="field wide"><span>${t('Đường dẫn project','Project path')}</span><input name="projectDir" placeholder="${escapeHtml(pathExample)}" value="${escapeHtml(draft.projectDir || pathExample)}" /><small>${t('Ví dụ: E:\\bot hoặc /home/you/openclaw-bot. Bạn có thể tự sửa tên folder bot thành tên bất kỳ.','Example: E:\\bot or /home/you/openclaw-bot. You can rename folder bot to any name.')}</small></label>
         </div>
         <div class="install-preview">${t('S\u1ebd t\u1ea1o t\u1ea1i','Will create at')} <code data-install-preview>${escapeHtml(draft.projectDir || pathExample)}</code></div>
         <input type="hidden" name="os" value="${escapeHtml(os)}" />
@@ -234,11 +241,21 @@ function refreshInstallDraft(next = {}) {
   const sys = state.system || {};
   const os = next.os || prev.os || state.os || sys.os || 'win';
   const mode = next.mode || prev.mode || state.mode || sys.recommendedMode || 'docker';
-  const projectName = String(next.projectName ?? prev.projectName ?? 'openclaw-bot').trim() || 'openclaw-bot';
-  const projectRoot = String(next.projectRoot ?? prev.projectRoot ?? '').trim();
-  const projectDir = String(next.projectDir ?? joinPath(projectRoot, projectName)).trim();
   const defaultDir = os === 'win' ? 'E:\\bot' : os === 'macos' ? '/Users/you/openclaw-bot' : '/home/you/openclaw-bot';
-  state.installDraft = { projectName, projectRoot, projectDir: projectDir || defaultDir, os, mode };
+  
+  const projectName = String(next.projectName ?? prev.projectName ?? '').trim();
+  const projectRoot = String(next.projectRoot ?? prev.projectRoot ?? '').trim();
+  
+  let projectDir = String(next.projectDir ?? prev.projectDir ?? '').trim();
+  if (!projectDir) {
+    if (projectRoot) {
+      projectDir = joinPath(projectRoot, projectName || 'openclaw-bot');
+    } else {
+      projectDir = defaultDir;
+    }
+  }
+  
+  state.installDraft = { projectName, projectRoot, projectDir, os, mode };
   return state.installDraft;
 }
 function openPathModal({ title, message, value = '', placeholder = '', onConfirm = null }) {
@@ -258,20 +275,96 @@ async function pickFolderPathShared() {
 function render() {
   applyPrefs();
   const tabs = [['dashboard',t('Dashboard','Dashboard')],['setup',ui('setup')],['bot',ui('bot')],['logs',ui('logs')]];
-  $('#app').innerHTML = `
-    <aside class="sidebar">
-      <div class="brand"><img src="/openclaw-logo.svg" onerror="this.src='/openclaw-logo.png'" alt="OpenClaw"/><div><b>OpenClaw</b><span>${ui('localSetup')}</span></div></div>
-      <nav>${tabs.map(([id,label]) => `<button class="nav ${state.tab===id?'active':''}" data-tab="${id}">${icon(id)}<span>${label}</span></button>`).join('')}</nav>
-      <code class="cmd">npx create-openclaw-bot</code>
-      ${sidebarExtras()}
-    </aside>
-    <main>
-      <header class="topbar"><div class="search"><svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input aria-label="Search" placeholder="${t('T\u00ecm nhanh...', 'Quick search...')}" /></div><div class="topbar__actions"><button class="top-donate" data-donate="open"><span>&#10084;</span> ${ui('donate')}</button>${toggleGroup('theme', state.theme, [['light',ui('light')],['dark',ui('dark')]])}${toggleGroup('lang', state.lang, [['vi','VI'],['en','EN']])}<span class="pill ${state.install?.installed?'ok':''}">${state.install?.installed?ui('installed'):ui('ready')}</span></div></header>
-      <header class="top"><div><p class="eyebrow">${ui('installer')}</p><h1>${title()}</h1></div></header>
-      <section class="panel">${content()}</section>
-    </main>
-    <nav class="bottom">${tabs.map(([id,label]) => `<button class="nav ${state.tab===id?'active':''}" data-tab="${id}">${icon(id)}<small>${label}</small></button>`).join('')}</nav>${donateModal()}${botCreateModal()}${confirmModal()}${pathModal()}${zaloLoginModal()}${installModal()}`;
-  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => withButtonLoading(b, async () => { state.tab = b.dataset.tab; if (state.tab === 'bot') { await loadCatalog(true); await loadFeatureFlags(true); } if (state.tab === 'bot' || state.tab === 'dashboard') { await loadStatus(true); await loadFiles(true); } render(); }));
+  
+  let mainContainer = $('#app-main-content');
+  if (!mainContainer) {
+    $('#app').innerHTML = `
+      <aside class="sidebar">
+        <div class="brand"><img src="/openclaw-logo.svg" onerror="this.src='/openclaw-logo.png'" alt="OpenClaw"/><div style="display: flex; flex-direction: column; align-items: center; text-align: center;"><b>OpenClaw Setup</b><span style="display: block; width: 100%; text-align: center; font-size: 13.5px; font-weight: 600; margin-top: 6px; color: var(--muted);">v${state.system?.versions?.setup || '5.8.0'}</span></div></div>
+        <nav class="sidebar-nav">${tabs.map(([id,label]) => `<button class="nav ${state.tab===id?'active':''}" data-tab="${id}">${icon(id)}<span>${label}</span></button>`).join('')}</nav>
+        ${sidebarExtras()}
+      </aside>
+      <main id="app-main-content">
+        <header class="topbar">
+          <div class="search">
+            <svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input aria-label="Search" placeholder="${t('T\u00ecm nhanh...', 'Quick search...')}" />
+          </div>
+          <div class="topbar__actions">
+            <div class="seg" role="group" aria-label="theme">
+              <button class="seg__btn ${state.theme==='light'?'is-active':''}" data-pref="theme" data-value="light" style="display: inline-flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="4.22" x2="19.78" y2="5.64"/></svg>
+                <span>${ui('light')}</span>
+              </button>
+              <button class="seg__btn ${state.theme==='dark'?'is-active':''}" data-pref="theme" data-value="dark" style="display: inline-flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                <span>${ui('dark')}</span>
+              </button>
+            </div>
+            <div class="seg" role="group" aria-label="lang" style="display: inline-flex; align-items: center; gap: 4px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; color: var(--muted);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px; height:15px;"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              </span>
+              <button class="seg__btn ${state.lang==='vi'?'is-active':''}" data-pref="lang" data-value="vi">VI</button>
+              <button class="seg__btn ${state.lang==='en'?'is-active':''}" data-pref="lang" data-value="en">EN</button>
+            </div>
+          </div>
+        </header>
+        <header class="top"><div><p class="eyebrow">${ui('installer')}</p><h1 id="app-page-title">${title()}</h1></div></header>
+        <section class="panel">${content()}</section>
+        <footer class="app-footer" style="margin-top: 40px; padding: 24px 0 10px 0; border-top: 1px solid var(--hair); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <p style="margin: 0; font-size: 13px; color: var(--muted);">Copyright © 2026 Được làm ❤️ bởi <a href="https://zalo.me/0962794917" target="_blank" rel="noopener" style="color: var(--muted); text-decoration: none; font-weight: 600;">tuanminhole</a>. Phát hành theo MIT.</p>
+          <p style="margin: 0; font-size: 13px; color: var(--body); display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;">
+            <span>Nếu công cụ này giúp ích cho bạn, hãy mời mình một ly cà phê nhé! ❤️</span>
+            <button class="top-donate" data-donate="open" style="padding: 6px 12px; font-size: 11.5px; border-radius: 999px; display: inline-flex; align-items: center; border-color: var(--ok); background: rgba(46, 230, 166, 0.08); color: var(--ok);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; margin-right: 4px; filter: drop-shadow(0 0 6px rgba(46, 230, 166, 0.45));"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>
+              Mời Cafe
+            </button>
+          </p>
+        </footer>
+      </main>
+      <nav class="bottom bottom-nav">${tabs.map(([id,label]) => `<button class="nav ${state.tab===id?'active':''}" data-tab="${id}">${icon(id)}<small>${label}</small></button>`).join('')}</nav>
+      <div id="modal-container"></div>
+    `;
+    mainContainer = $('#app-main-content');
+  } else {
+    const titleEl = $('#app-page-title');
+    if (titleEl) titleEl.innerHTML = title();
+
+    const panelEl = $('.panel');
+    if (panelEl) panelEl.innerHTML = content();
+
+    document.querySelectorAll('.sidebar-nav button, .bottom-nav button').forEach(btn => {
+      const active = btn.dataset.tab === state.tab;
+      btn.classList.toggle('active', active);
+    });
+
+    const pillEl = $('.topbar__actions .pill');
+    if (pillEl) {
+      const installed = state.install?.installed;
+      pillEl.className = `pill ${installed ? 'ok' : ''}`;
+      pillEl.textContent = installed ? ui('installed') : ui('ready');
+    }
+  }
+
+  const modalContainer = $('#modal-container');
+  if (modalContainer) {
+    modalContainer.innerHTML = `${donateModal()}${botCreateModal()}${confirmModal()}${pathModal()}${zaloLoginModal()}${installModal()}`;
+  }
+
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => withButtonLoading(b, async () => { 
+    state.tab = b.dataset.tab; 
+    if (state.tab === 'bot') { 
+      await loadCatalog(true); 
+      await loadFeatureFlags(true); 
+    } 
+    if (state.tab === 'bot' || state.tab === 'dashboard') { 
+      await loadStatus(true); 
+      await loadFiles(true); 
+    } 
+    render(); 
+  }));
+
   wireTab();
 }
 
@@ -331,6 +424,9 @@ function wireSkillsHandlers(scope = document) {
       await api('/api/features/install', { method:'POST', body:{ kind, id, agentId: currentBotId() } });
       await loadFeatureFlags(true);
       await loadFiles(true);
+      showToast(t('Thành công', 'Success'), t('Cài đặt/Cập nhật thành công plugin: ', 'Successfully installed/updated plugin: ') + id, 'success');
+    } catch (err) {
+      showToast(t('Thất bại', 'Failed'), err.message, 'error');
     } finally {
       delete state.featureLoading[key];
     }
@@ -524,7 +620,7 @@ function botView() {
       <div class="card-head">
         <h3>${t('Bot','Bot')}</h3>
         <div style="display:flex;gap:8px;">
-          ${(ch === 'zalo-personal' && channelBots.length > 0) ? `<button class="primary btn-inline" data-zalo-login-trigger type="button">🔑 ${t('Đăng nhập Zalo','Zalo Login')}</button>` : ''}
+          ${(ch === 'zalo-personal' && channelBots.length > 0) ? `<button class="secondary btn-inline" data-zalo-login-trigger type="button">🔑 ${t('Đăng nhập Zalo','Zalo Login')}</button>` : ''}
           <button class="primary btn-inline" data-bot-modal="open" type="button">+ ${t('Tạo mới','New')}</button>
         </div>
       </div>
@@ -663,13 +759,13 @@ function filesView() { return `<div class="files">${state.files.map(f=>`<article
 function botSkillsPanel() {
   const flags = state.featureFlags || {};
   const skills = [
-    { id: 'browser', title: 'Browser', desc: 'Chrome CDP + BROWSER.md + browser-tool.js' },
     { id: 'cron', title: 'Cron', desc: 'Cron guide in TOOLS.md' },
   ];
   const plugins = [
+    { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },
     { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers' },
-    { id: 'openclaw-n8n-facebook-crawler', title: 'openclaw-n8n-facebook-crawler', desc: 'Facebook crawler (n8n)' },
-    { id: 'openclaw-facebook-poster', title: 'openclaw-facebook-poster', desc: 'Facebook post automation' },
+    { id: 'openclaw-facebook-crawler', title: 'openclaw-facebook-crawler', desc: 'Facebook crawler automation' },
+    { id: 'openclaw-n8n-facebook-poster', title: 'openclaw-n8n-facebook-poster', desc: 'Facebook post automation (n8n)' },
   ];
   const bot = currentBot();
   const scope = `${state.install?.projectDir || '-'} ? ${bot?.id || '-'}`;
@@ -678,18 +774,48 @@ function botSkillsPanel() {
     const loading = !!state.featureLoading[key];
     const isPlugin = group === 'plugin';
     const isInstalled = !isPlugin || !!state.featureInstalled?.[key];
-    return `<article class="card feature-card ${loading ? 'is-loading' : ''}"><div class="feature-head"><div><b>${escapeHtml(item.title)}</b><p>${escapeHtml(item.desc)}</p></div>` + 
-      (isInstalled ? `<label class="feature-switch"><input type="checkbox" data-feature-toggle="${key}" ${flags[key] ? 'checked' : ''} ${loading ? 'disabled' : ''}/><span></span></label>` : `<button class="secondary icon-btn2" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''}>${actionIcon('download')} ${ui('installVerb')}</button>`) +
+    
+    let actionsHtml = '';
+    if (isInstalled) {
+      actionsHtml = `<div style="display:flex; align-items:center; gap:8px;">`;
+      if (isPlugin) {
+        actionsHtml += `<button class="secondary icon-btn2 update-plugin-btn" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''} title="${t('Cập nhật lên bản mới nhất','Update to latest version')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#ffb020; border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.05);">${actionIcon('refresh')}<span>${t('Cập nhật','Update')}</span></button>`;
+      }
+      actionsHtml += `<label class="feature-switch"><input type="checkbox" data-feature-toggle="${key}" ${flags[key] ? 'checked' : ''} ${loading ? 'disabled' : ''}/><span></span></label></div>`;
+    } else {
+      actionsHtml = `<button class="secondary icon-btn2" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''}>${actionIcon('download')} ${ui('installVerb')}</button>`;
+    }
+
+    const version = isPlugin && isInstalled ? (state.featureVersions?.[key] || '') : '';
+    const versionBadge = version ? `<span class="plugin-version-badge" style="display:inline-block; font-size: 11px; background: rgba(66, 133, 244, 0.15); color: #4285F4; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 8px; border: 1px solid rgba(66,133,244,0.25);">v${escapeHtml(version)}</span>` : '';
+
+    return `<article class="card feature-card ${loading ? 'is-loading' : ''}"><div class="feature-head"><div><b>${escapeHtml(item.title)}${versionBadge}</b><p>${escapeHtml(item.desc)}</p></div>` + 
+      actionsHtml +
       `</div>${loading ? '<div class="feature-progress"><i></i></div>' : ''}</article>`;
   };
-  return `<p class="project-path-line">Scope: <code>${escapeHtml(scope)}</code></p><h4 class="feature-group">Skills</h4><div class="grid two">${skills.map(s=>row(s,'skill')).join('')}</div><h4 class="feature-group" style="margin-top:10px">Plugins</h4><div class="grid two">${plugins.map(p=>row(p,'plugin')).join('')}</div>`;
+  return `
+    <h4 class="feature-group">⚡ ${t('Skills','Skills')}</h4>
+    <div class="grid two">${skills.map(s=>row(s,'skill')).join('')}</div>
+    
+    <div class="feature-divider-wrap">
+      <hr class="feature-divider" />
+    </div>
+    
+    <h4 class="feature-group">🔌 ${t('Plugins','Plugins')}</h4>
+    <div class="grid two">${plugins.map(p=>row(p,'plugin')).join('')}</div>
+  `;
 }
 
 function wireTab() {
   document.querySelectorAll('[data-copy-log]').forEach(el => el.onclick = () => withButtonLoading(el, async () => {
     const text = state.logs.join('\n');
-    try { await navigator.clipboard.writeText(text); el.classList.add('is-copied'); el.innerHTML = `${copyIcon()} ${t('\u0110\u00e3 copy','Copied')}`; setTimeout(() => render(), 900); }
-    catch { state.confirmModal = { title: t('Kh?ng copy ???c','Copy failed'), message: text || t('Kh?ng c? log','No logs'), okText: t('??ng','Close'), onConfirm: () => {} }; render(); }
+    try { 
+      await navigator.clipboard.writeText(text); 
+      el.classList.add('is-copied'); 
+      el.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px; height:16px; display: block; margin: 0 auto;"><polyline points="20 6 9 17 4 12"/></svg>`; 
+      setTimeout(() => render(), 900); 
+    }
+    catch { state.confirmModal = { title: t('Không copy được','Copy failed'), message: text || t('Không có log','No logs'), okText: t('Đóng','Close'), onConfirm: () => {} }; render(); }
   }));
   document.querySelectorAll('[data-donate]').forEach(el => el.onclick = () => { state.donateOpen = el.dataset.donate === 'open'; render(); });
   document.querySelectorAll('[data-bot-modal]').forEach(el => el.onclick = () => { state.botModalOpen = el.dataset.botModal === 'open'; if (el.dataset.botModal === 'open') state.botEditId = ''; state.botMessage = ''; render(); });
@@ -714,7 +840,13 @@ function wireTab() {
     if (action === 'cancel' || !m) { state.confirmModal = null; render(); return; }
     if (action === 'ok' && typeof m.onConfirm === 'function') await m.onConfirm();
   }));
-  document.querySelectorAll('[data-pref]').forEach(btn => btn.onclick = () => { state[btn.dataset.pref] = btn.dataset.value; localStorage.setItem('openclaw-'+btn.dataset.pref, btn.dataset.value); render(); });
+  document.querySelectorAll('[data-pref]').forEach(btn => btn.onclick = () => { 
+    state[btn.dataset.pref] = btn.dataset.value; 
+    localStorage.setItem('openclaw-'+btn.dataset.pref, btn.dataset.value); 
+    const main = $('#app-main-content');
+    if (main) main.remove();
+    render(); 
+  });
   document.querySelectorAll('[data-tab-jump]').forEach(btn => btn.onclick = () => { state.tab = btn.dataset.tabJump; render(); });
   document.querySelectorAll('input[name=os]').forEach(i => i.onchange = () => { state.os = i.value; document.querySelectorAll('input[name=os]').forEach(x => x.closest('.choice-card')?.classList.toggle('is-selected', x.checked)); });
   document.querySelectorAll('input[name=mode]').forEach(i => i.onchange = () => { state.mode = i.value; document.querySelectorAll('input[name=mode]').forEach(x => x.closest('.choice-card')?.classList.toggle('is-selected', x.checked)); });
@@ -883,7 +1015,15 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
   $('#install')?.addEventListener('click', () => {
     state.installModalOpen = true;
     state.installTab = document.querySelector('input[name=mode]:checked')?.value || state.mode || state.system?.recommendedMode || 'docker';
-    refreshInstallDraft({ os: document.querySelector('input[name=os]:checked')?.value || state.os || state.system?.os || 'win', mode: state.installTab, projectDir: state.installDraft?.projectDir || state.selectedProjectDir || state.install?.projectDir || ((document.querySelector('input[name=os]:checked')?.value || state.os || state.system?.os || 'win') === 'win' ? 'E:\\bot' : '') });
+    const os = document.querySelector('input[name=os]:checked')?.value || state.os || state.system?.os || 'win';
+    const defaultDir = os === 'win' ? 'E:\\bot' : os === 'macos' ? '/Users/you/openclaw-bot' : '/home/you/openclaw-bot';
+    
+    // reset draft to defaultDir and never pull currently connected project E:\mkt to prevent dangerous overrides
+    refreshInstallDraft({ 
+      os, 
+      mode: state.installTab, 
+      projectDir: state.installDraft?.projectDir || defaultDir 
+    });
     render();
   });
   document.querySelectorAll('[data-install-modal]').forEach(el => el.onclick = () => { state.installModalOpen = false; render(); });
@@ -1020,7 +1160,7 @@ async function loadFiles(silent=false){
   if (!silent) render();
 }
 async function loadCatalog(silent=false){ state.catalog = await api('/api/catalog'); if (!silent) render(); }
-async function loadFeatureFlags(silent=false){ const botId=currentBotId(); const data = (await api('/api/features' + (botId ? `?agentId=${encodeURIComponent(botId)}` : ''))) || {}; state.featureFlags = data.flags || {}; state.featureInstalled = data.installed || {}; if (!silent) render(); }
+async function loadFeatureFlags(silent=false){ const botId=currentBotId(); const data = (await api('/api/features' + (botId ? `?agentId=${encodeURIComponent(botId)}` : ''))) || {}; state.featureFlags = data.flags || {}; state.featureInstalled = data.installed || {}; state.featureVersions = data.versions || {}; if (!silent) render(); }
 function appendLogLine(line) {
   const qrMatch = String(line).match(/^\[zalouser:qr\]\s+(data:image\/[a-zA-Z0-9.+-]+;base64,\S+)/);
   if (qrMatch) {
@@ -1100,6 +1240,7 @@ function showToast(title, desc, type = 'info', duration = 4000) {
   }
 }
 
+render();
 Promise.all([loadSystem(true), loadStatus(true), loadCatalog(true), loadFeatureFlags(true)]).finally(() => { render(); connectLogs(); });
 
 

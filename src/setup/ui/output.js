@@ -41,68 +41,6 @@
     const routerNotice = document.getElementById('9router-notice');
     if (routerNotice) routerNotice.style.display = is9Router ? '' : 'none';
 
-    // Show/hide Browser Automation notice + generate scripts
-    const browserNotice = document.getElementById('browser-notice');
-    const hasBrowserSkill = state.config.skills.includes('browser');
-    if (browserNotice) browserNotice.style.display = hasBrowserSkill ? '' : 'none';
-
-    if (hasBrowserSkill) {
-      // Chrome Debug .bat script
-      const chromeBat = `@echo off
-echo ============================================
-echo   OpenClaw - Chrome Debug Mode
-echo ============================================
-echo.
-echo Dang tat Chrome cu (neu co)...
-taskkill /F /IM chrome.exe >nul 2>&1
-timeout /t 3 /nobreak >nul
-echo Dang mo Chrome voi Debug Mode...
-start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" ^
-  --remote-debugging-port=9222 ^
-  --remote-allow-origins=* ^
-  --user-data-dir="%TEMP%\\chrome-debug"
-timeout /t 4 /nobreak >nul
-powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:9222/json/version' -UseBasicParsing -TimeoutSec 5 | Out-Null; Write-Host 'OK! Chrome Debug Mode dang chay tren port 9222.' -ForegroundColor Green } catch { Write-Host 'LOI: Port 9222 chua mo. Thu lai.' -ForegroundColor Red }"
-echo.
-pause`;
-      setOutput('out-chrome-bat', chromeBat);
-
-      // Task Scheduler PowerShell script
-      const taskPs1 = `# ============================================
-# OpenClaw - Auto-start Chrome Debug khi logon
-# Chay script nay 1 lan voi Run as Administrator
-# ============================================
-
-# Duong dan toi file .bat
-$batPath = "$env:USERPROFILE\\start-chrome-debug.bat"
-
-# Kiem tra file .bat ton tai
-if (-not (Test-Path $batPath)) {
-  Write-Host "LOI: Khong tim thay $batPath" -ForegroundColor Red
-  Write-Host "Hay luu file start-chrome-debug.bat vao $env:USERPROFILE truoc." -ForegroundColor Yellow
-  exit 1
-}
-
-# Tao Scheduled Task
-$action   = New-ScheduledTaskAction -Execute $batPath
-$trigger  = New-ScheduledTaskTrigger -AtLogOn
-$trigger.Delay = "PT10S"   # Delay 10 giay sau khi logon
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-
-Register-ScheduledTask \\
-  -TaskName "OpenClaw-ChromeDebug" \\
-  -Description "Tu dong bat Chrome Debug Mode cho OpenClaw Browser Automation" \\
-  -Action $action \\
-  -Trigger $trigger \\
-  -Settings $settings \\
-  -Force
-
-Write-Host ""
-Write-Host "DONE! Task 'OpenClaw-ChromeDebug' da duoc tao." -ForegroundColor Green
-Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (delay 10s)." -ForegroundColor Cyan`;
-      setOutput('out-task-ps1', taskPs1);
-    }
-
     // Show/hide docker vs native output based on deployMode
     const dockerOut = document.getElementById('docker-output');
     const nativeOut = document.getElementById('native-output');
@@ -131,8 +69,6 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       : 'Script is generated from your choices. Download and run — everything else is handled automatically.';
 
     const agentId = state.config.botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
-
-    const hasBrowser = state.config.skills.includes('browser');
     // isMultiBot => unified into isMultiBot above
     const multiBotAgentMetas = isMultiBot
       ? state.bots.slice(0, state.botCount).map((bot, idx) => {
@@ -221,19 +157,6 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       };
     }
 
-    // Browser Automation: inject browser config
-    if (hasBrowser) {
-      clawConfig.browser = {
-        enabled: true,
-        defaultProfile: 'host-chrome',
-        profiles: {
-          'host-chrome': {
-            cdpUrl: 'http://127.0.0.1:9222',
-            color: '#4285F4',
-          },
-        },
-      };
-    }
 
     // Skills: register all selected skills in openclaw.json → skills.entries
     // This makes OpenClaw actually load and enable them at runtime
@@ -242,8 +165,6 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       state.config.skills.forEach((sid) => {
         const skill = SKILLS.find((s) => s.id === sid);
         if (!skill) return;
-        // Native browser tools are loaded automatically via the root 'browser' config
-        if (skill.slug === 'browser-automation') return;
         // scheduler is now native cron (not a skill), skip registering in skills.entries
         if (skill.id === 'scheduler' || !skill.slug) return;
         
@@ -371,7 +292,7 @@ model:
     const allSkills = [];
     state.config.skills.forEach((sid) => {
       const skill = SKILLS.find((s) => s.id === sid);
-      if (skill && skill.slug && skill.slug !== 'browser-automation') {
+      if (skill && skill.slug) {
         allSkills.push(skill.slug);
       }
     });
@@ -391,7 +312,6 @@ model:
       is9Router,
       isLocal,
       isMultiBot: state.botCount > 1 && (state.channel === 'telegram'),
-      hasBrowser,
       selectedModel: state.config.model || 'ollama/gemma4:e2b',
       agentId: 'bot',
       allSkills,
@@ -551,12 +471,6 @@ _This file is yours to evolve. If someone asks to change it, confirm with the us
 `;
 
     // ── AGENTS.md — Hướng dẫn vận hành ("operating manual")
-    const browserAgentSection = hasBrowser ? `
-## Sử dụng Trình Duyệt (Browser Automation)
-- BẠN SỞ HỮU GIAO DIỆN TRÌNH DUYỆT CHROME THẬT CỦA USER thông qua script \`browser-tool.js\`. ĐỌC NGAY FILE \`BROWSER.md\` để biết cách dùng.
-- BẮT BUỘC dùng \`bash\` để gõ \`node ~/browser-tool.js ...\` khi có yêu cầu liên quan đến web thay vì dùng web_search!
-- KHÔNG BAO GIỜ từ chối mở trình duyệt với lý do "không có giao diện" hay "máy chủ không có browser".
-` : '';
 
     const agentsMd = lang === 'vi'
       ? `# Hướng dẫn vận hành
@@ -584,7 +498,6 @@ Bạn hỗ trợ người dùng trong mọi tác vụ hàng ngày thông qua tin
 - Luôn xác nhận kết quả tool trước khi trả lời user
 - Nếu tool lỗi → thông báo rõ ràng, đề xuất cách khác
 
-${browserAgentSection}
 ${state.config.securityRules}
 `
 
@@ -668,143 +581,6 @@ _Update this file as you learn more about the user. Ask before changing._
     // ── MEMORY.md — via scaffold builder
     const memoryMd = _scaffold.buildMemoryDoc({ isVi, variant: 'wizard' });
 
-    // Browser tool files (generated into workspace when hasBrowser)
-    const browserToolJs = `/**
- * browser-tool.js - Connect to real Windows Chrome via CDP
- * Flow: Docker -> socat (port 9222) -> host.docker.internal:9222 -> user's Chrome
- */
-const { chromium } = require('/usr/local/lib/node_modules/openclaw/node_modules/playwright-core');
-const action = process.argv[2];
-const param1 = process.argv[3];
-const param2 = process.argv[4];
-const CDP_URL = 'http://127.0.0.1:9222';
-(async () => {
-    let browser;
-    try {
-        browser = await chromium.connectOverCDP(CDP_URL, { timeout: 5000 });
-        const ctx = browser.contexts()[0];
-        const pages = ctx.pages();
-        let page = pages.length > 0 ? pages[0] : await ctx.newPage();
-        if (action === 'open') {
-            console.log('[Browser] Mo trang: ' + param1);
-            await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await page.waitForTimeout(1500);
-            console.log('[Browser] Da mo: ' + (await page.title()) + ' | ' + page.url());
-        } else if (action === 'get_text') {
-            const text = await page.evaluate(() => {
-                document.querySelectorAll('script,style,noscript,svg').forEach(e => e.remove());
-                return document.body.innerText.trim();
-            });
-            console.log(text.substring(0, 4000));
-        } else if (action === 'click') {
-            await page.locator(param1).first().click({ timeout: 5000 });
-            await page.waitForTimeout(600);
-            console.log('[Browser] Da click: ' + param1);
-        } else if (action === 'fill') {
-            await page.locator(param1).first().fill(param2, { timeout: 5000 });
-            console.log('[Browser] Da dien "' + param2 + '" vao: ' + param1);
-        } else if (action === 'press') {
-            await page.keyboard.press(param1);
-            await page.waitForTimeout(1000);
-            console.log('[Browser] Da nhan phim: ' + param1);
-        } else if (action === 'status') {
-            console.log('[Browser] Ket noi Chrome that! Tab: ' + (await page.title()) + ' | ' + page.url());
-        } else {
-            console.log('Lenh: open <url> | get_text | click <sel> | fill <sel> <text> | press <key> | status');
-        }
-    } catch(e) {
-        if (e.message.includes('ECONNREFUSED') || e.message.includes('Timeout')) {
-            console.error('[Browser] Ban chua bat Chrome Debug! Hay click dup vao start-chrome-debug.bat roi thu lai.');
-        } else {
-            console.error('[Browser] Loi:', e.message);
-        }
-    } finally {
-        if (browser) await browser.close();
-    }
-`;
-
-    const browserMd = `# Dieu Khien Trinh Duyet (Browser Automation)
-
-Bot dieu khien Chrome THAT tren man hinh Windows cua ban. Moi thao tac hien thi truc tiep!
-
-## Lenh su dung (chay qua bash)
-
-\\\`\\\`\\\`bash
-node ~/browser-tool.js status
-node ~/browser-tool.js open "https://google.com"
-node ~/browser-tool.js get_text
-node ~/browser-tool.js fill "input[name='q']" "tu khoa"
-node ~/browser-tool.js press "Enter"
-node ~/browser-tool.js click "#button"
-\\\`\\\`\\\`
-
-## QUY TAC BAT BUOC
-- KHONG BAO GIO tu choi mo trinh duyet.
-- Neu loi ECONNREFUSED: bao user bat lai start-chrome-debug.bat.
-- KHONG dung web_search khi user yeu cau browser.
-`;
-
-    const chromeBatContent = `@echo off
-echo ====== OpenClaw - Chrome Debug Mode ======
-echo.
-echo Dang tat Chrome cu (neu co)...
-taskkill /F /IM chrome.exe >nul 2>&1
-timeout /t 3 /nobreak >nul
-echo Dang mo Chrome voi Debug Mode...
-start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" ^
-  --remote-debugging-port=9222 ^
-  --remote-allow-origins=* ^
-  --user-data-dir="%TEMP%\\chrome-debug"
-timeout /t 4 /nobreak >nul
-powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:9222/json/version' -UseBasicParsing -TimeoutSec 5 | Out-Null; Write-Host 'OK! Chrome Debug Mode dang chay.' -ForegroundColor Green } catch { Write-Host 'LOI: Port 9222 chua mo.' -ForegroundColor Red }"
-echo.
-pause
-`;
-
-    const chromeShContent = `#!/usr/bin/env bash
-# ====== OpenClaw - Chrome Debug Mode (Mac/Linux) ======
-set -e
-echo "====== OpenClaw - Chrome Debug Mode ======"
-echo ""
-
-# Detect Chrome path
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-  [ ! -f "$CHROME_BIN" ] && CHROME_BIN="/Applications/Chromium.app/Contents/MacOS/Chromium"
-  [ ! -f "$CHROME_BIN" ] && CHROME_BIN="/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary"
-else
-  CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || echo '')"
-fi
-[ -n "$CHROME_DEBUG_BIN" ] && CHROME_BIN="$CHROME_DEBUG_BIN"
-
-if [ -z "$CHROME_BIN" ] || { [ ! -f "$CHROME_BIN" ] && [ ! -x "$CHROME_BIN" ]; }; then
-  echo -e "\\033[31mERROR: Chrome/Chromium not found.\\033[0m"
-  echo "Install Chrome or: export CHROME_DEBUG_BIN=/path/to/chrome"
-  exit 1
-fi
-
-echo "Using: $CHROME_BIN"
-echo "Killing existing Chrome debug instances..."
-pkill -f -- "--remote-debugging-port=9222" 2>/dev/null || true
-sleep 2
-
-TMP_DIR="\${TMPDIR:-/tmp}/chrome-debug-openclaw"
-mkdir -p "$TMP_DIR"
-
-echo "Starting Chrome in Debug Mode (port 9222)..."
-"$CHROME_BIN" \\
-  --remote-debugging-port=9222 \\
-  --remote-allow-origins=* \\
-  --user-data-dir="$TMP_DIR" &
-
-sleep 4
-if curl -s http://localhost:9222/json/version > /dev/null 2>&1; then
-  echo -e "\\033[32mOK! Chrome Debug Mode is running on port 9222.\\033[0m"
-else
-  echo -e "\\033[31mERROR: Port 9222 not responding.\\033[0m"
-  exit 1
-fi
-`;
 
     const envText = (document.getElementById('env-content')?.textContent || '').trim();
     const rootEnvContent = envText ? `${envText}\n` : '';
@@ -859,10 +635,6 @@ fi
         });
         sharedFiles[`.openclaw/${meta.workspaceDir}/TEAMS.md`] = _scaffold.buildTeamsDoc({ isVi });
         sharedFiles[`.openclaw/${meta.workspaceDir}/MEMORY.md`] = memoryMd;
-        if (hasBrowser) {
-          sharedFiles[`.openclaw/${meta.workspaceDir}/browser-tool.js`] = browserToolJs;
-          sharedFiles[`.openclaw/${meta.workspaceDir}/BROWSER.md`] = browserMd;
-        }
       }
       state._generatedFiles = sharedFiles;
     } else {
@@ -882,10 +654,6 @@ fi
         }),
         [`.openclaw/workspace-${agentId}/MEMORY.md`]: memoryMd,
         '.gitignore': isNativeMode ? '.env\nnode_modules/' : '.env\ndocker/openclaw/.env\nnode_modules/',
-        ...(hasBrowser ? {
-          [`.openclaw/workspace-${agentId}/browser-tool.js`]: browserToolJs,
-          [`.openclaw/workspace-${agentId}/BROWSER.md`]: browserMd,
-        } : {}),
       };
       if (rootEnvContent) {
         singleFiles['.env'] = rootEnvContent;
@@ -907,8 +675,6 @@ fi
     // chrome-debug, start-bot, uninstall added ONCE here, not per-bot-mode block
     if (isNativeMode) {
       const _files = state._generatedFiles;
-      _files['start-chrome-debug.bat'] = chromeBatContent;
-      _files['start-chrome-debug.sh'] = chromeShContent;
       _files['start-bot.bat'] = generateStartBotBat({
         projectDir: state.config.projectPath || '.',
         openclawHome: (state.config.projectPath || '.') + '\\.openclaw',

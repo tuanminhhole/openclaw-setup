@@ -263,8 +263,8 @@ section('4. OS script generation via Wizard IIFE');
 {
   // Load the full setup.js bundle in a sandboxed evaluation
   const fs = await import('fs');
-  const path = await import('path');
-  const setupPath = path.resolve(new URL('../../dist/setup.js', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1'));
+  const { fileURLToPath } = await import('url');
+  const setupPath = fileURLToPath(new URL('../../dist/setup.js', import.meta.url));
   const setupCode = fs.readFileSync(setupPath, 'utf8');
 
   // The setup.js requires DOM globals â€” we simulate the minimum needed
@@ -375,8 +375,8 @@ section('4. OS script generation via Wizard IIFE');
 section('5. CLI script validation');
 {
   const fs = await import('fs');
-  const path = await import('path');
-  const cliPath = path.resolve(new URL('../../dist/legacy-cli.js', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1'));
+  const { fileURLToPath } = await import('url');
+  const cliPath = fileURLToPath(new URL('../../dist/legacy-cli.js', import.meta.url));
   const cli = fs.readFileSync(cliPath, 'utf8');
 
   // CLI must reference centralized builder

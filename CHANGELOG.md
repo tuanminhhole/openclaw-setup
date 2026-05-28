@@ -1,6 +1,20 @@
 # Changelog (English)
 
 
+## [5.8.0] — 2026-05-28
+
+### 🚀 Next-Generation Process Management Web UI Setup
+
+- **New: Modern Web UI Setup**: Migrated the installation and onboarding workflow from legacy static HTML files (`index.html`) to a local Web Application (SPA). Automatically launches and guides users through the setup steps.
+- **New: Container & Process Controller**: Integrated interactive **Start / Stop / Recreate** buttons on the dashboard to control bot runtime container states without typing docker commands.
+- **New: Live Logs Streamer**: Added real-time log streaming (stdout) from your running bot container/process directly to the setup dashboard.
+- **New: Integrated File Editor**: Allows developers to view, edit, and save bot configurations and workspace markdown files (`openclaw.json`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`) directly within the browser.
+- **New: Native Zalo QR Login**: Exposed QR authorization images on the dashboard for quick Zalo Personal account logins.
+- **Improve: Smart Port Allocation**: Automatically checks for unused ports and dynamically allocates `routerPort` to prevent network collisions in multi-bot setups.
+- **Improve: Windows NTFS Permission Fix**: Implemented a named Docker volume (`openclaw-plugins`) for dependencies to resolve NTFS file locks (`EACCES`) on Windows host machines.
+- **Cleanup**: Deprecated and deleted all old static wizard files (`index.html`, `style.css`) and legacy documentation files under `docs/`.
+
+
 ## [5.7.10] — 2026-05-06
 
 ### 🚀 Features & Documentation Updates

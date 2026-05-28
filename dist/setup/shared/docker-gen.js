@@ -204,7 +204,6 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       is9Router,
       isLocal,
       isMultiBot,
-      hasBrowser,
       selectedModel,
       agentId,
       allSkills = [],
@@ -223,23 +222,9 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       plainSingleExtraHosts = false,
       multiOllamaNumParallel = 1,
       singleOllamaNumParallel = 1,
-      emitBrowserInstall = true,
       gatewayPort = 18789,
       routerPort = 20128,
     } = options;
-
-    const browserAptExtra = hasBrowser ? ' xvfb socat' : '';
-    const browserInstallLines = hasBrowser && emitBrowserInstall
-      ? [
-          '',
-          '# Browser Automation: Playwright engine (needed for native CDP)',
-          'RUN npm install -g agent-browser playwright \\',
-          '    && npx playwright install chromium --with-deps \\',
-          '    && ln -f -s /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /usr/bin/google-chrome',
-          '',
-          ''
-        ].join('\n')
-      : '';
     const skillLines = dockerfileSkillInstallMode === 'build' && allSkills.length > 0
       ? `\n# Install skills (ClawHub)\n${allSkills.map((skill) => `RUN openclaw skills install ${skill} || echo "Warning: Failed to install ${skill} due to rate limits."`).join('\n')}\n`
       : '';
@@ -279,6 +264,20 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '  echo "[entrypoint] plugin $id missing; installing $spec"',
       '  openclaw plugins install "$spec" 2>/dev/null || echo "[entrypoint] warning: failed to install plugin $spec"',
       '}',
+      'ensure_zalouser() {',
+      '  NPM_DIR="$OPENCLAW_HOME/npm"',
+      '  PKG_DIR="$NPM_DIR/node_modules/@openclaw/zalouser"',
+      '  if [ -d "$PKG_DIR" ]; then',
+      '    echo "[entrypoint] zalouser plugin already installed"',
+      '  else',
+      '    echo "[entrypoint] zalouser plugin missing; installing via npm"',
+      '    mkdir -p "$NPM_DIR"',
+      '    cd "$NPM_DIR"',
+      '    npm init -y 2>/dev/null || true',
+      '    npm install @openclaw/zalouser@latest 2>/dev/null || echo "[entrypoint] warning: failed to install @openclaw/zalouser"',
+      '    cd /root/project',
+      '  fi',
+      '}',
       'ensure_skill() {',
       '  id="$1"',
       '  if find "$OPENCLAW_HOME" -maxdepth 4 -type d -path "*/skills/$id" -print -quit 2>/dev/null | grep -q .; then',
@@ -304,7 +303,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '  sed -i "s/LISTENER_WATCHDOG_MAX_GAP_MS\\\\s*=\\\\s*35e3/LISTENER_WATCHDOG_MAX_GAP_MS = 90e3/" "$ZALO_JS"',
       '  echo "[entrypoint] patched zalouser watchdog gap: 35s -> 90s"',
       'fi',
-    ].join('\\n'));
+    ].join('\n'));
     runtimeParts.push([
       '# Zalo channel auto-restart monitor (background)',
       '(',
@@ -314,27 +313,23 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '    STATUS=$(openclaw channels status 2>/dev/null | grep -i "Zalo Personal" || true)',
       '    if echo "$STATUS" | grep -qi "stopped"; then',
       '      echo "[zalo-monitor] Zalo channel stopped - restarting container in 5s"',
-      '      sleep 5',
+'      sleep 5',
       '      kill 1 2>/dev/null || true',
       '    fi',
       '  done',
       ') &',
-    ].join('\\n'));
-    if (hasBrowser) {
-      runtimeParts.push('socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &');
-      runtimeParts.push('Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 & DISPLAY=:99 openclaw gateway run');
-    } else {
-      runtimeParts.push('openclaw gateway run');
-    }
+    ].join('\n'));
+    runtimeParts.push('openclaw gateway run');
     const runtimeScript = ['#!/bin/sh', 'set -e', ...runtimeParts].join('\n');
     const dockerfile = `FROM node:22-slim
 
-RUN apt-get update && apt-get install -y git curl python3${browserAptExtra} && rm -rf /var/lib/apt/lists/*
-${browserInstallLines}
+RUN apt-get update && apt-get install -y git curl python3 && rm -rf /var/lib/apt/lists/*
+
 ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""
 RUN echo "CACHE_BUST=$CACHE_BUST" && npm install -g $OPENCLAW_VER ${openClawRuntimePackages}${skillLines}${pluginLines}
 ${patchLine}
+
 COPY entrypoint.sh /usr/local/bin/openclaw-entrypoint.sh
 RUN chmod +x /usr/local/bin/openclaw-entrypoint.sh
 WORKDIR /root/project
@@ -357,7 +352,7 @@ CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
         : isLocal
           ? '    depends_on:\n      ollama:\n        condition: service_healthy\n'
           : '';
-      const extraHosts = hasBrowser ? `${extraHostsBlock}\n` : '';
+      const extraHosts = `${extraHostsBlock}\n`;
       if (is9Router) {
         compose = `name: ${multiComposeName}
 services:
@@ -460,7 +455,7 @@ services:
       - ../../.env
     depends_on:
       - 9router
-${appEnvironmentBlock}${hasBrowser ? `${extraHostsBlock}\n` : ''}    volumes:
+${appEnvironmentBlock}${extraHostsBlock}\n    volumes:
       - ${volumeMount}
       - openclaw-plugins:/root/project/.openclaw/npm
     ports:
@@ -501,7 +496,7 @@ services:
 ${appEnvironmentBlock}    depends_on:
       ollama:
         condition: service_healthy
-${hasBrowser ? `${extraHostsBlock}\n` : ''}    ports:
+${extraHostsBlock}\n    ports:
       - "${gatewayPort}:${gatewayPort}"
     volumes:
       - ${volumeMount}

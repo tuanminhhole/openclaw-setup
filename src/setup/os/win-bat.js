@@ -7,7 +7,7 @@
  */
 function generateWinBat(ctx) {
   const {
-    ch, isVi, provider, is9Router, isOllama, hasBrowser, selectedModel, isMultiBot, projectDir, todayStamp, allPlugins, pluginCmd, nativeSkillInstallCmds, nativeSkillConfigs, providerLines, sharedNativeFileMap, sharedNativeEnvContent, sharedNativeExecApprovalsContent, sharedNativeConfigContent, native9RouterSyncScriptContent, native9RouterServerEntryLookup, windowsHiddenNodeLaunch, generateUninstallScript,
+    ch, isVi, provider, is9Router, isOllama, selectedModel, isMultiBot, projectDir, todayStamp, allPlugins, pluginCmd, nativeSkillInstallCmds, nativeSkillConfigs, providerLines, sharedNativeFileMap, sharedNativeEnvContent, sharedNativeExecApprovalsContent, sharedNativeConfigContent, native9RouterSyncScriptContent, native9RouterServerEntryLookup, windowsHiddenNodeLaunch, generateUninstallScript,
   } = ctx;
   // state, PROVIDERS, SKILLS, PLUGINS, CHANNELS are IIFE-level globals
   let scriptContent;
@@ -60,11 +60,6 @@ function generateWinBat(ctx) {
   }
 
   providerLines(lines, 'bat');
-  if (hasBrowser) {
-    lines.push('echo Cai Browser Automation runtime...');
-    lines.push('call npm install -g agent-browser playwright || goto :fail');
-    lines.push('call npx playwright install chromium || goto :fail');
-  }
   if (nativeSkillInstallCmds.length > 0) {
     lines.push('echo Cai skills...');
     lines.push(...nativeSkillInstallCmds);
