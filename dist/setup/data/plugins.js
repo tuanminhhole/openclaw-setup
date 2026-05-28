@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 /* eslint-disable no-undef, no-unused-vars */
 /**
  * @fileoverview Part of the OpenClaw Setup Wizard IIFE bundle.
@@ -20,6 +20,13 @@
  */
   // ========== Available Plugins (npm packages — runtime/channel extensions) ==========
   const PLUGINS = [
+    {
+      id: 'browser-automation',
+      name: 'Browser Automation ⭐',
+      icon: '🌐',
+      descVi: 'Smart Search + Điều khiển trình duyệt Chrome/Chromium (ẩn & thật)', descEn: 'Smart Search + Chrome/Chromium browser control (headless & real)',
+      package: 'openclaw-browser-automation',
+    },
     {
       id: 'telegram-multibot-relay',
       name: 'Telegram Multi-Bot Relay',

@@ -29,7 +29,6 @@
   // ── CLI-facing SKILLS (value = selection key, slug = ClawHub package name) ────
   // Keep in sync with setup/data/skills.js skill IDs
   const SKILLS = [
-    { value: 'browser',          name: '🌐 Browser Automation (Playwright) (⭐ Khuyên dùng)', slug: null },
     { value: 'memory',           name: '🧠 Long-term Memory (⭐ Khuyên dùng)',                 slug: 'memory' },
     { value: 'scheduler',        name: '⏰ Native Cron Scheduler (⭐ Khuyên dùng)',             slug: null },
     { value: 'rag',              name: '📚 RAG / Knowledge Base',                              slug: 'rag' },

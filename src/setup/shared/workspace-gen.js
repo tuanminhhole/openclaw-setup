@@ -125,6 +125,226 @@ function buildBootstrapDoc(options = {}) {
       : `# BOOTSTRAP\n\n## Startup role\n- You are **${botName}**.\n- Your identity, role, and style are already defined in **IDENTITY.md**, **SOUL.md**, and **AGENTS.md**.\n- Use those files as the highest-priority source of truth for your persona in this workspace.\n\n## Mandatory\n- Do not ask the user to redefine your name, vibe, persona, signature emoji, or assistant style.\n- Do not say you just woke up, just came online, are choosing your identity, or any similar onboarding line.\n- Do not behave like a blank freshly-created bot.\n- If the user only sends a short opener like "hi" or "alo", greet briefly and reply in your existing role.\n\n## Telegram\n- Before EVERY user-visible Telegram reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- Never claim that you reacted unless the tool actually ran and the reaction is real on the chat.\n- If the target chat does not support real reactions or the tool is not exposed, still reply normally and do not mention the technical limitation.\n`;
   }
 
+  function buildSearchToolJs() {
+    return `/**
+ * search-tool.js — Stealth search via Playwright Headless Chromium or CDP fallback
+ * Zero tokens, no API keys, concurrent multi-engine scraping (Google + Bing + DuckDuckGo).
+ * Usage: node search-tool.js "<query>" [limit]
+ */
+let playwright;
+try {
+    playwright = require('playwright-core');
+} catch (e) {
+    try {
+        playwright = require('/usr/local/lib/node_modules/openclaw/node_modules/playwright-core');
+    } catch (err) {
+        try {
+            const path = require('path');
+            playwright = require(path.join(process.cwd(), 'node_modules', 'playwright-core'));
+        } catch (x) {
+            console.error(JSON.stringify({ error: 'Playwright not found! Install it or run within OpenClaw environment.' }));
+            process.exit(1);
+        }
+    }
+}
+const { chromium } = playwright;
+
+const query = process.argv[2];
+const limit = parseInt(process.argv[3]) || 5;
+const CDP_URL = 'http://127.0.0.1:9222';
+
+if (!query) {
+    console.error(JSON.stringify({ error: 'Usage: node search-tool.js "<query>" [limit]' }));
+    process.exit(1);
+}
+
+(async () => {
+    let browser;
+    let ctx;
+    let isStandalone = false;
+    try {
+        // Try connecting to active Chrome CDP first
+        try {
+            browser = await chromium.connectOverCDP(CDP_URL, { timeout: 3000 });
+            ctx = browser.contexts()[0];
+        } catch (e) {
+            // Fallback to standalone headless Chromium launch
+            browser = await chromium.launch({
+                headless: true,
+                args: [
+                    '--no-sandbox',
+                    '--disable-gpu',
+                    '--disable-dev-shm-usage',
+                    '--disable-blink-features=AutomationControlled'
+                ]
+            });
+            isStandalone = true;
+            ctx = await browser.newContext({
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            });
+        }
+
+        // Run search queries concurrently on three search engines
+        const [googleResults, bingResults, ddgResults] = await Promise.all([
+            // Google
+            (async () => {
+                const page = await ctx.newPage();
+                try {
+                    await page.goto('https://www.google.com/search?q=' + encodeURIComponent(query) + '&hl=vi', { waitUntil: 'domcontentloaded', timeout: 10000 });
+                    const res = await page.evaluate(() => {
+                        const list = [];
+                        const links = Array.from(document.querySelectorAll('a h3'));
+                        for (const head of links) {
+                            const a = head.closest('a');
+                            if (!a) continue;
+                            const url = a.href;
+                            const title = head.textContent || '';
+                            let snippet = '';
+                            let parent = a.parentElement;
+                            while (parent && parent.tagName !== 'DIV') {
+                                parent = parent.parentElement;
+                            }
+                            if (parent) {
+                                const descEl = parent.parentElement?.querySelector('.VwiC3b, .yHGvwa, div[style*="-webkit-line-clamp"]');
+                                if (descEl) {
+                                    snippet = descEl.textContent || '';
+                                } else {
+                                    const texts = Array.from(parent.parentElement?.querySelectorAll('div, span') || [])
+                                        .map(el => el.textContent.trim())
+                                        .filter(txt => txt.length > 30 && !txt.includes(title));
+                                    if (texts.length > 0) snippet = texts[0];
+                                }
+                            }
+                            if (url && title) {
+                                list.push({ title, url, snippet });
+                            }
+                        }
+                        return list;
+                    });
+                    await page.close();
+                    return res;
+                } catch (e) {
+                    if (page) await page.close();
+                    return [];
+                }
+            })(),
+
+            // Bing
+            (async () => {
+                const page = await ctx.newPage();
+                try {
+                    await page.goto('https://www.bing.com/search?q=' + encodeURIComponent(query), { waitUntil: 'domcontentloaded', timeout: 10000 });
+                    const res = await page.evaluate(() => {
+                        const list = [];
+                        const items = document.querySelectorAll('li.b_algo');
+                        for (const item of items) {
+                            const titleEl = item.querySelector('h2 a');
+                            if (!titleEl) continue;
+                            const title = titleEl.textContent || '';
+                            const url = titleEl.href;
+                            let snippet = '';
+                            const snippetEl = item.querySelector('.b_caption p, .b_snippet, p');
+                            if (snippetEl) {
+                                snippet = snippetEl.textContent || '';
+                            }
+                            if (url && title) {
+                                list.push({ title, url, snippet });
+                            }
+                        }
+                        return list;
+                    });
+                    await page.close();
+                    return res;
+                } catch (e) {
+                    if (page) await page.close();
+                    return [];
+                }
+            })(),
+
+            // DuckDuckGo
+            (async () => {
+                const page = await ctx.newPage();
+                try {
+                    await page.goto('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query), { waitUntil: 'domcontentloaded', timeout: 10000 });
+                    const res = await page.evaluate(() => {
+                        const list = [];
+                        const elements = document.querySelectorAll('.result');
+                        for (const el of elements) {
+                            const titleEl = el.querySelector('.result__title a');
+                            const snippetEl = el.querySelector('.result__snippet');
+                            if (titleEl) {
+                                list.push({
+                                    title: titleEl.textContent.trim(),
+                                    url: titleEl.href,
+                                    snippet: snippetEl ? snippetEl.textContent.trim() : ''
+                                });
+                            }
+                        }
+                        return list;
+                    });
+                    await page.close();
+                    return res;
+                } catch (e) {
+                    if (page) await page.close();
+                    return [];
+                }
+            })()
+        ]);
+
+        // Deduplicate results by normalized URL
+        const allResults = [...googleResults, ...bingResults, ...ddgResults];
+        const uniqueResults = [];
+        const seenUrls = new Set();
+        for (const res of allResults) {
+            if (!res.url || !res.title) continue;
+            let normUrl = res.url.replace(/^(https?:\\/\\/)?(www\\.)?/, '').toLowerCase();
+            if (normUrl.endsWith('/')) normUrl = normUrl.slice(0, -1);
+            if (!seenUrls.has(normUrl)) {
+                seenUrls.add(normUrl);
+                uniqueResults.push(res);
+            }
+        }
+
+        // Score results to prioritize numeric price data for financial queries
+        const isPriceQuery = /giá|vàng|đô|usd|sjc|sh|hôm nay|price|gold|rate|vnd|xe|vnđ/i.test(query);
+        const scoredResults = uniqueResults.map(res => {
+            let score = 0;
+            // Base length score
+            score += Math.min(res.snippet.length / 50, 5);
+
+            if (isPriceQuery) {
+                // Number density check
+                const numCount = (res.snippet.match(/\\d+/g) || []).length;
+                score += Math.min(numCount * 2, 10);
+
+                // Priority keywords boost
+                if (/lượng|chỉ|triệu|nghìn|vnd|usd|sjc|xe|bán|mua|giá/i.test(res.snippet)) {
+                    score += 8;
+                }
+            }
+            return { ...res, score };
+        });
+
+        // Sort by score desc
+        scoredResults.sort((a, b) => b.score - a.score);
+
+        // Map back to output format and limit
+        const output = scoredResults.map(({ score, ...rest }) => rest).slice(0, limit);
+        console.log(JSON.stringify(output, null, 2));
+
+    } catch (err) {
+        console.error(JSON.stringify({ error: err.message }));
+    } finally {
+        if (browser && isStandalone) {
+            try {
+                await browser.close();
+            } catch(e) {}
+        }
+    }
+})();
+`;
+  }
+
   function buildBrowserToolJs(variant = 'wizard') {
     // v2: Full-featured browser-tool.js matching OpenClaw native browser plugin capabilities
     // Both 'cli' and 'wizard' variants now use the same full script
@@ -251,7 +471,16 @@ const CDP_URL = 'http://127.0.0.1:9222';
     const { isVi = true, variant = 'wizard', workspaceRoot = '' } = options;
     const wsRoot = workspaceRoot.replace(/\/+$/, '');
     const btPath = wsRoot ? `${wsRoot}/browser-tool.js` : 'browser-tool.js';
-    const modeHeading = variant === 'cli-server' ? '# Headless Server Mode\n\n' : '';
+    let modeHeading = '';
+    if (variant === 'cli-server') {
+      modeHeading = isVi
+        ? `# 🌍 Trình duyệt ảo (Browser Automation)\n\n## 💡 Hướng dẫn vận hành:\n- **Script điều khiển:** \`browser-tool.js\` (Mọi câu lệnh browser đều chạy qua script này).\n- **Môi trường chạy:**\n  - **Trên VPS / Linux Server (Headless):** Trình duyệt chạy ngầm hoàn toàn độc lập (Headless) bên trong Docker / Server qua Xvfb. Không thể mở màn hình Chrome thật.\n  - **Trên Máy tính cá nhân (Windows/Mac) - Dù chạy Docker hay Native:**\n    - **Mặc định:** Chạy ngầm (headless) cực kỳ ổn định.\n    - **Chế độ quan sát (Xem bot click):** Nếu bạn muốn xem trực tiếp Chrome thật hoạt động trên màn hình, hãy chạy file \`start-chrome-debug.bat\` (trên Windows) hoặc \`start-chrome-debug.sh\` (trên Mac) ở máy của bạn **trước khi** bot kết nối! Bot sẽ tự động chuyển sang điều khiển màn hình Chrome thật của bạn.\n- **Kết nối mặc định:** \`http://127.0.0.1:9222\`\n\n`
+        : `# 🌍 Browser Automation\n\n## 💡 Operating Guide:\n- **Control script:** \`browser-tool.js\` (All browser commands are executed through this script).\n- **Running environment:**\n  - **On VPS / Linux Server (Headless Server Mode):** The browser runs fully headless and isolated inside Docker / Server via Xvfb. No GUI Chrome can be launched.\n  - **On Personal Computers (Windows/Mac) - Docker or Native:**\n    - **Default:** Runs headless and stable in the background.\n    - **Observer Mode (Visual Chrome GUI):** If you want to see the real Chrome window being controlled, run \`start-chrome-debug.bat\` (on Windows) or \`start-chrome-debug.sh\` (on Mac) on your host machine **before** the bot connects! The bot will automatically hook into your real desktop Chrome.\n- **Default endpoint:** \`http://127.0.0.1:9222\`\n\n`;
+    } else {
+      modeHeading = isVi
+        ? `# 🌍 Hướng dẫn Browser (Chrome CDP)\n- **Script điều khiển:** \`browser-tool.js\`\n- **Kết nối Chrome debug:** \`http://127.0.0.1:9222\`\n- **Xem trực quan:** Hãy chạy file \`start-chrome-debug.bat\` (trên Windows) hoặc \`start-chrome-debug.sh\` (trên Mac) để mở Chrome chế độ Debug.\n\n`
+        : `# 🌍 Browser Guide (Chrome CDP)\n- **Control script:** \`browser-tool.js\`\n- **Chrome debug endpoint:** \`http://127.0.0.1:9222\`\n- **Visual interface:** Run \`start-chrome-debug.bat\` (on Windows) or \`start-chrome-debug.sh\` (on Mac) to open Chrome in Debug mode.\n\n`;
+    }
 
     return `${modeHeading}# Navigation
 node ${btPath} status
@@ -356,11 +585,37 @@ node ${btPath} close_tab 2`;
     const browserRef = hasBrowser
       ? (browserDocVariant === 'cli-server'
         ? (isVi
-          ? `\n\n## \uD83C\uDF10 Browser Automation\n- Xem hướng dẫn chi tiết tại **BROWSER.md**\n- Chế độ hiện tại: browser native/headless của OpenClaw trong Docker hoặc server\n- Nếu browser lỗi, thử lại 1 lần rồi mới báo user với lỗi cụ thể`
-          : `\n\n## \uD83C\uDF10 Browser Automation\n- See detailed guide at **BROWSER.md**\n- Current mode: native/headless OpenClaw browser inside Docker or server\n- If browser fails, retry once before reporting the concrete error to the user`)
+          ? `\n\n## 🌐 Browser Automation
+- Xem hướng dẫn chi tiết tại **BROWSER.md**
+- Script điều khiển: \`browser-tool.js\`
+- Chế độ hiện tại: 
+  - **Trên VPS / Linux Server:** Chạy ngầm độc lập qua Docker hoặc Xvfb.
+  - **Trên Windows/Mac (Docker hoặc Native):** Chạy ngầm mặc định, hoặc chạy file \`start-chrome-debug.bat\` / \`start-chrome-debug.sh\` để xem trình duyệt trực quan trên màn hình.
+- Kết nối mặc định: \`http://127.0.0.1:9222\`
+- **Tìm kiếm Web:** Nếu không có công cụ Web Search (hoặc Web Search không khả dụng/bị lỗi), hãy **luôn sử dụng ngay công cụ terminal (exec/run_command) để chạy lệnh: \`node search-tool.js "<từ khóa>" 5\`**! Lệnh này sẽ tự động chạy ngầm qua DuckDuckGo/Google/Bing bằng trình duyệt ngầm tàng hình của bạn và trả về kết quả JSON sạch ngay lập tức. Tuyệt đối KHÔNG được mở trình duyệt thủ công, chụp ảnh màn hình hay click tìm kiếm bằng tay từng bước!
+- Nếu browser lỗi, thử lại 1 lần rồi mới báo user với lỗi cụ thể`
+          : `\n\n## 🌐 Browser Automation
+- See detailed guide at **BROWSER.md**
+- Control script: \`browser-tool.js\`
+- Current mode: 
+  - **On VPS / Linux Server:** Runs headless via Docker or Xvfb.
+  - **On Windows/Mac (Docker or Native):** Runs headless by default, or run \`start-chrome-debug.bat\` / \`start-chrome-debug.sh\` to see the GUI.
+- Default endpoint: \`http://127.0.0.1:9222\`
+- **Web Searching:** If the Web Search tool is unavailable or fails, **always use your terminal execution tool (exec/run_command) to run: \`node search-tool.js "<query>" 5\`**! This will automatically execute the search via DuckDuckGo/Google/Bing under stealth browser mode and return a clean JSON result immediately. Never open the browser manually, take screenshots, or click the search button step-by-step!
+- If browser fails, retry once before reporting the concrete error to the user`)
         : (isVi
-          ? `\n\n## \uD83C\uDF10 Browser Automation\n- Xem hướng dẫn chi tiết tại **BROWSER.md**\n- Script điều khiển: \`browser-tool.js\`\n- Kết nối Chrome debug: \`http://127.0.0.1:9222\`\n- Nếu tool/profile hỏi đường browser desktop, dùng profile \`host-chrome\` trước`
-          : `\n\n## \uD83C\uDF10 Browser Automation\n- See detailed guide at **BROWSER.md**\n- Control script: \`browser-tool.js\`\n- Chrome debug endpoint: \`http://127.0.0.1:9222\`\n- If a desktop browser profile is needed, use the \`host-chrome\` profile first`))
+          ? `\n\n## 🌐 Browser Automation
+- Xem hướng dẫn chi tiết tại **BROWSER.md**
+- Script điều khiển: \`browser-tool.js\`
+- Kết nối Chrome debug: \`http://127.0.0.1:9222\`
+- **Tìm kiếm Web:** Hãy **luôn sử dụng ngay công cụ terminal (exec/run_command) để chạy lệnh: \`node search-tool.js "<từ khóa>" 5\`**! Lệnh này sẽ tự động chạy ngầm qua DuckDuckGo/Google/Bing bằng trình duyệt ngầm tàng hình của bạn và trả về kết quả JSON sạch ngay lập tức. Tuyệt đối KHÔNG được mở trình duyệt thủ công, chụp ảnh màn hình hay click tìm kiếm bằng tay từng bước!
+- Nếu tool/profile hỏi đường browser desktop, dùng profile \`host-chrome\` trước`
+          : `\n\n## 🌐 Browser Automation
+- See detailed guide at **BROWSER.md**
+- Control script: \`browser-tool.js\`
+- Chrome debug endpoint: \`http://127.0.0.1:9222\`
+- **Web Searching:** If the Web Search tool is unavailable or fails, **always use your terminal execution tool (exec/run_command) to run: \`node search-tool.js "<query>" 5\`**! This will automatically execute the search via DuckDuckGo/Google/Bing under stealth browser mode and return a clean JSON result immediately. Never open the browser manually, take screenshots, or click the search button step-by-step!
+- If a desktop browser profile is needed, use the \`host-chrome\` profile first`))
       : '';
 
     const telegramSection = (variant === 'relay')
@@ -371,8 +626,38 @@ node ${btPath} close_tab 2`;
 
     const cronSection = hasScheduler
       ? (isVi
-        ? `\n\n## \u23F0 Cron / Lên lịch nhắc nhở\n- OpenClaw có hỗ trợ tool hệ thống để chạy Cron Job.\n- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool hệ thống để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.\n- Khi thao tác tool cho cron/scheduler, **không điền \`current\` vào thư mục Session**.\n- Bỏ qua việc tra cứu docs nội bộ như \`cron-jobs.mdx\`; tin tưởng khả năng dùng tool hiện có để hoàn thành yêu cầu.`
-        : `\n\n## \u23F0 Cron / Scheduled Tasks\n- OpenClaw natively supports system tools for Cron Jobs.\n- When the user asks to schedule tasks or reminders, use the built-in tools automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.\n- When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.\n- Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`)
+        ? `\n\n## \u23F0 Cron / Lên lịch nhắc nhở (tool: \`cron\`)
+- **Tên tool chính xác:** Tên công cụ là \`cron\` (tuyệt đối không nhầm là \`native\` hay command line bên ngoài).
+- **Khi tạo cronjob mới (action \`add\`):**
+  - **TUYỆT ĐỐI KHÔNG điền trường \`agentId\`** trong object \`job\` (hãy bỏ qua/omitted trường này). Hệ thống OpenClaw sẽ tự động gán chính xác ID của bạn vào job đó.
+  - Tuyệt đối **không tự điền** \`agentId\` là \`"bot"\` hay \`"main"\`, vì làm vậy sẽ khiến cronjob thuộc về agent khác và bạn sẽ mất quyền kiểm soát/xóa nó sau này.
+- **Khi user yêu cầu tắt/bật/xóa cronjob:**
+  1. **Bước 1 (Tìm kiếm):** Gọi tool \`cron\` với action \`list\` (và \`includeDisabled: true\`) để xem danh sách tất cả cronjob đang chạy trên hệ thống và tìm đúng \`jobId\` phù hợp với yêu cầu.
+  2. **Bước 2 (Xử lý):**
+     - Để xóa: Gọi action \`remove\` với \`id\` tìm được.
+     - Để tắt/tạm dừng: Gọi action \`update\` với \`id\` và patch \`{"enabled": false}\`.
+     - Để bật lại: Gọi action \`update\` với \`id\` và patch \`{"enabled": true}\`.
+  3. **Tuyên bố trung thực:** Tuyệt đối không bao giờ trả lời "đã xóa" hay "không có" dựa trên suy đoán của bản thân mà chưa gọi tool \`cron\` để kiểm tra thực tế.
+- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool \`cron\` (action \`add\`) để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.
+- Khi thao tác tool cho cron/scheduler, **không điền \`current\` vào thư mục Session**.
+- **QUAN TRỌNG VỀ TARGETING GROUP CHAT**: Khi tạo hoặc cấu hình cron job gửi tin nhắn thông báo (announce mode) đến một Group Chat, giá trị của trường \`delivery.to\` **bắt buộc** phải sử dụng tiền tố \`group:\` trước ID của group (ví dụ: \`group:3815464776067464419\` hoặc \`group:xxxx\`). Tuyệt đối không được chỉ điền ID thuần túy vì hệ thống sẽ hiểu nhầm đó là một DM chat cá nhân (direct message) và gửi sai địa chỉ.
+- Bỏ qua việc tra cứu docs nội bộ như \`cron-jobs.mdx\`; tin tưởng khả năng dùng tool hiện có để hoàn thành yêu cầu.`
+        : `\n\n## \u23F0 Cron / Scheduled Tasks (tool: \`cron\`)
+- **Exact tool name:** The tool name is \`cron\` (never mistake it for \`native\` or external command lines).
+- **When creating a new cronjob (action \`add\`):**
+  - **ABSOLUTELY DO NOT specify the \`agentId\` field** in the \`job\` object (leave this field omitted). The OpenClaw system will automatically assign your correct agent ID to that job.
+  - Never manually specify \`agentId\` as \`"bot"\` or \`"main"\`, as this will cause the cronjob to belong to another agent and you will lose control to manage/delete it later.
+- **When the user requests to disable/enable/delete a cronjob:**
+  1. **Step 1 (Search):** Call the \`cron\` tool with action \`list\` (and \`includeDisabled: true\`) to view all cron jobs on the system and find the matching \`jobId\`.
+  2. **Step 2 (Processing):**
+     - To delete: Call action \`remove\` with the \`id\` found.
+     - To disable/pause: Call action \`update\` with \`id\` and patch \`{"enabled": false}\`.
+     - To enable: Call action \`update\` with \`id\` and patch \`{"enabled": true}\`.
+  3. **Honest statement:** Never claim a job is "deleted" or "not found" based on guessing without calling the \`cron\` tool to verify the actual state.
+- When the user asks to schedule tasks or reminders, use the built-in \`cron\` tool (action \`add\`) automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.
+- When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.
+- **IMPORTANT ABOUT GROUP CHAT TARGETING**: When creating or configuring a cron job to send messages (announce mode) to a Group Chat, the value of the \`delivery.to\` field **must** use the \`group:\` prefix before the group ID (e.g., \`group:3815464776067464419\` or \`group:xxxx\`). Never specify just the numeric ID, as the system will interpret it as a private DM and deliver to the wrong destination.
+- Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`)
       : '';
 
     const zaloModSection = '';
@@ -388,8 +673,8 @@ node ${btPath} close_tab 2`;
     }
 
     return isVi
-      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillsSection}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output${browserRef}\n\n## Quy ước\n- Web Search: chỉ dùng khi cần thông tin realtime hoặc user yêu cầu\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông tin tự nhiên, không cần user nhắc${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround${dmOverride}\n`
-      : `# Tool Usage Guide\n\n## Installed Skills\n${skillsSection}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error — retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data${browserRef}\n\n## Conventions\n- Web Search: only use when needing real-time info or user explicitly asks\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround${dmOverride}\n`;
+      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillsSection}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output${browserRef}\n\n## Quy ước\n- Web Search: TUYỆT ĐỐI KHÔNG dùng tool \`web_search\` native vì nó đã bị vô hiệu hóa hoàn toàn trên hệ thống. Thay vào đó, mỗi khi cần tìm kiếm Internet/Web, bạn BẮT BUỘC phải gọi công cụ \`exec\` để chạy lệnh terminal: \`node search-tool.js "<từ khóa>" 5\`! Lệnh này cực kỳ nhanh, tàng hình và miễn phí.\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông tin tự nhiên, không cần user nhắc${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround${dmOverride}\n`
+      : `# Tool Usage Guide\n\n## Installed Skills\n${skillsSection}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error — retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data${browserRef}\n\n## Conventions\n- Web Search: DO NOT use the native \`web_search\` tool as it is completely disabled. Instead, whenever you need to search the Internet/Web, you MUST call the \`exec\` tool to run terminal command: \`node search-tool.js "<query>" 5\`! This is extremely fast, stealthy and free.\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround${dmOverride}\n`;
   }
   function buildTeamsDoc(options = {}) {
     const {
@@ -484,6 +769,7 @@ node ${btPath} close_tab 2`;
       'HEARTBEAT.md': buildHeartbeatDoc({ isVi }),
       'BOOTSTRAP.md': buildBootstrapDoc({ isVi, botName }),
       'DREAMS.md': buildDreamsDoc({ isVi }),
+      'search-tool.js': buildSearchToolJs(),
     };
 
     if (isMultiBot) {
@@ -511,6 +797,7 @@ node ${btPath} close_tab 2`;
     buildDreamsDoc,
     buildHeartbeatDoc,
     buildBootstrapDoc,
+    buildSearchToolJs,
     buildBrowserToolJs,
     buildBrowserDoc,
     buildSecurityRules,

@@ -407,6 +407,13 @@
   // ========== Available Plugins (npm packages — runtime/channel extensions) ==========
   const PLUGINS = [
     {
+      id: 'browser-automation',
+      name: 'Browser Automation ⭐',
+      icon: '🌐',
+      descVi: 'Smart Search + Điều khiển trình duyệt Chrome/Chromium (ẩn & thật)', descEn: 'Smart Search + Chrome/Chromium browser control (headless & real)',
+      package: 'openclaw-browser-automation',
+    },
+    {
       id: 'telegram-multibot-relay',
       name: 'Telegram Multi-Bot Relay',
       icon: '🤝',
@@ -468,14 +475,6 @@
  */
   // ========== Available Skills (ClawHub registry — agent capabilities) ==========
   const SKILLS = [
-    {
-      id: 'browser',
-      name: 'Browser Automation ⭐(Khuyên dùng)',
-      icon: '🌐',
-      descVi: 'Tự động thao tác trình duyệt (Playwright)', descEn: 'Automated browser control (Playwright)',
-      slug: 'browser-automation',
-      noteVi: 'Cần bật Chrome Debug Mode trên máy host', noteEn: 'Requires Chrome Debug Mode on host',
-    },
     {
       id: 'memory',
       name: 'Long-term Memory ⭐(Khuyên dùng)',
@@ -574,7 +573,7 @@
         className: 'plugin-card__badge plugin-card__badge--recommended'
       };
     }
-    if (skill.id === 'browser' || skill.id === 'scheduler') {
+    if (skill.id === 'scheduler') {
       return {
         text: isVi ? 'Khuyên dùng' : 'Recommended',
         className: 'plugin-card__badge plugin-card__badge--recommended'
@@ -1059,6 +1058,226 @@ function buildBootstrapDoc(options = {}) {
       : `# BOOTSTRAP\n\n## Startup role\n- You are **${botName}**.\n- Your identity, role, and style are already defined in **IDENTITY.md**, **SOUL.md**, and **AGENTS.md**.\n- Use those files as the highest-priority source of truth for your persona in this workspace.\n\n## Mandatory\n- Do not ask the user to redefine your name, vibe, persona, signature emoji, or assistant style.\n- Do not say you just woke up, just came online, are choosing your identity, or any similar onboarding line.\n- Do not behave like a blank freshly-created bot.\n- If the user only sends a short opener like "hi" or "alo", greet briefly and reply in your existing role.\n\n## Telegram\n- Before EVERY user-visible Telegram reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- Never claim that you reacted unless the tool actually ran and the reaction is real on the chat.\n- If the target chat does not support real reactions or the tool is not exposed, still reply normally and do not mention the technical limitation.\n`;
   }
 
+  function buildSearchToolJs() {
+    return `/**
+ * search-tool.js — Stealth search via Playwright Headless Chromium or CDP fallback
+ * Zero tokens, no API keys, concurrent multi-engine scraping (Google + Bing + DuckDuckGo).
+ * Usage: node search-tool.js "<query>" [limit]
+ */
+let playwright;
+try {
+    playwright = require('playwright-core');
+} catch (e) {
+    try {
+        playwright = require('/usr/local/lib/node_modules/openclaw/node_modules/playwright-core');
+    } catch (err) {
+        try {
+            const path = require('path');
+            playwright = require(path.join(process.cwd(), 'node_modules', 'playwright-core'));
+        } catch (x) {
+            console.error(JSON.stringify({ error: 'Playwright not found! Install it or run within OpenClaw environment.' }));
+            process.exit(1);
+        }
+    }
+}
+const { chromium } = playwright;
+
+const query = process.argv[2];
+const limit = parseInt(process.argv[3]) || 5;
+const CDP_URL = 'http://127.0.0.1:9222';
+
+if (!query) {
+    console.error(JSON.stringify({ error: 'Usage: node search-tool.js "<query>" [limit]' }));
+    process.exit(1);
+}
+
+(async () => {
+    let browser;
+    let ctx;
+    let isStandalone = false;
+    try {
+        // Try connecting to active Chrome CDP first
+        try {
+            browser = await chromium.connectOverCDP(CDP_URL, { timeout: 3000 });
+            ctx = browser.contexts()[0];
+        } catch (e) {
+            // Fallback to standalone headless Chromium launch
+            browser = await chromium.launch({
+                headless: true,
+                args: [
+                    '--no-sandbox',
+                    '--disable-gpu',
+                    '--disable-dev-shm-usage',
+                    '--disable-blink-features=AutomationControlled'
+                ]
+            });
+            isStandalone = true;
+            ctx = await browser.newContext({
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            });
+        }
+
+        // Run search queries concurrently on three search engines
+        const [googleResults, bingResults, ddgResults] = await Promise.all([
+            // Google
+            (async () => {
+                const page = await ctx.newPage();
+                try {
+                    await page.goto('https://www.google.com/search?q=' + encodeURIComponent(query) + '&hl=vi', { waitUntil: 'domcontentloaded', timeout: 10000 });
+                    const res = await page.evaluate(() => {
+                        const list = [];
+                        const links = Array.from(document.querySelectorAll('a h3'));
+                        for (const head of links) {
+                            const a = head.closest('a');
+                            if (!a) continue;
+                            const url = a.href;
+                            const title = head.textContent || '';
+                            let snippet = '';
+                            let parent = a.parentElement;
+                            while (parent && parent.tagName !== 'DIV') {
+                                parent = parent.parentElement;
+                            }
+                            if (parent) {
+                                const descEl = parent.parentElement?.querySelector('.VwiC3b, .yHGvwa, div[style*="-webkit-line-clamp"]');
+                                if (descEl) {
+                                    snippet = descEl.textContent || '';
+                                } else {
+                                    const texts = Array.from(parent.parentElement?.querySelectorAll('div, span') || [])
+                                        .map(el => el.textContent.trim())
+                                        .filter(txt => txt.length > 30 && !txt.includes(title));
+                                    if (texts.length > 0) snippet = texts[0];
+                                }
+                            }
+                            if (url && title) {
+                                list.push({ title, url, snippet });
+                            }
+                        }
+                        return list;
+                    });
+                    await page.close();
+                    return res;
+                } catch (e) {
+                    if (page) await page.close();
+                    return [];
+                }
+            })(),
+
+            // Bing
+            (async () => {
+                const page = await ctx.newPage();
+                try {
+                    await page.goto('https://www.bing.com/search?q=' + encodeURIComponent(query), { waitUntil: 'domcontentloaded', timeout: 10000 });
+                    const res = await page.evaluate(() => {
+                        const list = [];
+                        const items = document.querySelectorAll('li.b_algo');
+                        for (const item of items) {
+                            const titleEl = item.querySelector('h2 a');
+                            if (!titleEl) continue;
+                            const title = titleEl.textContent || '';
+                            const url = titleEl.href;
+                            let snippet = '';
+                            const snippetEl = item.querySelector('.b_caption p, .b_snippet, p');
+                            if (snippetEl) {
+                                snippet = snippetEl.textContent || '';
+                            }
+                            if (url && title) {
+                                list.push({ title, url, snippet });
+                            }
+                        }
+                        return list;
+                    });
+                    await page.close();
+                    return res;
+                } catch (e) {
+                    if (page) await page.close();
+                    return [];
+                }
+            })(),
+
+            // DuckDuckGo
+            (async () => {
+                const page = await ctx.newPage();
+                try {
+                    await page.goto('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query), { waitUntil: 'domcontentloaded', timeout: 10000 });
+                    const res = await page.evaluate(() => {
+                        const list = [];
+                        const elements = document.querySelectorAll('.result');
+                        for (const el of elements) {
+                            const titleEl = el.querySelector('.result__title a');
+                            const snippetEl = el.querySelector('.result__snippet');
+                            if (titleEl) {
+                                list.push({
+                                    title: titleEl.textContent.trim(),
+                                    url: titleEl.href,
+                                    snippet: snippetEl ? snippetEl.textContent.trim() : ''
+                                });
+                            }
+                        }
+                        return list;
+                    });
+                    await page.close();
+                    return res;
+                } catch (e) {
+                    if (page) await page.close();
+                    return [];
+                }
+            })()
+        ]);
+
+        // Deduplicate results by normalized URL
+        const allResults = [...googleResults, ...bingResults, ...ddgResults];
+        const uniqueResults = [];
+        const seenUrls = new Set();
+        for (const res of allResults) {
+            if (!res.url || !res.title) continue;
+            let normUrl = res.url.replace(/^(https?:\\/\\/)?(www\\.)?/, '').toLowerCase();
+            if (normUrl.endsWith('/')) normUrl = normUrl.slice(0, -1);
+            if (!seenUrls.has(normUrl)) {
+                seenUrls.add(normUrl);
+                uniqueResults.push(res);
+            }
+        }
+
+        // Score results to prioritize numeric price data for financial queries
+        const isPriceQuery = /giá|vàng|đô|usd|sjc|sh|hôm nay|price|gold|rate|vnd|xe|vnđ/i.test(query);
+        const scoredResults = uniqueResults.map(res => {
+            let score = 0;
+            // Base length score
+            score += Math.min(res.snippet.length / 50, 5);
+
+            if (isPriceQuery) {
+                // Number density check
+                const numCount = (res.snippet.match(/\\d+/g) || []).length;
+                score += Math.min(numCount * 2, 10);
+
+                // Priority keywords boost
+                if (/lượng|chỉ|triệu|nghìn|vnd|usd|sjc|xe|bán|mua|giá/i.test(res.snippet)) {
+                    score += 8;
+                }
+            }
+            return { ...res, score };
+        });
+
+        // Sort by score desc
+        scoredResults.sort((a, b) => b.score - a.score);
+
+        // Map back to output format and limit
+        const output = scoredResults.map(({ score, ...rest }) => rest).slice(0, limit);
+        console.log(JSON.stringify(output, null, 2));
+
+    } catch (err) {
+        console.error(JSON.stringify({ error: err.message }));
+    } finally {
+        if (browser && isStandalone) {
+            try {
+                await browser.close();
+            } catch(e) {}
+        }
+    }
+})();
+`;
+  }
+
   function buildBrowserToolJs(variant = 'wizard') {
     // v2: Full-featured browser-tool.js matching OpenClaw native browser plugin capabilities
     // Both 'cli' and 'wizard' variants now use the same full script
@@ -1185,7 +1404,16 @@ const CDP_URL = 'http://127.0.0.1:9222';
     const { isVi = true, variant = 'wizard', workspaceRoot = '' } = options;
     const wsRoot = workspaceRoot.replace(/\/+$/, '');
     const btPath = wsRoot ? `${wsRoot}/browser-tool.js` : 'browser-tool.js';
-    const modeHeading = variant === 'cli-server' ? '# Headless Server Mode\n\n' : '';
+    let modeHeading = '';
+    if (variant === 'cli-server') {
+      modeHeading = isVi
+        ? `# 🌍 Trình duyệt ảo (Browser Automation)\n\n## 💡 Hướng dẫn vận hành:\n- **Script điều khiển:** \`browser-tool.js\` (Mọi câu lệnh browser đều chạy qua script này).\n- **Môi trường chạy:**\n  - **Trên VPS / Linux Server (Headless):** Trình duyệt chạy ngầm hoàn toàn độc lập (Headless) bên trong Docker / Server qua Xvfb. Không thể mở màn hình Chrome thật.\n  - **Trên Máy tính cá nhân (Windows/Mac) - Dù chạy Docker hay Native:**\n    - **Mặc định:** Chạy ngầm (headless) cực kỳ ổn định.\n    - **Chế độ quan sát (Xem bot click):** Nếu bạn muốn xem trực tiếp Chrome thật hoạt động trên màn hình, hãy chạy file \`start-chrome-debug.bat\` (trên Windows) hoặc \`start-chrome-debug.sh\` (trên Mac) ở máy của bạn **trước khi** bot kết nối! Bot sẽ tự động chuyển sang điều khiển màn hình Chrome thật của bạn.\n- **Kết nối mặc định:** \`http://127.0.0.1:9222\`\n\n`
+        : `# 🌍 Browser Automation\n\n## 💡 Operating Guide:\n- **Control script:** \`browser-tool.js\` (All browser commands are executed through this script).\n- **Running environment:**\n  - **On VPS / Linux Server (Headless Server Mode):** The browser runs fully headless and isolated inside Docker / Server via Xvfb. No GUI Chrome can be launched.\n  - **On Personal Computers (Windows/Mac) - Docker or Native:**\n    - **Default:** Runs headless and stable in the background.\n    - **Observer Mode (Visual Chrome GUI):** If you want to see the real Chrome window being controlled, run \`start-chrome-debug.bat\` (on Windows) or \`start-chrome-debug.sh\` (on Mac) on your host machine **before** the bot connects! The bot will automatically hook into your real desktop Chrome.\n- **Default endpoint:** \`http://127.0.0.1:9222\`\n\n`;
+    } else {
+      modeHeading = isVi
+        ? `# 🌍 Hướng dẫn Browser (Chrome CDP)\n- **Script điều khiển:** \`browser-tool.js\`\n- **Kết nối Chrome debug:** \`http://127.0.0.1:9222\`\n- **Xem trực quan:** Hãy chạy file \`start-chrome-debug.bat\` (trên Windows) hoặc \`start-chrome-debug.sh\` (trên Mac) để mở Chrome chế độ Debug.\n\n`
+        : `# 🌍 Browser Guide (Chrome CDP)\n- **Control script:** \`browser-tool.js\`\n- **Chrome debug endpoint:** \`http://127.0.0.1:9222\`\n- **Visual interface:** Run \`start-chrome-debug.bat\` (on Windows) or \`start-chrome-debug.sh\` (on Mac) to open Chrome in Debug mode.\n\n`;
+    }
 
     return `${modeHeading}# Navigation
 node ${btPath} status
@@ -1290,11 +1518,37 @@ node ${btPath} close_tab 2`;
     const browserRef = hasBrowser
       ? (browserDocVariant === 'cli-server'
         ? (isVi
-          ? `\n\n## \uD83C\uDF10 Browser Automation\n- Xem hướng dẫn chi tiết tại **BROWSER.md**\n- Chế độ hiện tại: browser native/headless của OpenClaw trong Docker hoặc server\n- Nếu browser lỗi, thử lại 1 lần rồi mới báo user với lỗi cụ thể`
-          : `\n\n## \uD83C\uDF10 Browser Automation\n- See detailed guide at **BROWSER.md**\n- Current mode: native/headless OpenClaw browser inside Docker or server\n- If browser fails, retry once before reporting the concrete error to the user`)
+          ? `\n\n## 🌐 Browser Automation
+- Xem hướng dẫn chi tiết tại **BROWSER.md**
+- Script điều khiển: \`browser-tool.js\`
+- Chế độ hiện tại: 
+  - **Trên VPS / Linux Server:** Chạy ngầm độc lập qua Docker hoặc Xvfb.
+  - **Trên Windows/Mac (Docker hoặc Native):** Chạy ngầm mặc định, hoặc chạy file \`start-chrome-debug.bat\` / \`start-chrome-debug.sh\` để xem trình duyệt trực quan trên màn hình.
+- Kết nối mặc định: \`http://127.0.0.1:9222\`
+- **Tìm kiếm Web:** Nếu không có công cụ Web Search (hoặc Web Search không khả dụng/bị lỗi), hãy **luôn sử dụng ngay công cụ terminal (exec/run_command) để chạy lệnh: \`node search-tool.js "<từ khóa>" 5\`**! Lệnh này sẽ tự động chạy ngầm qua DuckDuckGo/Google/Bing bằng trình duyệt ngầm tàng hình của bạn và trả về kết quả JSON sạch ngay lập tức. Tuyệt đối KHÔNG được mở trình duyệt thủ công, chụp ảnh màn hình hay click tìm kiếm bằng tay từng bước!
+- Nếu browser lỗi, thử lại 1 lần rồi mới báo user với lỗi cụ thể`
+          : `\n\n## 🌐 Browser Automation
+- See detailed guide at **BROWSER.md**
+- Control script: \`browser-tool.js\`
+- Current mode: 
+  - **On VPS / Linux Server:** Runs headless via Docker or Xvfb.
+  - **On Windows/Mac (Docker or Native):** Runs headless by default, or run \`start-chrome-debug.bat\` / \`start-chrome-debug.sh\` to see the GUI.
+- Default endpoint: \`http://127.0.0.1:9222\`
+- **Web Searching:** If the Web Search tool is unavailable or fails, **always use your terminal execution tool (exec/run_command) to run: \`node search-tool.js "<query>" 5\`**! This will automatically execute the search via DuckDuckGo/Google/Bing under stealth browser mode and return a clean JSON result immediately. Never open the browser manually, take screenshots, or click the search button step-by-step!
+- If browser fails, retry once before reporting the concrete error to the user`)
         : (isVi
-          ? `\n\n## \uD83C\uDF10 Browser Automation\n- Xem hướng dẫn chi tiết tại **BROWSER.md**\n- Script điều khiển: \`browser-tool.js\`\n- Kết nối Chrome debug: \`http://127.0.0.1:9222\`\n- Nếu tool/profile hỏi đường browser desktop, dùng profile \`host-chrome\` trước`
-          : `\n\n## \uD83C\uDF10 Browser Automation\n- See detailed guide at **BROWSER.md**\n- Control script: \`browser-tool.js\`\n- Chrome debug endpoint: \`http://127.0.0.1:9222\`\n- If a desktop browser profile is needed, use the \`host-chrome\` profile first`))
+          ? `\n\n## 🌐 Browser Automation
+- Xem hướng dẫn chi tiết tại **BROWSER.md**
+- Script điều khiển: \`browser-tool.js\`
+- Kết nối Chrome debug: \`http://127.0.0.1:9222\`
+- **Tìm kiếm Web:** Hãy **luôn sử dụng ngay công cụ terminal (exec/run_command) để chạy lệnh: \`node search-tool.js "<từ khóa>" 5\`**! Lệnh này sẽ tự động chạy ngầm qua DuckDuckGo/Google/Bing bằng trình duyệt ngầm tàng hình của bạn và trả về kết quả JSON sạch ngay lập tức. Tuyệt đối KHÔNG được mở trình duyệt thủ công, chụp ảnh màn hình hay click tìm kiếm bằng tay từng bước!
+- Nếu tool/profile hỏi đường browser desktop, dùng profile \`host-chrome\` trước`
+          : `\n\n## 🌐 Browser Automation
+- See detailed guide at **BROWSER.md**
+- Control script: \`browser-tool.js\`
+- Chrome debug endpoint: \`http://127.0.0.1:9222\`
+- **Web Searching:** If the Web Search tool is unavailable or fails, **always use your terminal execution tool (exec/run_command) to run: \`node search-tool.js "<query>" 5\`**! This will automatically execute the search via DuckDuckGo/Google/Bing under stealth browser mode and return a clean JSON result immediately. Never open the browser manually, take screenshots, or click the search button step-by-step!
+- If a desktop browser profile is needed, use the \`host-chrome\` profile first`))
       : '';
 
     const telegramSection = (variant === 'relay')
@@ -1305,8 +1559,38 @@ node ${btPath} close_tab 2`;
 
     const cronSection = hasScheduler
       ? (isVi
-        ? `\n\n## \u23F0 Cron / Lên lịch nhắc nhở\n- OpenClaw có hỗ trợ tool hệ thống để chạy Cron Job.\n- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool hệ thống để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.\n- Khi thao tác tool cho cron/scheduler, **không điền \`current\` vào thư mục Session**.\n- Bỏ qua việc tra cứu docs nội bộ như \`cron-jobs.mdx\`; tin tưởng khả năng dùng tool hiện có để hoàn thành yêu cầu.`
-        : `\n\n## \u23F0 Cron / Scheduled Tasks\n- OpenClaw natively supports system tools for Cron Jobs.\n- When the user asks to schedule tasks or reminders, use the built-in tools automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.\n- When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.\n- Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`)
+        ? `\n\n## \u23F0 Cron / Lên lịch nhắc nhở (tool: \`cron\`)
+- **Tên tool chính xác:** Tên công cụ là \`cron\` (tuyệt đối không nhầm là \`native\` hay command line bên ngoài).
+- **Khi tạo cronjob mới (action \`add\`):**
+  - **TUYỆT ĐỐI KHÔNG điền trường \`agentId\`** trong object \`job\` (hãy bỏ qua/omitted trường này). Hệ thống OpenClaw sẽ tự động gán chính xác ID của bạn vào job đó.
+  - Tuyệt đối **không tự điền** \`agentId\` là \`"bot"\` hay \`"main"\`, vì làm vậy sẽ khiến cronjob thuộc về agent khác và bạn sẽ mất quyền kiểm soát/xóa nó sau này.
+- **Khi user yêu cầu tắt/bật/xóa cronjob:**
+  1. **Bước 1 (Tìm kiếm):** Gọi tool \`cron\` với action \`list\` (và \`includeDisabled: true\`) để xem danh sách tất cả cronjob đang chạy trên hệ thống và tìm đúng \`jobId\` phù hợp với yêu cầu.
+  2. **Bước 2 (Xử lý):**
+     - Để xóa: Gọi action \`remove\` với \`id\` tìm được.
+     - Để tắt/tạm dừng: Gọi action \`update\` với \`id\` và patch \`{"enabled": false}\`.
+     - Để bật lại: Gọi action \`update\` với \`id\` và patch \`{"enabled": true}\`.
+  3. **Tuyên bố trung thực:** Tuyệt đối không bao giờ trả lời "đã xóa" hay "không có" dựa trên suy đoán của bản thân mà chưa gọi tool \`cron\` để kiểm tra thực tế.
+- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool \`cron\` (action \`add\`) để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.
+- Khi thao tác tool cho cron/scheduler, **không điền \`current\` vào thư mục Session**.
+- **QUAN TRỌNG VỀ TARGETING GROUP CHAT**: Khi tạo hoặc cấu hình cron job gửi tin nhắn thông báo (announce mode) đến một Group Chat, giá trị của trường \`delivery.to\` **bắt buộc** phải sử dụng tiền tố \`group:\` trước ID của group (ví dụ: \`group:3815464776067464419\` hoặc \`group:xxxx\`). Tuyệt đối không được chỉ điền ID thuần túy vì hệ thống sẽ hiểu nhầm đó là một DM chat cá nhân (direct message) và gửi sai địa chỉ.
+- Bỏ qua việc tra cứu docs nội bộ như \`cron-jobs.mdx\`; tin tưởng khả năng dùng tool hiện có để hoàn thành yêu cầu.`
+        : `\n\n## \u23F0 Cron / Scheduled Tasks (tool: \`cron\`)
+- **Exact tool name:** The tool name is \`cron\` (never mistake it for \`native\` or external command lines).
+- **When creating a new cronjob (action \`add\`):**
+  - **ABSOLUTELY DO NOT specify the \`agentId\` field** in the \`job\` object (leave this field omitted). The OpenClaw system will automatically assign your correct agent ID to that job.
+  - Never manually specify \`agentId\` as \`"bot"\` or \`"main"\`, as this will cause the cronjob to belong to another agent and you will lose control to manage/delete it later.
+- **When the user requests to disable/enable/delete a cronjob:**
+  1. **Step 1 (Search):** Call the \`cron\` tool with action \`list\` (and \`includeDisabled: true\`) to view all cron jobs on the system and find the matching \`jobId\`.
+  2. **Step 2 (Processing):**
+     - To delete: Call action \`remove\` with the \`id\` found.
+     - To disable/pause: Call action \`update\` with \`id\` and patch \`{"enabled": false}\`.
+     - To enable: Call action \`update\` with \`id\` and patch \`{"enabled": true}\`.
+  3. **Honest statement:** Never claim a job is "deleted" or "not found" based on guessing without calling the \`cron\` tool to verify the actual state.
+- When the user asks to schedule tasks or reminders, use the built-in \`cron\` tool (action \`add\`) automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.
+- When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.
+- **IMPORTANT ABOUT GROUP CHAT TARGETING**: When creating or configuring a cron job to send messages (announce mode) to a Group Chat, the value of the \`delivery.to\` field **must** use the \`group:\` prefix before the group ID (e.g., \`group:3815464776067464419\` or \`group:xxxx\`). Never specify just the numeric ID, as the system will interpret it as a private DM and deliver to the wrong destination.
+- Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`)
       : '';
 
     const zaloModSection = '';
@@ -1322,8 +1606,8 @@ node ${btPath} close_tab 2`;
     }
 
     return isVi
-      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillsSection}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output${browserRef}\n\n## Quy ước\n- Web Search: chỉ dùng khi cần thông tin realtime hoặc user yêu cầu\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông tin tự nhiên, không cần user nhắc${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround${dmOverride}\n`
-      : `# Tool Usage Guide\n\n## Installed Skills\n${skillsSection}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error — retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data${browserRef}\n\n## Conventions\n- Web Search: only use when needing real-time info or user explicitly asks\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround${dmOverride}\n`;
+      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillsSection}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output${browserRef}\n\n## Quy ước\n- Web Search: TUYỆT ĐỐI KHÔNG dùng tool \`web_search\` native vì nó đã bị vô hiệu hóa hoàn toàn trên hệ thống. Thay vào đó, mỗi khi cần tìm kiếm Internet/Web, bạn BẮT BUỘC phải gọi công cụ \`exec\` để chạy lệnh terminal: \`node search-tool.js "<từ khóa>" 5\`! Lệnh này cực kỳ nhanh, tàng hình và miễn phí.\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông tin tự nhiên, không cần user nhắc${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround${dmOverride}\n`
+      : `# Tool Usage Guide\n\n## Installed Skills\n${skillsSection}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error — retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data${browserRef}\n\n## Conventions\n- Web Search: DO NOT use the native \`web_search\` tool as it is completely disabled. Instead, whenever you need to search the Internet/Web, you MUST call the \`exec\` tool to run terminal command: \`node search-tool.js "<query>" 5\`! This is extremely fast, stealthy and free.\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround${dmOverride}\n`;
   }
   function buildTeamsDoc(options = {}) {
     const {
@@ -1418,6 +1702,7 @@ node ${btPath} close_tab 2`;
       'HEARTBEAT.md': buildHeartbeatDoc({ isVi }),
       'BOOTSTRAP.md': buildBootstrapDoc({ isVi, botName }),
       'DREAMS.md': buildDreamsDoc({ isVi }),
+      'search-tool.js': buildSearchToolJs(),
     };
 
     if (isMultiBot) {
@@ -1445,6 +1730,7 @@ node ${btPath} close_tab 2`;
     buildDreamsDoc,
     buildHeartbeatDoc,
     buildBootstrapDoc,
+    buildSearchToolJs,
     buildBrowserToolJs,
     buildBrowserDoc,
     buildSecurityRules,
@@ -2705,7 +2991,6 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       is9Router,
       isLocal,
       isMultiBot,
-      hasBrowser,
       selectedModel,
       agentId,
       allSkills = [],
@@ -2724,23 +3009,9 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       plainSingleExtraHosts = false,
       multiOllamaNumParallel = 1,
       singleOllamaNumParallel = 1,
-      emitBrowserInstall = true,
       gatewayPort = 18789,
       routerPort = 20128,
     } = options;
-
-    const browserAptExtra = hasBrowser ? ' xvfb socat' : '';
-    const browserInstallLines = hasBrowser && emitBrowserInstall
-      ? [
-          '',
-          '# Browser Automation: Playwright engine (needed for native CDP)',
-          'RUN npm install -g agent-browser playwright \\',
-          '    && npx playwright install chromium --with-deps \\',
-          '    && ln -f -s /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /usr/bin/google-chrome',
-          '',
-          ''
-        ].join('\n')
-      : '';
     const skillLines = dockerfileSkillInstallMode === 'build' && allSkills.length > 0
       ? `\n# Install skills (ClawHub)\n${allSkills.map((skill) => `RUN openclaw skills install ${skill} || echo "Warning: Failed to install ${skill} due to rate limits."`).join('\n')}\n`
       : '';
@@ -2780,6 +3051,20 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '  echo "[entrypoint] plugin $id missing; installing $spec"',
       '  openclaw plugins install "$spec" 2>/dev/null || echo "[entrypoint] warning: failed to install plugin $spec"',
       '}',
+      'ensure_zalouser() {',
+      '  NPM_DIR="$OPENCLAW_HOME/npm"',
+      '  PKG_DIR="$NPM_DIR/node_modules/@openclaw/zalouser"',
+      '  if [ -d "$PKG_DIR" ]; then',
+      '    echo "[entrypoint] zalouser plugin already installed"',
+      '  else',
+      '    echo "[entrypoint] zalouser plugin missing; installing via npm"',
+      '    mkdir -p "$NPM_DIR"',
+      '    cd "$NPM_DIR"',
+      '    npm init -y 2>/dev/null || true',
+      '    npm install @openclaw/zalouser@latest 2>/dev/null || echo "[entrypoint] warning: failed to install @openclaw/zalouser"',
+      '    cd /root/project',
+      '  fi',
+      '}',
       'ensure_skill() {',
       '  id="$1"',
       '  if find "$OPENCLAW_HOME" -maxdepth 4 -type d -path "*/skills/$id" -print -quit 2>/dev/null | grep -q .; then',
@@ -2805,7 +3090,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '  sed -i "s/LISTENER_WATCHDOG_MAX_GAP_MS\\\\s*=\\\\s*35e3/LISTENER_WATCHDOG_MAX_GAP_MS = 90e3/" "$ZALO_JS"',
       '  echo "[entrypoint] patched zalouser watchdog gap: 35s -> 90s"',
       'fi',
-    ].join('\\n'));
+    ].join('\n'));
     runtimeParts.push([
       '# Zalo channel auto-restart monitor (background)',
       '(',
@@ -2815,27 +3100,23 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '    STATUS=$(openclaw channels status 2>/dev/null | grep -i "Zalo Personal" || true)',
       '    if echo "$STATUS" | grep -qi "stopped"; then',
       '      echo "[zalo-monitor] Zalo channel stopped - restarting container in 5s"',
-      '      sleep 5',
+'      sleep 5',
       '      kill 1 2>/dev/null || true',
       '    fi',
       '  done',
       ') &',
-    ].join('\\n'));
-    if (hasBrowser) {
-      runtimeParts.push('socat TCP-LISTEN:9222,fork,reuseaddr TCP:host.docker.internal:9222 &');
-      runtimeParts.push('Xvfb :99 -screen 0 1280x720x24 > /dev/null 2>&1 & DISPLAY=:99 openclaw gateway run');
-    } else {
-      runtimeParts.push('openclaw gateway run');
-    }
+    ].join('\n'));
+    runtimeParts.push('openclaw gateway run');
     const runtimeScript = ['#!/bin/sh', 'set -e', ...runtimeParts].join('\n');
     const dockerfile = `FROM node:22-slim
 
-RUN apt-get update && apt-get install -y git curl python3${browserAptExtra} && rm -rf /var/lib/apt/lists/*
-${browserInstallLines}
+RUN apt-get update && apt-get install -y git curl python3 && rm -rf /var/lib/apt/lists/*
+
 ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""
 RUN echo "CACHE_BUST=$CACHE_BUST" && npm install -g $OPENCLAW_VER ${openClawRuntimePackages}${skillLines}${pluginLines}
 ${patchLine}
+
 COPY entrypoint.sh /usr/local/bin/openclaw-entrypoint.sh
 RUN chmod +x /usr/local/bin/openclaw-entrypoint.sh
 WORKDIR /root/project
@@ -2858,7 +3139,7 @@ CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
         : isLocal
           ? '    depends_on:\n      ollama:\n        condition: service_healthy\n'
           : '';
-      const extraHosts = hasBrowser ? `${extraHostsBlock}\n` : '';
+      const extraHosts = `${extraHostsBlock}\n`;
       if (is9Router) {
         compose = `name: ${multiComposeName}
 services:
@@ -2961,7 +3242,7 @@ services:
       - ../../.env
     depends_on:
       - 9router
-${appEnvironmentBlock}${hasBrowser ? `${extraHostsBlock}\n` : ''}    volumes:
+${appEnvironmentBlock}${extraHostsBlock}\n    volumes:
       - ${volumeMount}
       - openclaw-plugins:/root/project/.openclaw/npm
     ports:
@@ -3002,7 +3283,7 @@ services:
 ${appEnvironmentBlock}    depends_on:
       ollama:
         condition: service_healthy
-${hasBrowser ? `${extraHostsBlock}\n` : ''}    ports:
+${extraHostsBlock}\n    ports:
       - "${gatewayPort}:${gatewayPort}"
     volumes:
       - ${volumeMount}
@@ -3097,10 +3378,9 @@ function buildNativeScriptCtx(options) {
   const ch = CHANNELS[state.channel];
   const is9Router = !!(provider && provider.isProxy);
   const isOllama = !!(provider && provider.isLocal);
-  const hasBrowser = state.config.skills.includes('browser');
   const nativeSkillConfigs = state.config.skills
     .map((sid) => SKILLS.find((s) => s.id === sid))
-    .filter((skill) => skill && skill.id !== 'scheduler' && skill.slug && skill.slug !== 'browser-automation');
+    .filter((skill) => skill && skill.id !== 'scheduler' && skill.slug);
   const selectedModel = (state.config.model || 'ollama/gemma4:e2b').replace('ollama/', '');
   const isMultiBot = state.botCount > 1 && state.channel === 'telegram';
   const projectDir = state.config.projectPath || '.';
@@ -3120,7 +3400,6 @@ function buildNativeScriptCtx(options) {
   Object.assign(globalThis, {
     isVi,
     provider,
-    hasBrowser,
     is9Router,
     selectedModel,
     isMultiBot,
@@ -3474,7 +3753,6 @@ setInterval(sync, INTERVAL);`;
     provider,
     is9Router,
     isOllama,
-    hasBrowser,
     selectedModel,
     isMultiBot,
     projectDir,
@@ -3510,7 +3788,6 @@ setInterval(sync, INTERVAL);`;
  * @global {boolean} isVi        - Vietnamese language mode
  * @global {object}  provider    - Current primary provider config
  * @global {boolean} isMultiBot  - Multi-bot mode flag
- * @global {boolean} hasBrowser  - Browser plugin selected
  * @global {boolean} is9Router   - 9Router proxy mode
  * @global {string}  projectDir  - Output project directory path
  * @global {Function} getGatewayAllowedOrigins
@@ -3575,8 +3852,8 @@ setInterval(sync, INTERVAL);`;
         groupId,
         selectedSkills: state.config.skills,
         skills: SKILLS,
-        hasBrowserDesktop: hasBrowser && state.browserMode === 'desktop',
-        hasBrowserServer: hasBrowser && state.browserMode !== 'desktop',
+        hasBrowserDesktop: false,
+        hasBrowserServer: false,
         gatewayPort: basePort,
         gatewayAllowedOrigins: getGatewayAllowedOrigins(basePort),
         osChoice: state.nativeOs || '',
@@ -3646,7 +3923,7 @@ setInterval(sync, INTERVAL);`;
         agentWorkspaceDir,
         persona: bot.persona || '',
         userInfo: state.config.userInfo || '',
-        hasBrowser,
+        hasBrowser: false,
         soulVariant: 'wizard',
         memoryVariant: 'wizard',
         hasZaloMod: state.channel === 'zalo-personal',
@@ -4151,7 +4428,7 @@ window.__downloadGen = {
  */
 function generateWinBat(ctx) {
   const {
-    ch, isVi, provider, is9Router, isOllama, hasBrowser, selectedModel, isMultiBot, projectDir, todayStamp, allPlugins, pluginCmd, nativeSkillInstallCmds, nativeSkillConfigs, providerLines, sharedNativeFileMap, sharedNativeEnvContent, sharedNativeExecApprovalsContent, sharedNativeConfigContent, native9RouterSyncScriptContent, native9RouterServerEntryLookup, windowsHiddenNodeLaunch, generateUninstallScript,
+    ch, isVi, provider, is9Router, isOllama, selectedModel, isMultiBot, projectDir, todayStamp, allPlugins, pluginCmd, nativeSkillInstallCmds, nativeSkillConfigs, providerLines, sharedNativeFileMap, sharedNativeEnvContent, sharedNativeExecApprovalsContent, sharedNativeConfigContent, native9RouterSyncScriptContent, native9RouterServerEntryLookup, windowsHiddenNodeLaunch, generateUninstallScript,
   } = ctx;
   // state, PROVIDERS, SKILLS, PLUGINS, CHANNELS are IIFE-level globals
   let scriptContent;
@@ -4204,11 +4481,6 @@ function generateWinBat(ctx) {
   }
 
   providerLines(lines, 'bat');
-  if (hasBrowser) {
-    lines.push('echo Cai Browser Automation runtime...');
-    lines.push('call npm install -g agent-browser playwright || goto :fail');
-    lines.push('call npx playwright install chromium || goto :fail');
-  }
   if (nativeSkillInstallCmds.length > 0) {
     lines.push('echo Cai skills...');
     lines.push(...nativeSkillInstallCmds);
@@ -4296,7 +4568,7 @@ function generateWinBat(ctx) {
  */
 function generateMacOsSh(ctx) {
   const {
-    ch, isVi, provider, is9Router, isOllama, hasBrowser, selectedModel, isMultiBot, projectDir, todayStamp, allPlugins, pluginCmd, nativeSkillInstallCmds, nativeSkillConfigs, providerLines, sharedNativeFileMap, sharedNativeEnvContent, sharedNativeExecApprovalsContent, sharedNativeConfigContent, native9RouterSyncScriptContent, native9RouterServerEntryLookup, windowsHiddenNodeLaunch, generateUninstallScript,
+    ch, isVi, provider, is9Router, isOllama, selectedModel, isMultiBot, projectDir, todayStamp, allPlugins, pluginCmd, nativeSkillInstallCmds, nativeSkillConfigs, providerLines, sharedNativeFileMap, sharedNativeEnvContent, sharedNativeExecApprovalsContent, sharedNativeConfigContent, native9RouterSyncScriptContent, native9RouterServerEntryLookup, windowsHiddenNodeLaunch, generateUninstallScript,
   } = ctx;
   // state, PROVIDERS, SKILLS, PLUGINS, CHANNELS are IIFE-level globals
   let scriptContent;
@@ -4414,7 +4686,7 @@ function generateMacOsSh(ctx) {
  */
 function generateVpsSh(ctx) {
   const {
-    ch, isVi, provider, is9Router, isOllama, hasBrowser, selectedModel, isMultiBot, projectDir, todayStamp, allPlugins, pluginCmd, nativeSkillInstallCmds, nativeSkillConfigs, providerLines, sharedNativeFileMap, sharedNativeEnvContent, sharedNativeExecApprovalsContent, sharedNativeConfigContent, native9RouterSyncScriptContent, native9RouterServerEntryLookup, windowsHiddenNodeLaunch, generateUninstallScript,
+    ch, isVi, provider, is9Router, isOllama, selectedModel, isMultiBot, projectDir, todayStamp, allPlugins, pluginCmd, nativeSkillInstallCmds, nativeSkillConfigs, providerLines, sharedNativeFileMap, sharedNativeEnvContent, sharedNativeExecApprovalsContent, sharedNativeConfigContent, native9RouterSyncScriptContent, native9RouterServerEntryLookup, windowsHiddenNodeLaunch, generateUninstallScript,
   } = ctx;
   // state, PROVIDERS, SKILLS, PLUGINS, CHANNELS are IIFE-level globals
   let scriptContent;
@@ -4539,7 +4811,7 @@ GWEOF`);
  */
 function generateLinuxSh(ctx) {
   const {
-    ch, isVi, provider, is9Router, isOllama, hasBrowser, selectedModel, isMultiBot, projectDir, todayStamp, allPlugins, pluginCmd, nativeSkillInstallCmds, nativeSkillConfigs, providerLines, sharedNativeFileMap, sharedNativeEnvContent, sharedNativeExecApprovalsContent, sharedNativeConfigContent, native9RouterSyncScriptContent, native9RouterServerEntryLookup, windowsHiddenNodeLaunch, generateUninstallScript,
+    ch, isVi, provider, is9Router, isOllama, selectedModel, isMultiBot, projectDir, todayStamp, allPlugins, pluginCmd, nativeSkillInstallCmds, nativeSkillConfigs, providerLines, sharedNativeFileMap, sharedNativeEnvContent, sharedNativeExecApprovalsContent, sharedNativeConfigContent, native9RouterSyncScriptContent, native9RouterServerEntryLookup, windowsHiddenNodeLaunch, generateUninstallScript,
   } = ctx;
   // state, PROVIDERS, SKILLS, PLUGINS, CHANNELS are IIFE-level globals
   let scriptContent;
@@ -5794,68 +6066,6 @@ function generateLinuxSh(ctx) {
     const routerNotice = document.getElementById('9router-notice');
     if (routerNotice) routerNotice.style.display = is9Router ? '' : 'none';
 
-    // Show/hide Browser Automation notice + generate scripts
-    const browserNotice = document.getElementById('browser-notice');
-    const hasBrowserSkill = state.config.skills.includes('browser');
-    if (browserNotice) browserNotice.style.display = hasBrowserSkill ? '' : 'none';
-
-    if (hasBrowserSkill) {
-      // Chrome Debug .bat script
-      const chromeBat = `@echo off
-echo ============================================
-echo   OpenClaw - Chrome Debug Mode
-echo ============================================
-echo.
-echo Dang tat Chrome cu (neu co)...
-taskkill /F /IM chrome.exe >nul 2>&1
-timeout /t 3 /nobreak >nul
-echo Dang mo Chrome voi Debug Mode...
-start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" ^
-  --remote-debugging-port=9222 ^
-  --remote-allow-origins=* ^
-  --user-data-dir="%TEMP%\\chrome-debug"
-timeout /t 4 /nobreak >nul
-powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:9222/json/version' -UseBasicParsing -TimeoutSec 5 | Out-Null; Write-Host 'OK! Chrome Debug Mode dang chay tren port 9222.' -ForegroundColor Green } catch { Write-Host 'LOI: Port 9222 chua mo. Thu lai.' -ForegroundColor Red }"
-echo.
-pause`;
-      setOutput('out-chrome-bat', chromeBat);
-
-      // Task Scheduler PowerShell script
-      const taskPs1 = `# ============================================
-# OpenClaw - Auto-start Chrome Debug khi logon
-# Chay script nay 1 lan voi Run as Administrator
-# ============================================
-
-# Duong dan toi file .bat
-$batPath = "$env:USERPROFILE\\start-chrome-debug.bat"
-
-# Kiem tra file .bat ton tai
-if (-not (Test-Path $batPath)) {
-  Write-Host "LOI: Khong tim thay $batPath" -ForegroundColor Red
-  Write-Host "Hay luu file start-chrome-debug.bat vao $env:USERPROFILE truoc." -ForegroundColor Yellow
-  exit 1
-}
-
-# Tao Scheduled Task
-$action   = New-ScheduledTaskAction -Execute $batPath
-$trigger  = New-ScheduledTaskTrigger -AtLogOn
-$trigger.Delay = "PT10S"   # Delay 10 giay sau khi logon
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-
-Register-ScheduledTask \\
-  -TaskName "OpenClaw-ChromeDebug" \\
-  -Description "Tu dong bat Chrome Debug Mode cho OpenClaw Browser Automation" \\
-  -Action $action \\
-  -Trigger $trigger \\
-  -Settings $settings \\
-  -Force
-
-Write-Host ""
-Write-Host "DONE! Task 'OpenClaw-ChromeDebug' da duoc tao." -ForegroundColor Green
-Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (delay 10s)." -ForegroundColor Cyan`;
-      setOutput('out-task-ps1', taskPs1);
-    }
-
     // Show/hide docker vs native output based on deployMode
     const dockerOut = document.getElementById('docker-output');
     const nativeOut = document.getElementById('native-output');
@@ -5884,8 +6094,6 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       : 'Script is generated from your choices. Download and run — everything else is handled automatically.';
 
     const agentId = state.config.botName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '') || 'chat';
-
-    const hasBrowser = state.config.skills.includes('browser');
     // isMultiBot => unified into isMultiBot above
     const multiBotAgentMetas = isMultiBot
       ? state.bots.slice(0, state.botCount).map((bot, idx) => {
@@ -5974,19 +6182,6 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       };
     }
 
-    // Browser Automation: inject browser config
-    if (hasBrowser) {
-      clawConfig.browser = {
-        enabled: true,
-        defaultProfile: 'host-chrome',
-        profiles: {
-          'host-chrome': {
-            cdpUrl: 'http://127.0.0.1:9222',
-            color: '#4285F4',
-          },
-        },
-      };
-    }
 
     // Skills: register all selected skills in openclaw.json → skills.entries
     // This makes OpenClaw actually load and enable them at runtime
@@ -5995,8 +6190,6 @@ Write-Host "Chrome se tu dong bat Debug Mode moi khi ban dang nhap Windows (dela
       state.config.skills.forEach((sid) => {
         const skill = SKILLS.find((s) => s.id === sid);
         if (!skill) return;
-        // Native browser tools are loaded automatically via the root 'browser' config
-        if (skill.slug === 'browser-automation') return;
         // scheduler is now native cron (not a skill), skip registering in skills.entries
         if (skill.id === 'scheduler' || !skill.slug) return;
         
@@ -6124,7 +6317,7 @@ model:
     const allSkills = [];
     state.config.skills.forEach((sid) => {
       const skill = SKILLS.find((s) => s.id === sid);
-      if (skill && skill.slug && skill.slug !== 'browser-automation') {
+      if (skill && skill.slug) {
         allSkills.push(skill.slug);
       }
     });
@@ -6144,7 +6337,6 @@ model:
       is9Router,
       isLocal,
       isMultiBot: state.botCount > 1 && (state.channel === 'telegram'),
-      hasBrowser,
       selectedModel: state.config.model || 'ollama/gemma4:e2b',
       agentId: 'bot',
       allSkills,
@@ -6304,12 +6496,6 @@ _This file is yours to evolve. If someone asks to change it, confirm with the us
 `;
 
     // ── AGENTS.md — Hướng dẫn vận hành ("operating manual")
-    const browserAgentSection = hasBrowser ? `
-## Sử dụng Trình Duyệt (Browser Automation)
-- BẠN SỞ HỮU GIAO DIỆN TRÌNH DUYỆT CHROME THẬT CỦA USER thông qua script \`browser-tool.js\`. ĐỌC NGAY FILE \`BROWSER.md\` để biết cách dùng.
-- BẮT BUỘC dùng \`bash\` để gõ \`node ~/browser-tool.js ...\` khi có yêu cầu liên quan đến web thay vì dùng web_search!
-- KHÔNG BAO GIỜ từ chối mở trình duyệt với lý do "không có giao diện" hay "máy chủ không có browser".
-` : '';
 
     const agentsMd = lang === 'vi'
       ? `# Hướng dẫn vận hành
@@ -6337,7 +6523,6 @@ Bạn hỗ trợ người dùng trong mọi tác vụ hàng ngày thông qua tin
 - Luôn xác nhận kết quả tool trước khi trả lời user
 - Nếu tool lỗi → thông báo rõ ràng, đề xuất cách khác
 
-${browserAgentSection}
 ${state.config.securityRules}
 `
 
@@ -6421,143 +6606,6 @@ _Update this file as you learn more about the user. Ask before changing._
     // ── MEMORY.md — via scaffold builder
     const memoryMd = _scaffold.buildMemoryDoc({ isVi, variant: 'wizard' });
 
-    // Browser tool files (generated into workspace when hasBrowser)
-    const browserToolJs = `/**
- * browser-tool.js - Connect to real Windows Chrome via CDP
- * Flow: Docker -> socat (port 9222) -> host.docker.internal:9222 -> user's Chrome
- */
-const { chromium } = require('/usr/local/lib/node_modules/openclaw/node_modules/playwright-core');
-const action = process.argv[2];
-const param1 = process.argv[3];
-const param2 = process.argv[4];
-const CDP_URL = 'http://127.0.0.1:9222';
-(async () => {
-    let browser;
-    try {
-        browser = await chromium.connectOverCDP(CDP_URL, { timeout: 5000 });
-        const ctx = browser.contexts()[0];
-        const pages = ctx.pages();
-        let page = pages.length > 0 ? pages[0] : await ctx.newPage();
-        if (action === 'open') {
-            console.log('[Browser] Mo trang: ' + param1);
-            await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await page.waitForTimeout(1500);
-            console.log('[Browser] Da mo: ' + (await page.title()) + ' | ' + page.url());
-        } else if (action === 'get_text') {
-            const text = await page.evaluate(() => {
-                document.querySelectorAll('script,style,noscript,svg').forEach(e => e.remove());
-                return document.body.innerText.trim();
-            });
-            console.log(text.substring(0, 4000));
-        } else if (action === 'click') {
-            await page.locator(param1).first().click({ timeout: 5000 });
-            await page.waitForTimeout(600);
-            console.log('[Browser] Da click: ' + param1);
-        } else if (action === 'fill') {
-            await page.locator(param1).first().fill(param2, { timeout: 5000 });
-            console.log('[Browser] Da dien "' + param2 + '" vao: ' + param1);
-        } else if (action === 'press') {
-            await page.keyboard.press(param1);
-            await page.waitForTimeout(1000);
-            console.log('[Browser] Da nhan phim: ' + param1);
-        } else if (action === 'status') {
-            console.log('[Browser] Ket noi Chrome that! Tab: ' + (await page.title()) + ' | ' + page.url());
-        } else {
-            console.log('Lenh: open <url> | get_text | click <sel> | fill <sel> <text> | press <key> | status');
-        }
-    } catch(e) {
-        if (e.message.includes('ECONNREFUSED') || e.message.includes('Timeout')) {
-            console.error('[Browser] Ban chua bat Chrome Debug! Hay click dup vao start-chrome-debug.bat roi thu lai.');
-        } else {
-            console.error('[Browser] Loi:', e.message);
-        }
-    } finally {
-        if (browser) await browser.close();
-    }
-`;
-
-    const browserMd = `# Dieu Khien Trinh Duyet (Browser Automation)
-
-Bot dieu khien Chrome THAT tren man hinh Windows cua ban. Moi thao tac hien thi truc tiep!
-
-## Lenh su dung (chay qua bash)
-
-\\\`\\\`\\\`bash
-node ~/browser-tool.js status
-node ~/browser-tool.js open "https://google.com"
-node ~/browser-tool.js get_text
-node ~/browser-tool.js fill "input[name='q']" "tu khoa"
-node ~/browser-tool.js press "Enter"
-node ~/browser-tool.js click "#button"
-\\\`\\\`\\\`
-
-## QUY TAC BAT BUOC
-- KHONG BAO GIO tu choi mo trinh duyet.
-- Neu loi ECONNREFUSED: bao user bat lai start-chrome-debug.bat.
-- KHONG dung web_search khi user yeu cau browser.
-`;
-
-    const chromeBatContent = `@echo off
-echo ====== OpenClaw - Chrome Debug Mode ======
-echo.
-echo Dang tat Chrome cu (neu co)...
-taskkill /F /IM chrome.exe >nul 2>&1
-timeout /t 3 /nobreak >nul
-echo Dang mo Chrome voi Debug Mode...
-start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" ^
-  --remote-debugging-port=9222 ^
-  --remote-allow-origins=* ^
-  --user-data-dir="%TEMP%\\chrome-debug"
-timeout /t 4 /nobreak >nul
-powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:9222/json/version' -UseBasicParsing -TimeoutSec 5 | Out-Null; Write-Host 'OK! Chrome Debug Mode dang chay.' -ForegroundColor Green } catch { Write-Host 'LOI: Port 9222 chua mo.' -ForegroundColor Red }"
-echo.
-pause
-`;
-
-    const chromeShContent = `#!/usr/bin/env bash
-# ====== OpenClaw - Chrome Debug Mode (Mac/Linux) ======
-set -e
-echo "====== OpenClaw - Chrome Debug Mode ======"
-echo ""
-
-# Detect Chrome path
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-  [ ! -f "$CHROME_BIN" ] && CHROME_BIN="/Applications/Chromium.app/Contents/MacOS/Chromium"
-  [ ! -f "$CHROME_BIN" ] && CHROME_BIN="/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary"
-else
-  CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || echo '')"
-fi
-[ -n "$CHROME_DEBUG_BIN" ] && CHROME_BIN="$CHROME_DEBUG_BIN"
-
-if [ -z "$CHROME_BIN" ] || { [ ! -f "$CHROME_BIN" ] && [ ! -x "$CHROME_BIN" ]; }; then
-  echo -e "\\033[31mERROR: Chrome/Chromium not found.\\033[0m"
-  echo "Install Chrome or: export CHROME_DEBUG_BIN=/path/to/chrome"
-  exit 1
-fi
-
-echo "Using: $CHROME_BIN"
-echo "Killing existing Chrome debug instances..."
-pkill -f -- "--remote-debugging-port=9222" 2>/dev/null || true
-sleep 2
-
-TMP_DIR="\${TMPDIR:-/tmp}/chrome-debug-openclaw"
-mkdir -p "$TMP_DIR"
-
-echo "Starting Chrome in Debug Mode (port 9222)..."
-"$CHROME_BIN" \\
-  --remote-debugging-port=9222 \\
-  --remote-allow-origins=* \\
-  --user-data-dir="$TMP_DIR" &
-
-sleep 4
-if curl -s http://localhost:9222/json/version > /dev/null 2>&1; then
-  echo -e "\\033[32mOK! Chrome Debug Mode is running on port 9222.\\033[0m"
-else
-  echo -e "\\033[31mERROR: Port 9222 not responding.\\033[0m"
-  exit 1
-fi
-`;
 
     const envText = (document.getElementById('env-content')?.textContent || '').trim();
     const rootEnvContent = envText ? `${envText}\n` : '';
@@ -6612,10 +6660,6 @@ fi
         });
         sharedFiles[`.openclaw/${meta.workspaceDir}/TEAMS.md`] = _scaffold.buildTeamsDoc({ isVi });
         sharedFiles[`.openclaw/${meta.workspaceDir}/MEMORY.md`] = memoryMd;
-        if (hasBrowser) {
-          sharedFiles[`.openclaw/${meta.workspaceDir}/browser-tool.js`] = browserToolJs;
-          sharedFiles[`.openclaw/${meta.workspaceDir}/BROWSER.md`] = browserMd;
-        }
       }
       state._generatedFiles = sharedFiles;
     } else {
@@ -6635,10 +6679,6 @@ fi
         }),
         [`.openclaw/workspace-${agentId}/MEMORY.md`]: memoryMd,
         '.gitignore': isNativeMode ? '.env\nnode_modules/' : '.env\ndocker/openclaw/.env\nnode_modules/',
-        ...(hasBrowser ? {
-          [`.openclaw/workspace-${agentId}/browser-tool.js`]: browserToolJs,
-          [`.openclaw/workspace-${agentId}/BROWSER.md`]: browserMd,
-        } : {}),
       };
       if (rootEnvContent) {
         singleFiles['.env'] = rootEnvContent;
@@ -6660,8 +6700,6 @@ fi
     // chrome-debug, start-bot, uninstall added ONCE here, not per-bot-mode block
     if (isNativeMode) {
       const _files = state._generatedFiles;
-      _files['start-chrome-debug.bat'] = chromeBatContent;
-      _files['start-chrome-debug.sh'] = chromeShContent;
       _files['start-bot.bat'] = generateStartBotBat({
         projectDir: state.config.projectPath || '.',
         openclawHome: (state.config.projectPath || '.') + '\\.openclaw',

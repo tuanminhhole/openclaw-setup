@@ -94,3 +94,4 @@ start-bot.sh
 uninstall-openclaw*.bat
 uninstall-openclaw*.sh
 test-vps-install.mjs
+docs_dev/

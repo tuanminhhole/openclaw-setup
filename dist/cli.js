@@ -84,7 +84,19 @@ if (isLocalRepo()) {
       throw new Error('Git is not installed or not found in PATH. Please install Git and try again.');
     }
 
-    if (!fs.existsSync(targetPath)) {
+    const isGitRepo = fs.existsSync(path.join(targetPath, '.git'));
+    const hasPackageJson = fs.existsSync(path.join(targetPath, 'package.json'));
+
+    if (!fs.existsSync(targetPath) || !isGitRepo || !hasPackageJson) {
+      if (fs.existsSync(targetPath)) {
+        console.log(`⚠️  Thư mục cài đặt tồn tại ở ${targetPath} nhưng bị lỗi hoặc thiếu tệp (.git / package.json).`);
+        console.log('   Đang dọn dẹp để tiến hành tải mới hoàn toàn...');
+        try {
+          fs.rmSync(targetPath, { recursive: true, force: true });
+        } catch (rmErr) {
+          console.warn('   Cảnh báo: Không thể xóa thư mục, sẽ thử tải đè:', rmErr.message);
+        }
+      }
       console.log(`[1/3] Cloning OpenClaw setup repository to: ${targetPath}...`);
       await runCmd('git', ['clone', 'https://github.com/tuanminhhole/openclaw-setup.git', targetDirName]);
     } else {

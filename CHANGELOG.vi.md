@@ -1,6 +1,20 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.8.0] — 2026-05-28
+
+### 🚀 Giao Diện Quản Trị Web UI Setup & Quản Lý Tiến Trình
+
+- **Mới: Giao diện Web UI Setup hiện đại**: Chuyển đổi toàn bộ trải nghiệm cài đặt từ wizard tĩnh `index.html` sang ứng dụng Web (Single Page Application) cục bộ. Tự động mở trình duyệt và hướng dẫn người dùng qua các bước trực quan.
+- **Mới: Bảng điều khiển Process Controller**: Hỗ trợ các nút **Start / Stop / Recreate** trực quan trên giao diện để quản lý trạng thái container/tiến trình bot mà không cần dòng lệnh.
+- **Mới: Live Logs Streamer**: Tích hợp xem trực tiếp nhật ký hoạt động (terminal stdout) của bot ngay trên giao diện Web thời gian thực.
+- **Mới: Trình soạn thảo File tích hợp**: Cho phép đọc, chỉnh sửa và lưu trực tiếp các tệp tin cấu hình và markdown (`openclaw.json`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`) từ xa qua trình duyệt.
+- **Mới: Hỗ trợ Đăng nhập QR Zalo**: Hiển thị ảnh QR đăng nhập Zalo Personal trực quan trên giao diện dashboard, cho phép kết nối session Zalo nhanh chóng.
+- **Cải tiến: Tự động phân bổ Port rảnh**: Loại bỏ hoàn toàn xung đột cổng mạng trong môi trường đa bot bằng cách quét và phân bổ động cổng `routerPort`.
+- **Cải tiến: Khắc phục lỗi quyền NTFS Windows**: Sử dụng đặt tên volume độc lập `openclaw-plugins` trong Docker Compose để tránh lỗi `EACCES` khi cài đặt plugin trên Windows.
+- **Dọn dẹp**: Xóa bỏ hoàn toàn các file giao diện tĩnh Wizard cũ (`index.html`, `style.css`) và các tài liệu hướng dẫn lỗi thời trong thư mục `docs/`.
+
+
 ## [5.7.10] — 2026-05-06
 
 ### 🚀 Cập nhật Tính năng & Tài liệu

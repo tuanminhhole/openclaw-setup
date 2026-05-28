@@ -1,7 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const root = process.cwd();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(__dirname, '../..');
 const launcherCli = fs.readFileSync(path.join(root, 'dist', 'cli.js'), 'utf8');
 const legacyCli = fs.readFileSync(path.join(root, 'dist', 'legacy-cli.js'), 'utf8');
 const setup = fs.readFileSync(path.join(root, 'dist', 'setup.js'), 'utf8');

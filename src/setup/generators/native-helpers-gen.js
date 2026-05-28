@@ -18,10 +18,9 @@ function buildNativeScriptCtx(options) {
   const ch = CHANNELS[state.channel];
   const is9Router = !!(provider && provider.isProxy);
   const isOllama = !!(provider && provider.isLocal);
-  const hasBrowser = state.config.skills.includes('browser');
   const nativeSkillConfigs = state.config.skills
     .map((sid) => SKILLS.find((s) => s.id === sid))
-    .filter((skill) => skill && skill.id !== 'scheduler' && skill.slug && skill.slug !== 'browser-automation');
+    .filter((skill) => skill && skill.id !== 'scheduler' && skill.slug);
   const selectedModel = (state.config.model || 'ollama/gemma4:e2b').replace('ollama/', '');
   const isMultiBot = state.botCount > 1 && state.channel === 'telegram';
   const projectDir = state.config.projectPath || '.';
@@ -41,7 +40,6 @@ function buildNativeScriptCtx(options) {
   Object.assign(globalThis, {
     isVi,
     provider,
-    hasBrowser,
     is9Router,
     selectedModel,
     isMultiBot,
@@ -395,7 +393,6 @@ setInterval(sync, INTERVAL);`;
     provider,
     is9Router,
     isOllama,
-    hasBrowser,
     selectedModel,
     isMultiBot,
     projectDir,
