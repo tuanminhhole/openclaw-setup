@@ -1,6 +1,18 @@
 # Changelog (English)
 
 
+## [5.8.1] — 2026-05-30
+
+### 🚀 Deep Integration of Smart Search & Dynamic Browser Automation
+
+- **New: Deep integration of Smart Search & Browser Automation (v1.1.7)**: Pre-integrates the next-generation stealth web search and browser automation plugin for all AI agents.
+- **New: Zero-Token Web Search**: Enables AI agents to search Google, Bing, and DuckDuckGo completely for free and without rate limits, eliminating the need for expensive third-party search API keys (Tavily/Google Search).
+- **New: Real-time Browser Automation (CDP Controller)**: Empowers AI agents to interact directly with web pages using Chrome DevTools Protocol (CDP), reusing the host's real Google Chrome instance to browse and retrieve deeply nested web contents.
+- **New: Seamless Cloudflare & CAPTCHA Bypass**: Interacts directly with Chrome Debug Mode to inherit cookies, sessions, and authentic browser fingerprints, sliding past strict security firewalls undetected.
+- **New: Self-Guided & Self-Healing Environment**: Automatically sets up virtual Xvfb displays in Docker environments; and dynamically diagnoses missing OS-level library dependencies on VPS/Ubuntu native host machines, returning copy-pasteable commands for immediate fixes.
+- **Improve: Absolute Data Isolation & Safety**: Migrates the local installer UI codebase to a hidden home directory (`~/.openclaw-setup`), ensuring absolute isolation and zero risk of overwriting or deleting any of the user's existing bot projects or credentials.
+
+
 ## [5.8.0] — 2026-05-28
 
 ### 🚀 Next-Generation Process Management Web UI Setup

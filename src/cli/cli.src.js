@@ -2,6 +2,7 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -51,8 +52,8 @@ if (isLocalRepo()) {
   console.log('   🦞 OpenClaw Setup — Auto-downloader & Installer');
   console.log('============================================================\n');
 
-  const targetDirName = 'openclaw-setup';
-  const targetPath = path.join(process.cwd(), targetDirName);
+  const targetDirName = '.openclaw-setup';
+  const targetPath = path.join(os.homedir(), targetDirName);
 
   const runCmd = (cmd, cmdArgs, opts = {}) => {
     return new Promise((resolve, reject) => {
@@ -89,8 +90,8 @@ if (isLocalRepo()) {
 
     if (!fs.existsSync(targetPath) || !isGitRepo || !hasPackageJson) {
       if (fs.existsSync(targetPath)) {
-        console.log(`⚠️  Thư mục cài đặt tồn tại ở ${targetPath} nhưng bị lỗi hoặc thiếu tệp (.git / package.json).`);
-        console.log('   Đang dọn dẹp để tiến hành tải mới hoàn toàn...');
+        console.log(`⚠️  Thư mục cài đặt UI tồn tại ở ${targetPath} nhưng bị lỗi hoặc thiếu tệp (.git / package.json).`);
+        console.log('   Đang dọn dẹp thư mục UI ẩn để tiến hành tải mới hoàn toàn...');
         try {
           fs.rmSync(targetPath, { recursive: true, force: true });
         } catch (rmErr) {
@@ -98,7 +99,7 @@ if (isLocalRepo()) {
         }
       }
       console.log(`[1/3] Cloning OpenClaw setup repository to: ${targetPath}...`);
-      await runCmd('git', ['clone', 'https://github.com/tuanminhhole/openclaw-setup.git', targetDirName]);
+      await runCmd('git', ['clone', 'https://github.com/tuanminhhole/openclaw-setup.git', targetPath]);
     } else {
       console.log(`[1/3] OpenClaw setup folder already exists at: ${targetPath}`);
       console.log('      Updating repository to latest version...');

@@ -1,6 +1,18 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.8.1] — 2026-05-30
+
+### 🚀 Tích Hợp Sâu Trình Tìm Kiếm & Tự Động Hóa Trình Duyệt Trực Quan
+
+- **Mới: Hỗ trợ tích hợp sâu Smart Search & Browser Automation (v1.1.7)**: Tích hợp sẵn plugin tự động hóa và tìm kiếm web thông minh thế hệ mới cho các tác nhân AI (AI Agents).
+- **Mới: Tìm kiếm không cần Token (Zero-Token Search)**: Hỗ trợ AI tự do tìm kiếm dữ liệu trên Google, Bing, DuckDuckGo hoàn toàn miễn phí, không giới hạn lượt dùng và không cần các API key bên thứ ba đắt đỏ (Tavily/Google API).
+- **Mới: Tự động hóa Trình duyệt thời gian thực (CDP Controller)**: Cho phép tác nhân AI tương tác trực tiếp với các trang web thông qua giao thức Chrome DevTools Protocol (CDP), tái sử dụng chính phiên đăng nhập và trình duyệt Chrome thật của người dùng để thu thập dữ liệu sâu sắc và nhanh chóng.
+- **Mới: Vượt rào Cloudflare & CAPTCHA hoàn hảo**: Kết nối thông minh với Chrome Debug Mode trên máy tính của người dùng để thừa hưởng toàn bộ Cookie, vân tay trình duyệt (fingerprints) thật, vượt qua mọi lớp tường lửa chống bot nghiêm ngặt nhất.
+- **Mới: Tự chẩn đoán và khắc phục môi trường (Self-Guided)**: Tự động chạy giả lập màn hình ảo Xvfb trong môi trường Docker container; đồng thời tự động phát hiện, báo cáo và in ra các dòng lệnh copy-paste để cài đặt Chromium/thư viện hệ thống khi chạy native trên VPS/Ubuntu cực kỳ thông minh.
+- **Cải tiến: Bảo mật và an toàn dữ liệu cài đặt tuyệt đối**: Trình cài đặt tự động di chuyển thư mục lưu trữ UI setup sang thư mục ẩn của người dùng (`~/.openclaw-setup`), đảm bảo **hoàn toàn cô lập**, không bao giờ can thiệp hay ghi đè lên bất kỳ dữ liệu dự án hoặc cấu hình bot nào hiện có của người dùng trong thư mục hiện tại.
+
+
 ## [5.8.0] — 2026-05-28
 
 ### 🚀 Giao Diện Quản Trị Web UI Setup & Quản Lý Tiến Trình
