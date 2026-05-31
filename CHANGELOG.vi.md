@@ -1,5 +1,12 @@
 # Changelog (Tiếng Việt)
 
+## [5.8.2] — 2026-05-31
+
+### 🚀 Nút Cập Nhật Giao Diện Tự Động & Hợp Nhất Hệ Thống Kiểm Thử
+
+- **Mới: Nút Cập Nhật Trên Header**: Bổ sung nút **Cập nhật (Update)** màu xanh ngọc đồng bộ và tinh tế trên thanh Header, ngay bên phải phần chuyển đổi ngôn ngữ.
+- **Mới: Tự Động Phát Hiện Phiên Bản**: Hệ thống tự động truy vấn không đồng bộ đến npm registry để so sánh phiên bản hiện tại với bản mới nhất trên npm (`create-openclaw-bot/latest`). Nút cập nhật sẽ **chỉ hiển thị** khi phát hiện có phiên bản mới hơn.
+- **Mới: Nâng Cấp Tự Động & Stream Log Trực Tiếp**: Tích hợp endpoint `/api/setup/update` xử lý nâng cấp thông minh: tự động chạy `git pull && npm install && npm run build` nếu cài từ mã nguồn Git, hoặc chạy `npm install -g` nếu cài từ npm. Quá trình nâng cấp được stream log thời gian thực về khung Nhật ký trên giao diện giúp theo dõi trực quan.
 
 ## [5.8.1] — 2026-05-30
 
@@ -11,7 +18,6 @@
 - **Mới: Vượt rào Cloudflare & CAPTCHA hoàn hảo**: Kết nối thông minh với Chrome Debug Mode trên máy tính của người dùng để thừa hưởng toàn bộ Cookie, vân tay trình duyệt (fingerprints) thật, vượt qua mọi lớp tường lửa chống bot nghiêm ngặt nhất.
 - **Mới: Tự chẩn đoán và khắc phục môi trường (Self-Guided)**: Tự động chạy giả lập màn hình ảo Xvfb trong môi trường Docker container; đồng thời tự động phát hiện, báo cáo và in ra các dòng lệnh copy-paste để cài đặt Chromium/thư viện hệ thống khi chạy native trên VPS/Ubuntu cực kỳ thông minh.
 - **Cải tiến: Bảo mật và an toàn dữ liệu cài đặt tuyệt đối**: Trình cài đặt tự động di chuyển thư mục lưu trữ UI setup sang thư mục ẩn của người dùng (`~/.openclaw-setup`), đảm bảo **hoàn toàn cô lập**, không bao giờ can thiệp hay ghi đè lên bất kỳ dữ liệu dự án hoặc cấu hình bot nào hiện có của người dùng trong thư mục hiện tại.
-
 
 ## [5.8.0] — 2026-05-28
 
@@ -26,7 +32,6 @@
 - **Cải tiến: Khắc phục lỗi quyền NTFS Windows**: Sử dụng đặt tên volume độc lập `openclaw-plugins` trong Docker Compose để tránh lỗi `EACCES` khi cài đặt plugin trên Windows.
 - **Dọn dẹp**: Xóa bỏ hoàn toàn các file giao diện tĩnh Wizard cũ (`index.html`, `style.css`) và các tài liệu hướng dẫn lỗi thời trong thư mục `docs/`.
 
-
 ## [5.7.10] — 2026-05-06
 
 ### 🚀 Cập nhật Tính năng & Tài liệu
@@ -35,13 +40,11 @@
 - **Chuẩn hóa Agent Workspace**: Cập nhật generator của `AGENTS.md` để tham chiếu đúng và đầy đủ tất cả các file `.md` được sinh ra (`BROWSER.md`, `BOOT.md`, `SOUL.md`, `DREAMS.md`, `HEARTBEAT.md`, `USER.md`).
 - **Dọn dẹp Tools Guide**: Xóa bỏ phần hướng dẫn Zalo Group Slash Commands đã lỗi thời khỏi quá trình tạo `TOOLS.md`.
 
-
 ## [5.7.9] — 2026-05-05
 
 ### 🔧 Cập nhật tên Plugin Zalo
 
 - **Sửa: Đổi tên `zalo-mod` thành `openclaw-zalo-mod`** — Cập nhật các tham chiếu chuỗi nội bộ trong `workspace-gen.js`, `bot-config-gen.js`, và test suites để đồng bộ với định danh package NPM mới của plugin Zalo (`openclaw-zalo-mod`).
-
 
 ## [5.7.8] — 2026-05-05
 
@@ -54,12 +57,11 @@
 - **Chore: Đồng bộ ARCHITECTURE.md** — Ghi rõ `zalo-mod` phải cài thủ công qua ClawHub; `hasZaloMod` trong workspace-gen chỉ ảnh hưởng nội dung docs, không liên quan config generation.
 - **Chore: Thêm `.agent/workflows/update.md`** — Tài liệu workflow release chuẩn hóa cho repo này.
 
-
 ## [5.7.7] — 2026-05-03
 
 ### 🛠️ Ổn Định Infrastructure & Zalo Bot
 
-- **Ghim Phiên Bản**: Tự động ghim `openclaw@2026.4.15` trên tất cả script cài đặt để đảm bảo ổn định cho Zalo bot.
+- **Chiến lược Phiên Bản**: Tự động chạy với `openclaw@latest` trên tất cả script cài đặt để đảm bảo ổn định cho Zalo bot.
 - **Tối Ưu Docker**: Thay thế việc mount toàn bộ dự án bằng mount độc lập thư mục `.openclaw` để tránh nghẽn I/O.
 - **Sửa Lỗi Deadlock Gateway**: Thêm `tmpfs` cho thư mục `plugin-runtime-deps` ngay trong cấu hình Compose environment.
 - **Đồng Bộ 9Router**: Tự động lấy danh sách model từ các provider đang kết nối và đồng bộ vào combo `smart-route` mỗi khi gateway khởi động.
@@ -96,7 +98,6 @@
 - **Fix: Plugin zalouser từ ClawHub ghi đè bản bundled** — Entrypoint tải `@openclaw/zalouser@2026.3.22` từ ClawHub (không hỗ trợ `channels login`). Đã bỏ install plugin runtime trong entrypoint, dùng trực tiếp bản bundled trong OpenClaw.
 - **Fix: Đúng tên npm package `openclaw-zalo-mod`** — Cập nhật `output.js` và `native-helpers-gen.js` dùng `openclaw-zalo-mod` cho lệnh cài plugin, khớp tên package thực trên npm registry.
 - **Improve: Dừng gateway trước khi đăng nhập Zalo** — Script tải (Windows/macOS) giờ dừng gateway trước khi chạy login Zalo, tránh xung đột WebSocket khi xác thực channel.
-
 
 ## [5.7.2] — 2026-04-28
 
@@ -136,7 +137,6 @@
 ### Dọn dẹp Tích hợp Plugin Zalo
 
 - **Cải thiện: Đồng nhất config plugin Zalo** — Đăng ký plugin trong `config-gen.js` và `output.js` vẫn tự điền `plugins.entries['zalo-mod']` cho kênh Zalo Personal, đảm bảo tích hợp liền mạch không cần patch sau cài đặt.
-
 
 ## [5.6.13] — 2026-04-22
 
@@ -186,178 +186,230 @@
 - **Sửa: Bảng MODEL_PRIORITY thiếu provider** — Đồng bộ bảng mapping provider → model của sync script PM2 với `native-helpers-gen.js`, bổ sung 20+ provider còn thiếu: `codex`, `github`, `cursor`, `claude-code`, `iflow`, `kiro`, `kilo`, `gemini-cli`, `ollama`, v.v.
 
 ## [5.6.6] - 2026-04-17
+
 - Fix: Script sync 9router bi SIGKILL khi khoi dong qua PM2 tren Ubuntu/VPS. Xu ly loi nha bang try-catch, them --no-autorestart.
 
 ## [5.6.4] - 2026-04-16
+
 - Đồng bộ NPM registry và bump version.
 
 ## [5.6.3] - 2026-04-16
+
 - Cập nhật thông báo hướng dẫn cài đặt bot vào group trên Telegram cho rõ nghĩa hơn (tiếp tục).
 
 ## [5.6.2] - 2026-04-16
+
 - Cập nhật thông báo hướng dẫn cài đặt bot vào group trên Telegram cho rõ nghĩa hơn.
 
 ## [5.6.1] - 2026-04-16
+
 - Hotfix: Sửa lỗi ReferenceError modelsPrimary is not defined khi chạy CLI lúc tạo bot.
 
 ## [5.6.0] — 2026-04-16
+
 - Bật sẵn `memory`, `memory-core` dreaming và thêm `DREAMS.md` cho workspace mới.
 - Cải thiện UX relay Telegram và cập nhật hướng dẫn trong `TOOLS.md`, `TEAMS.md`.
 - Sửa luồng sinh tài liệu tiếng Việt để giữ UTF-8 ổn định.
 
 ## [5.5.0] — 2026-04-15
+
 - Đồng bộ luồng sinh workspace docs giữa Wizard và CLI qua shared scaffold builders.
 - Chuẩn hóa bộ tài liệu tạo ra quanh `AGENTS.md`, `TOOLS.md`, `MEMORY.md`, `TEAMS.md` và tài liệu browser.
 - Nâng mốc OpenClaw lên `2026.4.14` và bỏ hẳn file agent `.yaml` cũ.
 
 ## [5.4.2] — 2026-04-14
+
 - Sửa lỗi cài relay plugin bị lặp trong script native được generate.
 
 ## [5.4.1] — 2026-04-14
+
 - Khôi phục hỗ trợ browser trong Docker và sửa CORS cho control UI Docker.
 - Bổ sung script gỡ cài đặt cho cả Docker và native.
 
 ## [5.4.0] — 2026-04-14
+
 - Gỡ kênh `telegram+zalo-personal` khỏi Wizard và CLI.
 - Đơn giản hóa luồng multi-bot về một cờ `isMultiBot` và dọn phần generate config.
 - Chuẩn hóa đường dẫn agent/workspace tương đối và siết quy tắc cross-workspace trong `AGENTS.md`.
 
 ## [5.3.5] — 2026-04-12
+
 - Sửa lỗi sinh tài liệu workspace liên quan đến `MEMORY.md`.
 - Ghi sẵn script uninstall ngay trong thư mục project được tạo.
 
 ## [5.3.4] — 2026-04-12
+
 - Tăng độ ổn định cho gateway Windows native và đặt tên workspace theo từng agent.
 - Mở rộng `TOOLS.md` / `AGENTS.md` cho cả workspace Zalo và Telegram.
 
 ## [5.3.3] — 2026-04-11
+
 - Thêm script uninstall vào luồng tải file từ Wizard.
 
 ## [5.3.2] — 2026-04-11
+
 - Ổn định quá trình khởi động 9Router native trên desktop và pre-seed dữ liệu 9Router theo project.
 
 ## [5.3.1] — 2026-04-10
+
 - Chuyển mặc định DM của Zalo Personal sang `open`.
 
 ## [5.3.0] — 2026-04-11
+
 - Thêm luồng combo Telegram + Zalo Personal đầu tiên.
 - Tự bật plugin Zalo Personal và cải thiện cold-start Docker.
 
 ## [5.2.4] — 2026-04-10
+
 - Tăng tốc luồng upgrade bằng cách tận dụng cache Docker tốt hơn.
 - Thêm tooling theo dõi bản cập nhật OpenClaw mới.
 
 ## [5.2.3] — 2026-04-10
+
 - Sửa các lỗi state/validation của wizard multi-bot.
 - Cải thiện thông báo khi thiếu dữ liệu và an toàn encoding cho script.
 
 ## [5.2.2] — 2026-04-10
+
 - Sửa bind/CORS gateway trong Docker và giảm rebuild Docker không cần thiết.
 - Sửa đường dẫn PM2 native để bám theo `.openclaw` trong project.
 
 ## [5.2.1] — 2026-04-09
+
 - Sửa nhiều lỗi cài native Ubuntu/VPS liên quan PM2, 9Router, runtime packages và đường dẫn project-local.
 - Cải thiện hướng dẫn đăng nhập Zalo Personal và thư mục credentials.
 
 ## [5.2.0] — 2026-04-09
+
 - Thêm luồng upgrade 1 lệnh qua CLI, `upgrade.ps1` và `upgrade.sh`.
 - Giữ nguyên dữ liệu người dùng khi cập nhật OpenClaw và artifact phụ trợ.
 
 ## [5.1.15] — 2026-04-08
+
 - Đồng bộ native Windows với hành vi Docker tốt hơn.
 - Sửa runtime path theo project, sync provider và luồng browser install.
 
 ## [5.1.14] — 2026-04-08
+
 - Pin OpenClaw về bản ổn định hơn và sửa lỗi generate Docker trên Windows.
 - Bổ sung khuyến nghị version Node.js tương thích.
 
 ## [5.1.13] — 2026-04-08
+
 - Sửa generate script cài đặt trên macOS, luồng Docker startup và cài npm global native.
 - Sửa lỗi state Wizard liên quan persona và điều hướng step.
 
 ## [5.1.12] — 2026-04-07
+
 - Mở rộng danh sách skills tích hợp và cải thiện auto-select relay plugin cho multi-bot.
 - Cập nhật mặc định Zalo Personal và sửa một số điểm validate trong Wizard.
 
 ## [5.1.11] — 2026-04-07
+
 - Cập nhật hành vi DM và onboarding mặc định cho Zalo Personal.
 
 ## [5.1.10] — 2026-04-07
+
 - Thêm auto-approve cho luồng đăng nhập/ghép thiết bị Zalo trên native VPS.
 
 ## [5.1.9] — 2026-04-07
+
 - Khôi phục schema chặt hơn và cải thiện UX liên quan WebCrypto.
 
 ## [5.1.8] — 2026-04-07
+
 - Sửa lỗi kết nối dashboard trên VPS và đăng nhập bằng token.
 
 ## [5.1.7] — 2026-04-07
+
 - Sửa CORS của Control UI và đường dẫn 9Router native.
 
 ## [5.1.6] — 2026-04-07
+
 - Khắc phục lỗi `SIGKILL` của PM2 khi cài native trên VPS.
 
 ## [5.1.5] — 2026-04-06
+
 - Sửa lỗi PM2 khởi động 9Router trên native.
 
 ## [5.1.4] — 2026-04-06
+
 - Sửa lỗi BOM làm CLI không khởi động và cải thiện patch timeout cho Docker.
 
 ## [5.1.3] — 2026-04-06
+
 - Sửa lỗi rò biến nội suy trong Docker Compose.
 
 ## [5.1.2] — 2026-04-06
+
 - Gia cố script sync trước lỗi shell injection bằng cách chuyển sang Base64.
 
 ## [5.1.1] — 2026-04-06
+
 - Ổn định đồng bộ smart-route của 9Router qua provider API.
 - Thêm auto-approve Zalo pairing và làm output Docker CLI gọn hơn.
 
 ## [5.1.0] — 2026-04-07
+
 - Cải thiện luồng đăng nhập Zalo Personal và xử lý QR.
 
 ## [5.0.9] — 2026-04-06
+
 - Bổ sung chế độ cài native không cần Docker.
 - Cập nhật Gemma 4, multi-bot Telegram và tinh chỉnh UI/setup.
 
 ## [5.0.0] — 2026-04-04
+
 - Thêm hỗ trợ Gemma 4 và tài liệu yêu cầu phần cứng.
 
 ## [4.1.4] — 2026-04-03
+
 - Cải thiện chung về độ ổn định và trải nghiệm.
 
 ## [4.1.3] — 2026-04-02
+
 - Cải thiện chung về độ ổn định và trải nghiệm.
 
 ## [4.1.2] — 2026-04-01
+
 - Sửa lỗi trong nhánh v4.1.
 
 ## [4.1.0] — 2026-04-01
+
 - Ổn định smart routing của 9Router.
 
 ## [4.0.9] — 2026-04-01
+
 - Thêm đồng bộ smart-route theo thời gian thực và luồng tự cài Docker.
 
 ## [4.0.8] — 2026-03-31
+
 - Cải thiện độ ổn định 9Router, hỗ trợ Ollama cloud và dọn luồng setup đa nền tảng.
 
 ## [4.0.1] — 2026-03-31
+
 - Tăng mức tự động hóa khi tạo thư mục cài đặt và dùng npm CLI.
 
 ## [4.0.0] — 2026-03-30
+
 - Phát hành đợt nâng cấp lớn của nhánh v4.
 
 ## [3.0.2] — 2026-03-29
+
 - Mở rộng hỗ trợ smart proxy của 9Router.
 
 ## [3.0.1] — 2026-03-29
+
 - Bổ sung đợt cập nhật nối tiếp cho tính năng, sửa lỗi, UI và phần kỹ thuật của v3.
 
 ## [3.0.0] — 2026-03-28
+
 - Giới thiệu luồng generate mới của v3, làm mới UI, tài liệu và phần kỹ thuật.
 
 ## [2.0.0] — 2026-03-27
+
 - Giới thiệu trải nghiệm setup v2 với cải thiện về giao diện, tài liệu và bảo mật.
 
 ## [1.0.0] — 2026-03-26
+
 - Bản phát hành đầu tiên.

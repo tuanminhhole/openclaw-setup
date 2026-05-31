@@ -204,6 +204,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       is9Router,
       isLocal,
       isMultiBot,
+      hasBrowser = false,
       selectedModel,
       agentId,
       allSkills = [],
@@ -321,6 +322,10 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     ].join('\n'));
     runtimeParts.push('openclaw gateway run');
     const runtimeScript = ['#!/bin/sh', 'set -e', ...runtimeParts].join('\n');
+    let browserInstall = '';
+    if (hasBrowser) {
+      browserInstall = '\n# Install browser and system dependencies for Playwright\nRUN npx playwright install-deps chromium && npx playwright install chromium\n';
+    }
     const dockerfile = `FROM node:22-slim
 
 RUN apt-get update && apt-get install -y git curl python3 && rm -rf /var/lib/apt/lists/*
@@ -328,7 +333,7 @@ RUN apt-get update && apt-get install -y git curl python3 && rm -rf /var/lib/apt
 ARG OPENCLAW_VER="${openClawNpmSpec}"
 ARG CACHE_BUST=""
 RUN echo "CACHE_BUST=$CACHE_BUST" && npm install -g $OPENCLAW_VER ${openClawRuntimePackages}${skillLines}${pluginLines}
-${patchLine}
+${patchLine}${browserInstall}
 
 COPY entrypoint.sh /usr/local/bin/openclaw-entrypoint.sh
 RUN chmod +x /usr/local/bin/openclaw-entrypoint.sh

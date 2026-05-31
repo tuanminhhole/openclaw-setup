@@ -2062,26 +2062,67 @@ async function installFeature(projectDir, agentId, kind, id) {
 
     if (composeDir) {
       const botContainer = getBotContainerName(projectDir);
+      
+      // 1. Temporarily disable the plugin in openclaw.json and restart container to unlock files
+      const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+      const pluginAliasMap = {
+        'openclaw-browser-automation': ['browser-automation', 'openclaw-browser-automation'],
+        'openclaw-zalo-mod': ['zalo-mod', 'openclaw-zalo-mod'],
+        'openclaw-facebook-crawler': ['openclaw-facebook-crawler', 'openclaw-n8n-facebook-crawler', 'n8n-facebook-crawler'],
+        'openclaw-n8n-facebook-poster': ['openclaw-n8n-facebook-poster', 'openclaw-facebook-poster', 'facebook-poster'],
+      };
+      const aliases = pluginAliasMap[id] || [id];
+      
+      if (existsSync(cfgPath)) {
+        try {
+          const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
+          cfg.plugins = cfg.plugins || { entries: {} };
+          cfg.plugins.entries = cfg.plugins.entries || {};
+          const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
+          
+          if (cfg.plugins.entries[existingKey]?.enabled) {
+            sendLog(`[plugin] Temporarily disabling ${existingKey} and restarting bot to release file locks...`);
+            cfg.plugins.entries[existingKey].enabled = false;
+            await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+            await run('docker', ['restart', botContainer], { shell: false }).catch(() => {});
+            // Sleep 2 seconds to let container fully boot and release locks
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+          }
+        } catch (_) {}
+      }
+
       sendLog(`[plugin] Installing clawhub:${id} inside container ${botContainer}...`);
       
       let installSuccess = true;
       const cleanCmd = `cd /root/project && (openclaw plugins uninstall ${id} --force 2>/dev/null || true) && (openclaw plugins uninstall ${id.replace('openclaw-', '')} --force 2>/dev/null || true) && rm -rf .openclaw/extensions/${id} .openclaw/extensions/${id.replace('openclaw-', '')} && openclaw plugins install clawhub:${id}`;
-      const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cleanCmd], { cwd: projectDir, shell: false }).catch((err) => {
-        const aliases = ['openclaw-zalo-mod', 'zalo-mod', id, id.replace('openclaw-', '')];
-        const folderExists = aliases.some((a) => existsSync(join(projectDir, '.openclaw', 'extensions', a)));
-        if (folderExists) {
-          sendLog(`[plugin] Warning: installation reported errors, but plugin folder successfully written. Proceeding.`);
-          return { stdout: '', stderr: err.message };
-        } else {
-          installSuccess = false;
-          throw err;
-        }
-      });
+      const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cleanCmd], { cwd: projectDir, shell: false });
+      
       if (cmdOut) {
          for (const line of `${cmdOut.stdout}\n${cmdOut.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(line);
       }
+
+      if (cmdOut.code !== 0) {
+        const folderExists = aliases.some((a) => existsSync(join(projectDir, '.openclaw', 'extensions', a)));
+        if (folderExists) {
+          sendLog(`[plugin] Warning: installation reported errors, but plugin folder successfully written. Proceeding.`);
+        } else {
+          installSuccess = false;
+          // Re-enable in config on failure to restore state
+          if (existsSync(cfgPath)) {
+            try {
+              const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
+              cfg.plugins = cfg.plugins || { entries: {} };
+              cfg.plugins.entries = cfg.plugins.entries || {};
+              const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
+              cfg.plugins.entries[existingKey] = cfg.plugins.entries[existingKey] || {};
+              cfg.plugins.entries[existingKey].enabled = true;
+              await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+            } catch (_) {}
+          }
+          throw new Error(cmdOut.stderr || cmdOut.stdout || `Failed to install plugin ${id} inside container.`);
+        }
+      }
       
-      const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
       if (existsSync(cfgPath)) {
         const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
         cfg.plugins = cfg.plugins || { entries: {} };
@@ -2324,7 +2365,12 @@ async function handler(req, res, rootProjectDir) {
     }
     if (url.pathname === '/api/system' && req.method === 'GET') {
       const osChoice = detectOs();
-      const [nodeStatus, npmStatus, dockerStatus, currentVersions] = await Promise.all([commandExists('node'), commandExists('npm'), commandExists('docker', ['version', '--format', '{{.Server.Version}}']), getCurrentRuntimeVersions()]);
+      const [nodeStatus, npmStatus, dockerStatus, currentVersions] = await Promise.all([
+        commandExists('node'),
+        commandExists('npm'),
+        commandExists('docker', ['version', '--format', '{{.Server.Version}}']),
+        getCurrentRuntimeVersions()
+      ]);
       const projectDir = state.projectDir && existsSync(join(state.projectDir, '.openclaw', 'openclaw.json')) ? state.projectDir : null;
       const projectVersions = await resolveProjectRuntimeVersions(projectDir, state.mode).catch(() => null);
       const mergedVersions = {
@@ -2333,7 +2379,38 @@ async function handler(req, res, rootProjectDir) {
         node: projectVersions?.node || currentVersions.node || String(nodeStatus?.output || '').trim(),
       };
       const projects = await discoverProjects(rootProjectDir).catch(() => []);
-      return json(res, { os: osChoice, platform: process.platform, arch: process.arch, recommendedMode: recommendedMode(osChoice), node: nodeStatus, npm: npmStatus, docker: dockerStatus, versions: { desiredOpenclaw: OPENCLAW_NPM_SPEC, desiredNineRouter: NINE_ROUTER_NPM_SPEC, currentOpenclaw: mergedVersions.openclaw, currentNineRouter: mergedVersions.nineRouter, currentNode: mergedVersions.node, openclaw: mergedVersions.openclaw, nineRouter: mergedVersions.nineRouter, node: mergedVersions.node, setup: SETUP_VERSION }, projects });
+
+      let latestSetupVersion = SETUP_VERSION;
+      try {
+        const resp = await fetch('https://registry.npmjs.org/create-openclaw-bot/latest', { signal: AbortSignal.timeout(3000) });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.version) latestSetupVersion = data.version;
+        }
+      } catch (e) {}
+
+      return json(res, {
+        os: osChoice,
+        platform: process.platform,
+        arch: process.arch,
+        recommendedMode: recommendedMode(osChoice),
+        node: nodeStatus,
+        npm: npmStatus,
+        docker: dockerStatus,
+        versions: {
+          desiredOpenclaw: OPENCLAW_NPM_SPEC,
+          desiredNineRouter: NINE_ROUTER_NPM_SPEC,
+          currentOpenclaw: mergedVersions.openclaw,
+          currentNineRouter: mergedVersions.nineRouter,
+          currentNode: mergedVersions.node,
+          openclaw: mergedVersions.openclaw,
+          nineRouter: mergedVersions.nineRouter,
+          node: mergedVersions.node,
+          setup: SETUP_VERSION,
+          latestSetup: latestSetupVersion
+        },
+        projects
+      });
     }
     if (url.pathname === '/api/projects/discover' && req.method === 'GET') {
       return json(res, { ok: true, projects: await discoverProjects(rootProjectDir).catch(() => []) });
@@ -2413,6 +2490,35 @@ async function handler(req, res, rootProjectDir) {
       const result = await updateRuntime(target, projectDir);
       sendLog(`[update] ${target} update completed (${result.mode})`);
       return json(res, result);
+    }
+    if (url.pathname === '/api/setup/update' && req.method === 'POST') {
+      sendLog('[update-setup] Starting update of Setup Wizard...');
+      const isGit = existsSync(resolve(rootProjectDir, '.git'));
+      if (isGit) {
+        sendLog('[update-setup] Git repository detected. Pulling latest code and building...');
+        setImmediate(async () => {
+          try {
+            await run('git', ['pull'], { cwd: rootProjectDir });
+            await run('npm', ['install'], { cwd: rootProjectDir });
+            await run('npm', ['run', 'build'], { cwd: rootProjectDir });
+            sendLog('[update-setup] Setup Wizard updated successfully! Please restart the installer.');
+          } catch (err) {
+            sendLog(`[update-setup] Error updating: ${err.message}`);
+          }
+        });
+        return json(res, { ok: true, mode: 'git' });
+      } else {
+        sendLog('[update-setup] Global npm package installation detected. Updating via npm...');
+        setImmediate(async () => {
+          try {
+            await run('npm', ['install', '-g', 'create-openclaw-bot@latest'], { cwd: rootProjectDir });
+            sendLog('[update-setup] Setup Wizard updated successfully! Please restart the installer.');
+          } catch (err) {
+            sendLog(`[update-setup] Error updating: ${err.message}`);
+          }
+        });
+        return json(res, { ok: true, mode: 'npm' });
+      }
     }
     if (url.pathname === '/api/bot/create' && req.method === 'POST') {
       const body = await readJson(req);

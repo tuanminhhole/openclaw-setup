@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.0-0EA5E9?style=for-the-badge" alt="Version 5.8.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.2-0EA5E9?style=for-the-badge" alt="Version 5.8.2" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -23,15 +23,25 @@ Trình cài đặt và quản trị **Web UI Setup** thế hệ mới giúp tự
 
 ---
 
-## 🆕 Có gì mới trong v5.8.0 (Bản nâng cấp lớn)
+## 🆕 Có gì mới trong v5.8.2
+
+- 🔄 **Nút cập nhật Header thông minh**: Nâng cấp trực tiếp setup wizard từ giao diện! Nút cập nhật tự truy vấn npm registry và chỉ hiển thị khi có phiên bản mới hơn.
+- 📡 **Nâng cấp Stream Log trực tiếp**: Khởi chạy cập nhật sẽ tự động nâng cấp (chạy `git pull && npm install && npm run build` cho bản Git, hoặc `npm install -g create-openclaw-bot` cho bản NPM) và đẩy dòng log theo thời gian thực về tab Logs.
+- 🧹 **Tái cấu trúc thư mục Dev/Test**: Di chuyển các file script build (`build.mjs`, `bump-version.mjs`) và thư mục `tests` vào đường dẫn ẩn `.gitignore` là `docs_dev/tests/` giúp bản build gọn gàng hơn.
+- ⚙️ **Tối ưu hóa Rollback lỗi & Docker**: Gia cố xử lý rollback khi cài đặt thất bại thông qua kiểm tra exit code của command, đồng thời sửa lỗi đóng gói thư viện browser trong Dockerfile.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.8.0 (Bản nâng cấp lớn)</b></summary>
 
 - 🎨 **Giao diện Quản trị Web UI Mới**: Thay thế hoàn toàn các file tĩnh `index.html` và kịch bản dòng lệnh thủ công bằng một Dashboard cài đặt và quản lý bot cực kỳ trực quan với tone màu Dark Red/Black cao cấp.
-- 🔀 **Hợp nhất Cấu hình AI qua 9Router**: Từ phiên bản này, trình cài đặt tối giản hóa bằng việc sử dụng duy nhất **9Router** làm Gateway AI Proxy trung tâm. Người dùng không cần cấu hình API key phức tạp hay thủ công cho từng provider nữa. Thông qua 9Router, bạn có thể dễ dàng quản lý và kết nối mọi nhà cung cấp AI từ miễn phí (như Google Gemini free tier, Ollama local chạy offline) đến các mô hình trả phí cao cấp (như OpenAI GPT-4o, Anthropic Claude...) thông qua một giao diện đăng nhập OAuth cực kỳ nhanh chóng và bảo mật.
-- 📊 **Bảng điều khiển Tiến trình (Process Controller)**: Dễ dàng Bật (`Start`), Tắt (`Stop`), hoặc Tạo lại (`Recreate`) các bot container ngay trên giao diện Web mà không cần gõ bất cứ lệnh Docker nào.
-- 📑 **Xem Log thời gian thực (Live Logs)**: Tích hợp trình xem nhật ký hoạt động trực tiếp (streaming logs) từ bot lên giao diện, hỗ trợ tối đa cho việc kiểm tra và khắc phục lỗi tức thì.
+- 🔀 **Hợp nhất Cấu hình AI qua 9Router**: Sử dụng duy nhất **9Router** làm Gateway AI Proxy trung tâm. Người dùng không cần cấu hình API key phức tạp hay thủ công cho từng provider nữa. Thông qua 9Router, bạn có thể dễ dàng quản lý và kết nối mọi nhà cung cấp AI từ miễn phí (Gemini free, Ollama offline) đến các mô hình trả phí (GPT-4o, Claude...) qua OAuth nhanh chóng.
+- 📊 **Bảng điều khiển Tiến trình (Process Controller)**: Dễ dàng Bật (`Start`), Tắt (`Stop`), hoặc Tạo lại (`Recreate`) các bot container ngay trên giao diện Web.
+- 📑 **Xem Log thời gian thực (Live Logs)**: Tích hợp trình xem nhật ký hoạt động trực tiếp (streaming logs) từ bot lên giao diện.
 - 📁 **Trình quản lý File trực quan (File Tree Editor)**: Cho phép xem và chỉnh sửa trực tiếp các file cấu hình quan trọng như `openclaw.json`, `SOUL.md`, `AGENTS.md` ngay từ trình duyệt web.
 - 🔑 **Đăng nhập Zalo QR trực tiếp**: Tích hợp luồng kích hoạt Zalo Personal bằng cách quét mã QR hiển thị ngay trên giao diện quản trị.
 - 🔄 **Phân bổ Cổng Mạng thông minh**: Cơ chế tự động phát hiện cổng rảnh và gán cổng động (`routerPort`) giúp loại bỏ hoàn toàn xung đột mạng khi chạy nhiều bot trên cùng một máy.
+
+</details>
 
 ---
 

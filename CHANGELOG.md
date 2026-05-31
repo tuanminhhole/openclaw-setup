@@ -1,5 +1,12 @@
 # Changelog (English)
 
+## [5.8.2] — 2026-05-31
+
+### 🚀 Smart Repository Update & Restructured Test Suite
+
+- **New: Header Update Button**: Added a dedicated, beautifully styled **Update** button on the Topbar Header, next to the language switcher.
+- **New: Dynamic Version Detection**: The button automatically queries the public npm registry (`create-openclaw-bot/latest`) asynchronously and is only displayed when a newer setup wizard version is available.
+- **New: Live Log-Streaming Upgrade Protocol**: Implemented `/api/setup/update` to support live upgrades: automatically pulls code and builds for local git clones (`git pull && npm install && npm run build`), and upgrades globally via npm for standard installations. The upgrade logs are dynamically streamed in real-time straight to the setup dashboard's terminal widget while auto-focusing the **Logs** tab.
 
 ## [5.8.1] — 2026-05-30
 
@@ -11,7 +18,6 @@
 - **New: Seamless Cloudflare & CAPTCHA Bypass**: Interacts directly with Chrome Debug Mode to inherit cookies, sessions, and authentic browser fingerprints, sliding past strict security firewalls undetected.
 - **New: Self-Guided & Self-Healing Environment**: Automatically sets up virtual Xvfb displays in Docker environments; and dynamically diagnoses missing OS-level library dependencies on VPS/Ubuntu native host machines, returning copy-pasteable commands for immediate fixes.
 - **Improve: Absolute Data Isolation & Safety**: Migrates the local installer UI codebase to a hidden home directory (`~/.openclaw-setup`), ensuring absolute isolation and zero risk of overwriting or deleting any of the user's existing bot projects or credentials.
-
 
 ## [5.8.0] — 2026-05-28
 
@@ -26,7 +32,6 @@
 - **Improve: Windows NTFS Permission Fix**: Implemented a named Docker volume (`openclaw-plugins`) for dependencies to resolve NTFS file locks (`EACCES`) on Windows host machines.
 - **Cleanup**: Deprecated and deleted all old static wizard files (`index.html`, `style.css`) and legacy documentation files under `docs/`.
 
-
 ## [5.7.10] — 2026-05-06
 
 ### 🚀 Features & Documentation Updates
@@ -35,13 +40,11 @@
 - **Agent Workspace Standardization**: Updated `AGENTS.md` generator to correctly reference all generated `.md` files (`BROWSER.md`, `BOOT.md`, `SOUL.md`, `DREAMS.md`, `HEARTBEAT.md`, `USER.md`).
 - **Tools Guide Cleanup**: Removed obsolete Zalo Group Slash Commands section from `TOOLS.md` generation as it is no longer necessary.
 
-
 ## [5.7.9] — 2026-05-05
 
 ### 🔧 Chore: Rename Zalo Plugin Reference
 
 - **Fix: Rename `zalo-mod` to `openclaw-zalo-mod`** — Updated internal string references in `workspace-gen.js`, `bot-config-gen.js`, and test suites to align with the new NPM package identity of the Zalo plugin (`openclaw-zalo-mod`).
-
 
 ## [5.7.8] — 2026-05-05
 
@@ -54,12 +57,11 @@
 - **Chore: Sync ARCHITECTURE.md** — Documented that `zalo-mod` must be installed manually via ClawHub; `hasZaloMod` in workspace-gen only affects workspace docs, not config generation.
 - **Chore: Add `.agent/workflows/update.md`** — Standardized release workflow document for this repo.
 
-
 ## [5.7.7] — 2026-05-03
 
 ### 🛠️ Infrastructure & Zalo Bot Stabilization
 
-- **Version Pinning**: Automatically pins `openclaw@2026.4.15` across all deployment scripts to ensure Zalo integration stability.
+- **Version Strategy**: Automatically runs with `openclaw@latest` across all deployment scripts to ensure Zalo integration stability.
 - **Docker Optimization**: Replaced full project bind-mounts with isolated `.openclaw` mounts to resolve I/O bottlenecks.
 - **Gateway Deadlock Fix**: Implemented `tmpfs` for `plugin-runtime-deps` directly within the Compose environment block.
 - **9Router Sync**: Automated dynamic synchronization of `smart-route` combos based on active provider models during gateway startup.

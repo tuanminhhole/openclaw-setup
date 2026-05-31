@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.0-0EA5E9?style=for-the-badge" alt="Version 5.8.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.2-0EA5E9?style=for-the-badge" alt="Version 5.8.2" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -23,15 +23,25 @@ A next-generation **Web UI Setup** and management dashboard that automates 100% 
 
 ---
 
-## 🆕 What's New in v5.8.0 (Major Release)
+## 🆕 What's New in v5.8.2
+
+- 🔄 **Smart Header Update Button**: Instantly upgrades the setup wizard from the UI! The button queries the npm registry dynamically and only reveals itself when a newer release is published.
+- 📡 **Live Log-Streaming Upgrade**: Kicking off the update automatically executes the migration (running `git pull && npm install && npm run build` for Git clones, or `npm install -g create-openclaw-bot` for NPM installs) while streaming standard outputs in real-time straight to the dashboard's Logs terminal.
+- 🧹 **Restructured Dev/Test Environment**: Relocated all noisy build scripts (`build.mjs`, `bump-version.mjs`) and the test suite into the `.gitignore`'d `docs_dev/tests/` directory to preserve clean production builds.
+- ⚙️ **Robust Failure Rollback & Docker Fixes**: Strengthened installation crash recovery by inspecting process exit codes, and resolved dynamic Playwright browser bundle appending inside Dockerfiles.
+
+<details>
+<summary><b>Previous: What's new in v5.8.0 (Major Release)</b></summary>
 
 - 🎨 **Modern Web UI Dashboard**: Completely replaces the legacy `index.html` static wizard and terminal-based manual setups with a highly intuitive, premium dark red/black themed web dashboard to install and manage bots.
-- 🔀 **Centralized AI Proxy via 9Router**: The installer now relies exclusively on **9Router** as the unified AI gateway. You no longer need to manually manage separate API keys or endpoints for each provider. Through 9Router's OAuth sign-in flow, you can easily route requests to free models (like Google Gemini free tier, Ollama local offline models) as well as premium paid models (like OpenAI GPT-4o, Anthropic Claude...).
-- 📊 **Process Controller**: Directly Start, Stop, or Recreate bot containers and processes via user-friendly dashboard buttons without ever touching Docker CLI commands.
-- 📑 **Real-Time Live Logs**: View real-time streaming console logs of your bot processes directly on the Web UI for instant debugging and monitoring.
+- 🔀 **Centralized AI Proxy via 9Router**: The installer now relies exclusively on **9Router** as the unified AI gateway. Through 9Router's OAuth sign-in flow, you can easily route requests to free models (like Google Gemini free tier, Ollama local offline models) as well as premium paid models.
+- 📊 **Process Controller**: Directly Start, Stop, or Recreate bot containers and processes via user-friendly dashboard buttons.
+- 📑 **Real-Time Live Logs**: View real-time streaming console logs of your bot processes directly on the Web UI.
 - 📁 **File Tree Editor**: Read, modify, and save configuration files (`openclaw.json`, `SOUL.md`, `AGENTS.md`) directly in the browser.
 - 🔑 **Zalo QR Authorization**: Authorize Zalo Personal bots in seconds by scanning the Zalo login QR code rendered directly on the management dashboard.
 - 🔄 **Smart Port Conflict Resolution**: Automatically scans and dynamically assigns unique network ports (`routerPort`) to avoid conflicts when launching multiple bot instances.
+
+</details>
 
 ---
 
