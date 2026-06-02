@@ -1561,9 +1561,13 @@ node ${btPath} close_tab 2`;
       ? (isVi
         ? `\n\n## \u23F0 Cron / Lên lịch nhắc nhở (tool: \`cron\`)
 - **Tên tool chính xác:** Tên công cụ là \`cron\` (tuyệt đối không nhầm là \`native\` hay command line bên ngoài).
+- **⛔ TUYỆT ĐỐI KHÔNG sửa trực tiếp file JSON** như \`jobs.json\`, \`jobs-state.json\` trong thư mục \`.openclaw/cron/\`. Dữ liệu cron được lưu trong SQLite database, file JSON chỉ là legacy format đã ngưng hỗ trợ. Mọi thao tác PHẢI thông qua tool \`cron\`.
 - **Khi tạo cronjob mới (action \`add\`):**
   - **TUYỆT ĐỐI KHÔNG điền trường \`agentId\`** trong object \`job\` (hãy bỏ qua/omitted trường này). Hệ thống OpenClaw sẽ tự động gán chính xác ID của bạn vào job đó.
   - Tuyệt đối **không tự điền** \`agentId\` là \`"bot"\` hay \`"main"\`, vì làm vậy sẽ khiến cronjob thuộc về agent khác và bạn sẽ mất quyền kiểm soát/xóa nó sau này.
+  - **Session:** Luôn dùng \`sessionTarget: "isolated"\` cho các job chạy nền (báo cáo, nhắc nhở, gửi tin nhắn tự động). Chỉ dùng \`"main"\` cho system event/reminder ngắn.
+  - **Timezone:** Luôn chỉ định timezone rõ ràng bằng trường \`tz\` (ví dụ: \`"Asia/Ho_Chi_Minh"\`). Nếu không chỉ định, hệ thống sẽ dùng timezone của Gateway host (thường là UTC) và job sẽ chạy sai giờ.
+  - **Delivery:** Đối với job cần gửi kết quả ra chat, set \`delivery.mode: "announce"\` kèm \`delivery.channel\` và \`delivery.to\`.
 - **Khi user yêu cầu tắt/bật/xóa cronjob:**
   1. **Bước 1 (Tìm kiếm):** Gọi tool \`cron\` với action \`list\` (và \`includeDisabled: true\`) để xem danh sách tất cả cronjob đang chạy trên hệ thống và tìm đúng \`jobId\` phù hợp với yêu cầu.
   2. **Bước 2 (Xử lý):**
@@ -1573,13 +1577,18 @@ node ${btPath} close_tab 2`;
   3. **Tuyên bố trung thực:** Tuyệt đối không bao giờ trả lời "đã xóa" hay "không có" dựa trên suy đoán của bản thân mà chưa gọi tool \`cron\` để kiểm tra thực tế.
 - Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool \`cron\` (action \`add\`) để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.
 - Khi thao tác tool cho cron/scheduler, **không điền \`current\` vào thư mục Session**.
-- **QUAN TRỌNG VỀ TARGETING GROUP CHAT**: Khi tạo hoặc cấu hình cron job gửi tin nhắn thông báo (announce mode) đến một Group Chat, giá trị của trường \`delivery.to\` **bắt buộc** phải sử dụng tiền tố \`group:\` trước ID của group (ví dụ: \`group:3815464776067464419\` hoặc \`group:xxxx\`). Tuyệt đối không được chỉ điền ID thuần túy vì hệ thống sẽ hiểu nhầm đó là một DM chat cá nhân (direct message) và gửi sai địa chỉ.
+- **QUAN TRỌNG VỀ TARGETING GROUP CHAT**: Khi tạo hoặc cấu hình cron job gửi tin nhắn thông báo (announce mode) đến một Group Chat, giá trị của trường \`delivery.to\` **bắt buộc** phải sử dụng tiền tố thích hợp trước ID của group. Với kênh Telegram/Matrix/Discord/Slack, dùng tiền tố \`group:\` (ví dụ: \`group:123456\`). RIÊNG với kênh Zalo (\`zalouser\`), **bắt buộc** phải sử dụng tiền tố \`g:\` (ví dụ: \`g:3815464776067464419\`) để tránh bị OpenClaw core lược bỏ tiền tố và gửi nhầm vào DM chat cá nhân.
+- **One-shot job:** Dùng schedule kind \`"at"\` với ISO 8601 timestamp. Job sẽ tự xóa sau khi chạy thành công trừ khi set \`deleteAfterRun: false\`.
 - Bỏ qua việc tra cứu docs nội bộ như \`cron-jobs.mdx\`; tin tưởng khả năng dùng tool hiện có để hoàn thành yêu cầu.`
         : `\n\n## \u23F0 Cron / Scheduled Tasks (tool: \`cron\`)
 - **Exact tool name:** The tool name is \`cron\` (never mistake it for \`native\` or external command lines).
+- **⛔ NEVER edit JSON files directly** such as \`jobs.json\` or \`jobs-state.json\` in \`.openclaw/cron/\`. Cron data is stored in SQLite database; JSON files are legacy format no longer supported. All operations MUST go through the \`cron\` tool.
 - **When creating a new cronjob (action \`add\`):**
   - **ABSOLUTELY DO NOT specify the \`agentId\` field** in the \`job\` object (leave this field omitted). The OpenClaw system will automatically assign your correct agent ID to that job.
   - Never manually specify \`agentId\` as \`"bot"\` or \`"main"\`, as this will cause the cronjob to belong to another agent and you will lose control to manage/delete it later.
+  - **Session:** Always use \`sessionTarget: "isolated"\` for background jobs (reports, reminders, automated messages). Only use \`"main"\` for short system events/reminders.
+  - **Timezone:** Always specify timezone explicitly via the \`tz\` field (e.g., \`"Asia/Ho_Chi_Minh"\`). If omitted, the system uses the Gateway host timezone (often UTC) and the job will run at the wrong time.
+  - **Delivery:** For jobs that should send results to chat, set \`delivery.mode: "announce"\` with \`delivery.channel\` and \`delivery.to\`.
 - **When the user requests to disable/enable/delete a cronjob:**
   1. **Step 1 (Search):** Call the \`cron\` tool with action \`list\` (and \`includeDisabled: true\`) to view all cron jobs on the system and find the matching \`jobId\`.
   2. **Step 2 (Processing):**
@@ -1589,7 +1598,8 @@ node ${btPath} close_tab 2`;
   3. **Honest statement:** Never claim a job is "deleted" or "not found" based on guessing without calling the \`cron\` tool to verify the actual state.
 - When the user asks to schedule tasks or reminders, use the built-in \`cron\` tool (action \`add\`) automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.
 - When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.
-- **IMPORTANT ABOUT GROUP CHAT TARGETING**: When creating or configuring a cron job to send messages (announce mode) to a Group Chat, the value of the \`delivery.to\` field **must** use the \`group:\` prefix before the group ID (e.g., \`group:3815464776067464419\` or \`group:xxxx\`). Never specify just the numeric ID, as the system will interpret it as a private DM and deliver to the wrong destination.
+- **IMPORTANT ABOUT GROUP CHAT TARGETING**: When creating or configuring a cron job to send messages (announce mode) to a Group Chat, the value of the \`delivery.to\` field **must** use the appropriate prefix before the group ID. For Telegram/Matrix/Discord/Slack, use the \`group:\` prefix (e.g., \`group:123456\`). ESPECIALLY for Zalo (\`zalouser\`), you **must** use the \`g:\` prefix (e.g., \`g:3815464776067464419\`) to prevent the OpenClaw core from stripping the prefix and misrouting the message to a private DM.
+- **One-shot jobs:** Use schedule kind \`"at"\` with an ISO 8601 timestamp. The job auto-deletes after successful run unless \`deleteAfterRun: false\` is set.
 - Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`)
       : '';
 

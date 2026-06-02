@@ -74,6 +74,30 @@ function detectOs() {
   return 'linux-desktop';
 }
 
+// Blacklist of Windows system/large directories that should never be walked
+const SYSTEM_DIR_BLACKLIST = new Set([
+  'windows', 'program files', 'program files (x86)', 'programdata',
+  '$recycle.bin', 'system volume information', 'recovery', 'boot',
+  'perflogs', 'msocache', 'intel', 'amd', 'nvidia',
+  '$windows.~bt', '$windows.~ws', 'config.msi', 'documents and settings',
+  'swapfile.sys', 'pagefile.sys', 'hiberfil.sys',
+]);
+
+/** Discover all available drive letters on Windows (A-Z). Returns ['C:\\', 'D:\\', ...] */
+async function getAvailableDrives() {
+  if (process.platform !== 'win32') return ['/'];
+  const drives = [];
+  for (let code = 65; code <= 90; code++) { // A-Z
+    const letter = String.fromCharCode(code);
+    const drive = `${letter}:\\`;
+    try {
+      await fsp.access(drive);
+      drives.push(drive);
+    } catch {}
+  }
+  return drives.length ? drives : ['C:\\', 'D:\\'];
+}
+
 function recommendedMode(osChoice) {
   if (osChoice === 'win' || osChoice === 'macos') return 'docker';
   return 'native';
@@ -566,6 +590,26 @@ function ensureZaloApiChannel(cfg, token) {
   });
 }
 
+function ensureZaloModPluginConfig(entry, cfg) {
+  entry.hooks = entry.hooks || {};
+  entry.hooks.allowConversationAccess = true;
+  entry.config = entry.config || {};
+  // Auto-assign dashboardPort = gateway port + 1
+  if (!entry.config.dashboardPort) {
+    const gwPort = Number(cfg.gateway?.port) || state.gatewayPort || 18789;
+    entry.config.dashboardPort = gwPort + 1;
+  }
+  // Auto-assign botName from first agent name
+  if (!entry.config.botName) {
+    const agentName = cfg.agents?.list?.[0]?.name;
+    if (agentName) entry.config.botName = agentName;
+  }
+  // Auto-assign zaloDisplayNames from botName
+  if ((!entry.config.zaloDisplayNames || entry.config.zaloDisplayNames.length === 0) && entry.config.botName) {
+    entry.config.zaloDisplayNames = [entry.config.botName];
+  }
+}
+
 function readProjectConfig(projectDir) {
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
   if (!projectDir || !existsSync(cfgPath)) return null;
@@ -935,6 +979,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   if (existsSync(cfgPath)) await fsp.copyFile(cfgPath, `${cfgPath}.bak`);
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
 
+  const hasScheduler = !!(cfg.tools?.alsoAllow || []).includes('group:automation');
   const files = buildWorkspaceFileMap({
     isVi: true,
     botName,
@@ -945,6 +990,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     agentWorkspaceDir: workspaceDir,
     workspacePath: `.openclaw/${workspaceDir}`,
     hasZaloMod: channel === 'zalo-personal',
+    hasScheduler,
   });
   const wsRoot = join(openclawHome, workspaceDir);
   for (const [name, content] of Object.entries(files)) {
@@ -1033,6 +1079,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     }
   }
 
+  const hasScheduler = !!(cfg.tools?.alsoAllow || []).includes('group:automation');
   const files = buildWorkspaceFileMap({
     isVi: true,
     botName,
@@ -1043,6 +1090,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     agentWorkspaceDir: workspaceDir,
     workspacePath: `.openclaw/${workspaceDir}`,
     hasZaloMod: channel === 'zalo-personal',
+    hasScheduler,
   });
   const wsRoot = join(projectDir, '.openclaw', workspaceDir);
   for (const [name, content] of Object.entries(files)) {
@@ -1388,6 +1436,23 @@ async function syncDockerInfra(projectDir, force = false) {
   sendLog(`[sync] Updating Docker infrastructure files (v${existingVersion} \u2192 v${SETUP_VERSION})`);
   await fsp.writeFile(join(dockerDir, 'Dockerfile'), docker.dockerfile, 'utf8');
   await fsp.writeFile(join(dockerDir, 'docker-compose.yml'), newCompose, 'utf8');
+  // Preserve zalo-mod dashboard port if plugin is active
+  try {
+    const syncCfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
+    const zmEntry = syncCfg.plugins?.entries?.['zalo-mod'] || syncCfg.plugins?.entries?.['openclaw-zalo-mod'];
+    if (zmEntry?.enabled !== false && zmEntry?.config?.dashboardPort) {
+      const dp = zmEntry.config.dashboardPort;
+      let cc = await fsp.readFile(join(dockerDir, 'docker-compose.yml'), 'utf8');
+      if (!cc.includes(`:${dp}`)) {
+        const gpStr = String(gatewayPort);
+        cc = cc.replace(
+          new RegExp(`^(\\s*-\\s*"(?:\\d+:)?${gpStr}(?::${gpStr})?"\\s*)$`, 'm'),
+          `$1\n      - "127.0.0.1:${dp}:${dp}"  # zalo-mod dashboard`
+        );
+        await fsp.writeFile(join(dockerDir, 'docker-compose.yml'), cc, 'utf8');
+      }
+    }
+  } catch {}
   await fsp.writeFile(entrypointPath, entryScript, 'utf8');
   if (docker.syncScript) await fsp.writeFile(join(dockerDir, 'sync.js'), docker.syncScript, 'utf8');
   if (docker.patchScript) await fsp.writeFile(join(dockerDir, 'patch-9router.js'), docker.patchScript, 'utf8');
@@ -1678,11 +1743,16 @@ async function findLatestProject(rootProjectDir) {
     join(rootProjectDir, DEFAULT_PROJECT_NAME),
     dirname(rootProjectDir),
     os.homedir(),
-    'D:\\tmp',
   ];
-  for (const drive of ['D:\\', 'E:\\']) {
+  // Scan all available drives, walking top-level dirs but skipping system folders
+  const drives = await getAvailableDrives();
+  for (const drive of drives) {
     const entries = await fsp.readdir(drive, { withFileTypes: true }).catch(() => []);
-    for (const e of entries) if (e.isDirectory() && !e.name.startsWith('$')) roots.push(join(drive, e.name));
+    for (const e of entries) {
+      if (e.isDirectory() && !e.name.startsWith('$') && !SYSTEM_DIR_BLACKLIST.has(e.name.toLowerCase())) {
+        roots.push(join(drive, e.name));
+      }
+    }
   }
   const candidates = [];
   async function walk(dir, depth = 0) {
@@ -1693,7 +1763,11 @@ async function findLatestProject(rootProjectDir) {
       return;
     }
     const entries = await fsp.readdir(dir, { withFileTypes: true }).catch(() => []);
-    for (const e of entries) if (e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules') await walk(join(dir, e.name), depth + 1);
+    for (const e of entries) {
+      if (e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules' && !SYSTEM_DIR_BLACKLIST.has(e.name.toLowerCase())) {
+        await walk(join(dir, e.name), depth + 1);
+      }
+    }
   }
   for (const r of roots) await walk(r);
   candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
@@ -1706,10 +1780,10 @@ async function discoverProjects(rootProjectDir) {
     rootProjectDir,
     dirname(rootProjectDir),
     process.env.OPENCLAW_HOME ? dirname(process.env.OPENCLAW_HOME) : '',
-    'D:\\tmp',
-    'D:\\',
-    'E:\\',
   ];
+  // Add all available drives for scanning
+  const drives = await getAvailableDrives();
+  for (const drive of drives) roots.push(drive);
   const seen = new Set();
   const hits = [];
   async function walk(dir, depth = 0) {
@@ -1743,7 +1817,7 @@ async function discoverProjects(rootProjectDir) {
     const entries = await fsp.readdir(full, { withFileTypes: true }).catch(() => []);
     for (const e of entries) {
       if (!e.isDirectory()) continue;
-      if (e.name === 'node_modules' || e.name.startsWith('.git')) continue;
+      if (e.name === 'node_modules' || e.name.startsWith('.git') || SYSTEM_DIR_BLACKLIST.has(e.name.toLowerCase())) continue;
       await walk(join(full, e.name), depth + 1);
     }
   }
@@ -1987,9 +2061,13 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
       cfg.commands.ownerAllowFrom = Array.from(new Set([...(cfg.commands.ownerAllowFrom || []), '*']));
       const cronGuide = `## ⏰ Cron / Lên lịch nhắc nhở (tool: \`cron\`)
 - **Tên tool chính xác:** Tên công cụ là \`cron\` (tuyệt đối không nhầm là \`native\` hay command line bên ngoài).
+- **⛔ TUYỆT ĐỐI KHÔNG sửa trực tiếp file JSON** như \`jobs.json\`, \`jobs-state.json\` trong thư mục \`.openclaw/cron/\`. Dữ liệu cron được lưu trong SQLite database, file JSON chỉ là legacy format đã ngưng hỗ trợ. Mọi thao tác PHẢI thông qua tool \`cron\`.
 - **Khi tạo cronjob mới (action \`add\`):**
   - **TUYỆT ĐỐI KHÔNG điền trường \`agentId\`** trong object \`job\` (hãy bỏ qua/omitted trường này). Hệ thống OpenClaw sẽ tự động gán chính xác ID của bạn vào job đó.
   - Tuyệt đối **không tự điền** \`agentId\` là \`"bot"\` hay \`"main"\`, vì làm vậy sẽ khiến cronjob thuộc về agent khác và bạn sẽ mất quyền kiểm soát/xóa nó sau này.
+  - **Session:** Luôn dùng \`sessionTarget: "isolated"\` cho các job chạy nền (báo cáo, nhắc nhở, gửi tin nhắn tự động). Chỉ dùng \`"main"\` cho system event/reminder ngắn.
+  - **Timezone:** Luôn chỉ định timezone rõ ràng bằng trường \`tz\` (ví dụ: \`"Asia/Ho_Chi_Minh"\`). Nếu không chỉ định, hệ thống sẽ dùng timezone của Gateway host (thường là UTC) và job sẽ chạy sai giờ.
+  - **Delivery:** Đối với job cần gửi kết quả ra chat, set \`delivery.mode: "announce"\` kèm \`delivery.channel\` và \`delivery.to\`.
 - **Khi user yêu cầu tắt/bật/xóa cronjob:**
   1. **Bước 1 (Tìm kiếm):** Gọi tool \`cron\` với action \`list\` (và \`includeDisabled: true\`) để xem danh sách tất cả cronjob đang chạy trên hệ thống và tìm đúng \`jobId\` phù hợp với yêu cầu.
   2. **Bước 2 (Xử lý):**
@@ -1999,7 +2077,8 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
   3. **Tuyên bố trung thực:** Tuyệt đối không bao giờ trả lời "đã xóa" hay "không có" dựa trên suy đoán của bản thân mà chưa gọi tool \`cron\` để kiểm tra thực tế.
 - Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool \`cron\` (action \`add\`) để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.
 - Khi thao tác tool cho cron/scheduler, **không điền \`current\` vào thư mục Session**.
-- **QUAN TRỌNG VỀ TARGETING GROUP CHAT**: Khi tạo hoặc cấu hình cron job gửi tin nhắn thông báo (announce mode) đến một Group Chat, giá trị của trường \`delivery.to\` **bắt buộc** phải sử dụng tiền tố \`group:\` trước ID của group (ví dụ: \`group:3815464776067464419\` hoặc \`group:xxxx\`). Tuyệt đối không được chỉ điền ID thuần túy vì hệ thống sẽ hiểu nhầm đó là một DM chat cá nhân (direct message) và gửi sai địa chỉ.
+- **QUAN TRỌNG VỀ TARGETING GROUP CHAT**: Khi tạo hoặc cấu hình cron job gửi tin nhắn thông báo (announce mode) đến một Group Chat, giá trị của trường \`delivery.to\` **bắt buộc** phải sử dụng tiền tố thích hợp trước ID của group. Với kênh Telegram/Matrix/Discord/Slack, dùng tiền tố \`group:\` (ví dụ: \`group:123456\`). RIÊNG với kênh Zalo (\`zalouser\`), **bắt buộc** phải sử dụng tiền tố \`g:\` (ví dụ: \`g:3815464776067464419\`) để tránh bị OpenClaw core lược bỏ tiền tố và gửi nhầm vào DM chat cá nhân.
+- **One-shot job:** Dùng schedule kind \`"at"\` với ISO 8601 timestamp. Job sẽ tự xóa sau khi chạy thành công trừ khi set \`deleteAfterRun: false\`.
 - Bỏ qua việc tra cứu docs nội bộ như \`cron-jobs.mdx\`; tin tưởng khả năng dùng tool hiện có để hoàn thành yêu cầu.`;
       for (const a of cfg.agents.list) {
         const tf = await readWorkspaceText(projectDir, a, 'TOOLS.md');
@@ -2038,13 +2117,31 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
     cfg.plugins.entries[existingKey] = cfg.plugins.entries[existingKey] || {};
     cfg.plugins.entries[existingKey].enabled = !!enabled;
-    if (existingKey === 'zalo-mod') {
-      cfg.plugins.entries[existingKey].hooks = cfg.plugins.entries[existingKey].hooks || {};
-      cfg.plugins.entries[existingKey].hooks.allowConversationAccess = true;
+    if (existingKey === 'zalo-mod' || existingKey === 'openclaw-zalo-mod') {
+      ensureZaloModPluginConfig(cfg.plugins.entries[existingKey], cfg);
     }
     // Only add the canonical config key to allow list (not all aliases)
     cfg.plugins.allow = cfg.plugins.allow || [];
     if (!cfg.plugins.allow.includes(existingKey)) cfg.plugins.allow.push(existingKey);
+    // Auto-expose zalo-mod dashboard port in docker-compose.yml when enabling
+    if (enabled && (existingKey === 'zalo-mod' || existingKey === 'openclaw-zalo-mod')) {
+      const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
+      if (existsSync(composeFile)) {
+        try {
+          let composeContent = await fsp.readFile(composeFile, 'utf8');
+          const dashPort = cfg.plugins.entries[existingKey].config?.dashboardPort;
+          if (dashPort && !composeContent.includes(`:${dashPort}`)) {
+            const gwPortStr = String(Number(cfg.gateway?.port) || state.gatewayPort || 18789);
+            composeContent = composeContent.replace(
+              new RegExp(`^(\\s*-\\s*"(?:\\d+:)?${gwPortStr}(?::${gwPortStr})?"\\s*)$`, 'm'),
+              `$1\n      - "127.0.0.1:${dashPort}:${dashPort}"  # zalo-mod dashboard`
+            );
+            await fsp.writeFile(composeFile, composeContent, 'utf8');
+            sendLog(`[plugin] Added dashboard port ${dashPort} to docker-compose.yml`);
+          }
+        } catch (e) { sendLog(`[plugin] Warning: could not add dashboard port: ${e.message}`); }
+      }
+    }
   }
 
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
@@ -2062,8 +2159,15 @@ async function installFeature(projectDir, agentId, kind, id) {
 
     if (composeDir) {
       const botContainer = getBotContainerName(projectDir);
+      sendLog(`[plugin] Installing/updating clawhub:${id} inside container ${botContainer}...`);
       
-      // 1. Temporarily disable the plugin in openclaw.json and restart container to unlock files
+      const cmd = `cd /root/project && openclaw plugins install clawhub:${id} --force`;
+      const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
+      
+      if (cmdOut) {
+         for (const line of `${cmdOut.stdout}\n${cmdOut.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(line);
+      }
+
       const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
       const pluginAliasMap = {
         'openclaw-browser-automation': ['browser-automation', 'openclaw-browser-automation'],
@@ -2072,53 +2176,12 @@ async function installFeature(projectDir, agentId, kind, id) {
         'openclaw-n8n-facebook-poster': ['openclaw-n8n-facebook-poster', 'openclaw-facebook-poster', 'facebook-poster'],
       };
       const aliases = pluginAliasMap[id] || [id];
-      
-      if (existsSync(cfgPath)) {
-        try {
-          const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
-          cfg.plugins = cfg.plugins || { entries: {} };
-          cfg.plugins.entries = cfg.plugins.entries || {};
-          const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
-          
-          if (cfg.plugins.entries[existingKey]?.enabled) {
-            sendLog(`[plugin] Temporarily disabling ${existingKey} and restarting bot to release file locks...`);
-            cfg.plugins.entries[existingKey].enabled = false;
-            await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
-            await run('docker', ['restart', botContainer], { shell: false }).catch(() => {});
-            // Sleep 2 seconds to let container fully boot and release locks
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-          }
-        } catch (_) {}
-      }
-
-      sendLog(`[plugin] Installing clawhub:${id} inside container ${botContainer}...`);
-      
-      let installSuccess = true;
-      const cleanCmd = `cd /root/project && (openclaw plugins uninstall ${id} --force 2>/dev/null || true) && (openclaw plugins uninstall ${id.replace('openclaw-', '')} --force 2>/dev/null || true) && rm -rf .openclaw/extensions/${id} .openclaw/extensions/${id.replace('openclaw-', '')} && openclaw plugins install clawhub:${id}`;
-      const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cleanCmd], { cwd: projectDir, shell: false });
-      
-      if (cmdOut) {
-         for (const line of `${cmdOut.stdout}\n${cmdOut.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(line);
-      }
 
       if (cmdOut.code !== 0) {
         const folderExists = aliases.some((a) => existsSync(join(projectDir, '.openclaw', 'extensions', a)));
         if (folderExists) {
           sendLog(`[plugin] Warning: installation reported errors, but plugin folder successfully written. Proceeding.`);
         } else {
-          installSuccess = false;
-          // Re-enable in config on failure to restore state
-          if (existsSync(cfgPath)) {
-            try {
-              const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
-              cfg.plugins = cfg.plugins || { entries: {} };
-              cfg.plugins.entries = cfg.plugins.entries || {};
-              const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
-              cfg.plugins.entries[existingKey] = cfg.plugins.entries[existingKey] || {};
-              cfg.plugins.entries[existingKey].enabled = true;
-              await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
-            } catch (_) {}
-          }
           throw new Error(cmdOut.stderr || cmdOut.stdout || `Failed to install plugin ${id} inside container.`);
         }
       }
@@ -2127,25 +2190,11 @@ async function installFeature(projectDir, agentId, kind, id) {
         const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
         cfg.plugins = cfg.plugins || { entries: {} };
         cfg.plugins.entries = cfg.plugins.entries || {};
-        const pluginAliasMap = {
-          'openclaw-browser-automation': ['browser-automation', 'openclaw-browser-automation'],
-          'openclaw-zalo-mod': ['zalo-mod', 'openclaw-zalo-mod'],
-          'openclaw-facebook-crawler': ['openclaw-facebook-crawler', 'openclaw-n8n-facebook-crawler', 'n8n-facebook-crawler'],
-          'openclaw-n8n-facebook-poster': ['openclaw-n8n-facebook-poster', 'openclaw-facebook-poster', 'facebook-poster'],
-        };
-        const aliases = pluginAliasMap[id] || [id];
         const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
         cfg.plugins.entries[existingKey] = cfg.plugins.entries[existingKey] || {};
         cfg.plugins.entries[existingKey].enabled = true;
-        if (existingKey === 'zalo-mod') {
-          cfg.plugins.entries[existingKey].hooks = cfg.plugins.entries[existingKey].hooks || {};
-          cfg.plugins.entries[existingKey].hooks.allowConversationAccess = true;
-          // Auto-assign dashboard port = gateway port + 1 to avoid conflicts between bots
-          const gwPort = Number(cfg.gateway?.port) || state.gatewayPort || 18789;
-          cfg.plugins.entries[existingKey].config = cfg.plugins.entries[existingKey].config || {};
-          if (!cfg.plugins.entries[existingKey].config.dashboardPort) {
-            cfg.plugins.entries[existingKey].config.dashboardPort = gwPort + 1;
-          }
+        if (existingKey === 'zalo-mod' || existingKey === 'openclaw-zalo-mod') {
+          ensureZaloModPluginConfig(cfg.plugins.entries[existingKey], cfg);
         }
         // Only add the canonical config key to allow list (not all aliases)
         if (!cfg.plugins.allow.includes(existingKey)) cfg.plugins.allow.push(existingKey);
@@ -2199,7 +2248,7 @@ async function installFeature(projectDir, agentId, kind, id) {
       sendLog(`[plugin] Installing clawhub:${id}...`);
       
       let installSuccess = true;
-      await run('openclaw', ['plugins', 'install', `clawhub:${id}`], {
+      await run('openclaw', ['plugins', 'install', `clawhub:${id}`, '--force'], {
         cwd: projectDir,
         env: openclawProjectEnv(projectDir),
         resolveOnPattern: /Installed plugin:/
@@ -2230,15 +2279,8 @@ async function installFeature(projectDir, agentId, kind, id) {
         const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
         cfg.plugins.entries[existingKey] = cfg.plugins.entries[existingKey] || {};
         cfg.plugins.entries[existingKey].enabled = true;
-        if (existingKey === 'zalo-mod') {
-          cfg.plugins.entries[existingKey].hooks = cfg.plugins.entries[existingKey].hooks || {};
-          cfg.plugins.entries[existingKey].hooks.allowConversationAccess = true;
-          // Auto-assign dashboard port = gateway port + 1 to avoid conflicts between bots
-          const gwPort = Number(cfg.gateway?.port) || state.gatewayPort || 18789;
-          cfg.plugins.entries[existingKey].config = cfg.plugins.entries[existingKey].config || {};
-          if (!cfg.plugins.entries[existingKey].config.dashboardPort) {
-            cfg.plugins.entries[existingKey].config.dashboardPort = gwPort + 1;
-          }
+        if (existingKey === 'zalo-mod' || existingKey === 'openclaw-zalo-mod') {
+          ensureZaloModPluginConfig(cfg.plugins.entries[existingKey], cfg);
         }
         await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
       }

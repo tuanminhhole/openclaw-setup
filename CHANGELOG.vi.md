@@ -1,5 +1,14 @@
 # Changelog (Tiếng Việt)
 
+
+## [5.8.3] — 2026-06-02
+
+### 🔍 Quét Toàn Bộ Ổ Đĩa & Sửa Lỗi Hiển Thị Version Sidebar
+
+- **Quét toàn bộ ổ đĩa**: Chức năng tìm project giờ quét TẤT CẢ ổ đĩa có sẵn (A-Z) thay vì chỉ hardcode D:\ và E:\. Project nằm trên ổ C:\ hoặc bất kỳ ổ nào khác đều được phát hiện đúng.
+- **Blacklist thư mục hệ thống**: Thêm danh sách 17+ thư mục hệ thống Windows (Windows, Program Files, $Recycle.Bin, ProgramData...) để tránh quét chậm hoặc lỗi permission khi duyệt gốc ổ đĩa.
+- **Version sidebar động**: Sửa lỗi version trên sidebar bị fix cứng giá trị fallback. Giờ version được cập nhật tự động sau khi API system trả về, hiển thị đúng version đang chạy.
+
 ## [5.8.2] — 2026-05-31
 
 ### 🚀 Nút Cập Nhật Giao Diện Tự Động & Hợp Nhất Hệ Thống Kiểm Thử

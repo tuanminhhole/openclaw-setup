@@ -311,7 +311,7 @@ function render() {
   if (!mainContainer) {
     $('#app').innerHTML = `
       <aside class="sidebar">
-        <div class="brand"><img src="/openclaw-logo.svg" onerror="this.src='/openclaw-logo.png'" alt="OpenClaw"/><div style="display: flex; flex-direction: column; align-items: center; text-align: center;"><b>OpenClaw Setup</b><span style="display: block; width: 100%; text-align: center; font-size: 13.5px; font-weight: 600; margin-top: 6px; color: var(--muted);">v${state.system?.versions?.setup || '5.8.0'}</span></div></div>
+        <div class="brand"><img src="/openclaw-logo.svg" onerror="this.src='/openclaw-logo.png'" alt="OpenClaw"/><div style="display: flex; flex-direction: column; align-items: center; text-align: center;"><b>OpenClaw Setup</b><span id="sidebar-version" style="display: block; width: 100%; text-align: center; font-size: 13.5px; font-weight: 600; margin-top: 6px; color: var(--muted);">v${state.system?.versions?.setup || '...'}</span></div></div>
         <nav class="sidebar-nav">${tabs.map(([id,label]) => `<button class="nav ${state.tab===id?'active':''}" data-tab="${id}">${icon(id)}<span>${label}</span></button>`).join('')}</nav>
         ${sidebarExtras()}
       </aside>
@@ -345,6 +345,9 @@ function render() {
   } else {
     const titleEl = $('#app-page-title');
     if (titleEl) titleEl.innerHTML = title();
+
+    const sidebarVerEl = $('#sidebar-version');
+    if (sidebarVerEl) sidebarVerEl.textContent = `v${state.system?.versions?.setup || '...'}`;
 
     const panelEl = $('.panel');
     if (panelEl) panelEl.innerHTML = content();
@@ -777,7 +780,7 @@ function filesView() { return `<div class="files">${state.files.map(f=>`<article
 function botSkillsPanel() {
   const flags = state.featureFlags || {};
   const skills = [
-    { id: 'cron', title: 'Cron', desc: 'Cron guide in TOOLS.md' },
+    { id: 'cron', title: 'Cron', desc: 'Native scheduler (SQLite) — cron guide in TOOLS.md' },
   ];
   const plugins = [
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },

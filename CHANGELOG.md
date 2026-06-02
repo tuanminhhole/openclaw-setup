@@ -1,5 +1,14 @@
 # Changelog (English)
 
+
+## [5.8.3] — 2026-06-02
+
+### 🔍 Full-Drive Project Discovery & Sidebar Version Fix
+
+- **Full-Drive Scanning**: Project discovery now scans ALL available drive letters (A-Z) instead of only hardcoded D:\ and E:\. Projects on C:\ or any other drive are now properly detected.
+- **System Directory Blacklist**: Added a blacklist of 17+ Windows system directories (Windows, Program Files, $Recycle.Bin, ProgramData, etc.) to prevent slow or permission-error scans when walking drive roots.
+- **Dynamic Sidebar Version**: Fixed the sidebar version display which was stuck on a hardcoded fallback value. The version now updates dynamically after the system API responds, showing the real running version.
+
 ## [5.8.2] — 2026-05-31
 
 ### 🚀 Smart Repository Update & Restructured Test Suite
