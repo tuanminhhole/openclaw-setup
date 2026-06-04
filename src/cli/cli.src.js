@@ -32,21 +32,17 @@ const args = process.argv.slice(2);
 if (isLocalRepo()) {
   const { startLocalInstaller } = await import('../server/local-server.js');
   
-  if (args[0] === 'legacy' || args.includes('--legacy')) {
-    await import('./legacy.src.js');
-  } else {
-    const noOpen = args.includes('--no-open');
-    const hostArg = args.find((arg) => arg.startsWith('--host='));
-    const portArg = args.find((arg) => arg.startsWith('--port='));
-    const projectDirArg = args.find((arg) => arg.startsWith('--project-dir='));
-    
-    await startLocalInstaller({
-      openBrowser: !noOpen,
-      host: hostArg ? hostArg.slice('--host='.length) : '127.0.0.1',
-      preferredPort: portArg ? Number(portArg.slice('--port='.length)) : 51789,
-      projectDir: projectDirArg ? projectDirArg.slice('--project-dir='.length) : process.cwd(),
-    });
-  }
+  const noOpen = args.includes('--no-open');
+  const hostArg = args.find((arg) => arg.startsWith('--host='));
+  const portArg = args.find((arg) => arg.startsWith('--port='));
+  const projectDirArg = args.find((arg) => arg.startsWith('--project-dir='));
+  
+  await startLocalInstaller({
+    openBrowser: !noOpen,
+    host: hostArg ? hostArg.slice('--host='.length) : '127.0.0.1',
+    preferredPort: portArg ? Number(portArg.slice('--port='.length)) : 51789,
+    projectDir: projectDirArg ? projectDirArg.slice('--project-dir='.length) : process.cwd(),
+  });
 } else {
   console.log('\n============================================================');
   console.log('   🦞 OpenClaw Setup — Auto-downloader & Installer');

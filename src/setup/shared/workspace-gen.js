@@ -114,413 +114,326 @@ const workspaceRoot = /** @type {OpenClawWorkspaceRoot} */ (
   function buildHeartbeatDoc(options = {}) {
     const { isVi = true } = options;
     return isVi
-      ? `# HEARTBEAT\n\n- Không có tác vụ tồn đọng mặc định.\n- Giữ nguyên danh tính, vai trò, và tính cách đã có trong IDENTITY.md, SOUL.md, AGENTS.md.\n- Không tự onboarding lại user.\n- Nếu user chỉ mở đầu ngắn như "alo", trả lời ngắn gọn, đúng vai trò hiện tại.\n- Trước MỖI phản hồi Telegram nhìn thấy bởi user, nếu turn hiện tại có reaction tool native thì ưu tiên dùng để thả \`👍\`, trừ khi \`👍\` đã có sẵn.\n- Nếu turn hiện tại không có reaction tool hoặc chat không hỗ trợ reaction thật, trả lời bình thường và không được nói là mình đã thả reaction.\n`
-      : `# HEARTBEAT\n\n- No pending task by default.\n- Keep the identity, role, and personality already defined in IDENTITY.md, SOUL.md, and AGENTS.md.\n- Do not re-onboard the user.\n- If the user sends a short opener like "hi" or "alo", reply briefly and stay in character.\n- Before EVERY user-visible Telegram reply, if the current turn exposes a native reaction tool, use it to add \`👍\` first unless \`👍\` is already present.\n- If the reaction tool is unavailable or the chat does not support real reactions, reply normally and do not claim that you reacted.\n`;
+      ? `# HEARTBEAT\n\n- Không có tác vụ tồn đọng mặc định.\n- Giữ nguyên danh tính, vai trò, và tính cách đã có trong IDENTITY.md, SOUL.md, AGENTS.md.\n- Không tự onboarding lại user.\n- Nếu user chỉ mở đầu ngắn như "alo", trả lời ngắn gọn, đúng vai trò hiện tại.\n`
+      : `# HEARTBEAT\n\n- No pending task by default.\n- Keep the identity, role, and personality already defined in IDENTITY.md, SOUL.md, and AGENTS.md.\n- Do not re-onboard the user.\n- If the user sends a short opener like "hi" or "alo", reply briefly and stay in character.\n`;
   }
 
 function buildBootstrapDoc(options = {}) {
     const { isVi = true, botName = 'Bot' } = options;
     return isVi
-      ? `# BOOTSTRAP\n\n## Vai trò ngay khi khởi động\n- Bạn là **${botName}**.\n- Danh tính, vai trò, và phong cách của bạn đã được định nghĩa sẵn trong **IDENTITY.md**, **SOUL.md**, và **AGENTS.md**.\n- Dùng các file đó làm nguồn sự thật cao nhất cho persona của bạn trong workspace này.\n\n## Bắt buộc\n- Không hỏi user đặt lại tên, vibe, persona, emoji ký tên, hay kiểu trợ lý cho chính bạn.\n- Không nói kiểu "mới tỉnh dậy", "vừa online", "đang chọn danh tính", hay mở màn onboarding tương tự.\n- Không cư xử như một bot mới tạo trống rỗng.\n- Khi user chỉ nhắn ngắn như "alo", hãy chào ngắn gọn và trả lời đúng vai trò hiện tại.\n\n## Telegram\n- Trước MỖI phản hồi Telegram nhìn thấy bởi user, nếu turn hiện tại có reaction tool/action native thì ưu tiên dùng nó để thả \`👍\`, trừ khi \`👍\` đã có sẵn.\n- Không được nói là mình đã thả reaction nếu tool chưa chạy được hoặc reaction không hiện thật trên chat.\n- Nếu chat đích không hỗ trợ reaction thật hoặc tool không được expose, vẫn trả lời bình thường và không tranh luận về giới hạn kỹ thuật.\n`
-      : `# BOOTSTRAP\n\n## Startup role\n- You are **${botName}**.\n- Your identity, role, and style are already defined in **IDENTITY.md**, **SOUL.md**, and **AGENTS.md**.\n- Use those files as the highest-priority source of truth for your persona in this workspace.\n\n## Mandatory\n- Do not ask the user to redefine your name, vibe, persona, signature emoji, or assistant style.\n- Do not say you just woke up, just came online, are choosing your identity, or any similar onboarding line.\n- Do not behave like a blank freshly-created bot.\n- If the user only sends a short opener like "hi" or "alo", greet briefly and reply in your existing role.\n\n## Telegram\n- Before EVERY user-visible Telegram reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- Never claim that you reacted unless the tool actually ran and the reaction is real on the chat.\n- If the target chat does not support real reactions or the tool is not exposed, still reply normally and do not mention the technical limitation.\n`;
+      ? `# BOOTSTRAP\n\n## Vai trò ngay khi khởi động\n- Bạn là **${botName}**.\n- Danh tính, vai trò, và phong cách của bạn đã được định nghĩa sẵn trong **IDENTITY.md**, **SOUL.md**, và **AGENTS.md**.\n- Dùng các file đó làm nguồn sự thật cao nhất cho persona của bạn trong workspace này.\n\n## Bắt buộc\n- Không hỏi user đặt lại tên, vibe, persona, emoji ký tên, hay kiểu trợ lý cho chính bạn.\n- Không nói kiểu "mới tỉnh dậy", "vừa online", "đang chọn danh tính", hay mở màn onboarding tương tự.\n- Không cư xử như một bot mới tạo trống rỗng.\n- Khi user chỉ nhắn ngắn như "alo", hãy chào ngắn gọn và trả lời đúng vai trò hiện tại.\n\n## Telegram & Zalo\n- Trước MỖI phản hồi Telegram hoặc Zalo nhìn thấy bởi user, nếu turn hiện tại có reaction tool/action native thì ưu tiên dùng nó để thả \`👍\`, trừ khi \`👍\` đã có sẵn.\n- Không được nói là mình đã thả reaction nếu tool chưa chạy được hoặc reaction không hiện thật trên chat.\n- Nếu chat đích không hỗ trợ reaction thật hoặc tool không được expose, vẫn trả lời bình thường và không tranh luận về giới hạn kỹ thuật.\n`
+      : `# BOOTSTRAP\n\n## Startup role\n- You are **${botName}**.\n- Your identity, role, and style are already defined in **IDENTITY.md**, **SOUL.md**, and **AGENTS.md**.\n- Use those files as the highest-priority source of truth for your persona in this workspace.\n\n## Mandatory\n- Do not ask the user to redefine your name, vibe, persona, signature emoji, or assistant style.\n- Do not say you just woke up, just came online, are choosing your identity, or any similar onboarding line.\n- Do not behave like a blank freshly-created bot.\n- If the user only sends a short opener like "hi" or "alo", greet briefly and reply in your existing role.\n\n## Telegram & Zalo\n- Before EVERY user-visible Telegram or Zalo reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- Never claim that you reacted unless the tool actually ran and the reaction is real on the chat.\n- If the target chat does not support real reactions or the tool is not exposed, still reply normally and do not mention the technical limitation.\n`;
   }
 
-  function buildSearchToolJs() {
-    return `/**
- * search-tool.js — Stealth search via Playwright Headless Chromium or CDP fallback
- * Zero tokens, no API keys, concurrent multi-engine scraping (Google + Bing + DuckDuckGo).
- * Usage: node search-tool.js "<query>" [limit]
- */
-let playwright;
-try {
-    playwright = require('playwright-core');
-} catch (e) {
-    try {
-        playwright = require('/usr/local/lib/node_modules/openclaw/node_modules/playwright-core');
-    } catch (err) {
-        try {
-            const path = require('path');
-            playwright = require(path.join(process.cwd(), 'node_modules', 'playwright-core'));
-        } catch (x) {
-            console.error(JSON.stringify({ error: 'Playwright not found! Install it or run within OpenClaw environment.' }));
-            process.exit(1);
-        }
+  function buildCronjobSkillMd(isVi = true) {
+    if (isVi) {
+      return `# ⏰ Cron / Lên lịch nhắc nhở (tool: \`cron\`)
+- **Tên tool chính xác:** Tên công cụ là \`cron\` (tuyệt đối không nhầm là \`native\` hay command line bên ngoài).
+- **⛔ TUYỆT ĐỐI KHÔNG sửa trực tiếp file JSON** như \`jobs.json\`, \`jobs-state.json\` trong thư mục \`.openclaw/cron/\`. Dữ liệu cron được lưu trong SQLite database, file JSON chỉ là legacy format đã ngưng hỗ trợ. Mọi thao tác PHẢI thông qua tool \`cron\`.
+- **Khi tạo cronjob mới (action \`add\`):**
+  - **TUYỆT ĐỐI KHÔNG điền trường \`agentId\`** trong object \`job\` (hãy bỏ qua/omitted trường này). Hệ thống OpenClaw sẽ tự động gán chính xác ID của bạn vào job đó.
+  - Tuyệt đối **không tự điền** \`agentId\` là \`"bot"\` hay \`"main"\`, vì làm vậy sẽ khiến cronjob thuộc về agent khác và bạn sẽ mất quyền kiểm soát/xóa nó sau này.
+  - **Session:** Luôn dùng \`sessionTarget: "isolated"\` cho các job chạy nền (báo cáo, nhắc nhở, gửi tin nhắn tự động). Chỉ dùng \`"main"\` cho system event/reminder ngắn.
+  - **Timezone:** Luôn chỉ định timezone rõ ràng bằng trường \`tz\` (ví dụ: \`"Asia/Ho_Chi_Minh"\`). Nếu không chỉ định, hệ thống sẽ dùng timezone của Gateway host (thường là UTC) và job sẽ chạy sai giờ.
+  - **Delivery:** Đối với job cần gửi kết quả ra chat, set \`delivery.mode: "announce"\` kèm \`delivery.channel\` và \`delivery.to\`.
+- **Khi user yêu cầu tắt/bật/xóa cronjob:**
+  1. **Bước 1 (Tìm kiếm):** Gọi tool \`cron\` với action \`list\` (và \`includeDisabled: true\`) để xem danh sách tất cả cronjob đang chạy trên hệ thống và tìm đúng \`jobId\` phù hợp với yêu cầu.
+  2. **Bước 2 (Xử lý):**
+     - Để xóa: Gọi action \`remove\` với \`id\` tìm được.
+     - Để tắt/tạm dừng: Gọi action \`update\` với \`id\` và patch \`{"enabled": false}\`.
+     - Để bật lại: Gọi action \`update\` với \`id\` và patch \`{"enabled": true}\`.
+  3. **Tuyên bố trung thực:** Tuyệt đối không bao giờ trả lời "đã xóa" hay "không có" dựa trên suy đoán của bản thân mà chưa gọi tool \`cron\` để kiểm tra thực tế.
+- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool \`cron\` (action \`add\`) để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.
+- Khi thao tác tool cho cron/scheduler, **không điền \`current\` vào thư mục Session**.
+- **QUAN TRỌNG VỀ TARGETING GROUP CHAT**: Khi tạo hoặc cấu hình cron job gửi tin nhắn thông báo (announce mode) đến một Group Chat, giá trị của trường \`delivery.to\` **bắt buộc** phải sử dụng tiền tố thích hợp trước ID của group. Với kênh Telegram/Matrix/Discord/Slack, dùng tiền tố \`group:\` (ví dụ: \`group:123456\`). RIÊNG với kênh Zalo (\`zalouser\`), **bắt buộc** phải sử dụng tiền tố \`g:\` (ví dụ: \`g:3815464776067464419\`) để tránh bị OpenClaw core lược bỏ tiền tố và gửi nhầm vào DM chat cá nhân.
+- **One-shot job:** Dùng schedule kind \`"at"\` với ISO 8601 timestamp. Job sẽ tự xóa sau khi chạy thành công trừ khi set \`deleteAfterRun: false\`.
+- Bỏ qua việc tra cứu docs nội bộ như \`cron-jobs.mdx\`; tin tưởng khả năng dùng tool hiện có để hoàn thành yêu cầu.`;
     }
-}
-const { chromium } = playwright;
+    return `# ⏰ Cron / Scheduled Tasks (tool: \`cron\`)
+- **Exact tool name:** The tool name is \`cron\` (never mistake it for \`native\` or external command lines).
+- **⛔ NEVER edit JSON files directly** such as \`jobs.json\` or \`jobs-state.json\` in \`.openclaw/cron/\`. Cron data is stored in SQLite database; JSON files are legacy format no longer supported. All operations MUST go through the \`cron\` tool.
+- **When creating a new cronjob (action \`add\`):**
+  - **ABSOLUTELY DO NOT specify the \`agentId\` field** in the \`job\` object (leave this field omitted). The OpenClaw system will automatically assign your correct agent ID to that job.
+  - Never manually specify \`agentId\` as \`"bot"\` or \`"main"\`, as this will cause the cronjob to belong to another agent and you will lose control to manage/delete it later.
+  - **Session:** Always use \`sessionTarget: "isolated"\` for background jobs (reports, reminders, automated messages). Only use \`"main"\` for short system events/reminders.
+  - **Timezone:** Always specify timezone explicitly via the \`tz\` field (e.g., \`"Asia/Ho_Chi_Minh"\`). If omitted, the system uses the Gateway host timezone (often UTC) and the job will run at the wrong time.
+  - **Delivery:** For jobs that should send results to chat, set \`delivery.mode: "announce"\` with \`delivery.channel\` and \`delivery.to\`.
+- **When the user requests to disable/enable/delete a cronjob:**
+  1. **Step 1 (Search):** Call the \`cron\` tool with action \`list\` (and \`includeDisabled: true\`) to view all cron jobs on the system and find the matching \`jobId\`.
+  2. **Step 2 (Processing):**
+     - To delete: Call action \`remove\` with the \`id\` found.
+     - To disable/pause: Call action \`update\` with \`id\` and patch \`{"enabled": false}\`.
+     - To enable: Call action \`update\` with \`id\` and patch \`{"enabled": true}\`.
+  3. **Honest statement:** Never claim a job is "deleted" or "not found" based on guessing without calling the \`cron\` tool to verify the actual state.
+- When the user asks to schedule tasks or reminders, use the built-in \`cron\` tool (action \`add\`) automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.
+- When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.
+- **IMPORTANT ABOUT GROUP CHAT TARGETING**: When creating or configuring a cron job to send messages (announce mode) to a Group Chat, the value of the \`delivery.to\` field **must** use the appropriate prefix before the group ID. For Telegram/Matrix/Discord/Slack, use the \`group:\` prefix (e.g., \`group:123456\`). ESPECIALLY for Zalo (\`zalouser\`), you **must** use the \`g:\` prefix (e.g., \`g:3815464776067464419\`) to prevent the OpenClaw core from stripping the prefix and misrouting the message to a private DM.
+- **One-shot jobs:** Use schedule kind \`"at"\` with an ISO 8601 timestamp. The job auto-deletes after successful run unless \`deleteAfterRun: false\` is set.
+- Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`;
+  }
 
-const query = process.argv[2];
-const limit = parseInt(process.argv[3]) || 5;
-const CDP_URL = 'http://127.0.0.1:9222';
+  function buildInfographicGeneratorSkillMd() {
+    return `---
+name: infographic-generator
+description: Tạo ảnh infographic, banner hoặc poster trực tiếp bằng 1 prompt gửi tới API tạo ảnh.
+---
 
-if (!query) {
-    console.error(JSON.stringify({ error: 'Usage: node search-tool.js "<query>" [limit]' }));
+Khi người dùng yêu cầu tạo ảnh infographic, tin tức, cẩm nang, hoặc poster bằng tiếng Việt, hãy sử dụng skill này để gọi trực tiếp API tạo ảnh qua script \`image-generator.js\`. Phương pháp này tạo ra các tác phẩm thiết kế đồng nhất và tuyệt đẹp chỉ bằng một câu prompt chi tiết duy nhất.
+
+## 🚀 1. LỆNH THỰC THI
+
+Để tạo ảnh, hãy gọi tool \`exec\` để chạy lệnh:
+\`node skills/infographic-generator/image-generator.js "<prompt chi tiết bằng tiếng Anh>" <tên_ảnh>.png\`
+
+_(Ví dụ: \`node skills/infographic-generator/image-generator.js "..." output.png\`)_
+
+---
+
+## 📐 2. QUY ĐỊNH KÍCH THƯỚC & TỶ LỆ (ASPECT RATIO)
+
+Khi gọi API, mặc định kích thước là tỷ lệ **1:1** (hình vuông). Tuy nhiên, hãy tùy biến linh hoạt theo yêu cầu của người dùng bằng cách điều chỉnh từ khóa mô tả tỷ lệ và khung hình trong prompt:
+
+- **Mặc định (1:1)**: Thêm từ khóa \`square aspect ratio, 1:1 square canvas\` vào prompt. Phù hợp cho các infographic dạng ô lưới hoặc bài đăng mạng xã hội thông thường.
+- **Poster dọc (Vertical Poster)**: Thêm từ khóa \`vertical poster aspect ratio, 2:3 portrait format, vertical infographic\` vào prompt. Phù hợp cho cẩm nang chi tiết có nhiều mục (3-9 mục).
+- **Landscape (16:9)**: Thêm từ khóa \`16:9 landscape aspect ratio, wide horizontal banner\` vào prompt. Phù hợp cho banner nằm ngang, ảnh bìa.
+
+---
+
+## ✍️ 3. QUY ĐỊNH FOOTER BẮT BUỘC
+
+Mọi ảnh infographic/poster được tạo ra bằng skill này bắt buộc phải có dòng chữ bản quyền nằm ở cạnh dưới, canh giữa:
+
+- **Nội dung chữ bắt buộc**: \`"designed by Williams - trợ lý của tuanminhhole"\`
+- **Cách mô tả trong prompt**: Thêm vào cuối prompt mô tả chi tiết:
+  _\`"At the bottom center of the image, there is a clean and tiny centered footer text that reads: 'designed by Williams - trợ lý của tuanminhhole'"\`_
+
+---
+
+## 🎨 4. BA PHONG CÁCH THIẾT KẾ CHỦ ĐẠO
+
+Hãy chọn 1 trong 3 phong cách dưới đây tùy thuộc vào ngữ cảnh yêu cầu:
+
+### Phong cách 1: Tin tức báo chí / News Editorial
+
+- **Đặc điểm**: Bố cục chuyên nghiệp, chia nhiều cột dọc/ngang (multi-column), sử dụng các đường kẻ mỏng hoặc nét đứt mảnh để phân chia các ô tin tức rõ ràng.
+- **Phông chữ**: Font tiêu đề Serif (có chân) sang trọng, font nội dung Sans-serif (không chân) hiện đại.
+- **Minh họa**: Icon dạng vector phẳng (flat vector icons), tối giản, chuyên nghiệp.
+- **Từ khóa prompt gợi ý**: \`news editorial infographic style, newspaper grid layout, clear divider lines, minimal serif headers, flat vector icons, professional business theme, clean corporate colors.\`
+
+### Phong cách 2: Cẩm nang/Hướng dẫn chi tiết
+
+- **Đặc điểm**: Bố cục lưới (ví dụ: 3x3 grid) gồm nhiều ô được đánh số thứ tự (1, 2, 3...). Mỗi ô có nền màu pastel nhẹ nhàng (như xanh lá nhạt, kem nhạt, vàng nhạt) với viền bo góc tròn mềm mại. Có hình mascot (như chú heo đất đeo kính, két sắt, nhân vật hoạt hình) xuất hiện làm điểm nhấn.
+- **Phông chữ**: Font chữ tròn, thân thiện, rõ ràng.
+- **Minh họa**: Icon hoạt hình 2D sống động, nhiều màu sắc.
+- **Từ khóa prompt gợi ý**: \`detailed guide infographic poster, 3x3 numbered grid layout, rounded pastel cards, cute 2D cartoon mascot, playful vector icons, warm cream background, clear numbered badges.\`
+
+### Phong cách 3: Layout Neo-Brutalism hoạt hình
+
+- **Đặc điểm**: Đường viền đen dày nổi bật (thick dark borders), đổ bóng cứng màu đen (hard solid drop shadows), màu sắc tương phản mạnh mẽ (Neo-Brutalism), phong cách hoạt hình 2D phẳng, hiện đại và trẻ trung.
+- **Phông chữ**: Font chữ in đậm, cá tính và không chân.
+- **Minh họa**: Mascot và các icon phẳng nét vẽ dày cá tính.
+- **Từ khóa prompt gợi ý**: \`neo-brutalism infographic poster, vector cartoon flat 2D style, thick dark solid borders, hard black drop shadows, bright vibrant background cards (yellow, cyan, lime green, orange), playful modern bold typography.\`
+
+---
+
+## 🔤 5. QUY TẮC PHÒNG TRÁNH LỖI FONT TIẾNG VIỆT
+
+Mô hình Gemini 3.1 Flash Image hỗ trợ ghi text tiếng Việt cực tốt, nhưng để tránh việc AI tự động dùng các font chữ lạ bị lỗi hiển thị dấu tiếng Việt (như phác, ngã, hỏi bị lệch phông), hãy áp dụng nghiêm ngặt các quy tắc sau:
+
+1. **Chỉ định phông chữ tiêu chuẩn**: Trong prompt, ghi rõ tên các font chữ phổ biến hỗ trợ Unicode tiếng Việt tốt như: **Arial, Inter, Montserrat, Roboto, Plus Jakarta Sans, Fredoka** (chỉ dùng cho phong cách hoạt hình).
+   _Ví dụ: "in clean bold Arial font", "using modern Montserrat typeface"._
+2. **Tránh phông chữ lạ**: Tuyệt đối **KHÔNG** sử dụng các từ khóa như \`decorative, script, handwritten, gothic, calligraphy, futuristic fonts\` vì chúng hầu như không hỗ trợ tiếng Việt và sẽ tạo ra chữ lỗi phông rất xấu.
+3. **Định dạng Text rõ ràng**: Đặt toàn bộ các đoạn text tiếng Việt cần hiển thị trong dấu nháy đơn hoặc nháy kép để mô hình nhận diện chính xác phần văn bản cần viết.
+   _Ví dụ: \`At the top, the main title in bold Arial font reads: 'BÍ KÍP TRÁNH NÓNG MÙA HÈ'\`._
+
+---
+
+## 📝 6. MẪU PROMPT CHUNG CHO BOT LLM (TÙY CHỈNH THEO YÊU CẦU)
+
+Mẫu prompt này được đúc kết từ các prompt tiêu chuẩn giúp mô hình tạo ảnh hoạt động tối ưu nhất. Bot LLM sẽ tự động tùy biến các phần nằm trong dấu ngoặc vuông \`[...]\` dựa trên tiêu đề, nội dung, số lượng bố cục và màu sắc phù hợp với chủ đề của người dùng, trong khi các phần còn lại được giữ nguyên cố định (bao gồm phong cách vẽ và footer bản quyền).
+
+### A. Công thức Prompt Tiếng Anh (Khuyên Dùng cho API)
+
+\`\`\`text
+An infographic poster with [Tỷ lệ khung hình] and [Loại nền].
+Art style is modern illustration style mixed with hand-drawn elements.
+At the top, the main title in clean bold [Tên Font tiếng Việt chuẩn] reads: '[TIÊU ĐỀ TIẾNG VIỆT LỚN]'.
+The layout is divided into [Số lượng] cards or sections [Bố cục chia ô từ trên xuống dưới / Bố cục ô lưới / Quy trình cách thức].
+The background and accent colors of the cards are [Màu sắc hài hòa tương ứng phù hợp với chủ đề].
+Each card contains a clean flat vector illustration representing [Mô tả ngắn gọn hình vẽ minh họa] and a clear text label in bold [Tên Font tiếng Việt chuẩn] reads: '[NHÃN TIẾNG VIỆT CHO TỪNG Ô]'.
+The text throughout the image must be clean, legible, and easy to read.
+At the bottom center of the image, there is a clean and tiny centered footer text that reads: 'designed by Williams - trợ lý của tuanminhhole'.
+High-resolution, high quality, professional infographic poster, no spelling mistakes.
+\`\`\`
+
+### B. Công thức Prompt Tiếng Việt (Phong cách gốc giống Ảnh mẫu)
+
+\`\`\`text
+Infographic [Khung hình/tỷ lệ], nền [Loại nền].
+Phong cách minh họa hiện đại pha hand-drawn.
+Tiêu đề lớn '[TIÊU ĐỀ TIẾNG VIỆT LỚN]'.
+Bố cục chia [Số lượng] ô rõ ràng [từ trên xuống dưới / dạng lưới / quy trình cách thức].
+Màu sắc hài hòa [Mô tả tông màu phù hợp].
+Mỗi ô vẽ minh họa vector phẳng [Mô tả ngắn hình ảnh cần vẽ cho ô] và nhãn chữ '[NHÃN TIẾNG VIỆT]'.
+Chữ rõ ràng, dễ đọc, không sai chính tả.
+Cạnh dưới canh giữa có chữ nhỏ: 'designed by Williams - trợ lý của tuanminhhole'.
+Ảnh chất lượng cao, sắc nét.
+\`\`\`
+`;
+  }
+
+  function buildInfographicGeneratorJs() {
+    return `const fs = require('fs');
+const path = require('path');
+
+const prompt = process.argv[2];
+const outputPath = process.argv[3] || 'image.png';
+
+if (!prompt) {
+    console.error('Usage: node image-generator.js "<prompt>" [output_path]');
     process.exit(1);
 }
 
-(async () => {
-    let browser;
-    let ctx;
-    let isStandalone = false;
+// Find openclaw.json path dynamically by walking up
+let openclawJsonPath = '';
+let currentDir = process.cwd();
+for (let i = 0; i < 5; i++) {
+    const candidate = path.join(currentDir, 'openclaw.json');
+    if (fs.existsSync(candidate)) {
+        openclawJsonPath = candidate;
+        break;
+    }
+    const candidateInDot = path.join(currentDir, '.openclaw', 'openclaw.json');
+    if (fs.existsSync(candidateInDot)) {
+        openclawJsonPath = candidateInDot;
+        break;
+    }
+    const parent = path.dirname(currentDir);
+    if (parent === currentDir) break;
+    currentDir = parent;
+}
+
+// Resolve API Key and Base URL from openclaw.json
+let apiKey = 'sk-50599bc9642941c0-obzd49-1940044a'; // default fallback key
+let baseUrl = 'http://9router:20128/v1'; // default fallback URL
+if (openclawJsonPath) {
     try {
-        // Try connecting to active Chrome CDP first
+        const config = JSON.parse(fs.readFileSync(openclawJsonPath, 'utf8'));
+        const provider = config.models?.providers?.['9router'];
+        if (provider) {
+            if (provider.apiKey) apiKey = provider.apiKey;
+            if (provider.baseUrl) baseUrl = provider.baseUrl;
+        }
+    } catch (e) {}
+}
+
+const modelPriorityPatterns = [
+    /recraft-?v3/i,
+    /flux-pro-?(v1\\.1-)?ultra/i,
+    /flux-kontext-max/i,
+    /flux-pro-?(v1\\.1)?/i,
+    /flux-kontext-pro/i,
+    /recraft-?v2/i,
+    /recraft/i,
+    /ideogram-?v2/i,
+    /ideogram/i,
+    /runway.*turbo/i,
+    /runway/i,
+    /flux-?(1-)?dev/i,
+    /dall-e-3/i,
+    /stable-image-ultra/i,
+    /sd3\\.5-large-turbo/i,
+    /sd3\\.5-large/i,
+    /stable-diffusion-v35/i,
+    /sd3\\.5/i,
+    /stable-image-core/i,
+    /stable-diffusion-3/i,
+    /sd3/i,
+    /sd3\\.5-medium/i,
+    /flux-?(1-)?schnell/i,
+    /grok/i,
+    /gpt/i,
+    /minimax/i,
+    /gemini-3\\.1/i,
+    /gemini-3/i,
+    /gemini-2\\.5/i,
+    /gemini/i,
+    /sdxl/i,
+    /stable-diffusion/i,
+    /sdwebui/i,
+    /comfyui/i,
+];
+
+(async () => {
+    try {
+        // Query active image generation models to choose the best one
+        let selectedModel = '';
         try {
-            browser = await chromium.connectOverCDP(CDP_URL, { timeout: 3000 });
-            ctx = browser.contexts()[0];
+            const modelsResponse = await fetch(\`\${baseUrl}/models/image\`, {
+                headers: {
+                    'Authorization': \`Bearer \${apiKey}\`
+                }
+            });
+            const modelsData = await modelsResponse.json();
+            if (modelsData && Array.isArray(modelsData.data) && modelsData.data.length > 0) {
+                const modelIds = modelsData.data.map(m => m.id);
+                for (const pattern of modelPriorityPatterns) {
+                    const found = modelIds.find(id => pattern.test(id));
+                    if (found) {
+                        selectedModel = found;
+                        break;
+                    }
+                }
+                if (!selectedModel) {
+                    selectedModel = modelIds[0];
+                }
+            }
         } catch (e) {
-            // Fallback to standalone headless Chromium launch
-            browser = await chromium.launch({
-                headless: true,
-                args: [
-                    '--no-sandbox',
-                    '--disable-gpu',
-                    '--disable-dev-shm-usage',
-                    '--disable-blink-features=AutomationControlled'
-                ]
-            });
-            isStandalone = true;
-            ctx = await browser.newContext({
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-            });
+            console.warn('[ImageGen] Failed to auto-resolve active models, using fallback:', e.message);
         }
 
-        // Run search queries concurrently on three search engines
-        const [googleResults, bingResults, ddgResults] = await Promise.all([
-            // Google
-            (async () => {
-                const page = await ctx.newPage();
-                try {
-                    await page.goto('https://www.google.com/search?q=' + encodeURIComponent(query) + '&hl=vi', { waitUntil: 'domcontentloaded', timeout: 10000 });
-                    const res = await page.evaluate(() => {
-                        const list = [];
-                        const links = Array.from(document.querySelectorAll('a h3'));
-                        for (const head of links) {
-                            const a = head.closest('a');
-                            if (!a) continue;
-                            const url = a.href;
-                            const title = head.textContent || '';
-                            let snippet = '';
-                            let parent = a.parentElement;
-                            while (parent && parent.tagName !== 'DIV') {
-                                parent = parent.parentElement;
-                            }
-                            if (parent) {
-                                const descEl = parent.parentElement?.querySelector('.VwiC3b, .yHGvwa, div[style*="-webkit-line-clamp"]');
-                                if (descEl) {
-                                    snippet = descEl.textContent || '';
-                                } else {
-                                    const texts = Array.from(parent.parentElement?.querySelectorAll('div, span') || [])
-                                        .map(el => el.textContent.trim())
-                                        .filter(txt => txt.length > 30 && !txt.includes(title));
-                                    if (texts.length > 0) snippet = texts[0];
-                                }
-                            }
-                            if (url && title) {
-                                list.push({ title, url, snippet });
-                            }
-                        }
-                        return list;
-                    });
-                    await page.close();
-                    return res;
-                } catch (e) {
-                    if (page) await page.close();
-                    return [];
-                }
-            })(),
-
-            // Bing
-            (async () => {
-                const page = await ctx.newPage();
-                try {
-                    await page.goto('https://www.bing.com/search?q=' + encodeURIComponent(query), { waitUntil: 'domcontentloaded', timeout: 10000 });
-                    const res = await page.evaluate(() => {
-                        const list = [];
-                        const items = document.querySelectorAll('li.b_algo');
-                        for (const item of items) {
-                            const titleEl = item.querySelector('h2 a');
-                            if (!titleEl) continue;
-                            const title = titleEl.textContent || '';
-                            const url = titleEl.href;
-                            let snippet = '';
-                            const snippetEl = item.querySelector('.b_caption p, .b_snippet, p');
-                            if (snippetEl) {
-                                snippet = snippetEl.textContent || '';
-                            }
-                            if (url && title) {
-                                list.push({ title, url, snippet });
-                            }
-                        }
-                        return list;
-                    });
-                    await page.close();
-                    return res;
-                } catch (e) {
-                    if (page) await page.close();
-                    return [];
-                }
-            })(),
-
-            // DuckDuckGo
-            (async () => {
-                const page = await ctx.newPage();
-                try {
-                    await page.goto('https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query), { waitUntil: 'domcontentloaded', timeout: 10000 });
-                    const res = await page.evaluate(() => {
-                        const list = [];
-                        const elements = document.querySelectorAll('.result');
-                        for (const el of elements) {
-                            const titleEl = el.querySelector('.result__title a');
-                            const snippetEl = el.querySelector('.result__snippet');
-                            if (titleEl) {
-                                list.push({
-                                    title: titleEl.textContent.trim(),
-                                    url: titleEl.href,
-                                    snippet: snippetEl ? snippetEl.textContent.trim() : ''
-                                });
-                            }
-                        }
-                        return list;
-                    });
-                    await page.close();
-                    return res;
-                } catch (e) {
-                    if (page) await page.close();
-                    return [];
-                }
-            })()
-        ]);
-
-        // Deduplicate results by normalized URL
-        const allResults = [...googleResults, ...bingResults, ...ddgResults];
-        const uniqueResults = [];
-        const seenUrls = new Set();
-        for (const res of allResults) {
-            if (!res.url || !res.title) continue;
-            let normUrl = res.url.replace(/^(https?:\\/\\/)?(www\\.)?/, '').toLowerCase();
-            if (normUrl.endsWith('/')) normUrl = normUrl.slice(0, -1);
-            if (!seenUrls.has(normUrl)) {
-                seenUrls.add(normUrl);
-                uniqueResults.push(res);
-            }
+        if (!selectedModel) {
+            selectedModel = 'gemini/gemini-3.1-flash-image-preview'; // default fallback
         }
 
-        // Score results to prioritize numeric price data for financial queries
-        const isPriceQuery = /giá|vàng|đô|usd|sjc|sh|hôm nay|price|gold|rate|vnd|xe|vnđ/i.test(query);
-        const scoredResults = uniqueResults.map(res => {
-            let score = 0;
-            // Base length score
-            score += Math.min(res.snippet.length / 50, 5);
-
-            if (isPriceQuery) {
-                // Number density check
-                const numCount = (res.snippet.match(/\\d+/g) || []).length;
-                score += Math.min(numCount * 2, 10);
-
-                // Priority keywords boost
-                if (/lượng|chỉ|triệu|nghìn|vnd|usd|sjc|xe|bán|mua|giá/i.test(res.snippet)) {
-                    score += 8;
-                }
-            }
-            return { ...res, score };
+        console.log(\`[ImageGen] Generating: "\${prompt}" using model "\${selectedModel}"...\`);
+        const response = await fetch(\`\${baseUrl}/images/generations\`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': \`Bearer \${apiKey}\`
+            },
+            body: JSON.stringify({
+                model: selectedModel,
+                prompt: prompt,
+                n: 1,
+                size: 'auto',
+                response_format: 'b64_json'
+            })
         });
-
-        // Sort by score desc
-        scoredResults.sort((a, b) => b.score - a.score);
-
-        // Map back to output format and limit
-        const output = scoredResults.map(({ score, ...rest }) => rest).slice(0, limit);
-        console.log(JSON.stringify(output, null, 2));
-
-    } catch (err) {
-        console.error(JSON.stringify({ error: err.message }));
-    } finally {
-        if (browser && isStandalone) {
-            try {
-                await browser.close();
-            } catch(e) {}
+        const data = await response.json();
+        if (data.error) {
+            console.error('[ImageGen] API Error:', data.error.message || data.error);
+            process.exit(1);
         }
-    }
-})();
-`;
-  }
-
-  function buildBrowserToolJs(variant = 'wizard') {
-    // v2: Full-featured browser-tool.js matching OpenClaw native browser plugin capabilities
-    // Both 'cli' and 'wizard' variants now use the same full script
-    const playwrightRequire = variant === 'cli'
-      ? "require('playwright')"
-      : "require('/usr/local/lib/node_modules/openclaw/node_modules/playwright-core')";
-
-    return `/**
- * browser-tool.js v2 — Full-featured Chrome CDP controller
- * Commands: open|get_url|get_text|get_links|get_posts|evaluate|console|screenshot|screenshot_full|pdf|click|fill|press|hover|select|upload|scroll|wait|resize|tabs|new_tab|switch_tab|close_tab|status
- */
-const { chromium } = ${playwrightRequire};
-const action = process.argv[2];
-const param1 = process.argv[3];
-const param2 = process.argv[4];
-const CDP_URL = 'http://127.0.0.1:9222';
-(async () => {
-    let browser;
-    try {
-        browser = await chromium.connectOverCDP(CDP_URL, { timeout: 5000 });
-        const ctx = browser.contexts()[0];
-        const pages = ctx.pages();
-        let page = pages.length > 0 ? pages[0] : await ctx.newPage();
-        if (action === 'open') {
-            console.log('[Browser] Opening: ' + param1);
-            await page.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await page.waitForTimeout(1500);
-            console.log('[Browser] Opened: ' + (await page.title()) + ' | ' + page.url());
-        } else if (action === 'get_url') {
-            console.log(page.url());
-        } else if (action === 'status') {
-            const allPages = ctx.pages();
-            console.log('[Browser] Connected! Tabs: ' + allPages.length);
-            console.log('[Browser] Current: ' + (await page.title()) + ' | ' + page.url());
-        } else if (action === 'get_text') {
-            const maxLen = parseInt(param1) || 4000;
-            const text = await page.evaluate(() => { document.querySelectorAll('script,style,noscript,svg').forEach(e => e.remove()); return document.body.innerText.trim(); });
-            console.log(text.substring(0, maxLen));
-        } else if (action === 'get_links') {
-            const filter = param1 || '';
-            const links = await page.evaluate((f) => { const a = Array.from(document.querySelectorAll('a[href]')).map(e => e.href).filter(h => h && h.startsWith('http')); return [...new Set(f ? a.filter(h => h.includes(f)) : a)]; }, filter);
-            console.log(JSON.stringify(links.slice(0, 50), null, 2));
-        } else if (action === 'get_posts') {
-            const posts = await page.evaluate(() => {
-                const results = [];
-                const articles = document.querySelectorAll('[role="article"]');
-                for (const article of articles) {
-                    const textEl = article.querySelector('[data-ad-comet-preview="message"],[data-ad-preview="message"]');
-                    const fullText = (textEl ? textEl.innerText.trim() : '') || article.innerText.substring(0, 800);
-                    const allLinks = Array.from(article.querySelectorAll('a[href]'));
-                    let permalink = '';
-                    for (const a of allLinks) { const h = a.href || ''; if (h.includes('/posts/') || h.includes('/permalink/') || h.includes('story_fbid')) { permalink = h.split('?')[0]; break; } }
-                    let author = '';
-                    for (const el of article.querySelectorAll('a[role="link"] strong, h2 a, h3 a, h4 a')) { const n = el.innerText.trim(); if (n && n.length > 1 && n.length < 50) { author = n; break; } }
-                    let timePosted = '';
-                    const timeLinks = allLinks.filter(a => { const h = a.href || ''; return h.includes('/posts/') || h.includes('/permalink/'); });
-                    if (timeLinks.length > 0) { const t = timeLinks[0].innerText.trim(); if (t && t.length < 30) timePosted = t; }
-                    if (!timePosted) { const te = article.querySelector('abbr,[data-utime]'); if (te) timePosted = te.innerText.trim() || te.getAttribute('title') || ''; }
-                    if (fullText.length > 20) results.push({ author: author || 'N/A', text: fullText.substring(0, 500), permalink: permalink || 'N/A', time: timePosted || 'N/A' });
-                }
-                return results;
-            });
-            console.log(posts.length === 0 ? '[Browser] No posts found. Try scroll then get_posts again.' : JSON.stringify(posts.slice(0, 10), null, 2));
-        } else if (action === 'evaluate') {
-            const code = process.argv.slice(3).join(' ');
-            if (!code) { console.log('[Browser] Usage: evaluate <js_code>'); process.exit(1); }
-            const result = await page.evaluate(code);
-            console.log(result !== undefined && result !== null ? (typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result)) : '[Browser] Done');
-        } else if (action === 'console') {
-            const msgs = []; page.on('console', m => msgs.push('[' + m.type() + '] ' + m.text()));
-            await page.waitForTimeout(2000);
-            console.log(msgs.length === 0 ? '[Browser] No console messages in 2s' : msgs.join('\\n'));
-        } else if (action === 'screenshot') {
-            const p = param1 || '/tmp/screenshot.png'; await page.screenshot({ path: p, fullPage: false }); console.log('[Browser] Screenshot: ' + p);
-        } else if (action === 'screenshot_full') {
-            const p = param1 || '/tmp/screenshot_full.png'; await page.screenshot({ path: p, fullPage: true }); console.log('[Browser] Full screenshot: ' + p);
-        } else if (action === 'pdf') {
-            const p = param1 || '/tmp/page.pdf'; await page.pdf({ path: p, format: 'A4' }); console.log('[Browser] PDF: ' + p);
-        } else if (action === 'click') {
-            await page.locator(param1).first().click({ timeout: 5000 }); await page.waitForTimeout(600); console.log('[Browser] Clicked: ' + param1);
-        } else if (action === 'fill') {
-            await page.locator(param1).first().fill(param2, { timeout: 5000 }); console.log('[Browser] Filled: ' + param1);
-        } else if (action === 'press') {
-            await page.keyboard.press(param1); await page.waitForTimeout(1000); console.log('[Browser] Pressed: ' + param1);
-        } else if (action === 'hover') {
-            await page.locator(param1).first().hover({ timeout: 5000 }); console.log('[Browser] Hovered: ' + param1);
-        } else if (action === 'select') {
-            await page.locator(param1).first().selectOption(param2, { timeout: 5000 }); console.log('[Browser] Selected: ' + param2);
-        } else if (action === 'upload') {
-            await page.locator(param1).first().setInputFiles(param2, { timeout: 5000 }); console.log('[Browser] Uploaded: ' + param2);
-        } else if (action === 'scroll') {
-            const px = parseInt(param1) || 800; await page.evaluate((p) => window.scrollBy(0, p), px); await page.waitForTimeout(2000); console.log('[Browser] Scrolled: ' + px + 'px');
-        } else if (action === 'wait') {
-            const ms = parseInt(param1) || 1000; await page.waitForTimeout(ms); console.log('[Browser] Waited: ' + ms + 'ms');
-        } else if (action === 'resize') {
-            const w = parseInt(param1) || 1280, h = parseInt(param2) || 720; await page.setViewportSize({ width: w, height: h }); console.log('[Browser] Resized: ' + w + 'x' + h);
-        } else if (action === 'tabs') {
-            const ap = ctx.pages(); for (let i = 0; i < ap.length; i++) { const t = await ap[i].title().catch(() => '(untitled)'); console.log('[' + i + '] ' + t + ' | ' + ap[i].url() + (ap[i] === page ? ' < current' : '')); }
-        } else if (action === 'new_tab') {
-            const np = await ctx.newPage(); if (param1) await np.goto(param1, { waitUntil: 'domcontentloaded', timeout: 30000 }); console.log('[Browser] New tab' + (param1 ? ': ' + param1 : ''));
-        } else if (action === 'switch_tab') {
-            const idx = parseInt(param1), ap = ctx.pages(); if (isNaN(idx) || idx < 0 || idx >= ap.length) { console.log('[Browser] Invalid index. Use tabs to list.'); } else { page = ap[idx]; await page.bringToFront(); console.log('[Browser] Switched to [' + idx + ']: ' + page.url()); }
-        } else if (action === 'close_tab') {
-            const ap = ctx.pages(), idx = param1 !== undefined ? parseInt(param1) : ap.indexOf(page); if (ap.length <= 1) { console.log('[Browser] Cannot close last tab.'); } else if (isNaN(idx) || idx < 0 || idx >= ap.length) { console.log('[Browser] Invalid index.'); } else { await ap[idx].close(); console.log('[Browser] Closed tab [' + idx + ']'); }
+        if (data.data && data.data[0] && data.data[0].b64_json) {
+            const buf = Buffer.from(data.data[0].b64_json, 'base64');
+            const absoluteOutputPath = path.isAbsolute(outputPath) ? outputPath : path.join(process.cwd(), outputPath);
+            fs.writeFileSync(absoluteOutputPath, buf);
+            console.log(\`[ImageGen] Saved image to: \${outputPath}\`);
         } else {
-            console.log('browser-tool.js v2 — Commands:');
-            console.log('  Nav:      open <url> | get_url | status');
-            console.log('  Content:  get_text [max] | get_links [filter] | get_posts | evaluate <js> | console');
-            console.log('  Export:   screenshot [path] | screenshot_full [path] | pdf [path]');
-            console.log('  Interact: click <sel> | fill <sel> <txt> | press <key> | hover <sel> | select <sel> <val> | upload <sel> <path>');
-            console.log('  View:     scroll [px] | wait <ms> | resize <w> <h>');
-            console.log('  Tabs:     tabs | new_tab [url] | switch_tab <idx> | close_tab [idx]');
+            console.error('[ImageGen] No image data returned');
+            process.exit(1);
         }
-    } catch(e) {
-        if (e.message.includes('ECONNREFUSED') || e.message.includes('Timeout')) {
-            console.error('[Browser] Chrome Debug not running! Start with --remote-debugging-port=9222');
-        } else { console.error('[Browser] Error:', e.message); }
-    } finally { if (browser) await browser.close(); }
+    } catch (e) {
+        console.error('[ImageGen] Fetch Error:', e.message);
+        process.exit(1);
+    }
 })();
 `;
   }
 
-  function buildBrowserDoc(options = {}) {
-    const { isVi = true, variant = 'wizard', workspaceRoot = '' } = options;
-    const wsRoot = workspaceRoot.replace(/\/+$/, '');
-    const btPath = wsRoot ? `${wsRoot}/browser-tool.js` : 'browser-tool.js';
-    let modeHeading = '';
-    if (variant === 'cli-server') {
-      modeHeading = isVi
-        ? `# 🌍 Trình duyệt ảo (Browser Automation)\n\n## 💡 Hướng dẫn vận hành:\n- **Script điều khiển:** \`browser-tool.js\` (Mọi câu lệnh browser đều chạy qua script này).\n- **Môi trường chạy:**\n  - **Trên VPS / Linux Server (Headless):** Trình duyệt chạy ngầm hoàn toàn độc lập (Headless) bên trong Docker / Server qua Xvfb. Không thể mở màn hình Chrome thật.\n  - **Trên Máy tính cá nhân (Windows/Mac) - Dù chạy Docker hay Native:**\n    - **Mặc định:** Chạy ngầm (headless) cực kỳ ổn định.\n    - **Chế độ quan sát (Xem bot click):** Nếu bạn muốn xem trực tiếp Chrome thật hoạt động trên màn hình, hãy chạy file \`start-chrome-debug.bat\` (trên Windows) hoặc \`start-chrome-debug.sh\` (trên Mac) ở máy của bạn **trước khi** bot kết nối! Bot sẽ tự động chuyển sang điều khiển màn hình Chrome thật của bạn.\n- **Kết nối mặc định:** \`http://127.0.0.1:9222\`\n\n`
-        : `# 🌍 Browser Automation\n\n## 💡 Operating Guide:\n- **Control script:** \`browser-tool.js\` (All browser commands are executed through this script).\n- **Running environment:**\n  - **On VPS / Linux Server (Headless Server Mode):** The browser runs fully headless and isolated inside Docker / Server via Xvfb. No GUI Chrome can be launched.\n  - **On Personal Computers (Windows/Mac) - Docker or Native:**\n    - **Default:** Runs headless and stable in the background.\n    - **Observer Mode (Visual Chrome GUI):** If you want to see the real Chrome window being controlled, run \`start-chrome-debug.bat\` (on Windows) or \`start-chrome-debug.sh\` (on Mac) on your host machine **before** the bot connects! The bot will automatically hook into your real desktop Chrome.\n- **Default endpoint:** \`http://127.0.0.1:9222\`\n\n`;
-    } else {
-      modeHeading = isVi
-        ? `# 🌍 Hướng dẫn Browser (Chrome CDP)\n- **Script điều khiển:** \`browser-tool.js\`\n- **Kết nối Chrome debug:** \`http://127.0.0.1:9222\`\n- **Xem trực quan:** Hãy chạy file \`start-chrome-debug.bat\` (trên Windows) hoặc \`start-chrome-debug.sh\` (trên Mac) để mở Chrome chế độ Debug.\n\n`
-        : `# 🌍 Browser Guide (Chrome CDP)\n- **Control script:** \`browser-tool.js\`\n- **Chrome debug endpoint:** \`http://127.0.0.1:9222\`\n- **Visual interface:** Run \`start-chrome-debug.bat\` (on Windows) or \`start-chrome-debug.sh\` (on Mac) to open Chrome in Debug mode.\n\n`;
-    }
 
-    return `${modeHeading}# Navigation
-node ${btPath} status
-node ${btPath} open "https://google.com"
-node ${btPath} get_url
-
-# ⭐ Content extraction — LUÔN dùng get_posts cho Facebook
-node ${btPath} get_posts
-node ${btPath} get_text
-node ${btPath} get_text 8000
-node ${btPath} get_links
-node ${btPath} get_links "/posts/"
-node ${btPath} evaluate "document.title"
-node ${btPath} console
-
-# Screenshots & export
-node ${btPath} screenshot
-node ${btPath} screenshot_full
-node ${btPath} pdf
-
-# Interactions
-node ${btPath} click "button.submit"
-node ${btPath} fill "input[name='q']" "search"
-node ${btPath} press "Enter"
-node ${btPath} hover "a.link"
-node ${btPath} select "select#id" "value"
-node ${btPath} upload "input[type=file]" "/tmp/photo.jpg"
-
-# Scrolling & viewport
-node ${btPath} scroll
-node ${btPath} scroll 1500
-node ${btPath} wait 3000
-node ${btPath} resize 1920 1080
-
-# Tab management
-node ${btPath} tabs
-node ${btPath} new_tab "https://example.com"
-node ${btPath} switch_tab 1
-node ${btPath} close_tab 2`;
-  }
 
   function buildSecurityRules(isVi = true) {
     if (isVi) {
@@ -580,111 +493,19 @@ node ${btPath} close_tab 2`;
       browserDocVariant = '',
     } = options;
 
-    const skillsSection = skillListStr || (isVi ? '- _(Chưa có skill nào)_' : '- _(No skills installed)_');
-
-    const browserRef = hasBrowser
-      ? (browserDocVariant === 'cli-server'
-        ? (isVi
-          ? `\n\n## 🌐 Browser Automation
-- Xem hướng dẫn chi tiết tại **BROWSER.md**
-- Script điều khiển: \`browser-tool.js\`
-- Chế độ hiện tại: 
-  - **Trên VPS / Linux Server:** Chạy ngầm độc lập qua Docker hoặc Xvfb.
-  - **Trên Windows/Mac (Docker hoặc Native):** Chạy ngầm mặc định, hoặc chạy file \`start-chrome-debug.bat\` / \`start-chrome-debug.sh\` để xem trình duyệt trực quan trên màn hình.
-- Kết nối mặc định: \`http://127.0.0.1:9222\`
-- **Tìm kiếm Web:** Nếu không có công cụ Web Search (hoặc Web Search không khả dụng/bị lỗi), hãy **luôn sử dụng ngay công cụ terminal (exec/run_command) để chạy lệnh: \`node search-tool.js "<từ khóa>" 5\`**! Lệnh này sẽ tự động chạy ngầm qua DuckDuckGo/Google/Bing bằng trình duyệt ngầm tàng hình của bạn và trả về kết quả JSON sạch ngay lập tức. Tuyệt đối KHÔNG được mở trình duyệt thủ công, chụp ảnh màn hình hay click tìm kiếm bằng tay từng bước!
-- Nếu browser lỗi, thử lại 1 lần rồi mới báo user với lỗi cụ thể`
-          : `\n\n## 🌐 Browser Automation
-- See detailed guide at **BROWSER.md**
-- Control script: \`browser-tool.js\`
-- Current mode: 
-  - **On VPS / Linux Server:** Runs headless via Docker or Xvfb.
-  - **On Windows/Mac (Docker or Native):** Runs headless by default, or run \`start-chrome-debug.bat\` / \`start-chrome-debug.sh\` to see the GUI.
-- Default endpoint: \`http://127.0.0.1:9222\`
-- **Web Searching:** If the Web Search tool is unavailable or fails, **always use your terminal execution tool (exec/run_command) to run: \`node search-tool.js "<query>" 5\`**! This will automatically execute the search via DuckDuckGo/Google/Bing under stealth browser mode and return a clean JSON result immediately. Never open the browser manually, take screenshots, or click the search button step-by-step!
-- If browser fails, retry once before reporting the concrete error to the user`)
-        : (isVi
-          ? `\n\n## 🌐 Browser Automation
-- Xem hướng dẫn chi tiết tại **BROWSER.md**
-- Script điều khiển: \`browser-tool.js\`
-- Kết nối Chrome debug: \`http://127.0.0.1:9222\`
-- **Tìm kiếm Web:** Hãy **luôn sử dụng ngay công cụ terminal (exec/run_command) để chạy lệnh: \`node search-tool.js "<từ khóa>" 5\`**! Lệnh này sẽ tự động chạy ngầm qua DuckDuckGo/Google/Bing bằng trình duyệt ngầm tàng hình của bạn và trả về kết quả JSON sạch ngay lập tức. Tuyệt đối KHÔNG được mở trình duyệt thủ công, chụp ảnh màn hình hay click tìm kiếm bằng tay từng bước!
-- Nếu tool/profile hỏi đường browser desktop, dùng profile \`host-chrome\` trước`
-          : `\n\n## 🌐 Browser Automation
-- See detailed guide at **BROWSER.md**
-- Control script: \`browser-tool.js\`
-- Chrome debug endpoint: \`http://127.0.0.1:9222\`
-- **Web Searching:** If the Web Search tool is unavailable or fails, **always use your terminal execution tool (exec/run_command) to run: \`node search-tool.js "<query>" 5\`**! This will automatically execute the search via DuckDuckGo/Google/Bing under stealth browser mode and return a clean JSON result immediately. Never open the browser manually, take screenshots, or click the search button step-by-step!
-- If a desktop browser profile is needed, use the \`host-chrome\` profile first`))
-      : '';
-
-    const telegramSection = (variant === 'relay')
-      ? (isVi
-        ? `\n\n## Telegram\n- Đã bật \`reactionLevel:minimal\`, \`replyToMode:first\`, \`actions.sendMessage\`, và \`actions.reactions\`.\n- Trước MỖI phản hồi Telegram nhìn thấy bởi user, hãy dùng **tool/action native của OpenClaw** để thả \`👍\` trước nếu chat hiện tại hỗ trợ reaction và nếu \`👍\` chưa có sẵn.\n- Không được nói "mình vừa thả like rồi" nếu turn hiện tại chưa gọi được tool reaction hoặc reaction không hiện thật trên chat.\n- Không tự mô tả việc đi gọi Telegram Bot API thủ công.\n- Nếu tool reaction không khả dụng trong turn hiện tại hoặc chat đích không hỗ trợ reaction thật, tiếp tục trả lời bình thường thay vì tranh cãi về kỹ thuật nội bộ.\n- Khi nhận handoff từ bot khác: trả lời công khai bằng chính account Telegram của mình, ưu tiên dùng outbound Telegram action.`
-        : `\n\n## Telegram\n- Configured with \`reactionLevel:minimal\`, \`replyToMode:first\`, \`actions.sendMessage\`, and \`actions.reactions\`.\n- Before EVERY user-visible Telegram reply, use the **native OpenClaw tool/action** to add \`👍\` first when the current chat supports reactions and \`👍\` is not already present.\n- Never claim "I already liked it" unless the current turn actually executed the reaction and the reaction is real on the target chat.\n- Do not describe or roleplay manual Telegram Bot API calls.\n- If the reaction tool is unavailable in the current turn or the target chat does not support real reactions, continue replying normally instead of discussing internal limitations.\n- When receiving a handoff from another bot: reply publicly from your own Telegram account, prefer outbound Telegram action.`)
-      : '';
-
-    const cronSection = hasScheduler
-      ? (isVi
-        ? `\n\n## \u23F0 Cron / Lên lịch nhắc nhở (tool: \`cron\`)
-- **Tên tool chính xác:** Tên công cụ là \`cron\` (tuyệt đối không nhầm là \`native\` hay command line bên ngoài).
-- **⛔ TUYỆT ĐỐI KHÔNG sửa trực tiếp file JSON** như \`jobs.json\`, \`jobs-state.json\` trong thư mục \`.openclaw/cron/\`. Dữ liệu cron được lưu trong SQLite database, file JSON chỉ là legacy format đã ngưng hỗ trợ. Mọi thao tác PHẢI thông qua tool \`cron\`.
-- **Khi tạo cronjob mới (action \`add\`):**
-  - **TUYỆT ĐỐI KHÔNG điền trường \`agentId\`** trong object \`job\` (hãy bỏ qua/omitted trường này). Hệ thống OpenClaw sẽ tự động gán chính xác ID của bạn vào job đó.
-  - Tuyệt đối **không tự điền** \`agentId\` là \`"bot"\` hay \`"main"\`, vì làm vậy sẽ khiến cronjob thuộc về agent khác và bạn sẽ mất quyền kiểm soát/xóa nó sau này.
-  - **Session:** Luôn dùng \`sessionTarget: "isolated"\` cho các job chạy nền (báo cáo, nhắc nhở, gửi tin nhắn tự động). Chỉ dùng \`"main"\` cho system event/reminder ngắn.
-  - **Timezone:** Luôn chỉ định timezone rõ ràng bằng trường \`tz\` (ví dụ: \`"Asia/Ho_Chi_Minh"\`). Nếu không chỉ định, hệ thống sẽ dùng timezone của Gateway host (thường là UTC) và job sẽ chạy sai giờ.
-  - **Delivery:** Đối với job cần gửi kết quả ra chat, set \`delivery.mode: "announce"\` kèm \`delivery.channel\` và \`delivery.to\`.
-- **Khi user yêu cầu tắt/bật/xóa cronjob:**
-  1. **Bước 1 (Tìm kiếm):** Gọi tool \`cron\` với action \`list\` (và \`includeDisabled: true\`) để xem danh sách tất cả cronjob đang chạy trên hệ thống và tìm đúng \`jobId\` phù hợp với yêu cầu.
-  2. **Bước 2 (Xử lý):**
-     - Để xóa: Gọi action \`remove\` với \`id\` tìm được.
-     - Để tắt/tạm dừng: Gọi action \`update\` với \`id\` và patch \`{"enabled": false}\`.
-     - Để bật lại: Gọi action \`update\` với \`id\` và patch \`{"enabled": true}\`.
-  3. **Tuyên bố trung thực:** Tuyệt đối không bao giờ trả lời "đã xóa" hay "không có" dựa trên suy đoán của bản thân mà chưa gọi tool \`cron\` để kiểm tra thực tế.
-- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool \`cron\` (action \`add\`) để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.
-- Khi thao tác tool cho cron/scheduler, **không điền \`current\` vào thư mục Session**.
-- **QUAN TRỌNG VỀ TARGETING GROUP CHAT**: Khi tạo hoặc cấu hình cron job gửi tin nhắn thông báo (announce mode) đến một Group Chat, giá trị của trường \`delivery.to\` **bắt buộc** phải sử dụng tiền tố thích hợp trước ID của group. Với kênh Telegram/Matrix/Discord/Slack, dùng tiền tố \`group:\` (ví dụ: \`group:123456\`). RIÊNG với kênh Zalo (\`zalouser\`), **bắt buộc** phải sử dụng tiền tố \`g:\` (ví dụ: \`g:3815464776067464419\`) để tránh bị OpenClaw core lược bỏ tiền tố và gửi nhầm vào DM chat cá nhân.
-- **One-shot job:** Dùng schedule kind \`"at"\` với ISO 8601 timestamp. Job sẽ tự xóa sau khi chạy thành công trừ khi set \`deleteAfterRun: false\`.
-- Bỏ qua việc tra cứu docs nội bộ như \`cron-jobs.mdx\`; tin tưởng khả năng dùng tool hiện có để hoàn thành yêu cầu.`
-        : `\n\n## \u23F0 Cron / Scheduled Tasks (tool: \`cron\`)
-- **Exact tool name:** The tool name is \`cron\` (never mistake it for \`native\` or external command lines).
-- **⛔ NEVER edit JSON files directly** such as \`jobs.json\` or \`jobs-state.json\` in \`.openclaw/cron/\`. Cron data is stored in SQLite database; JSON files are legacy format no longer supported. All operations MUST go through the \`cron\` tool.
-- **When creating a new cronjob (action \`add\`):**
-  - **ABSOLUTELY DO NOT specify the \`agentId\` field** in the \`job\` object (leave this field omitted). The OpenClaw system will automatically assign your correct agent ID to that job.
-  - Never manually specify \`agentId\` as \`"bot"\` or \`"main"\`, as this will cause the cronjob to belong to another agent and you will lose control to manage/delete it later.
-  - **Session:** Always use \`sessionTarget: "isolated"\` for background jobs (reports, reminders, automated messages). Only use \`"main"\` for short system events/reminders.
-  - **Timezone:** Always specify timezone explicitly via the \`tz\` field (e.g., \`"Asia/Ho_Chi_Minh"\`). If omitted, the system uses the Gateway host timezone (often UTC) and the job will run at the wrong time.
-  - **Delivery:** For jobs that should send results to chat, set \`delivery.mode: "announce"\` with \`delivery.channel\` and \`delivery.to\`.
-- **When the user requests to disable/enable/delete a cronjob:**
-  1. **Step 1 (Search):** Call the \`cron\` tool with action \`list\` (and \`includeDisabled: true\`) to view all cron jobs on the system and find the matching \`jobId\`.
-  2. **Step 2 (Processing):**
-     - To delete: Call action \`remove\` with the \`id\` found.
-     - To disable/pause: Call action \`update\` with \`id\` and patch \`{"enabled": false}\`.
-     - To enable: Call action \`update\` with \`id\` and patch \`{"enabled": true}\`.
-  3. **Honest statement:** Never claim a job is "deleted" or "not found" based on guessing without calling the \`cron\` tool to verify the actual state.
-- When the user asks to schedule tasks or reminders, use the built-in \`cron\` tool (action \`add\`) automatically. Do NOT ask users to run crontab or Task Scheduler manually on the host.
-- When operating cron/scheduler tools, do **not** put \`current\` into the Session directory.
-- **IMPORTANT ABOUT GROUP CHAT TARGETING**: When creating or configuring a cron job to send messages (announce mode) to a Group Chat, the value of the \`delivery.to\` field **must** use the appropriate prefix before the group ID. For Telegram/Matrix/Discord/Slack, use the \`group:\` prefix (e.g., \`group:123456\`). ESPECIALLY for Zalo (\`zalouser\`), you **must** use the \`g:\` prefix (e.g., \`g:3815464776067464419\`) to prevent the OpenClaw core from stripping the prefix and misrouting the message to a private DM.
-- **One-shot jobs:** Use schedule kind \`"at"\` with an ISO 8601 timestamp. The job auto-deletes after successful run unless \`deleteAfterRun: false\` is set.
-- Skip internal doc lookups such as \`cron-jobs.mdx\`; rely on the available tools and complete the scheduling task directly.`)
-      : '';
-
-    const zaloModSection = '';
-
     const dmOverride = isVi
-      ? `\n\n## Override: DM và Telegram reaction\n- Nếu metadata không nói rõ đây là group/supergroup, mặc định xem là chat riêng/DM và trả lời bình thường.\n- Quy tắc im lặng khi không ai được gọi chỉ áp dụng cho group chat, không áp dụng cho DM/chat riêng.\n- Trước MỖI phản hồi Telegram nhìn thấy bởi user, nếu turn hiện tại có tool/action reaction native thì ưu tiên dùng nó để thả \`👍\` trước, trừ khi \`👍\` đã có sẵn.\n- Nếu turn hiện tại không expose tool reaction hoặc chat đích không hỗ trợ reaction thật, cứ trả lời đúng vai trò và không được nói là mình đã thả reaction.`
-      : `\n\n## Override: DM and Telegram reaction\n- If metadata does not clearly say this is a group/supergroup, treat it as a private DM and reply normally.\n- The stay-silent rule for unaddressed messages applies only to group chats, never to DMs.\n- Before EVERY user-visible Telegram reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- If the reaction tool is unavailable or the target chat does not support real reactions, just reply in-character and do not claim that you reacted.`;
+      ? `\n\n## Override: DM và Telegram/Zalo reaction\n- Nếu metadata không nói rõ đây là group/supergroup, mặc định xem là chat riêng/DM và trả lời bình thường.\n- Quy tắc im lặng khi không ai được gọi chỉ áp dụng cho group chat, không áp dụng cho DM/chat riêng.\n- Trước MỖI phản hồi Telegram hoặc Zalo nhìn thấy bởi user, nếu turn hiện tại có tool/action reaction native thì ưu tiên dùng nó để thả \`👍\` trước, trừ khi \`👍\` đã có sẵn.\n- Nếu turn hiện tại không expose tool reaction hoặc chat đích không hỗ trợ reaction thật, cứ trả lời đúng vai trò và không được nói là mình đã thả reaction.`
+      : `\n\n## Override: DM and Telegram/Zalo reaction\n- If metadata does not clearly say this is a group/supergroup, treat it as a private DM and reply normally.\n- The stay-silent rule for unaddressed messages applies only to group chats, never to DMs.\n- Before EVERY user-visible Telegram or Zalo reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- If the reaction tool is unavailable or the target chat does not support real reactions, just reply in-character and do not claim that you reacted.`;
 
     if (variant === 'relay') {
       return isVi
-        ? `# Hướng dẫn dùng tool\n\n## Tools có sẵn\n${skillsSection}\n\n## Quy tắc chung\n- Tóm tắt kết quả tool thay vì dump raw output.\n- Mọi bot đều có quyền sử dụng tất cả tool (scheduler, browser, exec). Vai trò (dev/marketing/...) chỉ là persona, KHÔNG giới hạn quyền dùng tool.\n- Workspace của bạn là \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}${zaloModSection}${dmOverride}\n`
-        : `# Tool Usage Guide\n\n## Available Tools\n${skillsSection}\n\n## General Rules\n- Summarize tool output instead of dumping raw output.\n- All bots have equal access to all tools (scheduler, browser, exec). Roles (dev/marketing/...) are persona only, NOT tool permissions.\n- Your workspace is \`.openclaw/${agentWorkspaceDir}/\`.${browserRef}${telegramSection}${cronSection}${zaloModSection}${dmOverride}\n`;
+        ? `# Hướng dẫn dùng tool\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output.\n- Mọi bot đều có quyền sử dụng tất cả tool (scheduler, browser, exec). Vai trò (dev/marketing/...) chỉ là persona, KHÔNG giới hạn quyền dùng tool.\n- Workspace của bạn là \`.openclaw/${agentWorkspaceDir}/\`.\n\n## 📁 Kỹ năng (Skills)\n- Xem chi tiết hướng dẫn các kỹ năng được cài đặt tại thư mục [skills](./skills/).\n${dmOverride}\n`
+        : `# Tool Usage Guide\n\n## General Rules\n- Summarize tool output instead of dumping raw output.\n- All bots have equal access to all tools (scheduler, browser, exec). Roles (dev/marketing/...) are persona only, NOT tool permissions.\n- Your workspace is \`.openclaw/${agentWorkspaceDir}/\`.\n\n## 📁 Skills\n- See detailed guidelines of installed skills in the [skills](./skills/) directory.\n${dmOverride}\n`;
     }
 
     return isVi
-      ? `# Hướng dẫn sử dụng Tools\n\n## Danh sách skills đã cài\n${skillsSection}\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output${browserRef}\n\n## Quy ước\n- Web Search: TUYỆT ĐỐI KHÔNG dùng tool \`web_search\` native vì nó đã bị vô hiệu hóa hoàn toàn trên hệ thống. Thay vào đó, mỗi khi cần tìm kiếm Internet/Web, bạn BẮT BUỘC phải gọi công cụ \`exec\` để chạy lệnh terminal: \`node search-tool.js "<từ khóa>" 5\`! Lệnh này cực kỳ nhanh, tàng hình và miễn phí.\n- Browser: chỉ mở trang khi user yêu cầu cụ thể\n- Memory: tự ghi nhớ thông tin tự nhiên, không cần user nhắc${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround${dmOverride}\n`
-      : `# Tool Usage Guide\n\n## Installed Skills\n${skillsSection}\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error — retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data${browserRef}\n\n## Conventions\n- Web Search: DO NOT use the native \`web_search\` tool as it is completely disabled. Instead, whenever you need to search the Internet/Web, you MUST call the \`exec\` tool to run terminal command: \`node search-tool.js "<query>" 5\`! This is extremely fast, stealthy and free.\n- Browser: only open pages when user specifically requests\n- Memory: proactively remember important info without user prompting${cronSection}${zaloModSection}\n\n## \uD83D\uDCC1 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## \u26A0\uFE0F Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround${dmOverride}\n`;
+      ? `# Hướng dẫn sử dụng Tools\n\n## Nguyên tắc chung\n- Ưu tiên dùng tool/skill phù hợp thay vì tự suy đoán\n- Nếu tool trả về lỗi — thử lại 1 lần, sau đó báo user\n- Không chạy tool liên tục mà không có mục đích rõ ràng\n- Luôn tóm tắt kết quả tool cho user thay vì dump raw output\n\n## 📁 Kỹ năng (Skills)\n- Xem chi tiết hướng dẫn các kỹ năng được cài đặt tại thư mục [skills](./skills/).\n\n## 📁 File & Workspace\n- Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`\n- Dùng để lưu notes, scripts, cấu hình tạm\n\n## ⚠️ Tool Error Handling\n- Retry tối đa 2 lần nếu tool lỗi network\n- Nếu vẫn lỗi: báo user kèm mô tả lỗi cụ thể và gợi ý workaround${dmOverride}\n`
+      : `# Tool Usage Guide\n\n## General Principles\n- Prefer using the right tool/skill over guessing\n- If a tool returns an error — retry once, then report to user\n- Don't run tools repeatedly without a clear purpose\n- Always summarize tool output for user instead of dumping raw data\n\n## 📁 Skills\n- See detailed guidelines of installed skills in the [skills](./skills/) directory.\n\n## 📁 File & Workspace\n- Bot can read/write files in workspace: \`${workspacePath}\`\n\n## ⚠️ Tool Error Handling\n- Retry up to 2 times on network errors\n- If still failing: report to user with specific error description and workaround${dmOverride}\n`;
   }
   function buildTeamsDoc(options = {}) {
     const {
@@ -725,6 +546,7 @@ node ${btPath} close_tab 2`;
    * @property {string} [teamRosterFormatted]
    * @property {string} [emoji]
    * @property {boolean} [hasScheduler]
+   * @property {boolean} [hasImageGen]
    * @property {boolean} [hasZaloMod]
    */
 
@@ -759,6 +581,7 @@ node ${btPath} close_tab 2`;
       teamRosterFormatted = '',
       emoji = '',
       hasScheduler = false,
+      hasImageGen = false,
       hasZaloMod = false,
     } = opts;
 
@@ -779,20 +602,19 @@ node ${btPath} close_tab 2`;
       'HEARTBEAT.md': buildHeartbeatDoc({ isVi }),
       'BOOTSTRAP.md': buildBootstrapDoc({ isVi, botName }),
       'DREAMS.md': buildDreamsDoc({ isVi }),
-      'search-tool.js': buildSearchToolJs(),
     };
 
     if (isMultiBot) {
       files['TEAMS.md'] = buildTeamsDoc({ isVi, teamRosterFormatted, otherAgents });
     }
 
-    if (hasBrowser) {
-      const toolVariant = browserToolVariant || (soulVariant === 'wizard' ? 'wizard' : 'cli');
-      const docVariant = browserDocVariant || (soulVariant === 'wizard' ? 'wizard' : 'cli-desktop');
-      if (includeBrowserTool) {
-        files['browser-tool.js'] = buildBrowserToolJs(toolVariant);
-      }
-      files['BROWSER.md'] = buildBrowserDoc({ isVi, variant: docVariant, workspaceRoot: workspacePath });
+    if (hasScheduler) {
+      files['skills/cronjob/SKILL.md'] = buildCronjobSkillMd(isVi);
+    }
+
+    if (hasImageGen) {
+      files['skills/infographic-generator/SKILL.md'] = buildInfographicGeneratorSkillMd();
+      files['skills/infographic-generator/image-generator.js'] = buildInfographicGeneratorJs();
     }
 
     return files;
@@ -807,13 +629,13 @@ node ${btPath} close_tab 2`;
     buildDreamsDoc,
     buildHeartbeatDoc,
     buildBootstrapDoc,
-    buildSearchToolJs,
-    buildBrowserToolJs,
-    buildBrowserDoc,
     buildSecurityRules,
     buildAgentsDoc,
     buildToolsDoc,
     buildTeamsDoc,
+    buildCronjobSkillMd,
+    buildInfographicGeneratorSkillMd,
+    buildInfographicGeneratorJs,
     buildWorkspaceFileMap,
   };
 

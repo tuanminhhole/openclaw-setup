@@ -43,12 +43,10 @@
     },
     {
       id: 'image-gen',
-      name: 'Image Generation',
+      name: 'Tạo ảnh Infographic',
       icon: '🎨',
-      descVi: 'Tạo ảnh bằng AI (DALL·E, Flux, Midjourney...)', descEn: 'Generate images via AI (DALL-E, Flux, Midjourney...)',
+      descVi: 'Tạo ảnh infographic, poster tự động qua 9Router', descEn: 'Generate infographic & poster images via 9Router',
       slug: 'image-gen',
-      noteVi: 'Dùng chung OPENAI_API_KEY (DALL-E) hoặc thêm FLUX_API_KEY', noteEn: 'Uses OPENAI_API_KEY (DALL-E) or FLUX_API_KEY',
-      envVars: ['# FLUX_API_KEY=<your_flux_key>  # chỉ cần nếu dùng Flux'],
     },
     {
       id: 'code-interpreter',

@@ -476,9 +476,10 @@ function dashboardView() {
   const cat = state.catalog || {};
   const allSkills = cat.skills || [];
   const allPlugins = cat.plugins || [];
-  const featureFlags = state.featureInstalled || {};
-  const installedSkillsCount = allSkills.filter(sk => featureFlags[`skill:${sk.id}`]).length;
-  const installedPluginsCount = allPlugins.filter(pl => featureFlags[`plugin:${pl.id}`]).length;
+  const featureFlags = state.featureFlags || {};
+  const featureInstalled = state.featureInstalled || {};
+  const installedSkillsCount = allSkills.filter(sk => !!featureFlags[`skill:${sk.slug || sk.id}`]).length;
+  const installedPluginsCount = allPlugins.filter(pl => !!featureInstalled[`plugin:${pl.package || pl.id}`]).length;
 
   const openclawVer = String((s.runtimeVersions?.openclaw || sys.versions?.currentOpenclaw || sys.versions?.openclaw || '-')).replace(/^openclaw@/, '').replace(/^create-openclaw-bot@/, '');
   const routerVer = String((s.runtimeVersions?.nineRouter || sys.versions?.currentNineRouter || sys.versions?.nineRouter || '-')).replace(/^9router@/, '');
@@ -494,10 +495,10 @@ function dashboardView() {
   const pluginsPercent = allPlugins.length ? Math.round((installedPluginsCount / allPlugins.length) * 100) : 0;
   
   const widgets = [
-    { label: t('Project hi\u1ec7n t\u1ea1i','Current project'), value: escapeHtml(fileBaseName(s.projectDir || '-')), meta: `${projects.length} projects` },
+    { label: t('Project hiện tại','Current project'), value: escapeHtml(fileBaseName(s.projectDir || '-')), meta: `${projects.length} projects` },
     { label: t('Bots','Bots'), value: String(bots.length), meta: `${byChannel('telegram')} Telegram \u00b7 ${byChannel('zalo-personal')} Zalo` },
-    { label: t('Provider (LLM)','Provider (LLM)'), value: '9Router', meta: t('\u0110ang s\u1eed d\u1ee5ng nhi\u1ec1u nh\u1ea5t','Most used provider') },
-    { label: t('Model (AI)','Model (AI)'), value: 'gemini-1.5-flash', meta: t('\u0110ang s\u1eed d\u1ee5ng nhi\u1ec1u nh\u1ea5t','Most used model') }
+    { label: t('Provider (LLM)','Provider (LLM)'), value: s.activeProvider || '9Router', meta: t('Đang sử dụng nhiều nhất','Most used provider') },
+    { label: t('Model (AI)','Model (AI)'), value: s.activeModel || 'smart-route', meta: t('Đang sử dụng nhiều nhất','Most used model') }
   ];
   
   return `<div class="dash-shell">
@@ -626,30 +627,62 @@ function botView() {
   const channelBots = bots.filter(b => b.channel === ch);
   if (channelBots.length && !channelBots.some(b => b.id === state.activeBotId)) state.activeBotId = (channelBots.find(b => b.id !== 'bot') || channelBots[0]).id;
   if (!channelBots.length && state.activeBotId) { state.activeBotId = ''; state.selectedFile = ''; state.files = []; }
-  return `<div class="bot-layout bot-layout--single">
-    <section class="card bot-meta">
-      <div class="card-head"><h3>${t('Project & m\u00f4i tr\u01b0\u1eddng','Project & runtime')}</h3></div>
-      <div class="project-switcher">${(sys.projects||[]).length ? (sys.projects||[]).map(p => `<button class="project-chip ${s.projectDir===p.projectDir?'active':''}" data-project-connect="${escapeHtml(p.projectDir)}"><b>${escapeHtml(fileBaseName(p.projectDir))}</b><small>${escapeHtml(p.projectDir)}</small></button>`).join('') : ''}</div>
-      <div class="bot-meta-grid">
-        <div><span>${t('Project','Project')}</span><b>${escapeHtml(s.projectDir || '-')}</b></div>
-        <div><span>${t('K\u00eanh','Channel')}</span><b>${escapeHtml(ch)}</b></div>
-        <div><span>OpenClaw</span><b>${statusBadge(s.gatewayStatus || 'offline')} ${escapeHtml(String(s.runtimeVersions?.openclaw || sys.versions?.openclaw || '-').replace(/^openclaw@/, '').replace(/^create-openclaw-bot@/, ''))}</b></div>
-        <div><span>9Router</span><b>${statusBadge(s.routerStatus || 'offline')} ${escapeHtml(String(s.runtimeVersions?.nineRouter || sys.versions?.nineRouter || '-').replace(/^9router@/, ''))}</b></div>
-      </div>
-    </section>
-    <section class="card bot-main">
-      <div class="card-head">
-        <h3>${t('Bot','Bot')}</h3>
-        <div style="display:flex;gap:8px;">
-          ${(ch === 'zalo-personal' && channelBots.length > 0) ? `<button class="secondary btn-inline" data-zalo-login-trigger type="button">🔑 ${t('Đăng nhập Zalo','Zalo Login')}</button>` : ''}
-          <button class="primary btn-inline" data-bot-modal="open" type="button">+ ${t('Tạo mới','New')}</button>
+
+  const openclawVer = String((s.runtimeVersions?.openclaw || sys.versions?.currentOpenclaw || sys.versions?.openclaw || '-')).replace(/^openclaw@/, '').replace(/^create-openclaw-bot@/, '');
+  const routerVer = String((s.runtimeVersions?.nineRouter || sys.versions?.currentNineRouter || sys.versions?.nineRouter || '-')).replace(/^9router@/, '');
+  const nodeVer = String((s.runtimeVersions?.node || sys.versions?.currentNode || sys.versions?.node || sys.node?.output || '-')).replace(/^v/, '');
+  const machineLabel = `${sys.os || '-'} \u00b7 ${sys.arch || '-'}`;
+
+  return `<div class="bot-layout">
+    <div class="bot-main-col" style="display: grid; gap: 18px;">
+      <section class="card bot-meta bot-main bot-projects-and-bots">
+        <div class="card-head" style="margin-bottom: 12px;">
+          <h3>${t('Project & bot','Project & bot')}</h3>
         </div>
-      </div>
-      <div class="channel-tabs">${BOT_CHANNELS.map(c => `<button class="${ch===c.id?'active':''}" data-bot-channel="${c.id}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${bots.filter(b=>b.channel===c.id).length}</span></button>`).join('')}</div>
-      ${botListPanel(channelBots)}
-    </section>
-    <section class="card bot-skills-panel"><div class="card-head"><h3>${ui('skills')} & ${ui('plugins')}</h3></div>${botSkillsPanel()}</section>
-    <section class="card bot-files-panel">${channelBots.length ? botFilesPanel() : `<div class="bot-files-head"><div><h3>${t('C\u00e2y th\u01b0 m\u1ee5c bot','Bot file tree')}</h3>${projectPathLine()}</div></div><p>${t('Ch\u01b0a c\u00f3 bot trong k\u00eanh n\u00e0y. T\u1ea1o bot tr\u01b0\u1edbc \u0111\u1ec3 xem file workspace.','No bot in this channel. Create a bot first to view workspace files.')}</p>`}</section>
+        <div class="project-switcher">
+          ${(sys.projects||[]).length ? (sys.projects||[]).map(p => {
+            const active = s.projectDir===p.projectDir;
+            return `
+              <div class="project-tab-btn ${active?'active':''}" data-project-connect="${escapeHtml(p.projectDir)}">
+                <div class="project-tab-info">
+                  <b>${escapeHtml(fileBaseName(p.projectDir))}</b>
+                  <small>${escapeHtml(p.projectDir)}</small>
+                </div>
+                <button class="project-tab-delete" data-project-remove="${escapeHtml(p.projectDir)}" title="${t('Xóa project','Delete project')}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </div>
+            `;
+          }).join('') : ''}
+        </div>
+        
+        <div class="bot-main-content" style="margin-top: 14px;">
+          <div class="card-head" style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 16px;">${t('Danh sách bot','Bot list')}</h3>
+            ${(ch === 'zalo-personal' && channelBots.length > 0) ? `<button class="secondary btn-inline" data-zalo-login-trigger type="button" style="min-height: 36px; padding: 6px 12px; font-size: 13px;">🔑 ${t('Đăng nhập Zalo','Zalo Login')}</button>` : ''}
+          </div>
+          <div class="channel-tabs" style="margin-bottom: 16px;">${BOT_CHANNELS.map(c => `<button class="${ch===c.id?'active':''}" data-bot-channel="${c.id}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${bots.filter(b=>b.channel===c.id).length}</span></button>`).join('')}</div>
+          ${botListPanel(channelBots)}
+        </div>
+      </section>
+      <section class="card bot-skills-panel"><div class="card-head"><h3>${ui('skills')} & ${ui('plugins')}</h3></div>${botSkillsPanel()}</section>
+      <section class="card bot-files-panel">${channelBots.length ? botFilesPanel() : `<div class="bot-files-head"><div><h3>${t('Cây thư mục bot','Bot file tree')}</h3>${projectPathLine()}</div></div><p>${t('Chưa có bot trong kênh này. Tạo bot trước để xem file workspace.','No bot in this channel. Create a bot first to view workspace files.')}</p>`}</section>
+    </div>
+    
+    <div class="bot-side-col" style="display: grid; gap: 18px; position: sticky; top: 96px;">
+      <section class="card bot-status-card">
+        <div class="card-head"><h3>${t('Trạng thái','Status')}</h3></div>
+        <div class="runtime-status-grid" style="grid-template-columns: 1fr; margin-top: 14px;">
+          <div class="runtime-status-card"><div class="runtime-status-head"><span>OpenClaw</span>${statusBadge(s.gatewayStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${s.gatewayUrl||'http://127.0.0.1:18789'}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('Mở web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-app type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
+          <div class="runtime-status-card"><div class="runtime-status-head"><span>9Router</span>${statusBadge(s.routerStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${s.routerUrl||'http://127.0.0.1:20128'}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('Mở web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-router type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
+        </div>
+        
+        <div class="dash-version-list" style="margin-top: 18px;">
+          <div><span>OpenClaw</span><b>${escapeHtml(openclawVer || '-')}</b></div>
+          <div><span>9Router</span><b>${escapeHtml(routerVer || '-')}</b></div>
+        </div>
+      </section>
+    </div>
   </div>`;
 }
 
@@ -664,6 +697,12 @@ function botCreateForm(ch, empty, data = {}) {
       : `<div class="choice-grid bot-channel-grid">${BOT_CHANNELS.map(o => choiceCard('bot-channel', o, ch)).join('')}</div>`}
     <div class="bot-form-grid">
       <label><span>${t('\u0054\u00ean bot','Bot name')}</span><input name="botName" required placeholder="Williams" value="${escapeHtml(data.botName || '')}"/></label>
+      ${data.mode !== 'edit' ? `
+        <label>
+          <span>${t('ID bot (viết liền, ko dấu)', 'Bot ID (no accent, lowercase)')}</span>
+          <input name="agentId" required pattern="^[a-z0-9-_]+$" title="${t('Chỉ dùng chữ cái viết thường không dấu, số, gạch ngang (-) và gạch dưới (_)', 'Only lowercase letters, numbers, hyphens (-) and underscores (_) are allowed')}" placeholder="william" value=""/>
+        </label>
+      ` : ''}
       <label><span>${t('\u0056ai tr\u00f2','Role')}</span><input name="role" required placeholder="${t('\u0054r\u1ee3 l\u00fd AI c\u00e1 nh\u00e2n','Personal AI assistant')}" value="${escapeHtml(data.role || '')}"/></label>
       <label><span>Emoji</span><input name="emoji" maxlength="8" placeholder="\uD83E\uDD16" value="${escapeHtml(data.emoji || '')}"/></label>
       ${needsToken ? `<label><span>Token</span><input name="token" ${tokenRequired ? 'required' : ''} autocomplete="off" placeholder="${ch==='telegram'?'123456:ABC...':'Zalo OA token'}" value="${escapeHtml(data.token || '')}"/></label>` : `<input name="token" type="hidden" value="${escapeHtml(data.token || '')}"/>`}
@@ -690,10 +729,17 @@ function botCreateModal() {
 }
 
 function botListPanel(bots) {
-  return bots.length ? `<div class="bot-list">${bots.map(b => {
+  const listItems = bots.map(b => {
     const role = (b.role || b.desc || b.description || '').trim() || t('Tr\u1ee3 l\u00fd OpenClaw','OpenClaw assistant');
     return `<article class="bot-item ${state.activeBotId===b.id?'active':''}" data-bot-id="${escapeHtml(b.id)}"><div class="bot-item-actions"><button class="bot-edit" data-edit-bot="${escapeHtml(b.id)}" title="${t('Sửa bot','Edit bot')}" aria-label="${t('Sửa bot','Edit bot')}">${actionIcon('edit')}</button><button class="bot-delete" data-delete-bot="${escapeHtml(b.id)}" title="${t('X\u00f3a bot','Delete bot')}" aria-label="${t('X\u00f3a bot','Delete bot')}">&times;</button></div><b>${escapeHtml(b.name)}</b><small title="${escapeHtml(role)}">${escapeHtml(role)}</small></article>`;
-  }).join('')}</div>` : `<div class="empty-create"><h3>${t('K\u00eanh n\u00e0y ch\u01b0a c\u00f3 bot','No bot in this channel')}</h3><button class="primary" data-bot-modal="open">+ ${t('T\u1ea1o bot','Create bot')}</button></div>`;
+  });
+  listItems.push(`
+    <article class="bot-item bot-create-card" data-bot-modal="open">
+      <span class="plus-icon">+</span>
+      <span>${t('T\u1ea1o m\u1edbi','New')}</span>
+    </article>
+  `);
+  return `<div class="bot-list">${listItems.join('')}</div>`;
 }
 
 function statusBadge(v) { return `<span class="runtime-badge ${v === 'online' ? 'ok' : v === 'unknown' ? 'warn' : 'bad'}">${v || 'offline'}</span>`; }
@@ -781,6 +827,8 @@ function botSkillsPanel() {
   const flags = state.featureFlags || {};
   const skills = [
     { id: 'cron', title: 'Cron', desc: 'Native scheduler (SQLite) — cron guide in TOOLS.md' },
+    { id: 'image-gen', title: 'Tạo ảnh Infographic', desc: 'Tạo ảnh infographic, poster tự động qua 9Router' },
+    { id: 'web-search', title: 'Web Search', desc: 'Tìm kiếm web thời gian thực (DuckDuckGo)' },
   ];
   const plugins = [
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },
@@ -1194,6 +1242,29 @@ async function loadFiles(silent=false){
 async function loadCatalog(silent=false){ state.catalog = await api('/api/catalog'); if (!silent) render(); }
 async function loadFeatureFlags(silent=false){ const botId=currentBotId(); const data = (await api('/api/features' + (botId ? `?agentId=${encodeURIComponent(botId)}` : ''))) || {}; state.featureFlags = data.flags || {}; state.featureInstalled = data.installed || {}; state.featureVersions = data.versions || {}; if (!silent) render(); }
 function appendLogLine(line) {
+  if (line.includes('Setup Wizard updated successfully! Please restart the installer.')) {
+    showToast(t('Đang khởi động lại UI', 'Restarting Setup UI'), t('Hệ thống đang tự khởi động lại để áp dụng phiên bản mới...', 'The system is restarting to apply the new version...'), 'info', 12000);
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch('/api/system');
+        if (res.ok) {
+          clearInterval(interval);
+          showToast(t('Cập nhật thành công', 'Update Success'), t('Setup Wizard đã được cập nhật lên phiên bản mới!', 'Setup Wizard has been updated to the new version!'), 'success');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        }
+      } catch (e) {
+        if (attempts > 30) {
+          clearInterval(interval);
+          showToast(t('Lỗi kết nối', 'Connection Error'), t('Không thể kết nối lại với Setup UI. Vui lòng tự chạy lại lệnh khởi động.', 'Cannot reconnect to Setup UI. Please run start command manually.'), 'error');
+        }
+      }
+    }, 2000);
+  }
+
   const qrMatch = String(line).match(/^\[zalouser:qr\]\s+(data:image\/[a-zA-Z0-9.+-]+;base64,\S+)/);
   if (qrMatch) {
     state.zaloQrDataUrl = qrMatch[1];

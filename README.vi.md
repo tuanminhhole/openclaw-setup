@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.3-0EA5E9?style=for-the-badge" alt="Version 5.8.3" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.4-0EA5E9?style=for-the-badge" alt="Version 5.8.4" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -23,7 +23,7 @@ Trình cài đặt và quản trị **Web UI Setup** thế hệ mới giúp tự
 
 ---
 
-## 🆕 Có gì mới trong v5.8.3
+## 🆕 Có gì mới trong v5.8.4
 
 - 🔄 **Nút cập nhật Header thông minh**: Nâng cấp trực tiếp setup wizard từ giao diện! Nút cập nhật tự truy vấn npm registry và chỉ hiển thị khi có phiên bản mới hơn.
 - 📡 **Nâng cấp Stream Log trực tiếp**: Khởi chạy cập nhật sẽ tự động nâng cấp (chạy `git pull && npm install && npm run build` cho bản Git, hoặc `npm install -g create-openclaw-bot` cho bản NPM) và đẩy dòng log theo thời gian thực về tab Logs.

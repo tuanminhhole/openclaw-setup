@@ -1,6 +1,18 @@
 # Changelog (English)
 
 
+## [5.8.4] — 2026-06-04
+
+### 🚀 Advanced Skills, Dynamic Model Selection & Setup Wizard Auto-Restart
+
+- **New: Infographic Image Generator Skill**: Generates high-quality infographics and posters with Vietnamese text support. Features a dynamic `image-generator.js` script that resolves API credentials and automatically prioritizes the best active model (Recraft v3, Flux, DALL-E 3, Grok, Minimax, Gemini, etc.) from 9router.
+- **New: Free Web Search Skill**: Zero-token stealth search on Google, Bing, and DuckDuckGo for all AI agents without requiring external API keys.
+- **New: Setup Wizard Auto-Restart & Reload**: Clicking the Update button now automatically pulls, rebuilds, and restarts the backend process, while the frontend UI polls and reloads in real-time to apply the new version.
+- **Improve: Chrome Browser Automation**: Advanced CDP integration with Chrome Debug Mode for Cloudflare bypass, cookie inheritance, and automated library dependency checks.
+- **Improve: Cron / Scheduled Tasks**: Hardened scheduling behavior with timezone support, isolated session control, and proper group chat targeting (requiring `g:` prefix for Zalo channels).
+- **Improve: Setup UI/UX**: Enhanced visual feedback, terminal log stream handling, and layout stability.
+
+
 ## [5.8.3] — 2026-06-02
 
 ### 🔍 Full-Drive Project Discovery & Sidebar Version Fix

@@ -1,10 +1,10 @@
 {
-  "projectDir": "E:\\williams",
+  "projectDir": "E:\\test-minh-khang",
   "mode": "docker",
-  "os": null,
+  "os": "win",
   "installed": true,
-  "gatewayUrl": "http://127.0.0.1:18789",
-  "gatewayPort": 18789,
-  "routerUrl": "http://127.0.0.1:20128",
-  "routerPort": 20128
+  "gatewayUrl": "http://127.0.0.1:18791",
+  "gatewayPort": 18791,
+  "routerUrl": "http://127.0.0.1:20129",
+  "routerPort": 20129
 }

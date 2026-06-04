@@ -13,7 +13,7 @@ function loadSharedModule(modulePath, globalName) {
   if (loaded && Object.keys(loaded).length > 0) return loaded;
   return globalThis[globalName] || loaded || {};
 }
-const { buildWorkspaceFileMap } = loadSharedModule('../setup/shared/workspace-gen.js', '__openclawWorkspace');
+const { buildWorkspaceFileMap, buildCronjobSkillMd, buildInfographicGeneratorSkillMd, buildInfographicGeneratorJs } = loadSharedModule('../setup/shared/workspace-gen.js', '__openclawWorkspace');
 const { buildOpenclawJson, buildEnvFileContent, buildExecApprovalsJson } = loadSharedModule('../setup/shared/bot-config-gen.js', '__openclawBotConfig');
 const { buildDockerArtifacts } = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
 const { OPENCLAW_NPM_SPEC, NINE_ROUTER_NPM_SPEC, build9RouterProviderConfig, get9RouterBaseUrl } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
@@ -27,6 +27,7 @@ const STATE_FILE = '.openclaw-setup-state.json';
 const DEFAULT_MODEL = 'smart-route';
 const logClients = new Set();
 let zaloLoginInFlight = false;
+let activeServerInstance = null;
 const state = {
   installing: false,
   installed: false,
@@ -901,7 +902,32 @@ async function buildBotStatus() {
     resolveProjectRuntimeVersions(state.projectDir, state.mode).catch(() => ({ openclaw: '', nineRouter: '', node: process.version || '' })),
   ]);
   const credentials = await readBotCredentials(state.projectDir).catch(() => ({ openclawToken: '', nineRouterApiKey: '' }));
-  return { ...state, gatewayStatus, routerStatus, bots, credentials, runtimeVersions };
+  
+  let activeModel = 'smart-route';
+  let activeProvider = '9Router';
+  if (state.projectDir) {
+    const cfgPath = join(state.projectDir, '.openclaw', 'openclaw.json');
+    if (existsSync(cfgPath)) {
+      try {
+        const raw = await fsp.readFile(cfgPath, 'utf8');
+        const cfg = JSON.parse(raw);
+        const modelStr = cfg.agents?.defaults?.model?.primary || cfg.agents?.list?.[0]?.model?.primary || 'smart-route';
+        if (modelStr.includes('/')) {
+          const parts = modelStr.split('/');
+          activeProvider = parts[0];
+          activeModel = parts.slice(1).join('/');
+        } else {
+          activeModel = modelStr;
+          activeProvider = cfg.models?.providers?.openai ? 'openai' : '9router';
+        }
+      } catch (e) {}
+    }
+  }
+
+  const cap = (s) => String(s).toLowerCase() === 'openai' ? 'OpenAI' : String(s).toLowerCase() === '9router' ? '9Router' : s;
+  activeProvider = cap(activeProvider);
+
+  return { ...state, gatewayStatus, routerStatus, bots, credentials, runtimeVersions, activeModel, activeProvider };
 }
 
 async function createBotInProject(projectDir, body = {}, runtime = {}) {
@@ -933,10 +959,16 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     agentMetas: [],
   }));
 
-  const existingAgentCount = cfg.agents.list.length;
   const used = new Set(cfg.agents.list.map((a) => a.id));
   const botName = uniqueDisplayName(requestedBotName, new Set(cfg.agents.list.map((a) => a.name || a.id)));
-  const agentId = uniqueSlug(slugify(botName), used);
+  let agentId = body.agentId ? String(body.agentId).trim().toLowerCase().replace(/[^a-z0-9-_]+/g, '-') : '';
+  if (!agentId) {
+    agentId = uniqueSlug(slugify(botName), used);
+  } else {
+    if (used.has(agentId)) {
+      throw httpError(400, `Bot ID "${agentId}" đã tồn tại. Vui lòng chọn ID khác.`);
+    }
+  }
   const workspaceDir = `workspace-${agentId}`;
   const model = cfg.agents.defaults?.model?.primary || cfg.agents.list[0]?.model?.primary || DEFAULT_MODEL;
   cfg.agents.list.push({
@@ -980,6 +1012,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
 
   const hasScheduler = !!(cfg.tools?.alsoAllow || []).includes('group:automation');
+  const hasImageGen = !!(cfg.skills?.entries?.['image-gen']?.enabled);
   const files = buildWorkspaceFileMap({
     isVi: true,
     botName,
@@ -991,6 +1024,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     workspacePath: `.openclaw/${workspaceDir}`,
     hasZaloMod: channel === 'zalo-personal',
     hasScheduler,
+    hasImageGen,
   });
   const wsRoot = join(openclawHome, workspaceDir);
   for (const [name, content] of Object.entries(files)) {
@@ -1080,6 +1114,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   }
 
   const hasScheduler = !!(cfg.tools?.alsoAllow || []).includes('group:automation');
+  const hasImageGen = !!(cfg.skills?.entries?.['image-gen']?.enabled);
   const files = buildWorkspaceFileMap({
     isVi: true,
     botName,
@@ -1091,6 +1126,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     workspacePath: `.openclaw/${workspaceDir}`,
     hasZaloMod: channel === 'zalo-personal',
     hasScheduler,
+    hasImageGen,
   });
   const wsRoot = join(projectDir, '.openclaw', workspaceDir);
   for (const [name, content] of Object.entries(files)) {
@@ -1531,10 +1567,9 @@ async function writeCoreProject({ projectDir, osChoice, mode, gatewayPort = 1878
   await fsp.mkdir(openclawHome, { recursive: true });
   await fsp.mkdir(join(openclawHome, 'plugin-runtime-deps'), { recursive: true });
 
-  const selectedSkills = [];
-  const botName = 'OpenClaw Bot';
-  const agentMetas = [{ agentId: 'bot', name: botName, description: 'Personal OpenClaw assistant' }];
-  const common = { botName, channelKey: 'telegram', providerKey: '9router', model: DEFAULT_MODEL, deployMode: mode, osChoice, selectedSkills, skills: dataExport.SKILLS || [], agentMetas, gatewayPort, routerPort };
+  const selectedSkills = ['memory', 'image-gen', 'web-search'];
+  const agentMetas = [];
+  const common = { channelKey: 'telegram', providerKey: '9router', model: DEFAULT_MODEL, deployMode: mode, osChoice, selectedSkills, skills: dataExport.SKILLS || [], agentMetas, gatewayPort, routerPort };
   const cfg = buildOpenclawJson(common);
   const env = buildEnvFileContent({ ...common, apiKey: '', botToken: '' });
   const approvals = buildExecApprovalsJson({ agentMetas });
@@ -1542,26 +1577,6 @@ async function writeCoreProject({ projectDir, osChoice, mode, gatewayPort = 1878
   await fsp.writeFile(join(openclawHome, 'openclaw.json'), JSON.stringify(cfg, null, 2), 'utf8');
   await fsp.writeFile(join(projectDir, '.env'), env, 'utf8');
   await fsp.writeFile(join(openclawHome, 'exec-approvals.json'), JSON.stringify(approvals, null, 2), 'utf8');
-
-  const workspaceDir = 'workspace-bot';
-  const workspace = buildWorkspaceFileMap({
-    isVi: true,
-    botName,
-    channelKey: 'telegram',
-    providerKey: '9router',
-    selectedSkills,
-    skillsCatalog: dataExport.SKILLS || [],
-    agentMetas,
-    deployMode: mode,
-    osChoice,
-    agentWorkspaceDir: workspaceDir,
-    workspacePath: `.openclaw/${workspaceDir}`,
-  });
-  const wsRoot = join(openclawHome, workspaceDir);
-  for (const [name, content] of Object.entries(workspace)) {
-    await fsp.mkdir(dirname(join(wsRoot, name)), { recursive: true });
-    await fsp.writeFile(join(wsRoot, name), content || '', 'utf8');
-  }
 
   if (mode === 'docker') {
     const projectName = slugify(basename(projectDir)) || 'bot';
@@ -1616,7 +1631,7 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
       await fsp.mkdir(dockerDir, { recursive: true });
       const envContent = existsSync(rootEnvPath)
         ? await fsp.readFile(rootEnvPath, 'utf8')
-        : buildEnvFileContent({ botName: 'OpenClaw Bot', channelKey: 'telegram', providerKey: '9router', deployMode: mode, osChoice, selectedSkills: [], skills: dataExport.SKILLS || [], agentMetas: [{ agentId: 'bot', name: 'OpenClaw Bot', description: 'Personal OpenClaw assistant' }], apiKey: '', botToken: '' });
+        : buildEnvFileContent({ channelKey: 'telegram', providerKey: '9router', deployMode: mode, osChoice, selectedSkills: [], skills: dataExport.SKILLS || [], agentMetas: [], apiKey: '', botToken: '' });
       await fsp.writeFile(dockerEnvPath, envContent, 'utf8');
       sendLog(`Docker env ready: ${dockerEnvPath}`);
       await run('docker', ['compose', 'up', '-d', '--build'], { cwd: dockerDir });
@@ -1971,72 +1986,23 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
   const k = `${kind}:${id}`;
 
   if (kind === 'skill' && id === 'browser') {
+    delete cfg.browser;
+    cfg.plugins = cfg.plugins || { entries: {} };
+    cfg.plugins.entries = cfg.plugins.entries || {};
+    const aliases = ['browser-automation', 'openclaw-browser-automation'];
+    const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
+    cfg.plugins.entries[existingKey] = cfg.plugins.entries[existingKey] || {};
+    cfg.plugins.entries[existingKey].enabled = !!enabled;
+    cfg.plugins.allow = cfg.plugins.allow || [];
     if (enabled) {
-      cfg.browser = {
-        enabled: true,
-        defaultProfile: 'host-chrome',
-        profiles: { 'host-chrome': { cdpUrl: 'http://127.0.0.1:9222', color: '#4285F4' } },
-      };
-      const isHeadlessServer = process.platform === 'linux';
-      const docVariant = 'cli-server';
-
-      for (const a of cfg.agents.list) {
-        const wm = buildWorkspaceFileMap({
-          isVi: true,
-          botName: a.name || a.id,
-          botDesc: '',
-          hasBrowser: false,
-          hasScheduler: true,
-          workspacePath: `.openclaw/${workspaceRelForAgent(a, cfg, projectDir)}/`,
-          agentWorkspaceDir: workspaceRelForAgent(a, cfg, projectDir),
-          variant: cfg.agents.list.length > 1 ? 'relay' : 'single',
-          browserDocVariant: docVariant,
-        });
-        const browserDoc = wm['BROWSER.md'] || '# BROWSER';
-        const browserTool = wm['browser-tool.js'] || '';
-        const bf = await readWorkspaceText(projectDir, a, 'BROWSER.md');
-        await fsp.writeFile(bf.file, browserDoc, 'utf8');
-        const bt = await readWorkspaceText(projectDir, a, 'browser-tool.js');
-        if (browserTool) await fsp.writeFile(bt.file, browserTool, 'utf8');
-        
-        const af = await readWorkspaceText(projectDir, a, 'AGENTS.md');
-        const agentsManaged = upsertManagedBlock(af.content, 'BROWSER_LINK', '- Browser docs: `BROWSER.md`');
-        await fsp.writeFile(af.file, agentsManaged, 'utf8');
-
-        // Add to TOOLS.md
-        const tf = await readWorkspaceText(projectDir, a, 'TOOLS.md');
-        const browserGuide = isHeadlessServer
-          ? `## 🌐 Browser Automation
-- Xem hướng dẫn chi tiết tại **BROWSER.md**
-- Script điều khiển: \`browser-tool.js\`
-- Chế độ hiện tại: Chạy ngầm độc lập qua Docker hoặc Xvfb trên VPS.
-- **Tìm kiếm Web:** Nếu không có công cụ Web Search (hoặc Web Search không khả dụng/bị lỗi), hãy **luôn sử dụng ngay công cụ terminal (exec/run_command) để chạy lệnh: \`node search-tool.js "<từ khóa>" 5\`**! Lệnh này sẽ tự động chạy ngầm qua DuckDuckGo/Google/Bing bằng trình duyệt ngầm tàng hình của bạn và trả về kết quả JSON sạch ngay lập tức. Tuyệt đối KHÔNG được mở trình duyệt thủ công, chụp ảnh màn hình hay click tìm kiếm bằng tay từng bước!
-- Nếu browser lỗi, thử lại 1 lần rồi mới báo user với lỗi cụ thể`
-          : `## 🌐 Browser Automation
-- Xem hướng dẫn chi tiết tại **BROWSER.md**
-- Script điều khiển: \`browser-tool.js\`
-- Chế độ hiện tại: 
-  - **Mặc định:** Chạy ngầm độc lập qua Docker hoặc Server.
-  - **Chế độ xem Chrome thật:** Chạy file \`start-chrome-debug.bat\` / \`start-chrome-debug.sh\` trên host trước để bot kết nối điều khiển trực quan.
-- Kết nối mặc định: \`http://127.0.0.1:9222\`
-- **Tìm kiếm Web:** Nếu không có công cụ Web Search (hoặc Web Search không khả dụng/bị lỗi), hãy **luôn sử dụng ngay công cụ terminal (exec/run_command) để chạy lệnh: \`node search-tool.js "<từ khóa>" 5\`**! Lệnh này sẽ tự động chạy ngầm qua DuckDuckGo/Google/Bing bằng trình duyệt ngầm tàng hình của bạn và trả về kết quả JSON sạch ngay lập tức. Tuyệt đối KHÔNG được mở trình duyệt thủ công, chụp ảnh màn hình hay click tìm kiếm bằng tay từng bước!
-- Nếu browser lỗi, thử lại 1 lần rồi mới báo user với lỗi cụ thể`;
-        await fsp.writeFile(tf.file, upsertManagedBlock(tf.content, 'BROWSER_GUIDE', browserGuide), 'utf8');
-      }
+      if (!cfg.plugins.allow.includes(existingKey)) cfg.plugins.allow.push(existingKey);
     } else {
-      delete cfg.browser;
+      cfg.plugins.allow = cfg.plugins.allow.filter((x) => x !== existingKey);
       for (const a of cfg.agents.list) {
         const bf = await readWorkspaceText(projectDir, a, 'BROWSER.md');
         if (existsSync(bf.file)) await fsp.rm(bf.file, { force: true });
         const bt = await readWorkspaceText(projectDir, a, 'browser-tool.js');
         if (existsSync(bt.file)) await fsp.rm(bt.file, { force: true });
-        
-        const af = await readWorkspaceText(projectDir, a, 'AGENTS.md');
-        await fsp.writeFile(af.file, removeManagedBlock(af.content, 'BROWSER_LINK'), 'utf8');
-
-        // Remove from TOOLS.md
-        const tf = await readWorkspaceText(projectDir, a, 'TOOLS.md');
-        await fsp.writeFile(tf.file, removeManagedBlock(tf.content, 'BROWSER_GUIDE'), 'utf8');
       }
     }
 
@@ -2059,37 +2025,17 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
       cfg.tools.alsoAllow = Array.from(new Set([...(cfg.tools.alsoAllow || []), 'group:automation']));
       cfg.commands = cfg.commands || {};
       cfg.commands.ownerAllowFrom = Array.from(new Set([...(cfg.commands.ownerAllowFrom || []), '*']));
-      const cronGuide = `## ⏰ Cron / Lên lịch nhắc nhở (tool: \`cron\`)
-- **Tên tool chính xác:** Tên công cụ là \`cron\` (tuyệt đối không nhầm là \`native\` hay command line bên ngoài).
-- **⛔ TUYỆT ĐỐI KHÔNG sửa trực tiếp file JSON** như \`jobs.json\`, \`jobs-state.json\` trong thư mục \`.openclaw/cron/\`. Dữ liệu cron được lưu trong SQLite database, file JSON chỉ là legacy format đã ngưng hỗ trợ. Mọi thao tác PHẢI thông qua tool \`cron\`.
-- **Khi tạo cronjob mới (action \`add\`):**
-  - **TUYỆT ĐỐI KHÔNG điền trường \`agentId\`** trong object \`job\` (hãy bỏ qua/omitted trường này). Hệ thống OpenClaw sẽ tự động gán chính xác ID của bạn vào job đó.
-  - Tuyệt đối **không tự điền** \`agentId\` là \`"bot"\` hay \`"main"\`, vì làm vậy sẽ khiến cronjob thuộc về agent khác và bạn sẽ mất quyền kiểm soát/xóa nó sau này.
-  - **Session:** Luôn dùng \`sessionTarget: "isolated"\` cho các job chạy nền (báo cáo, nhắc nhở, gửi tin nhắn tự động). Chỉ dùng \`"main"\` cho system event/reminder ngắn.
-  - **Timezone:** Luôn chỉ định timezone rõ ràng bằng trường \`tz\` (ví dụ: \`"Asia/Ho_Chi_Minh"\`). Nếu không chỉ định, hệ thống sẽ dùng timezone của Gateway host (thường là UTC) và job sẽ chạy sai giờ.
-  - **Delivery:** Đối với job cần gửi kết quả ra chat, set \`delivery.mode: "announce"\` kèm \`delivery.channel\` và \`delivery.to\`.
-- **Khi user yêu cầu tắt/bật/xóa cronjob:**
-  1. **Bước 1 (Tìm kiếm):** Gọi tool \`cron\` với action \`list\` (và \`includeDisabled: true\`) để xem danh sách tất cả cronjob đang chạy trên hệ thống và tìm đúng \`jobId\` phù hợp với yêu cầu.
-  2. **Bước 2 (Xử lý):**
-     - Để xóa: Gọi action \`remove\` với \`id\` tìm được.
-     - Để tắt/tạm dừng: Gọi action \`update\` với \`id\` và patch \`{"enabled": false}\`.
-     - Để bật lại: Gọi action \`update\` với \`id\` và patch \`{"enabled": true}\`.
-  3. **Tuyên bố trung thực:** Tuyệt đối không bao giờ trả lời "đã xóa" hay "không có" dựa trên suy đoán của bản thân mà chưa gọi tool \`cron\` để kiểm tra thực tế.
-- Khi user yêu cầu tạo nhắc nhở / lệnh tự động định kỳ, bạn hãy TỰ ĐỘNG dùng tool \`cron\` (action \`add\`) để tạo. **Tuyệt đối không** bắt user dùng crontab hay Task Scheduler chạy tay trên host.
-- Khi thao tác tool cho cron/scheduler, **không điền \`current\` vào thư mục Session**.
-- **QUAN TRỌNG VỀ TARGETING GROUP CHAT**: Khi tạo hoặc cấu hình cron job gửi tin nhắn thông báo (announce mode) đến một Group Chat, giá trị của trường \`delivery.to\` **bắt buộc** phải sử dụng tiền tố thích hợp trước ID của group. Với kênh Telegram/Matrix/Discord/Slack, dùng tiền tố \`group:\` (ví dụ: \`group:123456\`). RIÊNG với kênh Zalo (\`zalouser\`), **bắt buộc** phải sử dụng tiền tố \`g:\` (ví dụ: \`g:3815464776067464419\`) để tránh bị OpenClaw core lược bỏ tiền tố và gửi nhầm vào DM chat cá nhân.
-- **One-shot job:** Dùng schedule kind \`"at"\` với ISO 8601 timestamp. Job sẽ tự xóa sau khi chạy thành công trừ khi set \`deleteAfterRun: false\`.
-- Bỏ qua việc tra cứu docs nội bộ như \`cron-jobs.mdx\`; tin tưởng khả năng dùng tool hiện có để hoàn thành yêu cầu.`;
       for (const a of cfg.agents.list) {
-        const tf = await readWorkspaceText(projectDir, a, 'TOOLS.md');
-        await fsp.writeFile(tf.file, upsertManagedBlock(tf.content, 'CRON_GUIDE', cronGuide), 'utf8');
+        const sf = await readWorkspaceText(projectDir, a, 'skills/cronjob/SKILL.md');
+        await fsp.mkdir(dirname(sf.file), { recursive: true });
+        await fsp.writeFile(sf.file, buildCronjobSkillMd(true), 'utf8');
       }
     } else {
       if (cfg.tools?.alsoAllow) cfg.tools.alsoAllow = cfg.tools.alsoAllow.filter((x) => x !== 'group:automation');
       if (cfg.commands?.ownerAllowFrom) cfg.commands.ownerAllowFrom = cfg.commands.ownerAllowFrom.filter((x) => x !== '*');
       for (const a of cfg.agents.list) {
-        const tf = await readWorkspaceText(projectDir, a, 'TOOLS.md');
-        await fsp.writeFile(tf.file, removeManagedBlock(tf.content, 'CRON_GUIDE'), 'utf8');
+        const sf = await readWorkspaceText(projectDir, a, 'skills/cronjob/SKILL.md');
+        if (existsSync(sf.file)) await fsp.rm(sf.file, { force: true });
       }
     }
 
@@ -2100,6 +2046,59 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
     if (hasDocker) {
       sendLog(`[docker] Cron skill toggled to ${enabled}. Recreating containers...`);
+      await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
+    }
+  }
+
+  if (kind === 'skill' && id === 'image-gen') {
+    cfg.skills = cfg.skills || { entries: {} };
+    cfg.skills.entries = cfg.skills.entries || {};
+    cfg.skills.entries['image-gen'] = cfg.skills.entries['image-gen'] || {};
+    cfg.skills.entries['image-gen'].enabled = !!enabled;
+
+    for (const a of cfg.agents.list) {
+      const sf = await readWorkspaceText(projectDir, a, 'skills/infographic-generator/SKILL.md');
+      const js = await readWorkspaceText(projectDir, a, 'skills/infographic-generator/image-generator.js');
+      if (enabled) {
+        await fsp.mkdir(dirname(sf.file), { recursive: true });
+        await fsp.writeFile(sf.file, buildInfographicGeneratorSkillMd(), 'utf8');
+        await fsp.writeFile(js.file, buildInfographicGeneratorJs(), 'utf8');
+      } else {
+        if (existsSync(sf.file)) await fsp.rm(sf.file, { force: true });
+        if (existsSync(js.file)) await fsp.rm(js.file, { force: true });
+      }
+    }
+
+    // Write cfgPath early so recreation reads updated openclaw.json
+    await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+
+    // Recreate container to apply updated openclaw.json
+    const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
+    if (hasDocker) {
+      sendLog(`[docker] Infographic skill toggled to ${enabled}. Recreating containers...`);
+      await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
+    }
+  }
+
+  if (kind === 'skill' && id === 'web-search') {
+    cfg.plugins = cfg.plugins || { entries: {} };
+    cfg.plugins.entries = cfg.plugins.entries || {};
+    cfg.plugins.entries['duckduckgo'] = cfg.plugins.entries['duckduckgo'] || {};
+    cfg.plugins.entries['duckduckgo'].enabled = !!enabled;
+    cfg.plugins.allow = cfg.plugins.allow || [];
+    if (enabled) {
+      if (!cfg.plugins.allow.includes('duckduckgo')) cfg.plugins.allow.push('duckduckgo');
+    } else {
+      cfg.plugins.allow = cfg.plugins.allow.filter((x) => x !== 'duckduckgo');
+    }
+
+    // Write cfgPath early so recreation reads updated openclaw.json
+    await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+
+    // Recreate container to apply updated openclaw.json
+    const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
+    if (hasDocker) {
+      sendLog(`[docker] Web Search skill toggled to ${enabled}. Recreating containers...`);
       await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
     }
   }
@@ -2344,6 +2343,8 @@ async function getFeatureFlags(projectDir, agentId = '') {
       Array.from(installedSpecs).some((spec) => spec.includes(a)) ||
       allowSet.has(a)
     );
+  const imageGenOn = !!cfg.skills?.entries?.['image-gen']?.enabled;
+  const webSearchOn = isEnabled(['duckduckgo']);
   const aliases = {
     browser: ['openclaw-browser-automation', 'browser-automation'],
     zalo: ['openclaw-zalo-mod', 'zalo-mod'],
@@ -2353,6 +2354,8 @@ async function getFeatureFlags(projectDir, agentId = '') {
   const flags = {
     'skill:browser': browserOn,
     'skill:cron': cronOn,
+    'skill:image-gen': imageGenOn,
+    'skill:web-search': webSearchOn,
     'plugin:openclaw-browser-automation': isEnabled(aliases.browser),
     'plugin:openclaw-zalo-mod': isEnabled(aliases.zalo),
     'plugin:openclaw-facebook-crawler': isEnabled(aliases.crawler),
@@ -2544,6 +2547,7 @@ async function handler(req, res, rootProjectDir) {
             await run('npm', ['install'], { cwd: rootProjectDir });
             await run('npm', ['run', 'build'], { cwd: rootProjectDir });
             sendLog('[update-setup] Setup Wizard updated successfully! Please restart the installer.');
+            restartInstaller();
           } catch (err) {
             sendLog(`[update-setup] Error updating: ${err.message}`);
           }
@@ -2555,6 +2559,7 @@ async function handler(req, res, rootProjectDir) {
           try {
             await run('npm', ['install', '-g', 'create-openclaw-bot@latest'], { cwd: rootProjectDir });
             sendLog('[update-setup] Setup Wizard updated successfully! Please restart the installer.');
+            restartInstaller();
           } catch (err) {
             sendLog(`[update-setup] Error updating: ${err.message}`);
           }
@@ -2652,6 +2657,8 @@ async function handler(req, res, rootProjectDir) {
       skills: [
         { name: 'Browser', slug: 'browser' },
         { name: 'Cron', slug: 'cron' },
+        { name: 'Tạo ảnh Infographic', slug: 'image-gen' },
+        { name: 'Web Search', slug: 'web-search' },
       ],
       plugins: [
         { name: 'openclaw-browser-automation', package: 'openclaw-browser-automation' },
@@ -2700,13 +2707,42 @@ function openUrl(url) {
   child.unref();
 }
 
+function restartInstaller() {
+  sendLog('[update-setup] Restarting Setup Wizard to apply update...');
+  setTimeout(() => {
+    try {
+      if (activeServerInstance) {
+        activeServerInstance.close();
+      }
+      
+      const entryFile = process.argv[1];
+      const args = process.argv.slice(2);
+      
+      if (!args.includes('--no-open')) {
+        args.push('--no-open');
+      }
+      
+      const child = spawn(process.argv[0], [entryFile, ...args], {
+        detached: true,
+        stdio: 'inherit',
+        shell: process.platform === 'win32'
+      });
+      child.unref();
+      
+      process.exit(0);
+    } catch (err) {
+      sendLog(`[update-setup] Failed to restart: ${err.message}`);
+    }
+  }, 2000);
+}
+
 export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 51789, openBrowser = true, projectDir = process.cwd() } = {}) {
   const port = await findPort(host, preferredPort);
   const server = http.createServer((req, res) => handler(req, res, projectDir));
+  activeServerInstance = server;
   await new Promise((resolve) => server.listen(port, host, resolve));
   const url = `http://${host}:${port}`;
   console.log(`OpenClaw Setup UI: ${url}`);
-  console.log('Legacy CLI: create-openclaw-bot legacy');
   if (openBrowser) openUrl(url);
 }
 

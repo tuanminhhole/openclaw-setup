@@ -1,6 +1,18 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.8.4] — 2026-06-04
+
+### 🚀 Nâng Cấp Skill, Tự Động Chọn Model & Tự Khởi Động Lại Setup Wizard
+
+- **Mới: Skill Tạo Ảnh Infographic**: Hỗ trợ tạo ảnh infographic và poster có chữ tiếng Việt chuẩn xác. Tích hợp script `image-generator.js` tự động đồng bộ API credentials từ `openclaw.json` và tự động ánh xạ model tạo ảnh tốt nhất đang hoạt động (Recraft v3, Flux, DALL-E 3, Grok, Minimax, Gemini...) từ 9router.
+- **Mới: Skill Web Search Miễn Phí**: Tích hợp tìm kiếm Google, Bing, DuckDuckGo không tốn token, không cần API key ngoài (Tavily/Google Search).
+- **Mới: Tự Động Khởi Động Lại & Tải Lại UI**: Nút Cập nhật trên header giờ sẽ tự động kéo code mới, rebuild và restart server NodeJS trong nền. Frontend tự động ping và reload lại trang realtime ngay khi phiên bản mới hoạt động.
+- **Cải tiến: Tự Động Hóa Trình Duyệt (Browser Automation)**: Nâng cấp điều khiển Chrome qua giao thức CDP, tự động bypass Cloudflare, tái sử dụng session/cookie từ Chrome thật của máy chủ và kiểm tra thư viện hệ điều hành.
+- **Cải tiến: Cron / Lên Lịch Nhắc Nhở**: Hoàn thiện hành vi lập lịch nhắc nhở, hỗ trợ múi giờ (`tz`), chạy isolated session và chuẩn hóa tiền tố `g:` khi gửi tin nhắn nhóm Zalo.
+- **Cải tiến: Giao Diện UI/UX**: Tối ưu hiển thị log stream, trạng thái cài đặt plugin và giao diện điều khiển.
+
+
 ## [5.8.3] — 2026-06-02
 
 ### 🔍 Quét Toàn Bộ Ổ Đĩa & Sửa Lỗi Hiển Thị Version Sidebar

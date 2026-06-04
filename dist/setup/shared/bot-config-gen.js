@@ -140,18 +140,24 @@
     }
 
     // ── bindings (multi-bot or Zalo) ─────────────────────────────────────────
-    if (isMultiBot && channelKey === 'telegram') {
+    if (agentMetas.length > 0 && isMultiBot && channelKey === 'telegram') {
       cfg.bindings = agentMetas.map((meta) => ({
         agentId: meta.agentId,
         match: { channel: 'telegram', accountId: meta.accountId || 'default' },
       }));
+    } else {
+      cfg.bindings = [];
     }
 
     // ── channels ─────────────────────────────────────────────────────────────
-    cfg.channels = buildChannelConfig({
-      channelKey, isMultiBot, groupId, agentMetas, botName: agentMetas[0]?.name || 'Bot',
-      agentId: agentMetas[0]?.agentId || 'bot',
-    });
+    if (agentMetas.length > 0) {
+      cfg.channels = buildChannelConfig({
+        channelKey, isMultiBot, groupId, agentMetas, botName: agentMetas[0]?.name || 'Bot',
+        agentId: agentMetas[0]?.agentId || 'bot',
+      });
+    } else {
+      cfg.channels = {};
+    }
 
     // ── tools ────────────────────────────────────────────────────────────────
     cfg.tools = { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
@@ -179,16 +185,7 @@
       auth: { mode: 'token', token: generateToken() },
     };
 
-    // ── browser ──────────────────────────────────────────────────────────────
-    if (hasBrowserDesktop) {
-      cfg.browser = {
-        enabled: true,
-        defaultProfile: 'host-chrome',
-        profiles: { 'host-chrome': { cdpUrl: 'http://127.0.0.1:9222', color: '#4285F4' } },
-      };
-    } else if (hasBrowserServer) {
-      cfg.browser = { enabled: true };
-    }
+    // ── browser (delegated to browser-automation plugin) ────────────────────
 
     // ── skills ───────────────────────────────────────────────────────────────
     const skillEntries = buildSkillsEntries(skills, selectedSkills);
@@ -206,7 +203,7 @@
     cfg.plugins = pluginsConfig.plugins;
 
     // ── bindings for zalouser ────────────────────────────────────────────────
-    if (isZaloPersonal(channelKey)) {
+    if (agentMetas.length > 0 && isZaloPersonal(channelKey)) {
       cfg.bindings = cfg.bindings || [];
       const firstAgentId = agentMetas[0]?.agentId || 'bot';
       if (!cfg.bindings.some(b => b.match && b.match.channel === 'zalouser')) {
@@ -315,6 +312,14 @@
     // Zalo Personal channel is native; install openclaw-zalo-mod manually via ClawHub when needed.
     if (isZaloPersonal(channelKey)) {
       allow.push('zalouser');
+    }
+
+    // DuckDuckGo search plugin for web-search
+    if (selectedSkills.includes('web-search') || selectedSkills.includes('web_search')) {
+      entries['duckduckgo'] = { enabled: true };
+      if (!allow.includes('duckduckgo')) {
+        allow.push('duckduckgo');
+      }
     }
 
     const plugins = { entries };

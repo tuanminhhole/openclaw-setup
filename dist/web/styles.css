@@ -126,7 +126,7 @@ main{position:relative;overflow:visible!important}.topbar{position:-webkit-stick
 
 /* Final donate modal + fixed header */
 main{padding-top:96px!important}.topbar{position:fixed!important;top:16px!important;left:288px!important;right:388px!important;z-index:950!important;margin:0!important}.modal-backdrop{z-index:2000!important}.modal-x{display:grid!important;place-items:center!important;color:var(--ink)!important;font-size:0!important}.modal-x svg{width:18px;height:18px;display:block}.donate-head p{font-family:var(--font-sans)!important;color:var(--body)!important;font-size:13px!important;line-height:1.3!important}.donate-head h2{font-family:var(--font-sans)!important}.qr-frame{width:100%;aspect-ratio:1/1;background:#fff;border-radius:12px;display:grid;place-items:center;overflow:hidden}.qr-frame img{width:100%!important;height:100%!important;max-height:none!important;object-fit:cover!important;object-position:center!important;border-radius:0!important;background:#fff!important}.donate-grid article:nth-child(2) .qr-frame img{object-fit:cover!important}.donate-grid article>b{font-family:var(--font-sans)!important}
-@media(max-width:1180px){.topbar{left:112px!important;right:28px!important}main{padding-top:92px!important}}@media(max-width:760px){.topbar{left:12px!important;right:12px!important;top:8px!important}main{padding-top:150px!important}.qr-frame img{object-fit:contain!important}}
+@media(max-width:1180px){.topbar{left:16px!important;right:16px!important}main{padding-top:92px!important}}@media(max-width:760px){.topbar{left:12px!important;right:12px!important;top:8px!important}main{padding-top:92px!important}.qr-frame img{object-fit:contain!important}}
 
 /* Donate microcopy */
 .donate-head small{display:block;margin-top:6px;max-width:520px;color:var(--body);font-family:var(--font-sans);font-size:13px;line-height:1.45}
@@ -135,12 +135,12 @@ main{padding-top:96px!important}.topbar{position:fixed!important;top:16px!import
 /* Header must stay viewport-fixed: no transformed/perspective ancestor */
 html,body{transform:none!important;perspective:none!important;filter:none!important;contain:none!important}
 body{perspective:none!important}.topbar{position:fixed!important;top:16px!important;left:288px!important;right:388px!important;z-index:5000!important;transform:none!important;will-change:auto!important}.topbar *{transform:none}.modal-backdrop{z-index:6000!important}
-@media(max-width:1180px){.topbar{left:112px!important;right:28px!important}}
+@media(max-width:1180px){.topbar{left:16px!important;right:16px!important}}
 @media(max-width:760px){.topbar{left:12px!important;right:12px!important;top:8px!important}}
 
 
 /* Fixed shell columns: sidebar + logs stay in place */
-#app{display:block!important;min-height:100vh}.sidebar{position:fixed!important;left:0!important;top:0!important;bottom:0!important;width:260px!important;height:100vh!important;z-index:800!important;overflow:auto!important}.status{position:fixed!important;right:0!important;top:0!important;bottom:0!important;width:360px!important;height:100vh!important;z-index:800!important;overflow:hidden!important}main{margin-left:260px!important;margin-right:360px!important;min-height:100vh!important}.topbar{left:288px!important;right:388px!important}.bottom{display:none!important}@media(max-width:1180px){.sidebar{width:88px!important}.status{display:none!important}main{margin-left:88px!important;margin-right:0!important}.topbar{left:112px!important;right:28px!important}.sidebar-extra{display:none!important}}@media(max-width:760px){.sidebar{position:static!important;width:auto!important;height:auto!important;overflow:visible!important}.status{display:none!important}main{margin-left:0!important;margin-right:0!important}.topbar{left:12px!important;right:12px!important}.bottom{display:grid!important}}
+#app{display:block!important;min-height:100vh}.sidebar{position:fixed!important;left:0!important;top:0!important;bottom:0!important;width:260px!important;height:100vh!important;z-index:800!important;overflow:auto!important}.status{position:fixed!important;right:0!important;top:0!important;bottom:0!important;width:360px!important;height:100vh!important;z-index:800!important;overflow:hidden!important}main{margin-left:260px!important;margin-right:360px!important;min-height:100vh!important}.topbar{left:288px!important;right:388px!important}.bottom{display:none!important}@media(max-width:1180px){.sidebar{display:none!important}.status{display:none!important}main{margin-left:0!important;margin-right:0!important;padding-bottom:90px!important}.topbar{left:16px!important;right:16px!important}.sidebar-extra{display:none!important}.bottom{display:grid!important}}@media(max-width:760px){.sidebar{display:none!important}.status{display:none!important}main{margin-left:0!important;margin-right:0!important;padding-bottom:90px!important}.topbar{left:12px!important;right:12px!important;top:8px!important}.bottom{display:grid!important}}
 
 /* Light mode polish: Sleek Tech aesthetic (inspired by openclaw.ai) */
 html[data-theme="light"] {
@@ -312,8 +312,8 @@ main{margin-left:260px!important;margin-right:0!important;min-height:100vh!impor
 .logs-card{min-height:300px}
 .logs-card .terminal{height:300px!important;max-height:42vh!important}
 .system-card{min-height:auto!important}
-@media(max-width:1180px){main{margin-left:88px!important;margin-right:0!important}.topbar{left:112px!important;right:28px!important}.setup-shell{grid-template-columns:1fr!important}.setup-side{position:static!important}.logs-card .terminal{height:260px!important;max-height:none!important}}
-@media(max-width:760px){main{margin-left:0!important;margin-right:0!important}.topbar{left:12px!important;right:12px!important}.setup-shell{grid-template-columns:1fr!important}.setup-side{position:static!important}.logs-card .terminal{height:220px!important}}
+@media(max-width:1180px){main{margin-left:0!important;margin-right:0!important;padding-bottom:90px!important}.topbar{left:16px!important;right:16px!important}.setup-shell{grid-template-columns:1fr!important}.setup-side{position:static!important}.logs-card .terminal{height:260px!important;max-height:none!important}}
+@media(max-width:760px){main{margin-left:0!important;margin-right:0!important;padding-bottom:90px!important}.topbar{left:12px!important;right:12px!important}.setup-shell{grid-template-columns:1fr!important}.setup-side{position:static!important}.logs-card .terminal{height:220px!important}}
 
 /* Compact logo selector cards */
 .os-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
@@ -1368,8 +1368,475 @@ html[data-theme="light"] .bot-item-actions button:hover {
   color: var(--primary) !important;
 }
 
+/* Bot view Horizontal Tabs styling */
+/* Premium Bot Channel Tabs Styling */
+.channel-tabs {
+  display: flex !important;
+  gap: 12px !important;
+  margin: 18px 0 !important;
+  border-bottom: 1px solid var(--hair) !important;
+  padding-bottom: 12px !important;
+}
 
+.channel-tabs button {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: transparent !important;
+  border: 1px solid var(--hair) !important;
+  border-radius: 999px !important;
+  padding: 8px 16px !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
 
+.channel-tabs button img {
+  width: 16px !important;
+  height: 16px !important;
+  object-fit: contain !important;
+  filter: grayscale(100%) opacity(60%) !important;
+  transition: all 0.2s ease !important;
+}
 
+.channel-tabs button span {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--muted) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  padding: 2px 6px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.03) !important;
+  transition: all 0.2s ease !important;
+}
 
+/* Hover State */
+.channel-tabs button:hover {
+  border-color: var(--primary) !important;
+  color: var(--ink) !important;
+}
 
+/* Active State in Dark Mode */
+html[data-theme="dark"] .channel-tabs button.active {
+  border-color: var(--primary) !important;
+  background: rgba(244, 63, 94, 0.1) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.15) !important;
+}
+
+html[data-theme="dark"] .channel-tabs button.active img {
+  filter: none !important;
+}
+
+html[data-theme="dark"] .channel-tabs button.active span {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+/* Active State in Light Mode */
+html[data-theme="light"] .channel-tabs button {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .channel-tabs button img {
+  filter: grayscale(100%) opacity(80%) !important;
+}
+
+html[data-theme="light"] .channel-tabs button span {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] .channel-tabs button.active {
+  border-color: var(--primary) !important;
+  background: rgba(244, 63, 94, 0.06) !important;
+  color: var(--primary) !important;
+  box-shadow: 0 4px 12px rgba(244, 63, 94, 0.06) !important;
+}
+
+html[data-theme="light"] .channel-tabs button.active img {
+  filter: none !important;
+}
+
+html[data-theme="light"] .channel-tabs button.active span {
+  background: var(--primary) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+/* Move loading spinner to top-right of project-chip with beautiful styling */
+.project-chip {
+  position: relative !important;
+}
+
+.project-chip.is-loading::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 14px !important;
+  right: 14px !important;
+  width: 16px !important;
+  height: 16px !important;
+  border: 2px solid rgba(244, 63, 94, 0.2) !important;
+  border-top-color: var(--primary) !important;
+  border-radius: 50% !important;
+  animation: spinProjectSpinner 0.8s linear infinite !important;
+  margin: 0 !important;
+  transform: none !important;
+  left: auto !important;
+  bottom: auto !important;
+}
+
+@keyframes spinProjectSpinner {
+  to { transform: rotate(360deg); }
+}
+
+/* Premium Bot Item Actions Styling (Visible by Default) */
+.bot-item {
+  position: relative !important;
+}
+
+.bot-item-actions {
+  display: flex !important;
+  gap: 6px !important;
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  opacity: 1 !important; /* Always visible */
+  pointer-events: auto !important;
+  z-index: 10 !important;
+  transition: all 0.2s ease !important;
+}
+
+.bot-item-actions button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--hair) !important;
+  background: var(--surface2) !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  opacity: 0.75 !important; /* Subtle visible state */
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.bot-item-actions button svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* Hover effects for actions buttons */
+.bot-item-actions button:hover {
+  opacity: 1 !important;
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 4px 12px rgba(244, 63, 94, 0.15) !important;
+}
+
+/* Specific styling for delete button to glow red on hover */
+.bot-item-actions button.bot-delete:hover {
+  color: #ff4b5d !important;
+  border-color: #ff4b5d !important;
+  box-shadow: 0 4px 12px rgba(255, 75, 93, 0.2) !important;
+}
+
+/* Light Mode Overrides for Bot Item Actions */
+html[data-theme="light"] .bot-item-actions button {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+html[data-theme="light"] .bot-item-actions button:hover {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+/* Bot view Horizontal Tabs styling */
+.bot-meta .project-switcher {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  gap: 6px !important;
+  border-bottom: 1px solid var(--hair) !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 10px !important;
+  width: 100% !important;
+  scrollbar-width: none !important;
+}
+
+.bot-meta .project-switcher::-webkit-scrollbar {
+  display: none !important;
+}
+
+.project-tab-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 14px 10px 16px !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--hair) !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 10px 10px 0 0 !important;
+  color: var(--muted) !important;
+  cursor: pointer !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative !important;
+  min-width: 150px !important;
+  max-width: 240px !important;
+  flex-shrink: 0 !important;
+  margin-bottom: -1px !important;
+}
+
+.project-tab-btn:hover {
+  color: var(--ink) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 36, 54, 0.3) !important;
+}
+
+.project-tab-btn.active {
+  color: var(--ink) !important;
+  background: rgba(255, 36, 54, 0.08) !important;
+  border-color: var(--hair) !important;
+  border-bottom-color: var(--primary) !important;
+}
+
+.project-tab-info {
+  display: flex !important;
+  flex-direction: column !important;
+  text-align: left !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+  pointer-events: none !important;
+}
+
+.project-tab-info b {
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: var(--body) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+}
+
+.project-tab-btn.active .project-tab-info b {
+  color: var(--ink) !important;
+}
+
+.project-tab-info small {
+  font-size: 10px !important;
+  color: var(--muted) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+  margin-top: 2px !important;
+}
+
+.project-tab-delete {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 6px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  flex-shrink: 0 !important;
+  z-index: 5 !important;
+}
+
+.project-tab-delete:hover {
+  background: rgba(255, 36, 54, 0.16) !important;
+  color: #ff4b5d !important;
+}
+
+.project-tab-delete svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+/* Light mode support for Tabs */
+html[data-theme="light"] .project-tab-btn {
+  background: rgba(0, 0, 0, 0.02) !important;
+}
+html[data-theme="light"] .project-tab-btn:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+html[data-theme="light"] .project-tab-btn.active {
+  background: rgba(244, 63, 94, 0.06) !important;
+  border-bottom-color: var(--primary) !important;
+}
+
+/* Premium Native Bottombar styling */
+.bottom {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 72px !important;
+  display: none !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  background: rgba(16, 16, 16, 0.72) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-top: 1px solid rgba(255, 36, 54, 0.15) !important;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6) !important;
+  z-index: 9999 !important;
+  padding-bottom: env(safe-area-inset-bottom, 0) !important;
+}
+
+.bottom .nav {
+  position: relative !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  cursor: pointer !important;
+  padding: 8px 0 !important;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  height: 100% !important;
+  box-shadow: none !important;
+}
+
+.bottom .nav svg {
+  width: 22px !important;
+  height: 22px !important;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+.bottom .nav small {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  display: block !important;
+}
+
+/* Active Bottom Tab indicator & micro-animations */
+.bottom .nav.active {
+  color: var(--primary) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.bottom .nav.active svg {
+  transform: translateY(-4px) scale(1.1) !important;
+  color: var(--primary) !important;
+}
+
+.bottom .nav.active::after {
+  content: "" !important;
+  position: absolute !important;
+  bottom: 8px !important;
+  width: 5px !important;
+  height: 5px !important;
+  border-radius: 50% !important;
+  background-color: var(--primary) !important;
+  box-shadow: 0 0 10px var(--primary) !important;
+  animation: pulseActiveDot 1.5s infinite alternate !important;
+}
+
+@keyframes pulseActiveDot {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}
+
+/* Light Mode Overrides for Bottom Nav */
+html[data-theme="light"] .bottom {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-top: 1px solid rgba(244, 63, 94, 0.15) !important;
+  box-shadow: 0 -10px 40px rgba(15, 23, 42, 0.08) !important;
+}
+html[data-theme="light"] .bottom .nav {
+  color: var(--muted) !important;
+}
+html[data-theme="light"] .bottom .nav.active {
+  color: var(--primary) !important;
+}
+
+/* Right-align version strings in lists when wrapped */
+.dash-version-list div b {
+  text-align: right !important;
+}
+
+/* Ensure bottom navigation bar is visible on tablet and mobile (under 1180px) */
+@media (max-width: 1180px) {
+  .bottom {
+    display: grid !important;
+  }
+}
+
+/* Beautiful "+ New Bot" card style */
+.bot-create-card {
+  border: 1.5px dashed rgba(255, 36, 54, 0.28) !important;
+  background: rgba(255, 36, 54, 0.02) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 4px !important;
+  min-height: 104px !important;
+  border-radius: 18px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.bot-create-card:hover {
+  border-color: var(--primary) !important;
+  background: rgba(255, 36, 54, 0.08) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(255, 36, 54, 0.12) !important;
+}
+
+.bot-create-card .plus-icon {
+  font-size: 24px !important;
+  font-weight: 300 !important;
+  color: var(--primary) !important;
+  line-height: 1 !important;
+}
+
+.bot-create-card span:not(.plus-icon) {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--muted) !important;
+}
+
+.bot-create-card:hover span:not(.plus-icon) {
+  color: var(--ink) !important;
+}
+
+/* Light Mode Overrides for "+ New Bot" card */
+html[data-theme="light"] .bot-create-card {
+  border-color: rgba(244, 63, 94, 0.4) !important;
+  background: rgba(244, 63, 94, 0.02) !important;
+}
+
+html[data-theme="light"] .bot-create-card:hover {
+  background: rgba(244, 63, 94, 0.05) !important;
+}
