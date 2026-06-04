@@ -896,10 +896,10 @@ function wireTab() {
     state.zaloLoginLines = [t('Đang chuẩn bị quét mã Zalo...', 'Preparing Zalo QR login...')];
     render();
     try {
-      await api('/api/zalo/login', { method: 'POST' });
+      await api('/api/zalo/login', { method: 'POST', body: { agentId: state.activeBotId } });
     } catch (err) {
       state.zaloLoginOpen = false;
-      state.confirmModal = { title: t('L?i ??ng nh?p','Login error'), message: err.message, okText: t('??ng','Close'), onConfirm: () => {} };
+      state.confirmModal = { title: t('Lỗi đăng nhập','Login error'), message: err.message, okText: t('Đóng','Close'), onConfirm: () => {} };
       render();
     }
   }));

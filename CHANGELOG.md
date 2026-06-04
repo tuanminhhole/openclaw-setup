@@ -1,6 +1,14 @@
 # Changelog (English)
 
 
+## [5.8.6] — 2026-06-04
+
+### 🔧 Fixes: Version Hanging & Windows C-Drive Scanning
+
+- **Fix: Setup Version Hanging (v...)**: Refactored the NPM registry fetch in `/api/system` into a non-blocking background task. The Setup Wizard now starts instantly without blocking on network requests.
+- **Fix: Safe C-Drive Scanning & Users Folder Discovery**: Optimized project discovery to skip scanning restricted Windows system folders and other users' directories (`C:\Users\*`). Directly adds the current user's homedir and Documents folders to the scanning roots, enabling instant project detection on the C: drive without permission hangs.
+
+
 ## [5.8.5] — 2026-06-04
 
 ### 🔧 Fixes: Version Hanging & Windows C-Drive Scanning

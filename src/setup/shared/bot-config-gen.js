@@ -85,7 +85,7 @@
     const agentsList = agentMetas.map((meta) => ({
       id: meta.agentId,
       ...(meta.name ? { name: meta.name } : {}),
-      workspace: `/root/project/.openclaw/${meta.workspaceDir || 'workspace-' + meta.agentId}`,
+      workspace: `/home/node/project/.openclaw/${meta.workspaceDir || 'workspace-' + meta.agentId}`,
       agentDir: `agents/${meta.agentId}/agent`,
       model: { primary: model, fallbacks: [] },
     }));

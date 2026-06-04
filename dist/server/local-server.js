@@ -995,7 +995,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   cfg.agents.list.push({
     id: agentId,
     name: botName,
-    workspace: `/root/project/.openclaw/${workspaceDir}`,
+    workspace: `/home/node/project/.openclaw/${workspaceDir}`,
     agentDir: `agents/${agentId}/agent`,
     model: { primary: model === '9router/smart-route' || model === 'openai/smart-route' ? DEFAULT_MODEL : model, fallbacks: [] },
   });
@@ -1074,7 +1074,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   const userDesc = String(body.userDescription || body.userDesc || '').trim();
   const userInfo = [userName ? `- **Tên:** ${userName}` : '', userDesc ? `- **Mô tả:** ${userDesc}` : ''].filter(Boolean).join('\n');
   const workspaceDir = workspaceRelForAgent(agent, cfg, projectDir) || `workspace-${agentId}`;
-  agent.workspace = `/root/project/.openclaw/${workspaceDir}`;
+  agent.workspace = `/home/node/project/.openclaw/${workspaceDir}`;
   agent.agentDir = `agents/${agentId}/agent`;
 
   // Find the existing accountId from bindings BEFORE removing them
@@ -1217,8 +1217,46 @@ async function waitForGatewayZaloReady(botContainer, projectDir, timeoutMs = 900
   return ready;
 }
 
-async function startZaloUserLogin(projectDir, mode = state.mode) {
-  const qrPaths = ['/tmp/openclaw/openclaw-zalouser-qr.png', '/tmp/openclaw/openclaw-zalouser-qr-default.png'];
+async function startZaloUserLogin(projectDir, mode = state.mode, agentId = '') {
+  let profile = 'default';
+  if (agentId) {
+    try {
+      const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+      if (existsSync(cfgPath)) {
+        const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
+        const binding = (cfg.bindings || []).find(b => b.agentId === agentId && b.match?.channel === 'zalouser');
+        if (binding?.match?.accountId) {
+          profile = binding.match.accountId;
+        }
+      }
+    } catch (e) {
+      sendLog(`[zalouser] Warning: Failed to parse openclaw.json: ${e.message}`);
+    }
+  } else if (state.activeBotId) {
+    try {
+      const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+      if (existsSync(cfgPath)) {
+        const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
+        const binding = (cfg.bindings || []).find(b => b.agentId === state.activeBotId && b.match?.channel === 'zalouser');
+        if (binding?.match?.accountId) {
+          profile = binding.match.accountId;
+        }
+      }
+    } catch (e) {}
+  }
+
+  const qrPaths = [
+    `/tmp/openclaw/openclaw-zalouser-qr-${profile}.png`,
+    `/tmp/openclaw-1000/openclaw-zalouser-qr-${profile}.png`
+  ];
+  if (profile === 'default') {
+    qrPaths.push(
+      '/tmp/openclaw/openclaw-zalouser-qr.png',
+      '/tmp/openclaw-1000/openclaw-zalouser-qr.png',
+      '/tmp/openclaw/openclaw-zalouser-qr-default.png'
+    );
+  }
+
   if (zaloLoginInFlight) {
     setImmediate(async () => {
       try {
@@ -1235,7 +1273,7 @@ async function startZaloUserLogin(projectDir, mode = state.mode) {
     return { message: 'Zalo login is already running. Keep this modal open...' };
   }
   zaloLoginInFlight = true;
-  sendLog('[zalouser] Preparing login. QR will be generated for the UI modal.');
+  sendLog(`[zalouser] Preparing login for profile [${profile}]. QR will be generated for the UI modal.`);
   const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
   if ((mode === 'docker' || existsSync(composeFile)) && existsSync(composeFile)) {
     const botContainer = getBotContainerName(projectDir);
@@ -1244,8 +1282,8 @@ async function startZaloUserLogin(projectDir, mode = state.mode) {
     const checkRegistryScript = `
 const fs = require('fs');
 try {
-  const dist = '/root/project/.openclaw/npm/node_modules/@openclaw/zalouser/dist/index.js';
-  const inst = '/root/project/.openclaw/plugins/installs.json';
+  const dist = '/home/node/project/.openclaw/npm/node_modules/@openclaw/zalouser/dist/index.js';
+  const inst = '/home/node/project/.openclaw/plugins/installs.json';
   if (!fs.existsSync(dist)) { console.log('MISSING'); process.exit(0); }
   if (!fs.existsSync(inst)) { console.log('MISSING_CHANNELS'); process.exit(0); }
   const j = JSON.parse(fs.readFileSync(inst, 'utf8'));
@@ -1265,17 +1303,17 @@ try {
       const fixScript = `
 const fs=require('fs');
 const cp=require('child_process');
-const cfg='/root/project/.openclaw/openclaw.json';
-const bk='/root/project/.openclaw/openclaw.json.zalo-backup';
+const cfg='/home/node/project/.openclaw/openclaw.json';
+const bk='/home/node/project/.openclaw/openclaw.json.zalo-backup';
 try{if(fs.existsSync(cfg))fs.copyFileSync(cfg,bk);}catch(e){}
 // Detect gateway version and pin zalouser plugin to match, preventing createSetupTranslator mismatch
 let gatewayVer='';
 try{gatewayVer=cp.execSync('openclaw --version 2>/dev/null',{encoding:'utf8'}).trim().replace(/[^0-9.]/g,'');}catch(e){}
 const pluginSpec=gatewayVer ? '@openclaw/zalouser@'+gatewayVer : '@openclaw/zalouser';
 console.log('Installing plugin via CLI: '+pluginSpec+'...');
-try{cp.execSync('cd /root/project && openclaw plugins install '+pluginSpec+' --force',{stdio:'inherit'});}catch(e){
+try{cp.execSync('cd /home/node/project && openclaw plugins install '+pluginSpec+' --force',{stdio:'inherit'});}catch(e){
   // Fallback: try without version pin if exact version not found on registry
-  if(gatewayVer){console.log('Pinned version failed, trying latest...');try{cp.execSync('cd /root/project && openclaw plugins install @openclaw/zalouser --force',{stdio:'inherit'});}catch(e2){console.error('Install failed');}}
+  if(gatewayVer){console.log('Pinned version failed, trying latest...');try{cp.execSync('cd /home/node/project && openclaw plugins install @openclaw/zalouser --force',{stdio:'inherit'});}catch(e2){console.error('Install failed');}}
   else{console.error('Install failed');}
 }
 try{
@@ -1299,10 +1337,10 @@ try{
 }catch(e){}
 try{
   console.log('Patching zalouser stability settings...');
-  cp.execSync('ZALO_JS=$(find "/root/project/.openclaw" -path "*/zalouser/dist/zalo-js*.js" -type f 2>/dev/null | head -1); if [ -n "$ZALO_JS" ]; then sed -i "s/LISTENER_WATCHDOG_MAX_GAP_MS = 35e3/LISTENER_WATCHDOG_MAX_GAP_MS = 120e3/g" "$ZALO_JS"; echo "Patched watchdog gap to 120s"; fi', {shell:true,stdio:'inherit'});
+  cp.execSync('ZALO_JS=$(find "/home/node/project/.openclaw" -path "*/zalouser/dist/zalo-js*.js" -type f 2>/dev/null | head -1); if [ -n "$ZALO_JS" ]; then sed -i "s/LISTENER_WATCHDOG_MAX_GAP_MS = 35e3/LISTENER_WATCHDOG_MAX_GAP_MS = 120e3/g" "$ZALO_JS"; echo "Patched watchdog gap to 120s"; fi', {shell:true,stdio:'inherit'});
 }catch(e){}
 try{
-  const ep = '/root/project/docker/openclaw/entrypoint.sh';
+  const ep = '/home/node/project/docker/openclaw/entrypoint.sh';
   if (fs.existsSync(ep)) {
     let content = fs.readFileSync(ep, 'utf8');
     if (!content.includes('zalo-monitor')) {
@@ -1333,11 +1371,12 @@ try{
     }
     
     // Clean old credentials & QR files inside container
-    const credPath = '/root/project/.openclaw/credentials/zalouser/credentials.json';
-    await runCapture('docker', ['exec', botContainer, 'sh', '-lc', `rm -f ${credPath} ${qrPaths.join(' ')}`], { cwd: projectDir, shell: false });
+    const credFile = profile === 'default' ? 'credentials.json' : `credentials-${profile}.json`;
+    const credPath = `/home/node/project/.openclaw/credentials/zalouser/${credFile}`;
+    await runCapture('docker', ['exec', botContainer, 'sh', '-lc', `rm -f ${credPath} ${qrPaths.join(' ')}`], { cwd: projectDir, shell: false }).catch(() => {});
     
     sendLog('[zalouser] Generating Zalo QR. The image will appear automatically.');
-    const loginCmd = 'cd /root/project && openclaw channels login --channel zalouser --verbose';
+    const loginCmd = `cd /home/node/project && openclaw channels login --channel zalouser --account ${profile} --verbose`;
     
     // Retry-based login: the zalouser plugin may need time to connect to Zalo servers.
     // The CLI often exits with "Still preparing QR" on the first attempt.
@@ -2226,7 +2265,7 @@ async function installFeature(projectDir, agentId, kind, id) {
       const botContainer = getBotContainerName(projectDir);
       sendLog(`[plugin] Installing/updating clawhub:${id} inside container ${botContainer}...`);
       
-      const cmd = `cd /root/project && openclaw plugins install clawhub:${id} --force`;
+      const cmd = `cd /home/node/project && openclaw plugins install clawhub:${id} --force`;
       const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
       
       if (cmdOut) {
@@ -2641,7 +2680,7 @@ async function handler(req, res, rootProjectDir) {
         const token = String(body.token || '').trim();
         sendLog(`[telegram] Registering Telegram channel via CLI inside ${botContainer}...`);
         try {
-          const regResult = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', `cd /root/project && openclaw channels add telegram --token "${token}"`], { cwd: projectDir, shell: false });
+          const regResult = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', `cd /home/node/project && openclaw channels add telegram --token "${token}"`], { cwd: projectDir, shell: false });
           sendLog(`[telegram] CLI registration output:\n${regResult.stdout}\n${regResult.stderr}`);
           sendLog(`[telegram] Restarting ${botContainer} container to load the registered channel...`);
           await restartDockerBotContainer(projectDir).catch((err) => sendLog(`[telegram] Container restart failed: ${err.message}`));
@@ -2658,7 +2697,7 @@ async function handler(req, res, rootProjectDir) {
         // Delay login start to let the recreated container fully boot gateway + plugins
         setTimeout(async () => {
           try {
-            const login = await startZaloUserLogin(projectDir, state.mode);
+            const login = await startZaloUserLogin(projectDir, state.mode, result.agentId);
             if (login?.qrDataUrl) sendLog(`[zalouser:qr] ${login.qrDataUrl}`);
             if (login?.message) sendLog(`[zalouser] ${login.message}`);
           } catch (err) {
@@ -2678,10 +2717,12 @@ async function handler(req, res, rootProjectDir) {
       return json(res, result);
     }
     if (url.pathname === '/api/zalo/login' && req.method === 'POST') {
-      const projectDir = await resolveProjectDir(rootProjectDir);
+      const body = await readJson(req).catch(() => ({}));
+      const agentId = body.agentId || '';
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
       setImmediate(async () => {
         try {
-          const login = await startZaloUserLogin(projectDir, state.mode);
+          const login = await startZaloUserLogin(projectDir, state.mode, agentId);
           if (login?.qrDataUrl) sendLog(`[zalouser:qr] ${login.qrDataUrl}`);
           if (login?.message) sendLog(`[zalouser] ${login.message}`);
         } catch (err) {
@@ -2764,6 +2805,9 @@ function openUrl(url) {
   const cmd = process.platform === 'win32' ? 'cmd' : process.platform === 'darwin' ? 'open' : 'xdg-open';
   const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
   const child = spawn(cmd, args, { detached: true, stdio: 'ignore', shell: false, windowsHide: true });
+  child.on('error', (err) => {
+    sendLog(`[openUrl] Warning: Could not open browser automatically (${err.message}). Please navigate to ${url} manually.`);
+  });
   child.unref();
 }
 

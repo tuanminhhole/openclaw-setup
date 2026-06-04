@@ -1,6 +1,6 @@
 {
   "name": "create-openclaw-bot",
-  "version": "5.8.5",
+  "version": "5.8.6",
   "description": "Interactive CLI installer for OpenClaw Bot",
   "main": "dist/cli.js",
   "bin": {

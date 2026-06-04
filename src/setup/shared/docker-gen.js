@@ -211,7 +211,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       dockerfilePlugins = [],
       dockerfileSkillInstallMode = 'none',
       runtimeCommandParts = [],
-      volumeMount = '../../.openclaw:/root/project/.openclaw\n      - ../../:/mnt/project',
+      volumeMount = '../../.openclaw:/home/node/project/.openclaw\n      - ../../:/mnt/project',
       singleComposeName = 'oc-bot',
       multiComposeName = 'oc-multibot',
       singleAppContainerName = 'openclaw-bot',
@@ -276,7 +276,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '    cd "$NPM_DIR"',
       '    npm init -y 2>/dev/null || true',
       '    npm install @openclaw/zalouser@latest 2>/dev/null || echo "[entrypoint] warning: failed to install @openclaw/zalouser"',
-      '    cd /root/project',
+      '    cd /home/node/project',
       '  fi',
       '}',
       'ensure_skill() {',
@@ -337,7 +337,7 @@ ${patchLine}${browserInstall}
 
 COPY entrypoint.sh /usr/local/bin/openclaw-entrypoint.sh
 RUN chmod +x /usr/local/bin/openclaw-entrypoint.sh
-WORKDIR /root/project
+WORKDIR /home/node/project
 
 EXPOSE ${gatewayPort}
 
@@ -348,7 +348,7 @@ CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
     const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(routerPort);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
-    const appEnvironmentBlock = `    environment:\n      - OPENCLAW_HOME=/root/project/.openclaw\n      - OPENCLAW_STATE_DIR=/root/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n      - OPENCLAW_GATEWAY_PORT=${gatewayPort}\n      - OPENCLAW_PORT=${gatewayPort}\n    tmpfs:\n      - /root/project/.openclaw/plugin-runtime-deps\n`;
+    const appEnvironmentBlock = `    environment:\n      - OPENCLAW_HOME=/home/node/project/.openclaw\n      - OPENCLAW_STATE_DIR=/home/node/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n      - OPENCLAW_GATEWAY_PORT=${gatewayPort}\n      - OPENCLAW_PORT=${gatewayPort}\n    tmpfs:\n      - /home/node/project/.openclaw/plugin-runtime-deps\n`;
 
     let compose;
     if (isMultiBot) {
@@ -462,7 +462,7 @@ services:
       - 9router
 ${appEnvironmentBlock}${extraHostsBlock}\n    volumes:
       - ${volumeMount}
-      - openclaw-plugins:/root/project/.openclaw/npm
+      - openclaw-plugins:/home/node/project/.openclaw/npm
     ports:
       - "${gatewayPort}:${gatewayPort}"
 
