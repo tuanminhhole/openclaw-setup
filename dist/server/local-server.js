@@ -22,6 +22,27 @@ const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = resolve(__dirname, '../web');
 const SETUP_VERSION = (() => { try { return JSON.parse(fs.readFileSync(resolve(__dirname, '../../package.json'), 'utf8')).version || '0.0.0'; } catch { return '0.0.0'; } })();
+let latestSetupVersionCache = SETUP_VERSION;
+let isFetchingLatestSetup = false;
+
+async function fetchLatestSetupVersionBg() {
+  if (isFetchingLatestSetup) return;
+  isFetchingLatestSetup = true;
+  try {
+    const resp = await fetch('https://registry.npmjs.org/create-openclaw-bot/latest', { signal: AbortSignal.timeout(4000) });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.version) {
+        latestSetupVersionCache = data.version;
+      }
+    }
+  } catch (e) {
+  } finally {
+    isFetchingLatestSetup = false;
+  }
+}
+fetchLatestSetupVersionBg().catch(() => {});
+
 const DEFAULT_PROJECT_NAME = 'openclaw-bot';
 const STATE_FILE = '.openclaw-setup-state.json';
 const DEFAULT_MODEL = 'smart-route';
@@ -1750,6 +1771,29 @@ async function loadSavedState(rootProjectDir) {
   }
 }
 
+function isRestrictedSystemDir(dirPath) {
+  if (!dirPath) return true;
+  const lower = resolve(dirPath).toLowerCase();
+  
+  if (SYSTEM_DIR_BLACKLIST.has(basename(lower))) return true;
+  
+  const winDir = process.env.SystemRoot ? resolve(process.env.SystemRoot).toLowerCase() : 'c:\\windows';
+  const programFiles = process.env.ProgramFiles ? resolve(process.env.ProgramFiles).toLowerCase() : 'c:\\program files';
+  const programFilesX86 = process.env['ProgramFiles(x86)'] ? resolve(process.env['ProgramFiles(x86)']).toLowerCase() : 'c:\\program files (x86)';
+  
+  if (lower.startsWith(winDir) || lower.startsWith(programFiles) || lower.startsWith(programFilesX86)) {
+    return true;
+  }
+  
+  if (lower.includes(':\\users\\') || lower.endsWith(':\\users')) {
+    const home = resolve(os.homedir()).toLowerCase();
+    if (lower !== home && !lower.startsWith(home + '\\') && !lower.startsWith(home + '/')) {
+      return true;
+    }
+  }
+  return false;
+}
+
 async function findLatestProject(rootProjectDir) {
   const roots = [
     process.env.OPENCLAW_PROJECT_DIR,
@@ -1758,29 +1802,39 @@ async function findLatestProject(rootProjectDir) {
     join(rootProjectDir, DEFAULT_PROJECT_NAME),
     dirname(rootProjectDir),
     os.homedir(),
-  ];
-  // Scan all available drives, walking top-level dirs but skipping system folders
+    join(os.homedir(), 'Documents'),
+  ].filter(Boolean);
+  
   const drives = await getAvailableDrives();
   for (const drive of drives) {
     const entries = await fsp.readdir(drive, { withFileTypes: true }).catch(() => []);
     for (const e of entries) {
       if (e.isDirectory() && !e.name.startsWith('$') && !SYSTEM_DIR_BLACKLIST.has(e.name.toLowerCase())) {
-        roots.push(join(drive, e.name));
+        const fullPath = join(drive, e.name);
+        if (!isRestrictedSystemDir(fullPath)) {
+          roots.push(fullPath);
+        }
       }
     }
   }
   const candidates = [];
+  const seen = new Set();
   async function walk(dir, depth = 0) {
     if (!dir || depth > 2 || !existsSync(dir)) return;
-    if (existsSync(join(dir, '.openclaw', 'openclaw.json'))) {
-      const st = await fsp.stat(join(dir, '.openclaw', 'openclaw.json')).catch(() => null);
-      if (st) candidates.push({ dir, mtimeMs: st.mtimeMs });
+    const full = resolve(dir);
+    if (isRestrictedSystemDir(full)) return;
+    if (seen.has(full)) return;
+    seen.add(full);
+
+    if (existsSync(join(full, '.openclaw', 'openclaw.json'))) {
+      const st = await fsp.stat(join(full, '.openclaw', 'openclaw.json')).catch(() => null);
+      if (st) candidates.push({ dir: full, mtimeMs: st.mtimeMs });
       return;
     }
-    const entries = await fsp.readdir(dir, { withFileTypes: true }).catch(() => []);
+    const entries = await fsp.readdir(full, { withFileTypes: true }).catch(() => []);
     for (const e of entries) {
       if (e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules' && !SYSTEM_DIR_BLACKLIST.has(e.name.toLowerCase())) {
-        await walk(join(dir, e.name), depth + 1);
+        await walk(join(full, e.name), depth + 1);
       }
     }
   }
@@ -1795,16 +1849,28 @@ async function discoverProjects(rootProjectDir) {
     rootProjectDir,
     dirname(rootProjectDir),
     process.env.OPENCLAW_HOME ? dirname(process.env.OPENCLAW_HOME) : '',
-  ];
-  // Add all available drives for scanning
+    os.homedir(),
+    join(os.homedir(), 'Documents'),
+  ].filter(Boolean);
+  
   const drives = await getAvailableDrives();
-  for (const drive of drives) roots.push(drive);
+  for (const drive of drives) {
+    const entries = await fsp.readdir(drive, { withFileTypes: true }).catch(() => []);
+    for (const e of entries) {
+      if (e.isDirectory() && !e.name.startsWith('$') && !SYSTEM_DIR_BLACKLIST.has(e.name.toLowerCase())) {
+        const fullPath = join(drive, e.name);
+        if (!isRestrictedSystemDir(fullPath)) {
+          roots.push(fullPath);
+        }
+      }
+    }
+  }
   const seen = new Set();
   const hits = [];
   async function walk(dir, depth = 0) {
     if (!dir || depth > 2 || !existsSync(dir)) return;
     const full = resolve(dir);
-    if (full === resolve(os.homedir())) return;
+    if (isRestrictedSystemDir(full)) return;
     if (seen.has(full)) return;
     seen.add(full);
     const cfgPath = join(full, '.openclaw', 'openclaw.json');
@@ -1832,7 +1898,7 @@ async function discoverProjects(rootProjectDir) {
     const entries = await fsp.readdir(full, { withFileTypes: true }).catch(() => []);
     for (const e of entries) {
       if (!e.isDirectory()) continue;
-      if (e.name === 'node_modules' || e.name.startsWith('.git') || SYSTEM_DIR_BLACKLIST.has(e.name.toLowerCase())) continue;
+      if (e.name === 'node_modules' || e.name.startsWith('.') || SYSTEM_DIR_BLACKLIST.has(e.name.toLowerCase())) continue;
       await walk(join(full, e.name), depth + 1);
     }
   }
@@ -2425,14 +2491,8 @@ async function handler(req, res, rootProjectDir) {
       };
       const projects = await discoverProjects(rootProjectDir).catch(() => []);
 
-      let latestSetupVersion = SETUP_VERSION;
-      try {
-        const resp = await fetch('https://registry.npmjs.org/create-openclaw-bot/latest', { signal: AbortSignal.timeout(3000) });
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.version) latestSetupVersion = data.version;
-        }
-      } catch (e) {}
+      fetchLatestSetupVersionBg().catch(() => {});
+      const latestSetupVersion = latestSetupVersionCache;
 
       return json(res, {
         os: osChoice,

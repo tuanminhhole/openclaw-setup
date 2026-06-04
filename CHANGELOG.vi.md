@@ -1,6 +1,14 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.8.5] — 2026-06-04
+
+### 🔧 Sửa lỗi: Treo Phiên Bản & Quét Dự Án Ổ C Windows
+
+- **Sửa lỗi: Treo số phiên bản v...**: Tách biệt luồng fetch phiên bản từ NPM registry trong `/api/system` thành tiến trình chạy nền không đồng bộ (non-blocking). Setup Wizard giờ đây khởi chạy tức thì và không bị nghẽn do mạng.
+- **Sửa lỗi: Quét an toàn ổ C và tìm thấy project trong thư mục người dùng**: Tối ưu hóa chức năng quét project, tự động bỏ qua các thư mục hệ thống Windows và thư mục của user khác (`C:\Users\*`). Thêm trực tiếp thư mục Home và Documents của user hiện tại vào danh sách quét, giúp phát hiện ngay lập tức project nằm trong ổ C mà không lo bị nghẽn quyền truy cập.
+
+
 ## [5.8.4] — 2026-06-04
 
 ### 🚀 Nâng Cấp Skill, Tự Động Chọn Model & Tự Khởi Động Lại Setup Wizard
