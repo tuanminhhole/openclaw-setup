@@ -1,6 +1,14 @@
 # Changelog (English)
 
 
+## [5.8.8] — 2026-06-04
+
+### 🔧 Fixes: Safe 9Router Spawning and Crash Prevention under Sudo/NVM
+
+- **Fix: Process crash on spawn error**: Added an error handler on the detached child processes (like 9Router and OpenClaw gateway) spawned by the installer. If a command is missing or not in the PATH, the setup wizard will report a warning in the logs instead of crashing the entire Node.js server with an unhandled 'error' exception.
+- **Fix: Binary path resolution on NVM/Sudo environments**: Automatically searches for the binary files (like `9router` and `openclaw`) inside the active Node.js executable directory and local node_modules bin folders. This resolves the `ENOENT` issue when running with sudo in environments using NVM, where user path custom binary symlinks are not in the sudo secure path.
+
+
 ## [5.8.7] — 2026-06-04
 
 ### 🔧 Fixes: Linux/WSL Project Discovery under Sudo

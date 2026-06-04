@@ -109,6 +109,18 @@ function getRealHomedir() {
   return home;
 }
 
+function resolveBinPath(cmd) {
+  if (!cmd || cmd.includes('/') || cmd.includes('\\')) return cmd;
+  const nodeBinDir = dirname(process.argv[0]);
+  const localPath = join(nodeBinDir, process.platform === 'win32' ? `${cmd}.cmd` : cmd);
+  if (existsSync(localPath)) return localPath;
+  const localExe = join(nodeBinDir, process.platform === 'win32' ? `${cmd}.exe` : cmd);
+  if (existsSync(localExe)) return localExe;
+  const nodeModulesBin = join(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? `${cmd}.cmd` : cmd);
+  if (existsSync(nodeModulesBin)) return nodeModulesBin;
+  return cmd;
+}
+
 // Blacklist of Windows system/large directories that should never be walked
 const SYSTEM_DIR_BLACKLIST = new Set([
   'windows', 'program files', 'program files (x86)', 'programdata',
@@ -141,7 +153,7 @@ function recommendedMode(osChoice) {
 function commandExists(cmd, args = ['--version']) {
   return new Promise((resolve) => {
     const shell = process.platform === 'win32';
-    execFile(cmd, args, { windowsHide: true, timeout: 5000, shell }, (err, stdout, stderr) => {
+    execFile(resolveBinPath(cmd), args, { windowsHide: true, timeout: 5000, shell }, (err, stdout, stderr) => {
       resolve({ ok: !err, output: String(stdout || stderr || '').trim() });
     });
   });
@@ -150,7 +162,7 @@ function commandExists(cmd, args = ['--version']) {
 function run(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
     sendLog(`$ ${cmd} ${args.join(' ')}`);
-    const child = spawn(cmd, args, { cwd: opts.cwd, shell: process.platform === 'win32', env: { ...process.env, ...(opts.env || {}) } });
+    const child = spawn(resolveBinPath(cmd), args, { cwd: opts.cwd, shell: process.platform === 'win32', env: { ...process.env, ...(opts.env || {}) } });
     let stdout = '';
     let resolved = false;
     child.stdout.on('data', (d) => {
@@ -180,13 +192,17 @@ function run(cmd, args, opts = {}) {
 
 function startDetached(cmd, args, opts = {}) {
   sendLog(`$ ${cmd} ${args.join(' ')} &`);
-  const child = spawn(cmd, args, {
+  const child = spawn(resolveBinPath(cmd), args, {
     cwd: opts.cwd,
     shell: process.platform === 'win32',
     detached: true,
     stdio: 'ignore',
     windowsHide: opts.windowsHide ?? true,
     env: { ...process.env, ...(opts.env || {}) },
+  });
+  child.on('error', (err) => {
+    sendLog(`[error] Failed to start background command "${cmd}": ${err.message}`);
+    console.error(`Failed to start background command "${cmd}":`, err);
   });
   child.unref();
   return child.pid;
@@ -277,7 +293,7 @@ function runCapture(cmd, args, opts = {}) {
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
-    const child = spawn(cmd, args, {
+    const child = spawn(resolveBinPath(cmd), args, {
       cwd: opts.cwd,
       shell: opts.shell ?? process.platform === 'win32',
       windowsHide: opts.windowsHide ?? true,

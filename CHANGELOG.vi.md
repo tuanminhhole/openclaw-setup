@@ -1,6 +1,14 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.8.8] — 2026-06-04
+
+### 🔧 Sửa lỗi: Gọi tiến trình 9Router an toàn và ngăn chặn crash trên môi trường Sudo/NVM
+
+- **Sửa lỗi: Sập tiến trình khi gọi lệnh lỗi**: Bổ sung bộ lắng nghe lỗi (error handler) cho các tiến trình chạy nền (như 9Router và OpenClaw gateway) được gọi bởi installer. Nếu một lệnh bị thiếu hoặc không nằm trong PATH, Setup Wizard sẽ ghi lại cảnh báo trong log thay vì làm crash toàn bộ server Node.js với lỗi ngoại lệ 'error' không thể bắt.
+- **Sửa lỗi: Phân giải đường dẫn thực thi trên môi trường NVM/Sudo**: Tự động tìm kiếm file thực thi (như `9router` và `openclaw`) trong thư mục chứa file chạy Node.js đang hoạt động và thư mục bin của node_modules cục bộ. Điều này giải quyết triệt để lỗi `ENOENT` khi chạy với quyền sudo trong môi trường dùng NVM (nơi đường dẫn bin tùy chỉnh của user không nằm trong secure_path của sudo).
+
+
 ## [5.8.7] — 2026-06-04
 
 ### 🔧 Sửa lỗi: Tự động phát hiện dự án trên Linux/WSL khi chạy quyền sudo
