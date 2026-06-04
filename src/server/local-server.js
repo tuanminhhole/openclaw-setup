@@ -96,6 +96,19 @@ function detectOs() {
   return 'linux-desktop';
 }
 
+function getRealHomedir() {
+  const home = os.homedir();
+  if (process.platform === 'win32') return home;
+  const sudoUser = process.env.SUDO_USER;
+  if (sudoUser && (home === '/root' || home.startsWith('/root/'))) {
+    const userHome = process.platform === 'darwin' ? `/Users/${sudoUser}` : `/home/${sudoUser}`;
+    if (existsSync(userHome)) {
+      return userHome;
+    }
+  }
+  return home;
+}
+
 // Blacklist of Windows system/large directories that should never be walked
 const SYSTEM_DIR_BLACKLIST = new Set([
   'windows', 'program files', 'program files (x86)', 'programdata',
@@ -717,7 +730,7 @@ async function resolveProject9RouterApiKey(projectDir, cfg = null) {
   }
   const nativeApiKey = read9RouterApiKeyFromSqlite(join(projectDir || '', '.9router', 'db', 'data.sqlite'));
   if (nativeApiKey) return nativeApiKey;
-  const homeApiKey = read9RouterApiKeyFromSqlite(join(os.homedir(), '.9router', 'db', 'data.sqlite'));
+  const homeApiKey = read9RouterApiKeyFromSqlite(join(getRealHomedir(), '.9router', 'db', 'data.sqlite'));
   if (homeApiKey) return homeApiKey;
   return '';
 }
@@ -1825,23 +1838,39 @@ function isRestrictedSystemDir(dirPath) {
   }
   
   if (lower.includes(':\\users\\') || lower.endsWith(':\\users')) {
-    const home = resolve(os.homedir()).toLowerCase();
+    const home = resolve(getRealHomedir()).toLowerCase();
     if (lower !== home && !lower.startsWith(home + '\\') && !lower.startsWith(home + '/')) {
       return true;
     }
   }
+
+  if (process.platform !== 'win32') {
+    const unixBlacklist = new Set([
+      'usr', 'var', 'proc', 'sys', 'dev', 'etc', 'sbin', 'bin', 'lib', 'lib64', 'run', 'tmp', 'boot', 'lost+found', 'srv', 'mnt', 'media', 'opt'
+    ]);
+    if (unixBlacklist.has(basename(lower))) return true;
+    
+    if (lower.startsWith('/home') || lower.startsWith('/root')) {
+      const realHome = resolve(getRealHomedir()).toLowerCase();
+      if (lower !== realHome && !lower.startsWith(realHome + '/')) {
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 
 async function findLatestProject(rootProjectDir) {
+  const realHome = getRealHomedir();
   const roots = [
     process.env.OPENCLAW_PROJECT_DIR,
     process.env.OPENCLAW_HOME ? dirname(process.env.OPENCLAW_HOME) : '',
     rootProjectDir,
     join(rootProjectDir, DEFAULT_PROJECT_NAME),
     dirname(rootProjectDir),
-    os.homedir(),
-    join(os.homedir(), 'Documents'),
+    realHome,
+    join(realHome, 'Documents'),
   ].filter(Boolean);
   
   const drives = await getAvailableDrives();
@@ -1883,13 +1912,14 @@ async function findLatestProject(rootProjectDir) {
 }
 
 async function discoverProjects(rootProjectDir) {
+  const realHome = getRealHomedir();
   const roots = [
     process.env.OPENCLAW_PROJECT_DIR,
     rootProjectDir,
     dirname(rootProjectDir),
     process.env.OPENCLAW_HOME ? dirname(process.env.OPENCLAW_HOME) : '',
-    os.homedir(),
-    join(os.homedir(), 'Documents'),
+    realHome,
+    join(realHome, 'Documents'),
   ].filter(Boolean);
   
   const drives = await getAvailableDrives();
@@ -2012,9 +2042,10 @@ async function connectPickedProject(projectName, rootProjectDir) {
 
 async function deleteProjectFolder(projectDir, rootProjectDir) {
   const resolved = resolve(String(projectDir || ''));
-  const home = resolve(os.homedir());
+  const home = resolve(getRealHomedir());
+  const rootHome = resolve(os.homedir());
   if (!existsSync(join(resolved, '.openclaw', 'openclaw.json'))) throw httpError(404, 'openclaw.json not found in selected project');
-  if (resolved === home || /^[A-Za-z]:\\?$/.test(resolved)) throw httpError(403, 'Refusing to delete home/root folder');
+  if (resolved === home || resolved === rootHome || /^[A-Za-z]:\\?$/.test(resolved)) throw httpError(403, 'Refusing to delete home/root folder');
   const projects = await discoverProjects(rootProjectDir).catch(() => []);
   const meta = projects.find((p) => resolve(p.projectDir) === resolved);
   if (!meta || !meta.botCount) throw httpError(403, 'Refusing to delete a folder that is not a detected bot project');

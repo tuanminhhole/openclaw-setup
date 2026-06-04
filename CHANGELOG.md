@@ -1,6 +1,14 @@
 # Changelog (English)
 
 
+## [5.8.7] — 2026-06-04
+
+### 🔧 Fixes: Linux/WSL Project Discovery under Sudo
+
+- **Fix: Project scanning under sudo**: Automatically resolves the real invoking user's home directory (e.g., `/home/username`) instead of fallback `/root` when running the Setup Wizard with sudo on Linux/WSL.
+- **Fix: Linux system directory blacklist & restricted walking**: Added Linux/WSL system and virtual folders (such as `/usr`, `/var`, `/proc`, `/sys`, `/dev`, etc.) to the walking blacklist, and restricted the `/home` directory walk strictly to the active user's real home directory to prevent hangs, timeouts, or permission exceptions.
+
+
 ## [5.8.6] — 2026-06-04
 
 ### 🔧 Fixes: Version Hanging & Windows C-Drive Scanning

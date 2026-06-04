@@ -1,6 +1,14 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.8.7] — 2026-06-04
+
+### 🔧 Sửa lỗi: Tự động phát hiện dự án trên Linux/WSL khi chạy quyền sudo
+
+- **Sửa lỗi: Quét thư mục người dùng thực tế**: Tự động giải quyết và quét thư mục home thực tế của người dùng gọi lệnh (ví dụ: `/home/username`) thay vì quét thư mục `/root` khi chạy Setup Wizard dưới quyền sudo trên Linux/WSL.
+- **Sửa lỗi: Bỏ qua thư mục hệ thống và giới hạn quét thư mục home**: Đưa các thư mục ảo và hệ thống Linux (như `/usr`, `/var`, `/proc`, `/sys`, `/dev`,...) vào danh sách đen để không quét sâu, đồng thời giới hạn việc quét thư mục `/home` chỉ trong phạm vi thư mục home của người dùng hiện tại, ngăn ngừa treo hệ thống, hết thời gian chờ hoặc lỗi phân quyền.
+
+
 ## [5.8.6] — 2026-06-04
 
 ### 🔧 Sửa lỗi: Treo Phiên Bản & Quét Dự Án Ổ C Windows
