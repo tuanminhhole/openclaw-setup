@@ -1,6 +1,16 @@
 # Changelog (English)
 
 
+## [5.8.15] — 2026-06-07
+
+### 🚀 Bug Fixes & Refinements: Docker Workspace Path Resolution, Clean NPM Installer, and UI Auto-Update
+
+- **Fix: Docker Workspace Home Resolution**: Configured the `HOME` environment variable for the `ai-bot` container, aligning it with the project mount point to resolve path parsing issues (like `~`) for relative workspace paths on Windows/macOS.
+- **New: Direct NPM Installer Execution**: Refactored the CLI launcher to run directly from the published npm package files instead of performing a full git clone, drastically reducing setup size and skipping git dependencies for end-users.
+- **New: Automatic Setup Wizard Update**: Rewrote the updater to seamlessly install the package locally inside `~/.openclaw-setup` and automatically restart the Setup Wizard from the web UI when running via npm.
+- **Aesthetic: Monospace CLI Logo Alignment**: Centered and balanced the rounded-border lobster logo displayed at startup.
+
+
 ## [5.8.14] — 2026-06-07
 
 ### 🚀 New Features: Deep Integration of Infographic Image Generator, Zalo Sticker & Auto-Tag Skills, and Workspace Docs Optimization

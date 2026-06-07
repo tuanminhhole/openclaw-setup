@@ -81,16 +81,12 @@ const today = new Date().toISOString().slice(0, 10);
 const changelogEntryEn =
 `## [${newVersion}] — ${today}
 
-### 🚀 New Features: Deep Integration of Infographic Image Generator, Zalo Sticker & Auto-Tag Skills, and Workspace Docs Optimization
+### 🚀 Bug Fixes & Refinements: Docker Workspace Path Resolution, Clean NPM Installer, and UI Auto-Update
 
-- **New: Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script \`image-generator.js\` (synchronizing API credentials from \`openclaw.json\`) and a comprehensive \`SKILL.md\` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
-- **New: Zalo Sticker & Auto-Tag Skill**: 
-  - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with \`@Name\` anymore, the system handles it).
-  - Enables agents to dynamically send Zalo stickers by appending \`[Sticker: <keyword>]\` at the end of their text responses.
-  - Automatically maps emotional keywords (such as \`love\`, \`haha\`, \`ca khia\`, \`angry\`, \`thank you\`, etc.) to actual Zalo sticker IDs.
-  - Generates the patch script \`mentions.js\` and a dedicated \`SKILL.md\` inside the agent's workspace.
-- **Polish: Simplified TOOLS.md generation**: Streamlined the \`TOOLS.md\` generator to output a concise, static guide focusing on general principles and referencing the \`./skills/\` directory, rather than generating dynamic lists based on installed plugins.
-- **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated \`AGENTS.md\` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (\`TEAMS.md\` for single-bot, \`BROWSER.md\`) and standardizing descriptions to keep exactly 9 core documents.
+- **Fix: Docker Workspace Home Resolution**: Configured the \`HOME\` environment variable for the \`ai-bot\` container, aligning it with the project mount point to resolve path parsing issues (like \`~\`) for relative workspace paths on Windows/macOS.
+- **New: Direct NPM Installer Execution**: Refactored the CLI launcher to run directly from the published npm package files instead of performing a full git clone, drastically reducing setup size and skipping git dependencies for end-users.
+- **New: Automatic Setup Wizard Update**: Rewrote the updater to seamlessly install the package locally inside \`~/.openclaw-setup\` and automatically restart the Setup Wizard from the web UI when running via npm.
+- **Aesthetic: Monospace CLI Logo Alignment**: Centered and balanced the rounded-border lobster logo displayed at startup.
 
 `;
 
@@ -98,16 +94,12 @@ const changelogEntryEn =
 const changelogEntryVi =
 `## [${newVersion}] — ${today}
 
-### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
+### 🚀 Sửa lỗi & Tối ưu hóa: Phân giải đường dẫn Docker Workspace, Bộ cài NPM rút gọn và Tự động Cập nhật trên UI
 
-- **Mới: Hỗ trợ Skill Tạo ảnh Infographic chuyên nghiệp**: Tích hợp hoàn toàn công cụ tạo ảnh infographic, poster tự động thông qua API của 9Router. Tự động sinh mã nguồn script \`image-generator.js\` đồng bộ API credentials từ \`openclaw.json\` và hướng dẫn \`SKILL.md\` cụ thể giúp Agent nắm vững cấu trúc prompt, font chữ tiếng Việt, layout và quy tắc thiết kế ảnh.
-- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**: 
-  - Tự động tag tên người gửi tin nhắn gần nhất trong group chat Zalo (Agent không cần tự điền \`@Tên\` ở đầu câu trả lời nữa, hệ thống sẽ tự làm).
-  - Cho phép Agent gửi kèm Sticker Zalo trực tiếp trong câu trả lời thông qua thẻ \`[Sticker: <từ_khóa>]\` đặt ở cuối tin nhắn.
-  - Tích hợp bộ giải nghĩa từ khóa cảm xúc thông minh (như \`love\`, \`haha\`, \`ca khia\`, \`angry\`, \`thank you\`,...) để tự động map sang sticker Zalo phù hợp.
-  - Tự động sinh script vá logic \`mentions.js\` và tài liệu hướng dẫn \`SKILL.md\` trong workspace.
-- **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của \`TOOLS.md\` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục \`./skills/\`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
-- **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file \`AGENTS.md\` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (\`TEAMS.md\` cho single-bot, \`BROWSER.md\`) và chuẩn hóa phần mô tả.
+- **Sửa lỗi: Phân giải thư mục Docker Workspace**: Thiết lập biến môi trường \`HOME\` cho container \`ai-bot\` trùng với thư mục mount dự án, giúp sửa lỗi phân giải ký tự dấu ngã \`~\` khi định vị workspace bot trên Windows/macOS.
+- **Mới: Khởi chạy trực tiếp từ gói NPM**: Tối ưu bộ khởi chạy CLI chạy trực tiếp các file đóng gói trên npm, loại bỏ cơ chế \`git clone\` toàn bộ repository giúp giảm dung lượng cài đặt và không yêu cầu cài đặt sẵn Git.
+- **Mới: Tự động cập nhật Setup Wizard từ UI**: Cải tiến cơ chế cập nhật, tự động cài đặt phiên bản mới nhất vào thư mục \`~/.openclaw-setup\` và khởi động lại cổng Setup Wizard mượt mà ngay trên giao diện web.
+- **Thẩm mỹ: Căn chỉnh Logo CLI**: Thiết kế lại và cân đối khung Logo góc tròn kèm hai emoji tôm hùm 🦞 đối xứng thẳng hàng ở terminal.
 
 `;
 

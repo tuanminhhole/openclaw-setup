@@ -1,6 +1,16 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.8.15] — 2026-06-07
+
+### 🚀 Sửa lỗi & Tối ưu hóa: Phân giải đường dẫn Docker Workspace, Bộ cài NPM rút gọn và Tự động Cập nhật trên UI
+
+- **Sửa lỗi: Phân giải thư mục Docker Workspace**: Thiết lập biến môi trường `HOME` cho container `ai-bot` trùng với thư mục mount dự án, giúp sửa lỗi phân giải ký tự dấu ngã `~` khi định vị workspace bot trên Windows/macOS.
+- **Mới: Khởi chạy trực tiếp từ gói NPM**: Tối ưu bộ khởi chạy CLI chạy trực tiếp các file đóng gói trên npm, loại bỏ cơ chế `git clone` toàn bộ repository giúp giảm dung lượng cài đặt và không yêu cầu cài đặt sẵn Git.
+- **Mới: Tự động cập nhật Setup Wizard từ UI**: Cải tiến cơ chế cập nhật, tự động cài đặt phiên bản mới nhất vào thư mục `~/.openclaw-setup` và khởi động lại cổng Setup Wizard mượt mà ngay trên giao diện web.
+- **Thẩm mỹ: Căn chỉnh Logo CLI**: Thiết kế lại và cân đối khung Logo góc tròn kèm hai emoji tôm hùm 🦞 đối xứng thẳng hàng ở terminal.
+
+
 ## [5.8.14] — 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
