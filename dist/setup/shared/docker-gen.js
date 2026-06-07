@@ -348,7 +348,7 @@ CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
     const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(routerPort);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
-    const appEnvironmentBlock = `    environment:\n      - OPENCLAW_HOME=/home/node/project/.openclaw\n      - OPENCLAW_STATE_DIR=/home/node/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n      - OPENCLAW_GATEWAY_PORT=${gatewayPort}\n      - OPENCLAW_PORT=${gatewayPort}\n    tmpfs:\n      - /home/node/project/.openclaw/plugin-runtime-deps\n`;
+    const appEnvironmentBlock = `    environment:\n      - HOME=/home/node/project/.openclaw\n      - OPENCLAW_HOME=/home/node/project/.openclaw\n      - OPENCLAW_STATE_DIR=/home/node/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n      - OPENCLAW_GATEWAY_PORT=${gatewayPort}\n      - OPENCLAW_PORT=${gatewayPort}\n    tmpfs:\n      - /home/node/project/.openclaw/plugin-runtime-deps\n`;
 
     let compose;
     if (isMultiBot) {

@@ -1,6 +1,20 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.8.14] — 2026-06-07
+
+### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
+
+- **Mới: Hỗ trợ Skill Tạo ảnh Infographic chuyên nghiệp**: Tích hợp hoàn toàn công cụ tạo ảnh infographic, poster tự động thông qua API của 9Router. Tự động sinh mã nguồn script `image-generator.js` đồng bộ API credentials từ `openclaw.json` và hướng dẫn `SKILL.md` cụ thể giúp Agent nắm vững cấu trúc prompt, font chữ tiếng Việt, layout và quy tắc thiết kế ảnh.
+- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**: 
+  - Tự động tag tên người gửi tin nhắn gần nhất trong group chat Zalo (Agent không cần tự điền `@Tên` ở đầu câu trả lời nữa, hệ thống sẽ tự làm).
+  - Cho phép Agent gửi kèm Sticker Zalo trực tiếp trong câu trả lời thông qua thẻ `[Sticker: <từ_khóa>]` đặt ở cuối tin nhắn.
+  - Tích hợp bộ giải nghĩa từ khóa cảm xúc thông minh (như `love`, `haha`, `ca khia`, `angry`, `thank you`,...) để tự động map sang sticker Zalo phù hợp.
+  - Tự động sinh script vá logic `mentions.js` và tài liệu hướng dẫn `SKILL.md` trong workspace.
+- **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
+- **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
+
+
 ## [5.8.13] — 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs

@@ -200,6 +200,7 @@ section('4. Docker artifacts');
   assertIncludes('compose includes 9Router sidecar when requested', single.compose, '9router-williams');
   assertIncludes('compose mounts full project into container workspace', single.compose, '../..:/home/node/project');
   assertIncludes('compose sets project-local OPENCLAW_HOME', single.compose, 'OPENCLAW_HOME=/home/node/project/.openclaw');
+  assertIncludes('compose sets container HOME to .openclaw', single.compose, 'HOME=/home/node/project/.openclaw');
   assertIncludes('compose sets bind-mounted OPENCLAW_STATE_DIR', single.compose, 'OPENCLAW_STATE_DIR=/home/node/project/.openclaw');
   assertIncludes('compose allows Docker-published private websocket bind', single.compose, 'OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1');
   assertNotIncludes('compose does not hide runtime state in a named volume', single.compose, 'openclaw-state:/var/lib/openclaw-state');
