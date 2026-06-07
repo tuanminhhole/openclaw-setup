@@ -2846,28 +2846,42 @@ async function handler(req, res, rootProjectDir) {
       return json(res, result);
     }
     if (url.pathname === '/api/setup/update' && req.method === 'POST') {
-      sendLog('[update-setup] Starting update of Setup Wizard...');
-      const isGit = existsSync(resolve(rootProjectDir, '.git'));
+      const installerDir = resolve(__dirname, '../..');
+      const isGit = existsSync(resolve(installerDir, '.git'));
+      const isNpmPack = __dirname.includes('node_modules');
       if (isGit) {
         sendLog('[update-setup] Git repository detected. Pulling latest code and building...');
         setImmediate(async () => {
           try {
-            await run('git', ['pull'], { cwd: rootProjectDir });
-            await run('npm', ['install'], { cwd: rootProjectDir });
-            await run('npm', ['run', 'build'], { cwd: rootProjectDir });
-            sendLog('[update-setup] Setup Wizard updated successfully! Please restart the installer.');
+            await run('git', ['pull'], { cwd: installerDir });
+            await run('npm', ['install'], { cwd: installerDir });
+            await run('npm', ['run', 'build'], { cwd: installerDir });
+            sendLog('[update-setup] Setup Wizard updated successfully! Restarting installer...');
             restartInstaller();
           } catch (err) {
             sendLog(`[update-setup] Error updating: ${err.message}`);
           }
         });
         return json(res, { ok: true, mode: 'git' });
+      } else if (isNpmPack) {
+        const installerHome = resolve(__dirname, '../../../..');
+        sendLog(`[update-setup] Published npm package detected. Updating package in: ${installerHome}...`);
+        setImmediate(async () => {
+          try {
+            await run('npm', ['install', 'create-openclaw-bot@latest', '--no-audit', '--no-fund'], { cwd: installerHome });
+            sendLog('[update-setup] Setup Wizard updated successfully! Restarting installer...');
+            restartInstaller();
+          } catch (err) {
+            sendLog(`[update-setup] Error updating: ${err.message}`);
+          }
+        });
+        return json(res, { ok: true, mode: 'npm' });
       } else {
         sendLog('[update-setup] Global npm package installation detected. Updating via npm...');
         setImmediate(async () => {
           try {
             await run('npm', ['install', '-g', 'create-openclaw-bot@latest'], { cwd: rootProjectDir });
-            sendLog('[update-setup] Setup Wizard updated successfully! Please restart the installer.');
+            sendLog('[update-setup] Setup Wizard updated successfully! Restarting installer...');
             restartInstaller();
           } catch (err) {
             sendLog(`[update-setup] Error updating: ${err.message}`);

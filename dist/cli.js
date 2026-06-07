@@ -3,21 +3,54 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const runCmd = (cmd, cmdArgs, opts = {}) => {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, cmdArgs, { 
+      shell: true, 
+      stdio: 'inherit',
+      ...opts 
+    });
+    child.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`${cmd} exited with code ${code}`));
+    });
+    child.on('error', reject);
+  });
+};
+
+function isLocalRepo() {
+  const pathsToTry = [
+    path.resolve(__dirname, '..'),
+    path.resolve(__dirname, '../..')
+  ];
+  for (const rootDir of pathsToTry) {
+    const pkgPath = path.join(rootDir, 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        if (pkg.name === 'create-openclaw-bot' && fs.existsSync(path.join(rootDir, 'src', 'cli', 'cli.src.js'))) {
+          return true;
+        }
+      } catch {}
+    }
+  }
+  return false;
+}
+
 const LOGO = `
 ╭────────────────────────────────────────╮
-│            🦞 OpenClaw Setup           │
+│          🦞 OpenClaw Setup 🦞          │
 │             by tuanminhhole            │
 ╰────────────────────────────────────────╯
 `;
 console.log(LOGO);
 
 const args = process.argv.slice(2);
-
-const { startLocalInstaller } = await import('./server/local-server.js');
 
 const noOpen = args.includes('--no-open');
 const hostArg = args.find((arg) => arg.startsWith('--host='));
@@ -52,11 +85,50 @@ if (!fs.existsSync(projectDir)) {
   }
 }
 
-await startLocalInstaller({
-  openBrowser: !noOpen,
-  host: hostArg ? hostArg.slice('--host='.length) : '127.0.0.1',
-  preferredPort: portArg ? Number(portArg.slice('--port='.length)) : 51789,
-  projectDir: projectDir,
-});
+if (process.env.OPENCLAW_SETUP_WIZARD === 'true' || isLocalRepo()) {
+  const { startLocalInstaller } = await import('./server/local-server.js');
+
+  await startLocalInstaller({
+    openBrowser: !noOpen,
+    host: hostArg ? hostArg.slice('--host='.length) : '127.0.0.1',
+    preferredPort: portArg ? Number(portArg.slice('--port='.length)) : 51789,
+    projectDir: projectDir,
+  });
+} else {
+  const targetDirName = '.openclaw-setup';
+  const targetPath = path.join(os.homedir(), targetDirName);
+
+  try {
+    if (!fs.existsSync(targetPath)) {
+      fs.mkdirSync(targetPath, { recursive: true });
+    }
+    const pkgPath = path.join(targetPath, 'package.json');
+    if (!fs.existsSync(pkgPath)) {
+      fs.writeFileSync(pkgPath, JSON.stringify({ name: 'openclaw-setup-container', version: '1.0.0', private: true, dependencies: {} }, null, 2), 'utf8');
+    }
+
+    console.log(`[1/2] Checking/Installing latest Setup Wizard package in: ${targetPath}...`);
+    await runCmd('npm', ['install', 'create-openclaw-bot@latest', '--no-audit', '--no-fund'], { cwd: targetPath });
+
+    console.log('\n[2/2] Starting Setup Wizard...');
+    const cliPath = path.join(targetPath, 'node_modules', 'create-openclaw-bot', 'dist', 'cli.js');
+    
+    const child = spawn(process.argv[0], [cliPath, ...args, `--project-dir=${projectDir}`], {
+      cwd: targetPath,
+      shell: true,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        OPENCLAW_SETUP_WIZARD: 'true'
+      }
+    });
+    child.on('close', (code) => {
+      process.exit(code);
+    });
+  } catch (error) {
+    console.error('\n❌ Lỗi khi khởi động Setup Wizard:', error.message);
+    process.exit(1);
+  }
+}
 
 
