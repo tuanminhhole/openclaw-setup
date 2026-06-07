@@ -261,6 +261,7 @@ If setup reported a plugin install error, run this after the bot is running:
           name: 'Smart Proxy (Auto Route)',
           contextWindow: 200000,
           maxTokens: 8192,
+          input: ['text', 'image'],
         },
       ],
     };

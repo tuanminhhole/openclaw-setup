@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.8-0EA5E9?style=for-the-badge" alt="Version 5.8.8" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.9-0EA5E9?style=for-the-badge" alt="Version 5.8.9" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -23,12 +23,18 @@ Trình cài đặt và quản trị **Web UI Setup** thế hệ mới giúp tự
 
 ---
 
-## 🆕 Có gì mới trong v5.8.8
+## 🆕 Có gì mới trong v5.8.9
 
-- 🔄 **Nút cập nhật Header thông minh**: Nâng cấp trực tiếp setup wizard từ giao diện! Nút cập nhật tự truy vấn npm registry và chỉ hiển thị khi có phiên bản mới hơn.
-- 📡 **Nâng cấp Stream Log trực tiếp**: Khởi chạy cập nhật sẽ tự động nâng cấp (chạy `git pull && npm install && npm run build` cho bản Git, hoặc `npm install -g create-openclaw-bot` cho bản NPM) và đẩy dòng log theo thời gian thực về tab Logs.
-- 🧹 **Tái cấu trúc thư mục Dev/Test**: Di chuyển các file script build (`build.mjs`, `bump-version.mjs`) và thư mục `tests` vào đường dẫn ẩn `.gitignore` là `docs_dev/tests/` giúp bản build gọn gàng hơn.
-- ⚙️ **Tối ưu hóa Rollback lỗi & Docker**: Gia cố xử lý rollback khi cài đặt thất bại thông qua kiểm tra exit code của command, đồng thời sửa lỗi đóng gói thư viện browser trong Dockerfile.
+### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
+
+- **Mới: Hỗ trợ Skill Tạo ảnh Infographic chuyên nghiệp**: Tích hợp hoàn toàn công cụ tạo ảnh infographic, poster tự động thông qua API của 9Router. Tự động sinh mã nguồn script `image-generator.js` đồng bộ API credentials từ `openclaw.json` và hướng dẫn `SKILL.md` cụ thể giúp Agent nắm vững cấu trúc prompt, font chữ tiếng Việt, layout và quy tắc thiết kế ảnh.
+- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**:
+  - Tự động tag tên người gửi tin nhắn gần nhất trong group chat Zalo (Agent không cần tự điền `@Tên` ở đầu câu trả lời nữa, hệ thống sẽ tự làm).
+  - Cho phép Agent gửi kèm Sticker Zalo trực tiếp trong câu trả lời thông qua thẻ `[Sticker: <từ_khóa>]` đặt ở cuối tin nhắn.
+  - Tích hợp bộ giải nghĩa từ khóa cảm xúc thông minh (như `love`, `haha`, `ca khia`, `angry`, `thank you`,...) để tự động map sang sticker Zalo phù hợp.
+  - Tự động sinh script vá logic `mentions.js` và tài liệu hướng dẫn `SKILL.md` trong workspace.
+- **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
+- **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.8.0 (Bản nâng cấp lớn)</b></summary>

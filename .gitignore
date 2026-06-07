@@ -13,6 +13,7 @@ node_modules/
 .openclaw/update-check.json
 .openclaw/config-audit.jsonl
 .openclaw/config-health.json
+.openclaw-setup-state.json
 
 # Sessions & Auth
 .openclaw/sessions.json
@@ -56,15 +57,15 @@ patch-*.js
 Thumbs.db
 
 # ===== Developer-only scripts (local use, not for repo) =====
-bump-version.mjs
-build.mjs
-test-cli-output.mjs
-patch_cli.py
-patch-cli.mjs
-*.test.mjs
-ARCHITECTURE.md
-PLANS.md
-implementation_plan.md
+/bump-version.mjs
+/build.mjs
+/test-cli-output.mjs
+/patch_cli.py
+/patch-cli.mjs
+/*.test.mjs
+/ARCHITECTURE.md
+/PLANS.md
+/implementation_plan.md
 
 # ===== AI Planning Artifacts =====
 walkthrough.md
@@ -94,4 +95,3 @@ start-bot.sh
 uninstall-openclaw*.bat
 uninstall-openclaw*.sh
 test-vps-install.mjs
-docs_dev/

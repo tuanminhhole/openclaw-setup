@@ -13,11 +13,36 @@ function loadSharedModule(modulePath, globalName) {
   if (loaded && Object.keys(loaded).length > 0) return loaded;
   return globalThis[globalName] || loaded || {};
 }
-const { buildWorkspaceFileMap, buildCronjobSkillMd, buildInfographicGeneratorSkillMd, buildInfographicGeneratorJs } = loadSharedModule('../setup/shared/workspace-gen.js', '__openclawWorkspace');
+const { buildWorkspaceFileMap, buildCronjobSkillMd, buildInfographicGeneratorSkillMd, buildInfographicGeneratorJs, buildStickerMentionSkillMd, buildStickerMentionJs } = loadSharedModule('../setup/shared/workspace-gen.js', '__openclawWorkspace');
 const { buildOpenclawJson, buildEnvFileContent, buildExecApprovalsJson } = loadSharedModule('../setup/shared/bot-config-gen.js', '__openclawBotConfig');
 const { buildDockerArtifacts } = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
 const { OPENCLAW_NPM_SPEC, NINE_ROUTER_NPM_SPEC, build9RouterProviderConfig, get9RouterBaseUrl } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
+
+async function syncExecApprovals(projectDir, cfg) {
+  const openclawHome = join(projectDir, '.openclaw');
+  const agentMetas = (cfg.agents?.list || []).map((a) => ({ agentId: a.id }));
+  const approvals = buildExecApprovalsJson({ agentMetas });
+
+  const path1 = join(openclawHome, 'exec-approvals.json');
+  const nestedDir = join(openclawHome, '.openclaw');
+  const path2 = join(nestedDir, 'exec-approvals.json');
+
+  await fsp.mkdir(openclawHome, { recursive: true }).catch(() => {});
+  await fsp.writeFile(path1, JSON.stringify(approvals, null, 2), 'utf8');
+
+  await fsp.mkdir(nestedDir, { recursive: true }).catch(() => {});
+  let existing = {};
+  if (existsSync(path2)) {
+    try {
+      existing = JSON.parse(await fsp.readFile(path2, 'utf8'));
+    } catch (e) {}
+  }
+  if (existing.socket) {
+    approvals.socket = existing.socket;
+  }
+  await fsp.writeFile(path2, JSON.stringify(approvals, null, 2), 'utf8');
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = resolve(__dirname, '../web');
@@ -153,7 +178,9 @@ function recommendedMode(osChoice) {
 function commandExists(cmd, args = ['--version']) {
   return new Promise((resolve) => {
     const shell = process.platform === 'win32';
-    execFile(resolveBinPath(cmd), args, { windowsHide: true, timeout: 5000, shell }, (err, stdout, stderr) => {
+    const rawBin = resolveBinPath(cmd);
+    const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+    execFile(bin, args, { windowsHide: true, timeout: 5000, shell }, (err, stdout, stderr) => {
       resolve({ ok: !err, output: String(stdout || stderr || '').trim() });
     });
   });
@@ -162,7 +189,10 @@ function commandExists(cmd, args = ['--version']) {
 function run(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
     sendLog(`$ ${cmd} ${args.join(' ')}`);
-    const child = spawn(resolveBinPath(cmd), args, { cwd: opts.cwd, shell: process.platform === 'win32', env: { ...process.env, ...(opts.env || {}) } });
+    const shell = process.platform === 'win32';
+    const rawBin = resolveBinPath(cmd);
+    const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+    const child = spawn(bin, args, { cwd: opts.cwd, shell, env: { ...process.env, ...(opts.env || {}) } });
     let stdout = '';
     let resolved = false;
     child.stdout.on('data', (d) => {
@@ -192,9 +222,12 @@ function run(cmd, args, opts = {}) {
 
 function startDetached(cmd, args, opts = {}) {
   sendLog(`$ ${cmd} ${args.join(' ')} &`);
-  const child = spawn(resolveBinPath(cmd), args, {
+  const shell = process.platform === 'win32';
+  const rawBin = resolveBinPath(cmd);
+  const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+  const child = spawn(bin, args, {
     cwd: opts.cwd,
-    shell: process.platform === 'win32',
+    shell,
     detached: true,
     stdio: 'ignore',
     windowsHide: opts.windowsHide ?? true,
@@ -253,9 +286,12 @@ async function resolveProjectRuntimeVersions(projectDir, mode = state.mode || 'd
 
 function runStreamed(cmd, args, opts = {}) {
   sendLog(`$ ${cmd} ${args.join(' ')}`);
-  const child = spawn(cmd, args, {
+  const shell = opts.shell ?? process.platform === 'win32';
+  const rawBin = resolveBinPath(cmd);
+  const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+  const child = spawn(bin, args, {
     cwd: opts.cwd,
-    shell: opts.shell ?? process.platform === 'win32',
+    shell,
     windowsHide: opts.windowsHide ?? true,
     env: { ...process.env, ...(opts.env || {}) },
   });
@@ -268,9 +304,12 @@ function runStreamed(cmd, args, opts = {}) {
 
 function runStreamedToLogFile(cmd, args, logFile, opts = {}) {
   sendLog(`$ ${cmd} ${args.join(' ')}`);
-  const child = spawn(cmd, args, {
+  const shell = opts.shell ?? process.platform === 'win32';
+  const rawBin = resolveBinPath(cmd);
+  const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+  const child = spawn(bin, args, {
     cwd: opts.cwd,
-    shell: opts.shell ?? process.platform === 'win32',
+    shell,
     windowsHide: opts.windowsHide ?? true,
     env: { ...process.env, ...(opts.env || {}) },
   });
@@ -293,9 +332,12 @@ function runCapture(cmd, args, opts = {}) {
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
-    const child = spawn(resolveBinPath(cmd), args, {
+    const shell = opts.shell ?? process.platform === 'win32';
+    const rawBin = resolveBinPath(cmd);
+    const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+    const child = spawn(bin, args, {
       cwd: opts.cwd,
-      shell: opts.shell ?? process.platform === 'win32',
+      shell,
       windowsHide: opts.windowsHide ?? true,
       env: { ...process.env, ...(opts.env || {}) },
     });
@@ -475,6 +517,8 @@ async function detectRuntime(projectDir) {
 
 async function syncRuntimeState(projectDir) {
   if (!projectDir || !existsSync(join(projectDir, '.openclaw', 'openclaw.json'))) return;
+  // Auto-migrate legacy /root/project paths → /home/node/project in openclaw.json
+  await migrateContainerPaths(projectDir).catch(() => {});
   await applyResolved9RouterApiKey(projectDir).catch(() => {});
   const rt = await detectRuntime(projectDir).catch(() => null);
   if (!rt) return;
@@ -491,6 +535,38 @@ async function syncRuntimeState(projectDir) {
     await syncDockerInfra(projectDir).catch((err) =>
       sendLog(`[sync] Docker infra sync skipped: ${err.message}`)
     );
+  }
+}
+
+/**
+ * Migrate legacy /root/project/ paths to /home/node/project/ in openclaw.json.
+ * Old projects may have been created with /root/project/ which doesn't match the
+ * Docker volume mount point (/home/node/project/.openclaw).
+ * Also clears stale workspace attestation files to prevent WorkspaceVanishedError.
+ */
+async function migrateContainerPaths(projectDir) {
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  if (!existsSync(cfgPath)) return;
+  let raw = await fsp.readFile(cfgPath, 'utf8');
+  if (!raw.includes('/root/project/')) return;
+  // Replace all /root/project/ references with /home/node/project/
+  const updated = raw.replace(/\/root\/project\//g, '/home/node/project/');
+  if (updated !== raw) {
+    await fsp.writeFile(cfgPath, updated, 'utf8');
+    sendLog('[migrate] Fixed legacy /root/project/ paths → /home/node/project/ in openclaw.json');
+    // Clear stale workspace attestations to avoid WorkspaceVanishedError
+    const attestDir = join(projectDir, '.openclaw', 'workspace-attestations');
+    if (existsSync(attestDir)) {
+      try {
+        const files = await fsp.readdir(attestDir);
+        for (const f of files) {
+          if (f.endsWith('.attested')) {
+            await fsp.unlink(join(attestDir, f)).catch(() => {});
+          }
+        }
+        sendLog('[migrate] Cleared stale workspace attestation files');
+      } catch {}
+    }
   }
 }
 
@@ -575,6 +651,10 @@ function ensureConfigShape(cfg) {
       delete agent.desc;
       delete agent.description;
       delete agent.persona;
+      // Auto-fix legacy /root/project paths → /home/node/project (Docker container path)
+      if (agent.workspace && agent.workspace.includes('/root/project/')) {
+        agent.workspace = agent.workspace.replace('/root/project/', '/home/node/project/');
+      }
     }
     agent.model = agent.model || { primary: cfg.agents.defaults.model.primary, fallbacks: [] };
     if (!agent.model.primary || agent.model.primary === '9router/smart-route' || agent.model.primary === 'openai/smart-route') agent.model.primary = DEFAULT_MODEL;
@@ -909,6 +989,7 @@ async function deleteBotInProject(projectDir, agentId) {
 
   if (existsSync(cfgPath)) await fsp.copyFile(cfgPath, `${cfgPath}.bak`);
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+  await syncExecApprovals(projectDir, cfg);
 
   // Also clear bot tokens in .env files if deleting the primary bot
   if (agentId === 'bot') {
@@ -1004,7 +1085,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     providerKey: '9router',
     deployMode: runtime.mode || state.mode || 'docker',
     osChoice: runtime.os || state.os || detectOs(),
-    selectedSkills: [],
+    selectedSkills: ['memory', 'image-gen', 'web-search', 'scheduler'],
     skills: dataExport.SKILLS || [],
     agentMetas: [],
   }));
@@ -1060,6 +1141,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   validateOpenclawConfig(cfg);
   if (existsSync(cfgPath)) await fsp.copyFile(cfgPath, `${cfgPath}.bak`);
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+  await syncExecApprovals(projectDir, cfg);
 
   const hasScheduler = !!(cfg.tools?.alsoAllow || []).includes('group:automation');
   const hasImageGen = !!(cfg.skills?.entries?.['image-gen']?.enabled);
@@ -1071,8 +1153,10 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     emoji,
     userInfo,
     agentWorkspaceDir: workspaceDir,
-    workspacePath: `.openclaw/${workspaceDir}`,
+    workspacePath: `/home/node/project/.openclaw/${workspaceDir}`,
+    channel,
     hasZaloMod: channel === 'zalo-personal',
+    hasZaloSticker: channel === 'zalo-personal',
     hasScheduler,
     hasImageGen,
   });
@@ -1135,6 +1219,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   validateOpenclawConfig(cfg);
   if (existsSync(cfgPath)) await fsp.copyFile(cfgPath, `${cfgPath}.bak`);
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+  await syncExecApprovals(projectDir, cfg);
 
   // Synchronize the token to .env files for the primary bot to ensure Docker picks it up
   if (agentId === 'bot') {
@@ -1173,8 +1258,10 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     emoji,
     userInfo,
     agentWorkspaceDir: workspaceDir,
-    workspacePath: `.openclaw/${workspaceDir}`,
+    workspacePath: `/home/node/project/.openclaw/${workspaceDir}`,
+    channel,
     hasZaloMod: channel === 'zalo-personal',
+    hasZaloSticker: channel === 'zalo-personal',
     hasScheduler,
     hasImageGen,
   });
@@ -1183,6 +1270,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     await fsp.mkdir(dirname(join(wsRoot, name)), { recursive: true });
     await fsp.writeFile(join(wsRoot, name), content || '', 'utf8');
   }
+
   return { ok: true, agentId, channel, workspace: `.openclaw/${workspaceDir}` };
 }
 
@@ -1596,6 +1684,33 @@ async function recreateDockerBot(projectDir) {
   sendLog(`[docker] Recreating ${serviceName} to reload openclaw.json/.env...`);
   await run('docker', ['compose', '-f', composeFile, 'up', '-d', '--build', '--force-recreate', serviceName], { cwd: projectDir });
   await waitForDockerContainer(containerName);
+
+  // Automatically run Zalo sticker-mention patch if skill is enabled and agent is zalo-personal
+  try {
+    const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+    if (existsSync(cfgPath)) {
+      const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
+      const stickerMentionOn = !!cfg.skills?.entries?.['sticker-mention']?.enabled;
+      if (stickerMentionOn) {
+        for (const a of cfg.agents?.list || []) {
+          const binding = (cfg.bindings || []).find((b) => b.agentId === a.id);
+          const channel = binding?.match?.channel || 'telegram';
+          if (channel === 'zalo-personal') {
+            const workspaceDir = workspaceRelForAgent(a, cfg, projectDir) || `workspace-${a.id}`;
+            const mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/sticker-mention/mentions.js');
+            if (existsSync(mentionsJsPath)) {
+              sendLog(`[zalo-patch] Automatically running mentions.js inside container ${containerName}...`);
+              const patchCmd = await runCapture('docker', ['exec', containerName, 'node', `/home/node/project/.openclaw/${workspaceDir}/skills/sticker-mention/mentions.js`], { cwd: projectDir, shell: false });
+              sendLog(`[zalo-patch] Output: ${patchCmd.stdout || ''} ${patchCmd.stderr || ''}`);
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    sendLog(`[zalo-patch] Failed to auto-run mentions.js: ${err.message}`);
+  }
+
   return true;
 }
 
@@ -1656,16 +1771,14 @@ async function writeCoreProject({ projectDir, osChoice, mode, gatewayPort = 1878
   await fsp.mkdir(openclawHome, { recursive: true });
   await fsp.mkdir(join(openclawHome, 'plugin-runtime-deps'), { recursive: true });
 
-  const selectedSkills = ['memory', 'image-gen', 'web-search'];
+  const selectedSkills = ['memory', 'image-gen', 'web-search', 'scheduler'];
   const agentMetas = [];
   const common = { channelKey: 'telegram', providerKey: '9router', model: DEFAULT_MODEL, deployMode: mode, osChoice, selectedSkills, skills: dataExport.SKILLS || [], agentMetas, gatewayPort, routerPort };
   const cfg = buildOpenclawJson(common);
   const env = buildEnvFileContent({ ...common, apiKey: '', botToken: '' });
-  const approvals = buildExecApprovalsJson({ agentMetas });
-
   await fsp.writeFile(join(openclawHome, 'openclaw.json'), JSON.stringify(cfg, null, 2), 'utf8');
   await fsp.writeFile(join(projectDir, '.env'), env, 'utf8');
-  await fsp.writeFile(join(openclawHome, 'exec-approvals.json'), JSON.stringify(approvals, null, 2), 'utf8');
+  await syncExecApprovals(projectDir, cfg);
 
   if (mode === 'docker') {
     const projectName = slugify(basename(projectDir)) || 'bot';
@@ -1720,7 +1833,7 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
       await fsp.mkdir(dockerDir, { recursive: true });
       const envContent = existsSync(rootEnvPath)
         ? await fsp.readFile(rootEnvPath, 'utf8')
-        : buildEnvFileContent({ channelKey: 'telegram', providerKey: '9router', deployMode: mode, osChoice, selectedSkills: [], skills: dataExport.SKILLS || [], agentMetas: [], apiKey: '', botToken: '' });
+        : buildEnvFileContent({ channelKey: 'telegram', providerKey: '9router', deployMode: mode, osChoice, selectedSkills: ['memory', 'image-gen', 'web-search', 'scheduler'], skills: dataExport.SKILLS || [], agentMetas: [], apiKey: '', botToken: '' });
       await fsp.writeFile(dockerEnvPath, envContent, 'utf8');
       sendLog(`Docker env ready: ${dockerEnvPath}`);
       await run('docker', ['compose', 'up', '-d', '--build'], { cwd: dockerDir });
@@ -2172,6 +2285,12 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
   }
 
   if (kind === 'skill' && id === 'cron') {
+    cfg.skills = cfg.skills || { entries: {} };
+    cfg.skills.entries = cfg.skills.entries || {};
+    delete cfg.skills.entries['cron'];
+    cfg.skills.entries['cronjob'] = cfg.skills.entries['cronjob'] || {};
+    cfg.skills.entries['cronjob'].enabled = !!enabled;
+
     if (enabled) {
       cfg.tools = cfg.tools || { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
       cfg.tools.alsoAllow = Array.from(new Set([...(cfg.tools.alsoAllow || []), 'group:automation']));
@@ -2251,6 +2370,51 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
     if (hasDocker) {
       sendLog(`[docker] Web Search skill toggled to ${enabled}. Recreating containers...`);
+      await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
+    }
+  }
+
+  if (kind === 'skill' && id === 'sticker-mention') {
+    cfg.skills = cfg.skills || { entries: {} };
+    cfg.skills.entries = cfg.skills.entries || {};
+    cfg.skills.entries['sticker-mention'] = cfg.skills.entries['sticker-mention'] || {};
+    cfg.skills.entries['sticker-mention'].enabled = !!enabled;
+
+    for (const a of cfg.agents.list) {
+      const sf = await readWorkspaceText(projectDir, a, 'skills/sticker-mention/SKILL.md');
+      const jsf = await readWorkspaceText(projectDir, a, 'skills/sticker-mention/mentions.js');
+      if (enabled) {
+        await fsp.mkdir(dirname(sf.file), { recursive: true });
+        await fsp.writeFile(sf.file, buildStickerMentionSkillMd(), 'utf8');
+        await fsp.writeFile(jsf.file, buildStickerMentionJs(), 'utf8');
+      } else {
+        const binding = (cfg.bindings || []).find((b) => b.agentId === a.id);
+        const channel = binding?.match?.channel || 'telegram';
+        if (channel === 'zalo-personal' && existsSync(jsf.file)) {
+          try {
+            const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
+            if (hasDocker) {
+              const botContainer = getBotContainerName(projectDir);
+              const workspaceDir = workspaceRelForAgent(a, cfg, projectDir) || `workspace-${a.id}`;
+              sendLog('[zalo-patch] Running restore before disabling skill...');
+              await runCapture('docker', ['exec', botContainer, 'node', `/home/node/project/.openclaw/${workspaceDir}/skills/sticker-mention/mentions.js`, '--restore'], { cwd: projectDir, shell: false });
+            }
+          } catch (e) {
+            sendLog(`[zalo-patch] Restore failed: ${e.message}`);
+          }
+        }
+        if (existsSync(sf.file)) await fsp.rm(sf.file, { force: true });
+        if (existsSync(jsf.file)) await fsp.rm(jsf.file, { force: true });
+      }
+    }
+
+    // Write cfgPath early so recreation reads updated openclaw.json
+    await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+
+    // Recreate container to apply updated openclaw.json
+    const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
+    if (hasDocker) {
+      sendLog(`[docker] Sticker & Mention skill toggled to ${enabled}. Recreating containers...`);
       await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
     }
   }
@@ -2468,7 +2632,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
   const cfg = existsSync(cfgPath) ? ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}'))) : {};
   const aid = agentId || cfg.agents?.list?.[0]?.id || 'bot';
   const browserOn = !!cfg.browser?.enabled;
-  const cronOn = !!(cfg.tools?.alsoAllow || []).includes('group:automation');
+  const cronOn = !!cfg.skills?.entries?.['cronjob']?.enabled || !!cfg.skills?.entries?.['cron']?.enabled || !!(cfg.tools?.alsoAllow || []).includes('group:automation');
   const fresh = cfg;
   const freshSaved = {};
   const installsPath = join(projectDir || '', '.openclaw', 'plugins', 'installs.json');
@@ -2497,6 +2661,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     );
   const imageGenOn = !!cfg.skills?.entries?.['image-gen']?.enabled;
   const webSearchOn = isEnabled(['duckduckgo']);
+  const stickerMentionOn = !!cfg.skills?.entries?.['sticker-mention']?.enabled;
   const aliases = {
     browser: ['openclaw-browser-automation', 'browser-automation'],
     zalo: ['openclaw-zalo-mod', 'zalo-mod'],
@@ -2508,6 +2673,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'skill:cron': cronOn,
     'skill:image-gen': imageGenOn,
     'skill:web-search': webSearchOn,
+    'skill:sticker-mention': stickerMentionOn,
     'plugin:openclaw-browser-automation': isEnabled(aliases.browser),
     'plugin:openclaw-zalo-mod': isEnabled(aliases.zalo),
     'plugin:openclaw-facebook-crawler': isEnabled(aliases.crawler),
@@ -2873,10 +3039,13 @@ function restartInstaller() {
         args.push('--no-open');
       }
       
-      const child = spawn(process.argv[0], [entryFile, ...args], {
+      const shell = process.platform === 'win32';
+      const rawBin = process.argv[0];
+      const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+      const child = spawn(bin, [entryFile, ...args], {
         detached: true,
         stdio: 'inherit',
-        shell: process.platform === 'win32'
+        shell
       });
       child.unref();
       
@@ -2897,7 +3066,7 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   if (openBrowser) openUrl(url);
 }
 
-export { createBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloUserLogin, readBotCredentials, resolveProject9RouterApiKey };
+export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloUserLogin, readBotCredentials, resolveProject9RouterApiKey };
 
 
 

@@ -829,6 +829,7 @@ function botSkillsPanel() {
     { id: 'cron', title: 'Cron', desc: 'Native scheduler (SQLite) — cron guide in TOOLS.md' },
     { id: 'image-gen', title: 'Tạo ảnh Infographic', desc: 'Tạo ảnh infographic, poster tự động qua 9Router' },
     { id: 'web-search', title: 'Web Search', desc: 'Tìm kiếm web thời gian thực (DuckDuckGo)' },
+    { id: 'sticker-mention', title: 'Sticker & Auto-Tag (Zalo)', desc: 'Tự động tag người gửi và gửi sticker Zalo theo từ khóa' },
   ];
   const plugins = [
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },

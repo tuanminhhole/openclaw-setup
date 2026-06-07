@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.8-0EA5E9?style=for-the-badge" alt="Version 5.8.8" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.9-0EA5E9?style=for-the-badge" alt="Version 5.8.9" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -23,12 +23,18 @@ A next-generation **Web UI Setup** and management dashboard that automates 100% 
 
 ---
 
-## 🆕 What's New in v5.8.8
+## 🆕 What's New in v5.8.9
 
-- 🔄 **Smart Header Update Button**: Instantly upgrades the setup wizard from the UI! The button queries the npm registry dynamically and only reveals itself when a newer release is published.
-- 📡 **Live Log-Streaming Upgrade**: Kicking off the update automatically executes the migration (running `git pull && npm install && npm run build` for Git clones, or `npm install -g create-openclaw-bot` for NPM installs) while streaming standard outputs in real-time straight to the dashboard's Logs terminal.
-- 🧹 **Restructured Dev/Test Environment**: Relocated all noisy build scripts (`build.mjs`, `bump-version.mjs`) and the test suite into the `.gitignore`'d `docs_dev/tests/` directory to preserve clean production builds.
-- ⚙️ **Robust Failure Rollback & Docker Fixes**: Strengthened installation crash recovery by inspecting process exit codes, and resolved dynamic Playwright browser bundle appending inside Dockerfiles.
+### 🚀 New Features: Deep Integration of Infographic Image Generator, Zalo Sticker & Auto-Tag Skills, and Workspace Docs Optimization
+
+- **New: Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script `image-generator.js` (synchronizing API credentials from `openclaw.json`) and a comprehensive `SKILL.md` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
+- **New: Zalo Sticker & Auto-Tag Skill**:
+  - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with `@Name` anymore, the system handles it).
+  - Enables agents to dynamically send Zalo stickers by appending `[Sticker: <keyword>]` at the end of their text responses.
+  - Automatically maps emotional keywords (such as `love`, `haha`, `ca khia`, `angry`, `thank you`, etc.) to actual Zalo sticker IDs.
+  - Generates the patch script `mentions.js` and a dedicated `SKILL.md` inside the agent's workspace.
+- **Polish: Simplified TOOLS.md generation**: Streamlined the `TOOLS.md` generator to output a concise, static guide focusing on general principles and referencing the `./skills/` directory, rather than generating dynamic lists based on installed plugins.
+- **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated `AGENTS.md` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (`TEAMS.md` for single-bot, `BROWSER.md`) and standardizing descriptions to keep exactly 9 core documents.
 
 <details>
 <summary><b>Previous: What's new in v5.8.0 (Major Release)</b></summary>
@@ -60,14 +66,19 @@ A next-generation **Web UI Setup** and management dashboard that automates 100% 
 ## 🗺️ Quick Start
 
 ### 1️⃣ Method 1: Using NPX (Recommended)
+
 Open your terminal and run this single command:
+
 ```bash
 npx create-openclaw-bot
 ```
-*The bootstrapper will automatically download package files, launch the local backend server, and open the Setup UI in your browser.*
+
+_The bootstrapper will automatically download package files, launch the local backend server, and open the Setup UI in your browser._
 
 ### 2️⃣ Method 2: Manual Clone
+
 If you downloaded or cloned the repository files locally:
+
 ```bash
 npm install
 npm start

@@ -30,7 +30,7 @@
   // Keep in sync with setup/data/skills.js skill IDs
   const SKILLS = [
     { value: 'memory',           name: '🧠 Long-term Memory (⭐ Khuyên dùng)',                 slug: 'memory' },
-    { value: 'scheduler',        name: '⏰ Native Cron Scheduler (⭐ Khuyên dùng)',             slug: null },
+    { value: 'scheduler',        name: '⏰ Native Cron Scheduler (⭐ Khuyên dùng)',             slug: 'cronjob' },
     { value: 'rag',              name: '📚 RAG / Knowledge Base',                              slug: 'rag' },
     { value: 'image-gen',        name: '🎨 Image Generation (DALL·E / Flux)',                  slug: 'image-gen' },
     { value: 'code-interpreter', name: '💻 Code Interpreter (Python/JS)',                      slug: 'code-interpreter' },
