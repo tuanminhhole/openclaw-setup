@@ -2175,9 +2175,6 @@ async function deleteProjectFolder(projectDir, rootProjectDir) {
   const rootHome = resolve(os.homedir());
   if (!existsSync(join(resolved, '.openclaw', 'openclaw.json'))) throw httpError(404, 'openclaw.json not found in selected project');
   if (resolved === home || resolved === rootHome || /^[A-Za-z]:\\?$/.test(resolved)) throw httpError(403, 'Refusing to delete home/root folder');
-  const projects = await discoverProjects(rootProjectDir).catch(() => []);
-  const meta = projects.find((p) => resolve(p.projectDir) === resolved);
-  if (!meta || !meta.botCount) throw httpError(403, 'Refusing to delete a folder that is not a detected bot project');
   // Stop and remove Docker containers first to release host folder locks
   const dockerComposeDir = join(resolved, 'docker', 'openclaw');
   if (existsSync(join(dockerComposeDir, 'docker-compose.yml'))) {
