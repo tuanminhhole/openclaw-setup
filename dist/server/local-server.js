@@ -3050,13 +3050,11 @@ function restartInstaller() {
         args.push('--no-open');
       }
       
-      const shell = process.platform === 'win32';
-      const rawBin = process.argv[0];
-      const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+      const bin = process.argv[0];
       const child = spawn(bin, [entryFile, ...args], {
         detached: true,
         stdio: 'inherit',
-        shell
+        shell: false
       });
       child.unref();
       

@@ -115,7 +115,7 @@ if (process.env.OPENCLAW_SETUP_WIZARD === 'true' || isLocalRepo()) {
     
     const child = spawn(process.argv[0], [cliPath, ...args, `--project-dir=${projectDir}`], {
       cwd: targetPath,
-      shell: true,
+      shell: false,
       stdio: 'inherit',
       env: {
         ...process.env,
