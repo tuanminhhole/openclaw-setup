@@ -1695,7 +1695,7 @@ async function recreateDockerBot(projectDir) {
         for (const a of cfg.agents?.list || []) {
           const binding = (cfg.bindings || []).find((b) => b.agentId === a.id);
           const channel = binding?.match?.channel || 'telegram';
-          if (channel === 'zalo-personal') {
+          if (channel === 'zalo-personal' || channel === 'zalouser') {
             const workspaceDir = workspaceRelForAgent(a, cfg, projectDir) || `workspace-${a.id}`;
             const mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/sticker-mention/mentions.js');
             if (existsSync(mentionsJsPath)) {
@@ -2387,7 +2387,7 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
       } else {
         const binding = (cfg.bindings || []).find((b) => b.agentId === a.id);
         const channel = binding?.match?.channel || 'telegram';
-        if (channel === 'zalo-personal' && existsSync(jsf.file)) {
+        if ((channel === 'zalo-personal' || channel === 'zalouser') && existsSync(jsf.file)) {
           try {
             const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
             if (hasDocker) {
