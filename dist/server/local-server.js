@@ -68,7 +68,7 @@ async function fetchLatestSetupVersionBg() {
 }
 fetchLatestSetupVersionBg().catch(() => {});
 
-const DEFAULT_PROJECT_NAME = 'openclaw-bot';
+const DEFAULT_PROJECT_NAME = 'openclaw-setup';
 const STATE_FILE = '.openclaw-setup-state.json';
 const DEFAULT_MODEL = 'smart-route';
 const logClients = new Set();

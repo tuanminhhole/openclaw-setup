@@ -166,7 +166,7 @@ function installModal() {
   const draft = refreshInstallDraft();
   const os = draft.os || state.os || sys?.os || 'win';
   const mode = draft.mode || state.installTab || state.mode || sys?.recommendedMode || 'docker';
-  const pathExample = os === 'win' ? 'E:\\bot' : os === 'macos' ? '/Users/you/openclaw-bot' : '/home/you/openclaw-bot';
+  const pathExample = os === 'win' ? 'C:\\openclaw-setup' : os === 'macos' ? '/Users/you/openclaw-setup' : '/home/you/openclaw-setup';
   const osChoices = OS_OPTIONS.map(o => [o.id, t(o.title, o.title), trChoice(o).subtitle]);
   const modeChoices = [
     ['docker', 'Docker', t('\u0043ontainer c\u00f4 l\u1eadp, an to\u00e0n nh\u1ea5t', 'Isolated containers, safest default')],
@@ -180,7 +180,7 @@ function installModal() {
         <div class="install-tabs">${modeChoices.map(([id,label,desc]) => `<button type="button" class="install-tab ${mode===id?'is-active':''}" data-install-set="mode" data-value="${id}"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(desc)}</small></button>`).join('')}</div>
         <div class="install-grid install-grid--compact">
           <div class="field wide"><span>${t('H\u1ec7 \u0111i\u1ec1u h\u00e0nh','Operating system')}</span>${pillGroup('os', os, osChoices)}<small>${t('\u0110\u00e3 ch\u1ecdn s\u1eb5n theo m\u00e1y \u0111ang ch\u1ea1y','Preselected from the current machine')}</small></div>
-          <label class="field wide"><span>${t('Đường dẫn project','Project path')}</span><input name="projectDir" placeholder="${escapeHtml(pathExample)}" value="${escapeHtml(draft.projectDir || pathExample)}" /><small>${t('Ví dụ: E:\\bot hoặc /home/you/openclaw-bot. Bạn có thể tự sửa tên folder bot thành tên bất kỳ.','Example: E:\\bot or /home/you/openclaw-bot. You can rename folder bot to any name.')}</small></label>
+          <label class="field wide"><span>${t('Đường dẫn project','Project path')}</span><input name="projectDir" placeholder="${escapeHtml(pathExample)}" value="${escapeHtml(draft.projectDir || pathExample)}" /><small>${t('Ví dụ: C:\\openclaw-setup hoặc /home/you/openclaw-setup. Bạn có thể tự sửa tên folder bot thành tên bất kỳ.','Example: C:\\openclaw-setup or /home/you/openclaw-setup. You can rename folder bot to any name.')}</small></label>
         </div>
         <div class="install-preview">${t('S\u1ebd t\u1ea1o t\u1ea1i','Will create at')} <code data-install-preview>${escapeHtml(draft.projectDir || pathExample)}</code></div>
         <input type="hidden" name="os" value="${escapeHtml(os)}" />
@@ -241,7 +241,7 @@ function refreshInstallDraft(next = {}) {
   const sys = state.system || {};
   const os = next.os || prev.os || state.os || sys.os || 'win';
   const mode = next.mode || prev.mode || state.mode || sys.recommendedMode || 'docker';
-  const defaultDir = os === 'win' ? 'E:\\bot' : os === 'macos' ? '/Users/you/openclaw-bot' : '/home/you/openclaw-bot';
+  const defaultDir = os === 'win' ? 'C:\\openclaw-setup' : os === 'macos' ? '/Users/you/openclaw-setup' : '/home/you/openclaw-setup';
   
   const projectName = String(next.projectName ?? prev.projectName ?? '').trim();
   const projectRoot = String(next.projectRoot ?? prev.projectRoot ?? '').trim();
@@ -249,7 +249,7 @@ function refreshInstallDraft(next = {}) {
   let projectDir = String(next.projectDir ?? prev.projectDir ?? '').trim();
   if (!projectDir) {
     if (projectRoot) {
-      projectDir = joinPath(projectRoot, projectName || 'openclaw-bot');
+      projectDir = joinPath(projectRoot, projectName || 'openclaw-setup');
     } else {
       projectDir = defaultDir;
     }
