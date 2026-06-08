@@ -57,6 +57,7 @@ patch-*.js
 Thumbs.db
 
 # ===== Developer-only scripts (local use, not for repo) =====
+docs_dev/
 /bump-version.mjs
 /build.mjs
 /test-cli-output.mjs

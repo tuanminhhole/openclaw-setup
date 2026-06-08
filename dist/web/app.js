@@ -445,7 +445,8 @@ function wireSkillsHandlers(scope = document) {
       await api('/api/features/install', { method:'POST', body:{ kind, id, agentId: currentBotId() } });
       await loadFeatureFlags(true);
       await loadFiles(true);
-      showToast(t('Thành công', 'Success'), t('Cài đặt/Cập nhật thành công plugin: ', 'Successfully installed/updated plugin: ') + id, 'success');
+      const label = kind === 'skill' ? t('kỹ năng: ', 'skill: ') : t('plugin: ', 'plugin: ');
+      showToast(t('Thành công', 'Success'), t('Cài đặt/Cập nhật thành công ', 'Successfully installed/updated ') + label + id, 'success');
     } catch (err) {
       showToast(t('Thất bại', 'Failed'), err.message, 'error');
     } finally {
@@ -842,13 +843,13 @@ function botSkillsPanel() {
   const row = (item, group) => {
     const key = `${group}:${item.id}`;
     const loading = !!state.featureLoading[key];
-    const isPlugin = group === 'plugin';
-    const isInstalled = !isPlugin || !!state.featureInstalled?.[key];
+    const requiresInstall = group === 'plugin' || (group === 'skill' && (item.id === 'image-gen' || item.id === 'sticker-mention'));
+    const isInstalled = !requiresInstall || !!state.featureInstalled?.[key];
     
     let actionsHtml = '';
     if (isInstalled) {
       actionsHtml = `<div style="display:flex; align-items:center; gap:8px;">`;
-      if (isPlugin) {
+      if (requiresInstall) {
         actionsHtml += `<button class="secondary icon-btn2 update-plugin-btn" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''} title="${t('Cập nhật lên bản mới nhất','Update to latest version')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#ffb020; border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.05);">${actionIcon('refresh')}<span>${t('Cập nhật','Update')}</span></button>`;
       }
       actionsHtml += `<label class="feature-switch"><input type="checkbox" data-feature-toggle="${key}" ${flags[key] ? 'checked' : ''} ${loading ? 'disabled' : ''}/><span></span></label></div>`;
@@ -856,7 +857,7 @@ function botSkillsPanel() {
       actionsHtml = `<button class="secondary icon-btn2" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''}>${actionIcon('download')} ${ui('installVerb')}</button>`;
     }
 
-    const version = isPlugin && isInstalled ? (state.featureVersions?.[key] || '') : '';
+    const version = requiresInstall && isInstalled ? (state.featureVersions?.[key] || '') : '';
     const versionBadge = version ? `<span class="plugin-version-badge" style="display:inline-block; font-size: 11px; background: rgba(66, 133, 244, 0.15); color: #4285F4; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 8px; border: 1px solid rgba(66,133,244,0.25);">v${escapeHtml(version)}</span>` : '';
 
     return `<article class="card feature-card ${loading ? 'is-loading' : ''}"><div class="feature-head"><div><b>${escapeHtml(item.title)}${versionBadge}</b><p>${escapeHtml(item.desc)}</p></div>` + 

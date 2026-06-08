@@ -531,8 +531,8 @@ for (let i = 0; i < 5; i++) {
 }
 
 // Resolve API Key and Base URL from openclaw.json
-let apiKey = 'sk-50599bc9642941c0-obzd49-1940044a'; // default fallback key
-let baseUrl = 'http://9router:20128/v1'; // default fallback URL
+let apiKey = process.env.NINE_ROUTER_API_KEY || ''; // default fallback key
+let baseUrl = process.env.NINE_ROUTER_BASE_URL || 'http://9router:20128/v1'; // default fallback URL
 if (openclawJsonPath) {
     try {
         const config = JSON.parse(fs.readFileSync(openclawJsonPath, 'utf8'));

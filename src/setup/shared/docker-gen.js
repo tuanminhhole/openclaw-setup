@@ -304,6 +304,13 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '  sed -i "s/LISTENER_WATCHDOG_MAX_GAP_MS\\\\s*=\\\\s*35e3/LISTENER_WATCHDOG_MAX_GAP_MS = 90e3/" "$ZALO_JS"',
       '  echo "[entrypoint] patched zalouser watchdog gap: 35s -> 90s"',
       'fi',
+      '# Automatically run Zalo sticker-mention patch if skill is present',
+      'for MENTIONS_JS in $(find "$OPENCLAW_HOME" -maxdepth 5 -path "*/skills/*/mentions.js" -type f 2>/dev/null); do',
+      '  if [ -f "$MENTIONS_JS" ]; then',
+      '    echo "[entrypoint] Running patch: $MENTIONS_JS"',
+      '    node "$MENTIONS_JS" || echo "[entrypoint] Warning: failed to run patch $MENTIONS_JS"',
+      '  fi',
+      'done',
     ].join('\n'));
     runtimeParts.push([
       '# Zalo channel auto-restart monitor (background)',

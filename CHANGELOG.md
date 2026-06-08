@@ -1,7 +1,6 @@
 # Changelog (English)
 
-
-## [5.8.16] — 2026-06-07
+## [5.8.17] — 2026-06-08
 
 ### 🚀 Bug Fixes & Refinements: Docker Workspace Path Resolution, Clean NPM Installer, and UI Auto-Update
 
@@ -9,7 +8,6 @@
 - **New: Direct NPM Installer Execution**: Refactored the CLI launcher to run directly from the published npm package files instead of performing a full git clone, drastically reducing setup size and skipping git dependencies for end-users.
 - **New: Automatic Setup Wizard Update**: Rewrote the updater to seamlessly install the package locally inside `~/.openclaw-setup` and automatically restart the Setup Wizard from the web UI when running via npm.
 - **Aesthetic: Monospace CLI Logo Alignment**: Centered and balanced the rounded-border lobster logo displayed at startup.
-
 
 ## [5.8.15] — 2026-06-07
 
@@ -20,90 +18,83 @@
 - **New: Automatic Setup Wizard Update**: Rewrote the updater to seamlessly install the package locally inside `~/.openclaw-setup` and automatically restart the Setup Wizard from the web UI when running via npm.
 - **Aesthetic: Monospace CLI Logo Alignment**: Centered and balanced the rounded-border lobster logo displayed at startup.
 
-
 ## [5.8.14] — 2026-06-07
 
 ### 🚀 New Features: Deep Integration of Infographic Image Generator, Zalo Sticker & Auto-Tag Skills, and Workspace Docs Optimization
 
 - **New: Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script `image-generator.js` (synchronizing API credentials from `openclaw.json`) and a comprehensive `SKILL.md` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
-- **New: Zalo Sticker & Auto-Tag Skill**: 
+- **New: Zalo Sticker & Auto-Tag Skill**:
   - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with `@Name` anymore, the system handles it).
   - Enables agents to dynamically send Zalo stickers by appending `[Sticker: <keyword>]` at the end of their text responses.
   - Automatically maps emotional keywords (such as `love`, `haha`, `ca khia`, `angry`, `thank you`, etc.) to actual Zalo sticker IDs.
   - Generates the patch script `mentions.js` and a dedicated `SKILL.md` inside the agent's workspace.
 - **Polish: Simplified TOOLS.md generation**: Streamlined the `TOOLS.md` generator to output a concise, static guide focusing on general principles and referencing the `./skills/` directory, rather than generating dynamic lists based on installed plugins.
 - **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated `AGENTS.md` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (`TEAMS.md` for single-bot, `BROWSER.md`) and standardizing descriptions to keep exactly 9 core documents.
-
 
 ## [5.8.13] — 2026-06-07
 
 ### 🚀 New Features: Deep Integration of Infographic Image Generator, Zalo Sticker & Auto-Tag Skills, and Workspace Docs Optimization
 
 - **New: Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script `image-generator.js` (synchronizing API credentials from `openclaw.json`) and a comprehensive `SKILL.md` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
-- **New: Zalo Sticker & Auto-Tag Skill**: 
+- **New: Zalo Sticker & Auto-Tag Skill**:
   - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with `@Name` anymore, the system handles it).
   - Enables agents to dynamically send Zalo stickers by appending `[Sticker: <keyword>]` at the end of their text responses.
   - Automatically maps emotional keywords (such as `love`, `haha`, `ca khia`, `angry`, `thank you`, etc.) to actual Zalo sticker IDs.
   - Generates the patch script `mentions.js` and a dedicated `SKILL.md` inside the agent's workspace.
 - **Polish: Simplified TOOLS.md generation**: Streamlined the `TOOLS.md` generator to output a concise, static guide focusing on general principles and referencing the `./skills/` directory, rather than generating dynamic lists based on installed plugins.
 - **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated `AGENTS.md` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (`TEAMS.md` for single-bot, `BROWSER.md`) and standardizing descriptions to keep exactly 9 core documents.
-
 
 ## [5.8.12] — 2026-06-07
 
 ### 🚀 New Features: Deep Integration of Infographic Image Generator, Zalo Sticker & Auto-Tag Skills, and Workspace Docs Optimization
 
 - **New: Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script `image-generator.js` (synchronizing API credentials from `openclaw.json`) and a comprehensive `SKILL.md` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
-- **New: Zalo Sticker & Auto-Tag Skill**: 
+- **New: Zalo Sticker & Auto-Tag Skill**:
   - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with `@Name` anymore, the system handles it).
   - Enables agents to dynamically send Zalo stickers by appending `[Sticker: <keyword>]` at the end of their text responses.
   - Automatically maps emotional keywords (such as `love`, `haha`, `ca khia`, `angry`, `thank you`, etc.) to actual Zalo sticker IDs.
   - Generates the patch script `mentions.js` and a dedicated `SKILL.md` inside the agent's workspace.
 - **Polish: Simplified TOOLS.md generation**: Streamlined the `TOOLS.md` generator to output a concise, static guide focusing on general principles and referencing the `./skills/` directory, rather than generating dynamic lists based on installed plugins.
 - **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated `AGENTS.md` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (`TEAMS.md` for single-bot, `BROWSER.md`) and standardizing descriptions to keep exactly 9 core documents.
-
 
 ## [5.8.11] — 2026-06-07
 
 ### 🚀 New Features: Deep Integration of Infographic Image Generator, Zalo Sticker & Auto-Tag Skills, and Workspace Docs Optimization
 
 - **New: Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script `image-generator.js` (synchronizing API credentials from `openclaw.json`) and a comprehensive `SKILL.md` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
-- **New: Zalo Sticker & Auto-Tag Skill**: 
+- **New: Zalo Sticker & Auto-Tag Skill**:
   - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with `@Name` anymore, the system handles it).
   - Enables agents to dynamically send Zalo stickers by appending `[Sticker: <keyword>]` at the end of their text responses.
   - Automatically maps emotional keywords (such as `love`, `haha`, `ca khia`, `angry`, `thank you`, etc.) to actual Zalo sticker IDs.
   - Generates the patch script `mentions.js` and a dedicated `SKILL.md` inside the agent's workspace.
 - **Polish: Simplified TOOLS.md generation**: Streamlined the `TOOLS.md` generator to output a concise, static guide focusing on general principles and referencing the `./skills/` directory, rather than generating dynamic lists based on installed plugins.
 - **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated `AGENTS.md` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (`TEAMS.md` for single-bot, `BROWSER.md`) and standardizing descriptions to keep exactly 9 core documents.
-
 
 ## [5.8.10] — 2026-06-07
 
 ### 🚀 New Features: Deep Integration of Infographic Image Generator, Zalo Sticker & Auto-Tag Skills, and Workspace Docs Optimization
 
 - **New: Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script `image-generator.js` (synchronizing API credentials from `openclaw.json`) and a comprehensive `SKILL.md` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
-- **New: Zalo Sticker & Auto-Tag Skill**: 
+- **New: Zalo Sticker & Auto-Tag Skill**:
   - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with `@Name` anymore, the system handles it).
   - Enables agents to dynamically send Zalo stickers by appending `[Sticker: <keyword>]` at the end of their text responses.
   - Automatically maps emotional keywords (such as `love`, `haha`, `ca khia`, `angry`, `thank you`, etc.) to actual Zalo sticker IDs.
   - Generates the patch script `mentions.js` and a dedicated `SKILL.md` inside the agent's workspace.
 - **Polish: Simplified TOOLS.md generation**: Streamlined the `TOOLS.md` generator to output a concise, static guide focusing on general principles and referencing the `./skills/` directory, rather than generating dynamic lists based on installed plugins.
 - **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated `AGENTS.md` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (`TEAMS.md` for single-bot, `BROWSER.md`) and standardizing descriptions to keep exactly 9 core documents.
-
 
 ## [5.8.9] — 2026-06-07
 
 ### 🚀 New Features: Deep Integration of Infographic Image Generator, Zalo Sticker & Auto-Tag Skills, and Workspace Docs Optimization
 
 - **New: Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script `image-generator.js` (synchronizing API credentials from `openclaw.json`) and a comprehensive `SKILL.md` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
-- **New: Zalo Sticker & Auto-Tag Skill**: 
+- **New: Zalo Sticker & Auto-Tag Skill**:
   - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with `@Name` anymore, the system handles it).
   - Enables agents to dynamically send Zalo stickers by appending `[Sticker: <keyword>]` at the end of their text responses.
   - Automatically maps emotional keywords (such as `love`, `haha`, `ca khia`, `angry`, `thank you`, etc.) to actual Zalo sticker IDs.
   - Generates the patch script `mentions.js` and a dedicated `SKILL.md` inside the agent's workspace.
 - **Polish: Simplified TOOLS.md generation**: Streamlined the `TOOLS.md` generator to output a concise, static guide focusing on general principles and referencing the `./skills/` directory, rather than generating dynamic lists based on installed plugins.
 - **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated `AGENTS.md` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (`TEAMS.md` for single-bot, `BROWSER.md`) and standardizing descriptions to keep exactly 9 core documents.
-
 
 ## [5.8.8] — 2026-06-04
 
@@ -112,14 +103,12 @@
 - **Fix: Process crash on spawn error**: Added an error handler on the detached child processes (like 9Router and OpenClaw gateway) spawned by the installer. If a command is missing or not in the PATH, the setup wizard will report a warning in the logs instead of crashing the entire Node.js server with an unhandled 'error' exception.
 - **Fix: Binary path resolution on NVM/Sudo environments**: Automatically searches for the binary files (like `9router` and `openclaw`) inside the active Node.js executable directory and local node_modules bin folders. This resolves the `ENOENT` issue when running with sudo in environments using NVM, where user path custom binary symlinks are not in the sudo secure path.
 
-
 ## [5.8.7] — 2026-06-04
 
 ### 🔧 Fixes: Linux/WSL Project Discovery under Sudo
 
 - **Fix: Project scanning under sudo**: Automatically resolves the real invoking user's home directory (e.g., `/home/username`) instead of fallback `/root` when running the Setup Wizard with sudo on Linux/WSL.
 - **Fix: Linux system directory blacklist & restricted walking**: Added Linux/WSL system and virtual folders (such as `/usr`, `/var`, `/proc`, `/sys`, `/dev`, etc.) to the walking blacklist, and restricted the `/home` directory walk strictly to the active user's real home directory to prevent hangs, timeouts, or permission exceptions.
-
 
 ## [5.8.6] — 2026-06-04
 
@@ -128,14 +117,12 @@
 - **Fix: Setup Version Hanging (v...)**: Refactored the NPM registry fetch in `/api/system` into a non-blocking background task. The Setup Wizard now starts instantly without blocking on network requests.
 - **Fix: Safe C-Drive Scanning & Users Folder Discovery**: Optimized project discovery to skip scanning restricted Windows system folders and other users' directories (`C:\Users\*`). Directly adds the current user's homedir and Documents folders to the scanning roots, enabling instant project detection on the C: drive without permission hangs.
 
-
 ## [5.8.5] — 2026-06-04
 
 ### 🔧 Fixes: Version Hanging & Windows C-Drive Scanning
 
 - **Fix: Setup Version Hanging (v...)**: Refactored the NPM registry fetch in `/api/system` into a non-blocking background task. The Setup Wizard now starts instantly without blocking on network requests.
 - **Fix: Safe C-Drive Scanning & Users Folder Discovery**: Optimized project discovery to skip scanning restricted Windows system folders and other users' directories (`C:\Users\*`). Directly adds the current user's homedir and Documents folders to the scanning roots, enabling instant project detection on the C: drive without permission hangs.
-
 
 ## [5.8.4] — 2026-06-04
 
@@ -147,7 +134,6 @@
 - **Improve: Chrome Browser Automation**: Advanced CDP integration with Chrome Debug Mode for Cloudflare bypass, cookie inheritance, and automated library dependency checks.
 - **Improve: Cron / Scheduled Tasks**: Hardened scheduling behavior with timezone support, isolated session control, and proper group chat targeting (requiring `g:` prefix for Zalo channels).
 - **Improve: Setup UI/UX**: Enhanced visual feedback, terminal log stream handling, and layout stability.
-
 
 ## [5.8.3] — 2026-06-02
 
