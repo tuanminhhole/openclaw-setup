@@ -88,6 +88,7 @@ const state = {
   mode: null,
   os: null,
   startedAt: null,
+  projects: null,
 };
 
 function sendLog(line) {
@@ -1074,7 +1075,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   const emoji = String(body.emoji || '').trim();
   const userName = String(body.userName || '').trim();
   const userDesc = String(body.userDescription || body.userDesc || '').trim();
-  const userInfo = [userName ? `- **TÃªn:** ${userName}` : '', userDesc ? `- **MÃ´ táº£:** ${userDesc}` : ''].filter(Boolean).join('\n');
+  const userInfo = [userName ? `- **Tên:** ${userName}` : '', userDesc ? `- **Mô tả:** ${userDesc}` : ''].filter(Boolean).join('\n');
 
   const openclawHome = join(projectDir, '.openclaw');
   await fsp.mkdir(openclawHome, { recursive: true });
@@ -1085,7 +1086,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     providerKey: '9router',
     deployMode: runtime.mode || state.mode || 'docker',
     osChoice: runtime.os || state.os || detectOs(),
-    selectedSkills: ['memory', 'image-gen', 'web-search', 'scheduler'],
+    selectedSkills: ['memory', 'web-search', 'scheduler'],
     skills: dataExport.SKILLS || [],
     agentMetas: [],
   }));
@@ -1156,7 +1157,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     workspacePath: `/home/node/project/.openclaw/${workspaceDir}`,
     channel,
     hasZaloMod: channel === 'zalo-personal',
-    hasZaloSticker: channel === 'zalo-personal',
+    hasZaloSticker: false,
     hasScheduler,
     hasImageGen,
   });
@@ -1261,7 +1262,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     workspacePath: `/home/node/project/.openclaw/${workspaceDir}`,
     channel,
     hasZaloMod: channel === 'zalo-personal',
-    hasZaloSticker: channel === 'zalo-personal',
+    hasZaloSticker: false,
     hasScheduler,
     hasImageGen,
   });
@@ -1697,10 +1698,15 @@ async function recreateDockerBot(projectDir) {
           const channel = binding?.match?.channel || 'telegram';
           if (channel === 'zalo-personal' || channel === 'zalouser') {
             const workspaceDir = workspaceRelForAgent(a, cfg, projectDir) || `workspace-${a.id}`;
-            const mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/sticker-mention/mentions.js');
+            let mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/zalo-sticker-mention/mentions.js');
+            let containerJsPath = `/home/node/project/.openclaw/${workspaceDir}/skills/zalo-sticker-mention/mentions.js`;
+            if (!existsSync(mentionsJsPath)) {
+              mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/sticker-mention/mentions.js');
+              containerJsPath = `/home/node/project/.openclaw/${workspaceDir}/skills/sticker-mention/mentions.js`;
+            }
             if (existsSync(mentionsJsPath)) {
               sendLog(`[zalo-patch] Automatically running mentions.js inside container ${containerName}...`);
-              const patchCmd = await runCapture('docker', ['exec', containerName, 'node', `/home/node/project/.openclaw/${workspaceDir}/skills/sticker-mention/mentions.js`], { cwd: projectDir, shell: false });
+              const patchCmd = await runCapture('docker', ['exec', containerName, 'node', containerJsPath], { cwd: projectDir, shell: false });
               sendLog(`[zalo-patch] Output: ${patchCmd.stdout || ''} ${patchCmd.stderr || ''}`);
             }
           }
@@ -1771,7 +1777,7 @@ async function writeCoreProject({ projectDir, osChoice, mode, gatewayPort = 1878
   await fsp.mkdir(openclawHome, { recursive: true });
   await fsp.mkdir(join(openclawHome, 'plugin-runtime-deps'), { recursive: true });
 
-  const selectedSkills = ['memory', 'image-gen', 'web-search', 'scheduler'];
+  const selectedSkills = ['memory', 'web-search', 'scheduler'];
   const agentMetas = [];
   const common = { channelKey: 'telegram', providerKey: '9router', model: DEFAULT_MODEL, deployMode: mode, osChoice, selectedSkills, skills: dataExport.SKILLS || [], agentMetas, gatewayPort, routerPort };
   const cfg = buildOpenclawJson(common);
@@ -1833,7 +1839,7 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
       await fsp.mkdir(dockerDir, { recursive: true });
       const envContent = existsSync(rootEnvPath)
         ? await fsp.readFile(rootEnvPath, 'utf8')
-        : buildEnvFileContent({ channelKey: 'telegram', providerKey: '9router', deployMode: mode, osChoice, selectedSkills: ['memory', 'image-gen', 'web-search', 'scheduler'], skills: dataExport.SKILLS || [], agentMetas: [], apiKey: '', botToken: '' });
+        : buildEnvFileContent({ channelKey: 'telegram', providerKey: '9router', deployMode: mode, osChoice, selectedSkills: ['memory', 'web-search', 'scheduler'], skills: dataExport.SKILLS || [], agentMetas: [], apiKey: '', botToken: '' });
       await fsp.writeFile(dockerEnvPath, envContent, 'utf8');
       sendLog(`Docker env ready: ${dockerEnvPath}`);
       await run('docker', ['compose', 'up', '-d', '--build'], { cwd: dockerDir });
@@ -1939,6 +1945,7 @@ async function saveState(rootProjectDir) {
     gatewayPort: state.gatewayPort,
     routerUrl: state.routerUrl,
     routerPort: state.routerPort,
+    projects: state.projects || [],
   }, null, 2), 'utf8').catch(() => {});
 }
 
@@ -1946,6 +1953,9 @@ async function loadSavedState(rootProjectDir) {
   const file = join(rootProjectDir, STATE_FILE);
   if (!existsSync(file)) return;
   const saved = JSON.parse(await fsp.readFile(file, 'utf8'));
+  if (Array.isArray(saved?.projects)) {
+    state.projects = saved.projects;
+  }
   if (saved?.projectDir && existsSync(join(saved.projectDir, '.openclaw', 'openclaw.json'))) {
     Object.assign(state, saved, { installed: !!saved.installed });
     await syncRuntimeState(state.projectDir);
@@ -1969,20 +1979,31 @@ function isRestrictedSystemDir(dirPath) {
   if (lower.includes(':\\users\\') || lower.endsWith(':\\users')) {
     const home = resolve(getRealHomedir()).toLowerCase();
     if (lower !== home && !lower.startsWith(home + '\\') && !lower.startsWith(home + '/')) {
-      return true;
+      const cwd = resolve(process.cwd()).toLowerCase();
+      const match = cwd.match(/^([a-z]:\\users\\[^\\]+)/) || cwd.match(/^(\/mnt\/[a-z]\/users\/[^\/]+)/);
+      const cwdHome = match ? match[1] : '';
+      if (!cwdHome || (lower !== cwdHome && !lower.startsWith(cwdHome + '\\') && !lower.startsWith(cwdHome + '/'))) {
+        return true;
+      }
     }
   }
 
   if (process.platform !== 'win32') {
     const unixBlacklist = new Set([
-      'usr', 'var', 'proc', 'sys', 'dev', 'etc', 'sbin', 'bin', 'lib', 'lib64', 'run', 'tmp', 'boot', 'lost+found', 'srv', 'mnt', 'media', 'opt'
+      'usr', 'var', 'proc', 'sys', 'dev', 'etc', 'sbin', 'bin', 'lib', 'lib64', 'run', 'tmp', 'boot', 'lost+found', 'srv', 'mnt', 'media', 'opt',
+      'applications', 'library', 'system', 'volumes', 'private', 'cores', 'network', 'users'
     ]);
     if (unixBlacklist.has(basename(lower))) return true;
     
-    if (lower.startsWith('/home') || lower.startsWith('/root')) {
+    if (lower.startsWith('/home') || lower.startsWith('/root') || lower.startsWith('/mnt/') || lower.startsWith('/users/') || lower === '/users') {
       const realHome = resolve(getRealHomedir()).toLowerCase();
       if (lower !== realHome && !lower.startsWith(realHome + '/')) {
-        return true;
+        const cwd = resolve(process.cwd()).toLowerCase();
+        const match = cwd.match(/^(\/home\/[^\/]+)/) || cwd.match(/^(\/root)/) || cwd.match(/^(\/mnt\/[a-z]\/users\/[^\/]+)/) || cwd.match(/^(\/users\/[^\/]+)/);
+        const cwdHome = match ? match[1] : '';
+        if (!cwdHome || (lower !== cwdHome && !lower.startsWith(cwdHome + '/'))) {
+          return true;
+        }
       }
     }
   }
@@ -2040,73 +2061,52 @@ async function findLatestProject(rootProjectDir) {
   return candidates[0]?.dir || null;
 }
 
+async function ensureProjectsLoaded(rootProjectDir) {
+  if (state.projects !== null) return;
+  state.projects = [];
+  const file = join(rootProjectDir, STATE_FILE);
+  if (existsSync(file)) {
+    try {
+      const saved = JSON.parse(await fsp.readFile(file, 'utf8'));
+      if (Array.isArray(saved?.projects)) {
+        state.projects = saved.projects;
+      }
+    } catch {}
+  }
+}
+
 async function discoverProjects(rootProjectDir) {
-  const realHome = getRealHomedir();
-  const roots = [
-    process.env.OPENCLAW_PROJECT_DIR,
-    rootProjectDir,
-    dirname(rootProjectDir),
-    process.env.OPENCLAW_HOME ? dirname(process.env.OPENCLAW_HOME) : '',
-    realHome,
-    join(realHome, 'Documents'),
-  ].filter(Boolean);
-  
-  const drives = await getAvailableDrives();
-  for (const drive of drives) {
-    const entries = await fsp.readdir(drive, { withFileTypes: true }).catch(() => []);
-    for (const e of entries) {
-      if (e.isDirectory() && !e.name.startsWith('$') && !SYSTEM_DIR_BLACKLIST.has(e.name.toLowerCase())) {
-        const fullPath = join(drive, e.name);
-        if (!isRestrictedSystemDir(fullPath)) {
-          roots.push(fullPath);
-        }
+  await ensureProjectsLoaded(rootProjectDir);
+
+  if (state.projectDir && existsSync(join(state.projectDir, '.openclaw', 'openclaw.json'))) {
+    const resolved = resolve(state.projectDir);
+    if (!state.projects.some(p => resolve(p.projectDir) === resolved)) {
+      const meta = await buildProjectMeta(resolved).catch(() => null);
+      if (meta) state.projects.push(meta);
+    }
+  }
+
+  const updatedProjects = [];
+  for (const p of state.projects) {
+    if (existsSync(join(p.projectDir, '.openclaw', 'openclaw.json'))) {
+      const meta = await buildProjectMeta(p.projectDir).catch(() => null);
+      if (meta) {
+        updatedProjects.push(meta);
       }
     }
   }
-  const seen = new Set();
-  const hits = [];
-  async function walk(dir, depth = 0) {
-    if (!dir || depth > 2 || !existsSync(dir)) return;
-    const full = resolve(dir);
-    if (isRestrictedSystemDir(full)) return;
-    if (seen.has(full)) return;
-    seen.add(full);
-    const cfgPath = join(full, '.openclaw', 'openclaw.json');
-    if (existsSync(cfgPath)) {
-      const st = await fsp.stat(cfgPath).catch(() => null);
-      const runtime = await detectRuntime(full).catch(() => ({ mode: 'unknown', gatewayPort: 0, routerPort: 0, syncSource: 'config' }));
-      const bots = await listConfiguredBots(full).catch(() => []);
-      const uniqueBotCount = new Set(bots.map((b) => b.id)).size;
-      const hasDocker = existsSync(join(full, 'docker', 'openclaw', 'docker-compose.yml'));
-      const isLikelyProject = uniqueBotCount > 0 || hasDocker || existsSync(join(full, '.env')) || existsSync(join(full, 'package.json'));
-      if (!isLikelyProject) return;
-      hits.push({
-        projectDir: full,
-        os: process.platform === 'win32' ? 'Windows' : process.platform === 'darwin' ? 'macOS' : 'Linux',
-        mode: runtime.mode || 'unknown',
-        gatewayPort: runtime.gatewayPort || 0,
-        routerPort: runtime.routerPort || 0,
-        syncSource: runtime.syncSource || 'config',
-        botCount: uniqueBotCount,
-        hasDocker,
-        updatedAt: st?.mtimeMs || 0,
-      });
-      return;
-    }
-    const entries = await fsp.readdir(full, { withFileTypes: true }).catch(() => []);
-    for (const e of entries) {
-      if (!e.isDirectory()) continue;
-      if (e.name === 'node_modules' || e.name.startsWith('.') || SYSTEM_DIR_BLACKLIST.has(e.name.toLowerCase())) continue;
-      await walk(join(full, e.name), depth + 1);
-    }
-  }
-  for (const root of roots) await walk(root);
-  hits.sort((a, b) =>
-    (b.botCount - a.botCount) ||
-    (Number(b.hasDocker) - Number(a.hasDocker)) ||
-    (b.updatedAt - a.updatedAt)
-  );
-  return hits.slice(0, 20);
+  state.projects = updatedProjects;
+  
+  state.projects.sort((a, b) => {
+    const aActive = state.projectDir && resolve(state.projectDir) === resolve(a.projectDir);
+    const bActive = state.projectDir && resolve(state.projectDir) === resolve(b.projectDir);
+    if (aActive && !bActive) return -1;
+    if (!aActive && bActive) return 1;
+    return (b.botCount - a.botCount) || (b.updatedAt - a.updatedAt);
+  });
+
+  await saveState(rootProjectDir).catch(() => {});
+  return state.projects.slice(0, 20);
 }
 
 async function resolveProjectDir(rootProjectDir, body = {}) {
@@ -2138,10 +2138,37 @@ async function resolveProjectDir(rootProjectDir, body = {}) {
   return state.projectDir;
 }
 
+async function buildProjectMeta(projectDir) {
+  const full = resolve(projectDir);
+  const cfgPath = join(full, '.openclaw', 'openclaw.json');
+  const st = await fsp.stat(cfgPath).catch(() => null);
+  const runtime = await detectRuntime(full).catch(() => ({ mode: 'unknown', gatewayPort: 0, routerPort: 0, syncSource: 'config' }));
+  const bots = await listConfiguredBots(full).catch(() => []);
+  const uniqueBotCount = new Set(bots.map((b) => b.id)).size;
+  const hasDocker = existsSync(join(full, 'docker', 'openclaw', 'docker-compose.yml'));
+  return {
+    projectDir: full,
+    os: process.platform === 'win32' ? 'Windows' : process.platform === 'darwin' ? 'macOS' : 'Linux',
+    mode: runtime.mode || 'unknown',
+    gatewayPort: runtime.gatewayPort || 0,
+    routerPort: runtime.routerPort || 0,
+    syncSource: runtime.syncSource || 'config',
+    botCount: uniqueBotCount,
+    hasDocker,
+    updatedAt: st?.mtimeMs || 0,
+  };
+}
+
 async function connectExistingProject(projectDir, rootProjectDir) {
   const resolved = resolve(String(projectDir || ''));
   if (!existsSync(join(resolved, '.openclaw', 'openclaw.json'))) throw httpError(404, 'openclaw.json not found in selected project');
   await syncRuntimeState(resolved);
+  await ensureProjectsLoaded(rootProjectDir);
+  const meta = await buildProjectMeta(resolved).catch(() => null);
+  if (meta) {
+    state.projects = state.projects.filter(p => resolve(p.projectDir) !== resolved);
+    state.projects.unshift(meta);
+  }
   await saveState(rootProjectDir);
   const bots = await listConfiguredBots(resolved).catch(() => []);
   return {
@@ -2195,6 +2222,8 @@ async function deleteProjectFolder(projectDir, rootProjectDir) {
     state.projectDir = null;
     state.installed = false;
   }
+  await ensureProjectsLoaded(rootProjectDir);
+  state.projects = state.projects.filter(p => resolve(p.projectDir) !== resolved);
   await saveState(rootProjectDir);
   return { ok: true, projectDir: resolved };
 }
@@ -2324,19 +2353,6 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     cfg.skills.entries['image-gen'] = cfg.skills.entries['image-gen'] || {};
     cfg.skills.entries['image-gen'].enabled = !!enabled;
 
-    for (const a of cfg.agents.list) {
-      const sf = await readWorkspaceText(projectDir, a, 'skills/infographic-generator/SKILL.md');
-      const js = await readWorkspaceText(projectDir, a, 'skills/infographic-generator/image-generator.js');
-      if (enabled) {
-        await fsp.mkdir(dirname(sf.file), { recursive: true });
-        await fsp.writeFile(sf.file, buildInfographicGeneratorSkillMd(), 'utf8');
-        await fsp.writeFile(js.file, buildInfographicGeneratorJs(), 'utf8');
-      } else {
-        if (existsSync(sf.file)) await fsp.rm(sf.file, { force: true });
-        if (existsSync(js.file)) await fsp.rm(js.file, { force: true });
-      }
-    }
-
     // Write cfgPath early so recreation reads updated openclaw.json
     await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
 
@@ -2378,30 +2394,40 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     cfg.skills.entries['sticker-mention'].enabled = !!enabled;
 
     for (const a of cfg.agents.list) {
-      const sf = await readWorkspaceText(projectDir, a, 'skills/sticker-mention/SKILL.md');
-      const jsf = await readWorkspaceText(projectDir, a, 'skills/sticker-mention/mentions.js');
-      if (enabled) {
-        await fsp.mkdir(dirname(sf.file), { recursive: true });
-        await fsp.writeFile(sf.file, buildStickerMentionSkillMd(), 'utf8');
-        await fsp.writeFile(jsf.file, buildStickerMentionJs(), 'utf8');
-      } else {
-        const binding = (cfg.bindings || []).find((b) => b.agentId === a.id);
-        const channel = binding?.match?.channel || 'telegram';
-        if ((channel === 'zalo-personal' || channel === 'zalouser') && existsSync(jsf.file)) {
-          try {
-            const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
-            if (hasDocker) {
-              const botContainer = getBotContainerName(projectDir);
-              const workspaceDir = workspaceRelForAgent(a, cfg, projectDir) || `workspace-${a.id}`;
-              sendLog('[zalo-patch] Running restore before disabling skill...');
-              await runCapture('docker', ['exec', botContainer, 'node', `/home/node/project/.openclaw/${workspaceDir}/skills/sticker-mention/mentions.js`, '--restore'], { cwd: projectDir, shell: false });
-            }
-          } catch (e) {
-            sendLog(`[zalo-patch] Restore failed: ${e.message}`);
+      const binding = (cfg.bindings || []).find((b) => b.agentId === a.id);
+      const channel = binding?.match?.channel || 'telegram';
+      if (channel === 'zalo-personal' || channel === 'zalouser') {
+        try {
+          const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
+          const workspaceDir = workspaceRelForAgent(a, cfg, projectDir) || `workspace-${a.id}`;
+          let mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/zalo-sticker-mention/mentions.js');
+          let containerJsPath = `/home/node/project/.openclaw/${workspaceDir}/skills/zalo-sticker-mention/mentions.js`;
+          if (!existsSync(mentionsJsPath)) {
+            mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/sticker-mention/mentions.js');
+            containerJsPath = `/home/node/project/.openclaw/${workspaceDir}/skills/sticker-mention/mentions.js`;
           }
+          if (existsSync(mentionsJsPath)) {
+            if (enabled) {
+              sendLog('[zalo-patch] Running patch on enable...');
+              if (hasDocker) {
+                const botContainer = getBotContainerName(projectDir);
+                await runCapture('docker', ['exec', botContainer, 'node', containerJsPath], { cwd: projectDir, shell: false });
+              } else {
+                await run('node', [mentionsJsPath], { cwd: projectDir });
+              }
+            } else {
+              sendLog('[zalo-patch] Running restore before disabling skill...');
+              if (hasDocker) {
+                const botContainer = getBotContainerName(projectDir);
+                await runCapture('docker', ['exec', botContainer, 'node', containerJsPath, '--restore'], { cwd: projectDir, shell: false });
+              } else {
+                await run('node', [mentionsJsPath, '--restore'], { cwd: projectDir });
+              }
+            }
+          }
+        } catch (e) {
+          sendLog(`[zalo-patch] Zalo patch/restore action failed: ${e.message}`);
         }
-        if (existsSync(sf.file)) await fsp.rm(sf.file, { force: true });
-        if (existsSync(jsf.file)) await fsp.rm(jsf.file, { force: true });
       }
     }
 
@@ -2461,6 +2487,64 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
 }
 
 async function installFeature(projectDir, agentId, kind, id) {
+  if (kind === 'skill') {
+    const skillSlugMap = {
+      'image-gen': 'infographic-generator',
+      'sticker-mention': 'zalo-sticker-mention',
+    };
+    const slug = skillSlugMap[id] || id;
+
+    let composeDir = null;
+    if (existsSync(join(projectDir, 'docker-compose.yml'))) {
+      composeDir = projectDir;
+    } else if (existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'))) {
+      composeDir = join(projectDir, 'docker', 'openclaw');
+    }
+
+    if (composeDir) {
+      const botContainer = getBotContainerName(projectDir);
+      sendLog(`[skill] Installing/updating clawhub:${slug} inside container ${botContainer} for agent ${agentId}...`);
+      
+      const cmd = `cd /home/node/project && openclaw skills install ${slug} --agent ${agentId} --force`;
+      const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
+      
+      if (cmdOut) {
+         for (const line of `${cmdOut.stdout}\n${cmdOut.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(line);
+      }
+
+      if (cmdOut.code !== 0) {
+        const installed = isSkillFolderExists(projectDir, agentId, slug);
+        if (installed) {
+          sendLog(`[skill] Warning: installation reported errors, but skill folder exists. Proceeding.`);
+        } else {
+          throw new Error(cmdOut.stderr || cmdOut.stdout || `Failed to install skill ${slug} inside container.`);
+        }
+      }
+      
+      sendLog(`[skill] Restarting docker container to apply skill...`);
+      await run('docker', ['restart', botContainer], { shell: false });
+    } else {
+      await run('openclaw', ['doctor', '--fix'], { cwd: projectDir, env: openclawProjectEnv(projectDir) }).catch((err) => sendLog(`[skill] doctor --fix skipped: ${err.message}`));
+      sendLog(`[skill] Installing clawhub:${slug} for agent ${agentId}...`);
+      
+      await run('openclaw', ['skills', 'install', slug, '--agent', agentId, '--force'], {
+        cwd: projectDir,
+        env: openclawProjectEnv(projectDir)
+      });
+    }
+
+    // Automatically enable it in config after install
+    const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+    if (existsSync(cfgPath)) {
+      const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
+      cfg.skills = cfg.skills || { entries: {} };
+      cfg.skills.entries = cfg.skills.entries || {};
+      cfg.skills.entries[id] = cfg.skills.entries[id] || {};
+      cfg.skills.entries[id].enabled = true;
+      await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+    }
+  }
+
   if (kind === 'plugin') {
     let composeDir = null;
     if (existsSync(join(projectDir, 'docker-compose.yml'))) {
@@ -2624,6 +2708,48 @@ async function getInstalledPluginVersion(projectDir, aliases = []) {
   return '';
 }
 
+function isSkillFolderExists(projectDir, agentId, skillFolder, cfg = null) {
+  if (!projectDir) return false;
+  if (!cfg) {
+    const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+    if (!existsSync(cfgPath)) return false;
+    try {
+      cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    } catch (e) {
+      return false;
+    }
+  }
+  const agent = cfg?.agents?.list?.find((a) => a.id === agentId) || cfg?.agents?.list?.[0];
+  if (!agent) return false;
+  const rel = workspaceRelForAgent(agent, cfg, projectDir);
+  const skillPath = join(projectDir, '.openclaw', rel, 'skills', skillFolder);
+  return existsSync(skillPath);
+}
+
+async function getInstalledSkillVersion(projectDir, agentId, skillFolder, cfg = null) {
+  if (!projectDir) return '';
+  if (!cfg) {
+    const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+    if (!existsSync(cfgPath)) return '';
+    try {
+      cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
+    } catch (e) {
+      return '';
+    }
+  }
+  const agent = cfg?.agents?.list?.find((a) => a.id === agentId) || cfg?.agents?.list?.[0];
+  if (!agent) return '';
+  const rel = workspaceRelForAgent(agent, cfg, projectDir);
+  const pkgPath = join(projectDir, '.openclaw', rel, 'skills', skillFolder, 'package.json');
+  try {
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(await fsp.readFile(pkgPath, 'utf8'));
+      return pkg.version || '';
+    }
+  } catch (e) {}
+  return '';
+}
+
 async function getFeatureFlags(projectDir, agentId = '') {
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
   const cfg = existsSync(cfgPath) ? ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}'))) : {};
@@ -2682,12 +2808,16 @@ async function getFeatureFlags(projectDir, agentId = '') {
   const isActuallyInstalled = (aliases = []) =>
     extensionDirExists(aliases) || isInstalledByRecord(aliases);
   const installed = {
+    'skill:image-gen': isSkillFolderExists(projectDir, aid, 'infographic-generator', cfg),
+    'skill:sticker-mention': isSkillFolderExists(projectDir, aid, 'zalo-sticker-mention', cfg),
     'plugin:openclaw-browser-automation': isActuallyInstalled(aliases.browser),
     'plugin:openclaw-zalo-mod': isActuallyInstalled(aliases.zalo),
     'plugin:openclaw-facebook-crawler': isActuallyInstalled(aliases.crawler),
     'plugin:openclaw-n8n-facebook-poster': isActuallyInstalled(aliases.poster),
   };
   const versions = {
+    'skill:image-gen': await getInstalledSkillVersion(projectDir, aid, 'infographic-generator', cfg),
+    'skill:sticker-mention': await getInstalledSkillVersion(projectDir, aid, 'zalo-sticker-mention', cfg),
     'plugin:openclaw-browser-automation': await getInstalledPluginVersion(projectDir, aliases.browser),
     'plugin:openclaw-zalo-mod': await getInstalledPluginVersion(projectDir, aliases.zalo),
     'plugin:openclaw-facebook-crawler': await getInstalledPluginVersion(projectDir, aliases.crawler),

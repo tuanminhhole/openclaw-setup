@@ -53,7 +53,7 @@
       userInfo: '',
       securityRules: '',
       plugins: [],
-      skills: ['memory', 'image-gen', 'web-search'],
+      skills: ['memory', 'web-search'],
       // Persisted credential inputs (Bug 1+2 fix)
       botToken: '',
       apiKey: '',

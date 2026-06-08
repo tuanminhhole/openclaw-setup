@@ -1,7 +1,6 @@
 # Changelog (Tiếng Việt)
 
-
-## [5.8.16] — 2026-06-07
+## [5.8.17] — 2026-06-08
 
 ### 🚀 Sửa lỗi & Tối ưu hóa: Phân giải đường dẫn Docker Workspace, Bộ cài NPM rút gọn và Tự động Cập nhật trên UI
 
@@ -9,7 +8,6 @@
 - **Mới: Khởi chạy trực tiếp từ gói NPM**: Tối ưu bộ khởi chạy CLI chạy trực tiếp các file đóng gói trên npm, loại bỏ cơ chế `git clone` toàn bộ repository giúp giảm dung lượng cài đặt và không yêu cầu cài đặt sẵn Git.
 - **Mới: Tự động cập nhật Setup Wizard từ UI**: Cải tiến cơ chế cập nhật, tự động cài đặt phiên bản mới nhất vào thư mục `~/.openclaw-setup` và khởi động lại cổng Setup Wizard mượt mà ngay trên giao diện web.
 - **Thẩm mỹ: Căn chỉnh Logo CLI**: Thiết kế lại và cân đối khung Logo góc tròn kèm hai emoji tôm hùm 🦞 đối xứng thẳng hàng ở terminal.
-
 
 ## [5.8.15] — 2026-06-07
 
@@ -20,90 +18,83 @@
 - **Mới: Tự động cập nhật Setup Wizard từ UI**: Cải tiến cơ chế cập nhật, tự động cài đặt phiên bản mới nhất vào thư mục `~/.openclaw-setup` và khởi động lại cổng Setup Wizard mượt mà ngay trên giao diện web.
 - **Thẩm mỹ: Căn chỉnh Logo CLI**: Thiết kế lại và cân đối khung Logo góc tròn kèm hai emoji tôm hùm 🦞 đối xứng thẳng hàng ở terminal.
 
-
 ## [5.8.14] — 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
 - **Mới: Hỗ trợ Skill Tạo ảnh Infographic chuyên nghiệp**: Tích hợp hoàn toàn công cụ tạo ảnh infographic, poster tự động thông qua API của 9Router. Tự động sinh mã nguồn script `image-generator.js` đồng bộ API credentials từ `openclaw.json` và hướng dẫn `SKILL.md` cụ thể giúp Agent nắm vững cấu trúc prompt, font chữ tiếng Việt, layout và quy tắc thiết kế ảnh.
-- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**: 
+- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**:
   - Tự động tag tên người gửi tin nhắn gần nhất trong group chat Zalo (Agent không cần tự điền `@Tên` ở đầu câu trả lời nữa, hệ thống sẽ tự làm).
   - Cho phép Agent gửi kèm Sticker Zalo trực tiếp trong câu trả lời thông qua thẻ `[Sticker: <từ_khóa>]` đặt ở cuối tin nhắn.
   - Tích hợp bộ giải nghĩa từ khóa cảm xúc thông minh (như `love`, `haha`, `ca khia`, `angry`, `thank you`,...) để tự động map sang sticker Zalo phù hợp.
   - Tự động sinh script vá logic `mentions.js` và tài liệu hướng dẫn `SKILL.md` trong workspace.
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
-
 
 ## [5.8.13] — 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
 - **Mới: Hỗ trợ Skill Tạo ảnh Infographic chuyên nghiệp**: Tích hợp hoàn toàn công cụ tạo ảnh infographic, poster tự động thông qua API của 9Router. Tự động sinh mã nguồn script `image-generator.js` đồng bộ API credentials từ `openclaw.json` và hướng dẫn `SKILL.md` cụ thể giúp Agent nắm vững cấu trúc prompt, font chữ tiếng Việt, layout và quy tắc thiết kế ảnh.
-- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**: 
+- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**:
   - Tự động tag tên người gửi tin nhắn gần nhất trong group chat Zalo (Agent không cần tự điền `@Tên` ở đầu câu trả lời nữa, hệ thống sẽ tự làm).
   - Cho phép Agent gửi kèm Sticker Zalo trực tiếp trong câu trả lời thông qua thẻ `[Sticker: <từ_khóa>]` đặt ở cuối tin nhắn.
   - Tích hợp bộ giải nghĩa từ khóa cảm xúc thông minh (như `love`, `haha`, `ca khia`, `angry`, `thank you`,...) để tự động map sang sticker Zalo phù hợp.
   - Tự động sinh script vá logic `mentions.js` và tài liệu hướng dẫn `SKILL.md` trong workspace.
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
-
 
 ## [5.8.12] — 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
 - **Mới: Hỗ trợ Skill Tạo ảnh Infographic chuyên nghiệp**: Tích hợp hoàn toàn công cụ tạo ảnh infographic, poster tự động thông qua API của 9Router. Tự động sinh mã nguồn script `image-generator.js` đồng bộ API credentials từ `openclaw.json` và hướng dẫn `SKILL.md` cụ thể giúp Agent nắm vững cấu trúc prompt, font chữ tiếng Việt, layout và quy tắc thiết kế ảnh.
-- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**: 
+- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**:
   - Tự động tag tên người gửi tin nhắn gần nhất trong group chat Zalo (Agent không cần tự điền `@Tên` ở đầu câu trả lời nữa, hệ thống sẽ tự làm).
   - Cho phép Agent gửi kèm Sticker Zalo trực tiếp trong câu trả lời thông qua thẻ `[Sticker: <từ_khóa>]` đặt ở cuối tin nhắn.
   - Tích hợp bộ giải nghĩa từ khóa cảm xúc thông minh (như `love`, `haha`, `ca khia`, `angry`, `thank you`,...) để tự động map sang sticker Zalo phù hợp.
   - Tự động sinh script vá logic `mentions.js` và tài liệu hướng dẫn `SKILL.md` trong workspace.
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
-
 
 ## [5.8.11] — 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
 - **Mới: Hỗ trợ Skill Tạo ảnh Infographic chuyên nghiệp**: Tích hợp hoàn toàn công cụ tạo ảnh infographic, poster tự động thông qua API của 9Router. Tự động sinh mã nguồn script `image-generator.js` đồng bộ API credentials từ `openclaw.json` và hướng dẫn `SKILL.md` cụ thể giúp Agent nắm vững cấu trúc prompt, font chữ tiếng Việt, layout và quy tắc thiết kế ảnh.
-- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**: 
+- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**:
   - Tự động tag tên người gửi tin nhắn gần nhất trong group chat Zalo (Agent không cần tự điền `@Tên` ở đầu câu trả lời nữa, hệ thống sẽ tự làm).
   - Cho phép Agent gửi kèm Sticker Zalo trực tiếp trong câu trả lời thông qua thẻ `[Sticker: <từ_khóa>]` đặt ở cuối tin nhắn.
   - Tích hợp bộ giải nghĩa từ khóa cảm xúc thông minh (như `love`, `haha`, `ca khia`, `angry`, `thank you`,...) để tự động map sang sticker Zalo phù hợp.
   - Tự động sinh script vá logic `mentions.js` và tài liệu hướng dẫn `SKILL.md` trong workspace.
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
-
 
 ## [5.8.10] — 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
 - **Mới: Hỗ trợ Skill Tạo ảnh Infographic chuyên nghiệp**: Tích hợp hoàn toàn công cụ tạo ảnh infographic, poster tự động thông qua API của 9Router. Tự động sinh mã nguồn script `image-generator.js` đồng bộ API credentials từ `openclaw.json` và hướng dẫn `SKILL.md` cụ thể giúp Agent nắm vững cấu trúc prompt, font chữ tiếng Việt, layout và quy tắc thiết kế ảnh.
-- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**: 
+- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**:
   - Tự động tag tên người gửi tin nhắn gần nhất trong group chat Zalo (Agent không cần tự điền `@Tên` ở đầu câu trả lời nữa, hệ thống sẽ tự làm).
   - Cho phép Agent gửi kèm Sticker Zalo trực tiếp trong câu trả lời thông qua thẻ `[Sticker: <từ_khóa>]` đặt ở cuối tin nhắn.
   - Tích hợp bộ giải nghĩa từ khóa cảm xúc thông minh (như `love`, `haha`, `ca khia`, `angry`, `thank you`,...) để tự động map sang sticker Zalo phù hợp.
   - Tự động sinh script vá logic `mentions.js` và tài liệu hướng dẫn `SKILL.md` trong workspace.
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
-
 
 ## [5.8.9] — 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
 - **Mới: Hỗ trợ Skill Tạo ảnh Infographic chuyên nghiệp**: Tích hợp hoàn toàn công cụ tạo ảnh infographic, poster tự động thông qua API của 9Router. Tự động sinh mã nguồn script `image-generator.js` đồng bộ API credentials từ `openclaw.json` và hướng dẫn `SKILL.md` cụ thể giúp Agent nắm vững cấu trúc prompt, font chữ tiếng Việt, layout và quy tắc thiết kế ảnh.
-- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**: 
+- **Mới: Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**:
   - Tự động tag tên người gửi tin nhắn gần nhất trong group chat Zalo (Agent không cần tự điền `@Tên` ở đầu câu trả lời nữa, hệ thống sẽ tự làm).
   - Cho phép Agent gửi kèm Sticker Zalo trực tiếp trong câu trả lời thông qua thẻ `[Sticker: <từ_khóa>]` đặt ở cuối tin nhắn.
   - Tích hợp bộ giải nghĩa từ khóa cảm xúc thông minh (như `love`, `haha`, `ca khia`, `angry`, `thank you`,...) để tự động map sang sticker Zalo phù hợp.
   - Tự động sinh script vá logic `mentions.js` và tài liệu hướng dẫn `SKILL.md` trong workspace.
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
-
 
 ## [5.8.8] — 2026-06-04
 
@@ -112,14 +103,12 @@
 - **Sửa lỗi: Sập tiến trình khi gọi lệnh lỗi**: Bổ sung bộ lắng nghe lỗi (error handler) cho các tiến trình chạy nền (như 9Router và OpenClaw gateway) được gọi bởi installer. Nếu một lệnh bị thiếu hoặc không nằm trong PATH, Setup Wizard sẽ ghi lại cảnh báo trong log thay vì làm crash toàn bộ server Node.js với lỗi ngoại lệ 'error' không thể bắt.
 - **Sửa lỗi: Phân giải đường dẫn thực thi trên môi trường NVM/Sudo**: Tự động tìm kiếm file thực thi (như `9router` và `openclaw`) trong thư mục chứa file chạy Node.js đang hoạt động và thư mục bin của node_modules cục bộ. Điều này giải quyết triệt để lỗi `ENOENT` khi chạy với quyền sudo trong môi trường dùng NVM (nơi đường dẫn bin tùy chỉnh của user không nằm trong secure_path của sudo).
 
-
 ## [5.8.7] — 2026-06-04
 
 ### 🔧 Sửa lỗi: Tự động phát hiện dự án trên Linux/WSL khi chạy quyền sudo
 
 - **Sửa lỗi: Quét thư mục người dùng thực tế**: Tự động giải quyết và quét thư mục home thực tế của người dùng gọi lệnh (ví dụ: `/home/username`) thay vì quét thư mục `/root` khi chạy Setup Wizard dưới quyền sudo trên Linux/WSL.
 - **Sửa lỗi: Bỏ qua thư mục hệ thống và giới hạn quét thư mục home**: Đưa các thư mục ảo và hệ thống Linux (như `/usr`, `/var`, `/proc`, `/sys`, `/dev`,...) vào danh sách đen để không quét sâu, đồng thời giới hạn việc quét thư mục `/home` chỉ trong phạm vi thư mục home của người dùng hiện tại, ngăn ngừa treo hệ thống, hết thời gian chờ hoặc lỗi phân quyền.
-
 
 ## [5.8.6] — 2026-06-04
 
@@ -128,14 +117,12 @@
 - **Sửa lỗi: Treo số phiên bản v...**: Tách biệt luồng fetch phiên bản từ NPM registry trong `/api/system` thành tiến trình chạy nền không đồng bộ (non-blocking). Setup Wizard giờ đây khởi chạy tức thì và không bị nghẽn do mạng.
 - **Sửa lỗi: Quét an toàn ổ C và tìm thấy project trong thư mục người dùng**: Tối ưu hóa chức năng quét project, tự động bỏ qua các thư mục hệ thống Windows và thư mục của user khác (`C:\Users\*`). Thêm trực tiếp thư mục Home và Documents của user hiện tại vào danh sách quét, giúp phát hiện ngay lập tức project nằm trong ổ C mà không lo bị nghẽn quyền truy cập.
 
-
 ## [5.8.5] — 2026-06-04
 
 ### 🔧 Sửa lỗi: Treo Phiên Bản & Quét Dự Án Ổ C Windows
 
 - **Sửa lỗi: Treo số phiên bản v...**: Tách biệt luồng fetch phiên bản từ NPM registry trong `/api/system` thành tiến trình chạy nền không đồng bộ (non-blocking). Setup Wizard giờ đây khởi chạy tức thì và không bị nghẽn do mạng.
 - **Sửa lỗi: Quét an toàn ổ C và tìm thấy project trong thư mục người dùng**: Tối ưu hóa chức năng quét project, tự động bỏ qua các thư mục hệ thống Windows và thư mục của user khác (`C:\Users\*`). Thêm trực tiếp thư mục Home và Documents của user hiện tại vào danh sách quét, giúp phát hiện ngay lập tức project nằm trong ổ C mà không lo bị nghẽn quyền truy cập.
-
 
 ## [5.8.4] — 2026-06-04
 
@@ -147,7 +134,6 @@
 - **Cải tiến: Tự Động Hóa Trình Duyệt (Browser Automation)**: Nâng cấp điều khiển Chrome qua giao thức CDP, tự động bypass Cloudflare, tái sử dụng session/cookie từ Chrome thật của máy chủ và kiểm tra thư viện hệ điều hành.
 - **Cải tiến: Cron / Lên Lịch Nhắc Nhở**: Hoàn thiện hành vi lập lịch nhắc nhở, hỗ trợ múi giờ (`tz`), chạy isolated session và chuẩn hóa tiền tố `g:` khi gửi tin nhắn nhóm Zalo.
 - **Cải tiến: Giao Diện UI/UX**: Tối ưu hiển thị log stream, trạng thái cài đặt plugin và giao diện điều khiển.
-
 
 ## [5.8.3] — 2026-06-02
 
