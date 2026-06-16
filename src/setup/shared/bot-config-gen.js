@@ -91,7 +91,11 @@
     }));
 
     const cfg = {
-      meta: { lastTouchedVersion: (_common.OPENCLAW_NPM_SPEC || 'latest').replace('openclaw@', '') },
+      meta: {
+        lastTouchedVersion: (_common.OPENCLAW_NPM_SPEC || 'latest').replace('openclaw@', ''),
+        osChoice,
+        deployMode,
+      },
       agents: {
         defaults: {
           model: { primary: model, fallbacks: [] },

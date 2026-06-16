@@ -36,6 +36,19 @@ async function api(path, opts) {
   if (!res.ok) throw new Error((await res.json()).error || res.statusText);
   return res.json();
 }
+function activeProjectDir() {
+  return state.selectedProjectDir || state.install?.projectDir || '';
+}
+function projectQuery(extra = {}) {
+  const params = new URLSearchParams();
+  const projectDir = activeProjectDir();
+  if (projectDir) params.set('projectDir', projectDir);
+  Object.entries(extra).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') params.set(key, value);
+  });
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}
 function runtimeBadge(label, kind='') { return `<span class="mini-pill ${kind?`mini-pill--${kind}`:''}">${escapeHtml(label)}</span>`; }
 async function withButtonLoading(btn, task) {
   if (!btn || btn.classList.contains('is-loading')) return;
@@ -420,7 +433,7 @@ function renderFilesPanel() {
   // Re-wire only file-panel-specific handlers
   panel.querySelectorAll('[data-select-file]').forEach(btn => btn.onclick = () => { state.selectedFile = btn.dataset.selectFile; renderFilesPanel(); });
   panel.querySelectorAll('[data-toggle-dir]').forEach(btn => btn.onclick = () => { const p = btn.dataset.toggleDir; state.openDirs[p] = !(state.openDirs[p] ?? true); renderFilesPanel(); });
-  panel.querySelectorAll('.save').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { const name = btn.dataset.file; await api('/api/bot/files/'+encodeURIComponent(name), { method: 'PUT', body: { content: document.querySelector(`[data-editor="${CSS.escape(name)}"]`).value } }); showToast(t('Đã lưu', 'Saved'), t('Đã lưu tệp tin: ', 'Saved file: ') + fileBaseName(name), 'success'); btn.innerHTML=`${actionIcon('save')} ${ui('saved')}`; setTimeout(()=>btn.innerHTML=`${actionIcon('save')} ${ui('save')}`,1200); }));
+  panel.querySelectorAll('.save').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { const name = btn.dataset.file; await api('/api/bot/files/'+encodeURIComponent(name), { method: 'PUT', body: { projectDir: activeProjectDir(), content: document.querySelector(`[data-editor="${CSS.escape(name)}"]`).value } }); showToast(t('Đã lưu', 'Saved'), t('Đã lưu tệp tin: ', 'Saved file: ') + fileBaseName(name), 'success'); btn.innerHTML=`${actionIcon('save')} ${ui('saved')}`; setTimeout(()=>btn.innerHTML=`${actionIcon('save')} ${ui('save')}`,1200); }));
 }
 
 function renderSkillsPanel() {
@@ -439,7 +452,7 @@ function wireSkillsHandlers(scope = document) {
     state.featureLoading[key] = true;
     renderSkillsPanel();
     try {
-      await api('/api/features/toggle', { method:'POST', body:{ kind, id, enabled, agentId: currentBotId() } });
+      await api('/api/features/toggle', { method:'POST', body:{ projectDir: activeProjectDir(), kind, id, enabled, agentId: currentBotId() } });
       await loadFeatureFlags(true);
       if (kind === 'skill') await loadFiles(true);
     } finally {
@@ -453,7 +466,7 @@ function wireSkillsHandlers(scope = document) {
     state.featureLoading[key] = true;
     renderSkillsPanel();
     try {
-      await api('/api/features/install', { method:'POST', body:{ kind, id, agentId: currentBotId() } });
+      await api('/api/features/install', { method:'POST', body:{ projectDir: activeProjectDir(), kind, id, agentId: currentBotId() } });
       await loadFeatureFlags(true);
       await loadFiles(true);
       const label = kind === 'skill' ? t('kỹ năng: ', 'skill: ') : t('plugin: ', 'plugin: ');
@@ -909,7 +922,7 @@ function wireTab() {
     state.zaloLoginLines = [t('Đang chuẩn bị quét mã Zalo...', 'Preparing Zalo QR login...')];
     render();
     try {
-      await api('/api/zalo/login', { method: 'POST', body: { agentId: state.activeBotId } });
+      await api('/api/zalo/login', { method: 'POST', body: { projectDir: activeProjectDir(), agentId: state.activeBotId } });
     } catch (err) {
       state.zaloLoginOpen = false;
       state.confirmModal = { title: t('Lỗi đăng nhập','Login error'), message: err.message, okText: t('Đóng','Close'), onConfirm: () => {} };
@@ -1016,12 +1029,12 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     }
   }));
   document.querySelectorAll('[data-update-app]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => {
-    await api('/api/runtime/update', { method: 'POST', body: { target: 'openclaw' } });
+    await api('/api/runtime/update', { method: 'POST', body: { projectDir: activeProjectDir(), target: 'openclaw' } });
     await loadSystem();
     await loadStatus();
   }));
   document.querySelectorAll('[data-update-router]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => {
-    await api('/api/runtime/update', { method: 'POST', body: { target: '9router' } });
+    await api('/api/runtime/update', { method: 'POST', body: { projectDir: activeProjectDir(), target: '9router' } });
     await loadSystem();
     await loadStatus();
   }));document.querySelectorAll('[data-project-remove]').forEach(btn => btn.onclick = (ev) => {
@@ -1070,7 +1083,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
       okText: t('Xóa bot','Delete bot'),
       onConfirm: async () => {
         try {
-          await api('/api/bot/'+encodeURIComponent(id), { method: 'DELETE' });
+          await api('/api/bot/'+encodeURIComponent(id) + projectQuery(), { method: 'DELETE' });
           state.confirmModal = null;
           showToast(t('Đã xóa bot', 'Bot deleted'), `${t('Đã xóa bot','Bot deleted')}: ${id}`, 'success');
           if (state.activeBotId === id) { state.activeBotId = ''; state.selectedFile = ''; state.files = []; }
@@ -1106,7 +1119,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     const submitBtn = ev.currentTarget.querySelector('button[type="submit"]');
     withButtonLoading(submitBtn, async () => {
       const nineRouterApiKey = ev.currentTarget.querySelector('[name="nineRouterApiKey"]')?.value || '';
-      await api('/api/bot/credentials', { method: 'PUT', body: { nineRouterApiKey } });
+      await api('/api/bot/credentials', { method: 'PUT', body: { projectDir: activeProjectDir(), nineRouterApiKey } });
       const msg = ev.currentTarget.querySelector('[data-cred-msg]');
       if (msg) msg.textContent = t('Đã lưu','Saved');
       await loadStatus();
@@ -1183,6 +1196,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     await withButtonLoading(submitBtn, async () => {
     const fd = new FormData(ev.currentTarget);
     const body = Object.fromEntries(fd.entries());
+    body.projectDir = activeProjectDir();
     body.channel = state.botChannel || 'telegram';
     if (body.channel === 'zalo-personal') {
       state.botModalOpen = false;
@@ -1227,14 +1241,21 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     }
     });
   });
-  document.querySelectorAll('.save').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { const name = btn.dataset.file; await api('/api/bot/files/'+encodeURIComponent(name), { method: 'PUT', body: { content: document.querySelector(`[data-editor="${CSS.escape(name)}"]`).value } }); showToast(t('Đã lưu', 'Saved'), t('Đã lưu tệp tin: ', 'Saved file: ') + fileBaseName(name), 'success'); btn.innerHTML=`${actionIcon('save')} ${ui('saved')}`; setTimeout(()=>btn.innerHTML=`${actionIcon('save')} ${ui('save')}`,1200); }));
+  document.querySelectorAll('.save').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { const name = btn.dataset.file; await api('/api/bot/files/'+encodeURIComponent(name), { method: 'PUT', body: { projectDir: activeProjectDir(), content: document.querySelector(`[data-editor="${CSS.escape(name)}"]`).value } }); showToast(t('Đã lưu', 'Saved'), t('Đã lưu tệp tin: ', 'Saved file: ') + fileBaseName(name), 'success'); btn.innerHTML=`${actionIcon('save')} ${ui('saved')}`; setTimeout(()=>btn.innerHTML=`${actionIcon('save')} ${ui('save')}`,1200); }));
   wireSkillsHandlers(document);
 }
 
 function escapeHtml(s='') { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fileBaseName(s='') { const clean = String(s).replace(/[\\/]+$/, ''); return clean.split(/[\\/]/).pop() || s; }
 async function loadSystem(silent=false){ state.system = await api('/api/system'); if (!silent) render(); }
-async function loadStatus(silent=false){ state.install = await api('/api/bot/status'); if (!state.selectedProjectDir && state.install?.projectDir) state.selectedProjectDir = state.install.projectDir; if (!silent) render(); }
+async function loadStatus(silent=false){
+  const requestedProjectDir = activeProjectDir();
+  const install = await api('/api/bot/status' + projectQuery());
+  if (requestedProjectDir && install?.projectDir && install.projectDir !== requestedProjectDir) return;
+  state.install = install;
+  if (!state.selectedProjectDir && state.install?.projectDir) state.selectedProjectDir = state.install.projectDir;
+  if (!silent) render();
+}
 function autoSwitchBotChannel() {
   const bots = state.install?.bots || [];
   const ch = state.botChannel || 'telegram';
@@ -1258,11 +1279,11 @@ function currentBotId() {
 async function loadFiles(silent=false){
   const botId = currentBotId();
   if (!botId) { state.files = []; if (!silent) render(); return; }
-  state.files = (await api('/api/bot/files' + (botId ? `?agentId=${encodeURIComponent(botId)}` : ''))).files;
+  state.files = (await api('/api/bot/files' + projectQuery({ agentId: botId }))).files;
   if (!silent) render();
 }
 async function loadCatalog(silent=false){ state.catalog = await api('/api/catalog'); if (!silent) render(); }
-async function loadFeatureFlags(silent=false){ const botId=currentBotId(); const data = (await api('/api/features' + (botId ? `?agentId=${encodeURIComponent(botId)}` : ''))) || {}; state.featureFlags = data.flags || {}; state.featureInstalled = data.installed || {}; state.featureVersions = data.versions || {}; if (!silent) render(); }
+async function loadFeatureFlags(silent=false){ const botId=currentBotId(); const data = (await api('/api/features' + projectQuery({ agentId: botId }))) || {}; state.featureFlags = data.flags || {}; state.featureInstalled = data.installed || {}; state.featureVersions = data.versions || {}; if (!silent) render(); }
 function appendLogLine(line) {
   if (line.includes('Setup Wizard updated successfully! Please restart the installer.')) {
     showToast(t('Đang khởi động lại UI', 'Restarting Setup UI'), t('Hệ thống đang tự khởi động lại để áp dụng phiên bản mới...', 'The system is restarting to apply the new version...'), 'info', 12000);
