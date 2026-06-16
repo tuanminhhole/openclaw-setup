@@ -1279,11 +1279,29 @@ function currentBotId() {
 async function loadFiles(silent=false){
   const botId = currentBotId();
   if (!botId) { state.files = []; if (!silent) render(); return; }
-  state.files = (await api('/api/bot/files' + projectQuery({ agentId: botId }))).files;
+  try {
+    state.files = (await api('/api/bot/files' + projectQuery({ agentId: botId }))).files;
+  } catch (_) {
+    state.files = [];
+  }
   if (!silent) render();
 }
 async function loadCatalog(silent=false){ state.catalog = await api('/api/catalog'); if (!silent) render(); }
-async function loadFeatureFlags(silent=false){ const botId=currentBotId(); const data = (await api('/api/features' + projectQuery({ agentId: botId }))) || {}; state.featureFlags = data.flags || {}; state.featureInstalled = data.installed || {}; state.featureVersions = data.versions || {}; if (!silent) render(); }
+async function loadFeatureFlags(silent=false){
+  const botId=currentBotId();
+  if (!activeProjectDir()) { state.featureFlags = {}; state.featureInstalled = {}; state.featureVersions = {}; if (!silent) render(); return; }
+  try {
+    const data = (await api('/api/features' + projectQuery({ agentId: botId }))) || {};
+    state.featureFlags = data.flags || {};
+    state.featureInstalled = data.installed || {};
+    state.featureVersions = data.versions || {};
+  } catch (_) {
+    state.featureFlags = {};
+    state.featureInstalled = {};
+    state.featureVersions = {};
+  }
+  if (!silent) render();
+}
 function appendLogLine(line) {
   if (line.includes('Setup Wizard updated successfully! Please restart the installer.')) {
     showToast(t('Đang khởi động lại UI', 'Restarting Setup UI'), t('Hệ thống đang tự khởi động lại để áp dụng phiên bản mới...', 'The system is restarting to apply the new version...'), 'info', 12000);
@@ -1387,7 +1405,9 @@ function showToast(title, desc, type = 'info', duration = 4000) {
 }
 
 render();
-Promise.all([loadSystem(true), loadStatus(true), loadCatalog(true), loadFeatureFlags(true)]).finally(() => { render(); connectLogs(); });
+Promise.allSettled([loadSystem(true), loadStatus(true), loadCatalog(true)])
+  .then(() => loadFeatureFlags(true).catch(() => {}))
+  .finally(() => { render(); connectLogs(); });
 
 
 

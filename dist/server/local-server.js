@@ -3322,8 +3322,10 @@ async function handler(req, res, rootProjectDir) {
       return json(res, result);
     }
     if (url.pathname === '/api/bot/files' && req.method === 'GET') {
-      await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
-      return json(res, { files: state.projectDir ? await listMarkdownFiles(state.projectDir, url.searchParams.get('agentId') || '') : [] });
+      const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
+      if (!projectDir) return json(res, { files: [] });
+      const agentId = url.searchParams.get('agentId') || '';
+      return json(res, { files: await listMarkdownFiles(projectDir, agentId).catch(() => []) });
     }
     if (url.pathname.startsWith('/api/bot/files/')) {
       const name = decodeURIComponent(url.pathname.replace('/api/bot/files/', ''));
@@ -3357,6 +3359,7 @@ async function handler(req, res, rootProjectDir) {
     });
     if (url.pathname === '/api/features' && req.method === 'GET') {
       const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
+      if (!projectDir) return json(res, { flags: {}, installed: {}, versions: {} });
       return json(res, await getFeatureFlags(projectDir, url.searchParams.get('agentId') || ''));
     }
     if (url.pathname === '/api/features/toggle' && req.method === 'POST') {
