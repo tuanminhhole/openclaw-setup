@@ -225,6 +225,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       singleOllamaNumParallel = 1,
       gatewayPort = 18789,
       routerPort = 20128,
+      osChoice = '',
     } = options;
     const skillLines = dockerfileSkillInstallMode === 'build' && allSkills.length > 0
       ? `\n# Install skills (ClawHub)\n${allSkills.map((skill) => `RUN openclaw skills install ${skill} || echo "Warning: Failed to install ${skill} due to rate limits."`).join('\n')}\n`
@@ -355,7 +356,7 @@ CMD ["/bin/sh", "/usr/local/bin/openclaw-entrypoint.sh"]`;
     const docker9RouterEntrypointScript = build9RouterComposeEntrypointScript(routerPort);
     const extraHostsBlock = `    extra_hosts:\n      - "host.docker.internal:host-gateway"`;
 
-    const appEnvironmentBlock = `    environment:\n      - HOME=/home/node/project/.openclaw\n      - OPENCLAW_HOME=/home/node/project/.openclaw\n      - OPENCLAW_STATE_DIR=/home/node/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n      - OPENCLAW_GATEWAY_PORT=${gatewayPort}\n      - OPENCLAW_PORT=${gatewayPort}\n    tmpfs:\n      - /home/node/project/.openclaw/plugin-runtime-deps\n`;
+    const appEnvironmentBlock = `    environment:\n      - HOME=/home/node/project/.openclaw\n      - OPENCLAW_HOME=/home/node/project/.openclaw\n      - OPENCLAW_STATE_DIR=/home/node/project/.openclaw\n      - OPENCLAW_ALLOW_INSECURE_PRIVATE_WS=1\n      - OPENCLAW_SETUP_OS=${osChoice || ''}\n      - OPENCLAW_BROWSER_HOST_OS=${osChoice || ''}\n      - OPENCLAW_GATEWAY_PORT=${gatewayPort}\n      - OPENCLAW_PORT=${gatewayPort}\n    tmpfs:\n      - /home/node/project/.openclaw/plugin-runtime-deps\n`;
 
     let compose;
     if (isMultiBot) {

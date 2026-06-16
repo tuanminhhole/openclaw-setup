@@ -57,9 +57,10 @@ const hostArg = args.find((arg) => arg.startsWith('--host='));
 const portArg = args.find((arg) => arg.startsWith('--port='));
 const projectDirArg = args.find((arg) => arg.startsWith('--project-dir='));
 
+const fallbackDir = path.join(os.homedir(), 'openclaw-setup');
 const defaultProjectDir = process.platform === 'win32'
-  ? 'C:\\openclaw-setup'
-  : path.join(os.homedir(), 'openclaw-setup');
+  ? ((!fs.existsSync('C:\\openclaw-setup') && fs.existsSync(fallbackDir)) ? fallbackDir : 'C:\\openclaw-setup')
+  : fallbackDir;
 
 let projectDir = projectDirArg ? projectDirArg.slice('--project-dir='.length) : defaultProjectDir;
 
@@ -69,7 +70,6 @@ if (!fs.existsSync(projectDir)) {
     console.log(`Folder setup được tạo tại: ${projectDir}`);
   } catch (err) {
     if (err.code === 'EPERM' || err.code === 'EACCES') {
-      const fallbackDir = path.join(os.homedir(), 'openclaw-setup');
       console.warn(`⚠️  Không có quyền tạo thư mục tại: ${projectDir}`);
       console.log(`👉 Đang chuyển sang thư mục mặc định trong User Profile: ${fallbackDir}`);
       try {
@@ -97,6 +97,8 @@ if (process.env.OPENCLAW_SETUP_WIZARD === 'true' || isLocalRepo()) {
 } else {
   const targetDirName = '.openclaw-setup';
   const targetPath = path.join(os.homedir(), targetDirName);
+  const cliPath = path.join(targetPath, 'node_modules', 'create-openclaw-bot', 'dist', 'cli.js');
+  const shouldUpdate = args.includes('--update');
 
   try {
     if (!fs.existsSync(targetPath)) {
@@ -107,13 +109,15 @@ if (process.env.OPENCLAW_SETUP_WIZARD === 'true' || isLocalRepo()) {
       fs.writeFileSync(pkgPath, JSON.stringify({ name: 'openclaw-setup-container', version: '1.0.0', private: true, dependencies: {} }, null, 2), 'utf8');
     }
 
-    console.log(`[1/2] Checking/Installing latest Setup Wizard package in: ${targetPath}...`);
-    await runCmd('npm', ['install', 'create-openclaw-bot@latest', '--no-audit', '--no-fund'], { cwd: targetPath });
+    if (!fs.existsSync(cliPath) || shouldUpdate) {
+      console.log(`Checking/Installing latest Setup Wizard package in: ${targetPath}...`);
+      await runCmd('npm', ['install', 'create-openclaw-bot@latest', '--no-audit', '--no-fund'], { cwd: targetPath });
+    }
 
-    console.log('\n[2/2] Starting Setup Wizard...');
-    const cliPath = path.join(targetPath, 'node_modules', 'create-openclaw-bot', 'dist', 'cli.js');
+    console.log('\nStarting Setup Wizard...');
+    const cleanArgs = args.filter((arg) => arg !== '--update');
     
-    const child = spawn(process.argv[0], [cliPath, ...args, `--project-dir=${projectDir}`], {
+    const child = spawn(process.argv[0], [cliPath, ...cleanArgs, `--project-dir=${projectDir}`], {
       cwd: targetPath,
       shell: false,
       stdio: 'inherit',

@@ -91,7 +91,11 @@
     }));
 
     const cfg = {
-      meta: { lastTouchedVersion: (_common.OPENCLAW_NPM_SPEC || 'latest').replace('openclaw@', '') },
+      meta: {
+        lastTouchedVersion: (_common.OPENCLAW_NPM_SPEC || 'latest').replace('openclaw@', ''),
+        osChoice,
+        deployMode,
+      },
       agents: {
         defaults: {
           model: { primary: model, fallbacks: [] },
@@ -161,8 +165,22 @@
 
     // ── tools ────────────────────────────────────────────────────────────────
     cfg.tools = { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
-    if (selectedSkills.includes('scheduler')) {
-      cfg.tools.alsoAllow = ['group:automation'];
+    const alsoAllow = [];
+    if (selectedSkills.includes('scheduler') || selectedSkills.includes('cron')) {
+      alsoAllow.push('group:automation');
+    }
+    if (
+      selectedSkills.includes('web-search') ||
+      selectedSkills.includes('web_search') ||
+      selectedSkills.includes('browser') ||
+      selectedSkills.includes('browser-automation') ||
+      hasBrowserDesktop ||
+      hasBrowserServer
+    ) {
+      alsoAllow.push('group:web');
+    }
+    if (alsoAllow.length > 0) {
+      cfg.tools.alsoAllow = alsoAllow;
     }
     if (isMultiBot) {
       cfg.tools.agentToAgent = {
@@ -324,6 +342,7 @@
 
     const plugins = { entries };
     plugins.allow = allow;
+    if (allow.length) plugins.bundledDiscovery = 'compat';
 
     return { plugins };
   }

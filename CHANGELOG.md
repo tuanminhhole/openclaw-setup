@@ -1,5 +1,10 @@
 # Changelog (English)
 
+## [5.8.22] — 2026-06-16
+
+- Improve browser-automation
+- Improve installation for VPS
+
 ## [5.8.17] — 2026-06-08
 
 ### 🚀 Bug Fixes & Refinements: Docker Workspace Path Resolution, Clean NPM Installer, and UI Auto-Update

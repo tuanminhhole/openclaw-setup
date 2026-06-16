@@ -1,5 +1,10 @@
 # Changelog (Tiếng Việt)
 
+## [5.8.22] — 2026-06-16
+
+- Cải tiến browser-automation
+- Cải tiến bản cài đặt cho VPS
+
 ## [5.8.17] — 2026-06-08
 
 ### 🚀 Sửa lỗi & Tối ưu hóa: Phân giải đường dẫn Docker Workspace, Bộ cài NPM rút gọn và Tự động Cập nhật trên UI

@@ -44,6 +44,187 @@ async function syncExecApprovals(projectDir, cfg) {
   await fsp.writeFile(path2, JSON.stringify(approvals, null, 2), 'utf8');
 }
 
+async function patchBrowserAutomationHostPreference(projectDir, aliases = [], sendLog = () => {}) {
+  const preferredCdpBlock = `const dns = require('dns').promises;
+const DEFAULT_CDP_URLS = [
+    'host-gateway:9222',
+    'http://127.0.0.1:9222',
+];
+const CDP_URLS = (process.env.OPENCLAW_BROWSER_CDP_URLS || DEFAULT_CDP_URLS.join(','))
+    .split(',')
+    .map((u) => u.trim())
+    .filter(Boolean);
+
+async function normalizeCdpUrl(url) {
+    if (url === 'host-gateway:9222') {
+        try {
+            const resolved = await dns.lookup('host.docker.internal');
+            return 'http://' + resolved.address + ':9222';
+        } catch (_) {
+            return 'http://host.docker.internal:9222';
+        }
+    }
+    return url;
+}
+
+async function connectPreferredChrome() {
+    let lastError;
+    for (const rawUrl of CDP_URLS) {
+        const url = await normalizeCdpUrl(rawUrl);
+        try {
+            const connected = await chromium.connectOverCDP(url, { timeout: 2500 });
+            console.error('[Browser] Connected CDP: ' + url);
+            return connected;
+        } catch (err) {
+            lastError = err;
+        }
+    }
+    throw lastError || new Error('No Chrome CDP endpoint available');
+}`;
+
+  const patchContent = (content) => {
+    let next = content;
+    next = next.replace(
+      "const CDP_URL = 'http://127.0.0.1:9222';",
+      preferredCdpBlock
+    );
+    next = next.replace(
+      'browser = await chromium.connectOverCDP(CDP_URL, { timeout: 5000 });',
+      'browser = await connectPreferredChrome();'
+    );
+    return next;
+  };
+
+  const browserToolCandidates = new Set();
+  const extensionDirs = [];
+  for (const alias of aliases) {
+    const extensionDir = join(projectDir, '.openclaw', 'extensions', alias);
+    extensionDirs.push(extensionDir);
+    browserToolCandidates.add(join(extensionDir, 'browser-tool.js'));
+  }
+
+  const workspaceDirs = new Set();
+  try {
+    const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+    if (existsSync(cfgPath)) {
+      const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
+      for (const a of cfg.agents?.list || []) {
+        const workspaceRel = a.workspace || cfg.agents?.defaults?.workspace;
+        if (!workspaceRel) continue;
+        const workspacePath = workspaceRel.startsWith('/') ? join(projectDir, workspaceRel.replace(/^\/home\/node\/project\/?/, '')) : join(projectDir, workspaceRel);
+        workspaceDirs.add(workspacePath);
+        browserToolCandidates.add(join(workspacePath, 'plugin-skills', 'browser-automation', 'browser-tool.js'));
+      }
+    }
+  } catch (err) {
+    sendLog(`[browser] Warning: could not scan workspaces for browser-tool.js: ${err.message}`);
+  }
+
+  let patched = 0;
+  for (const file of browserToolCandidates) {
+    if (!existsSync(file)) continue;
+    const content = await fsp.readFile(file, 'utf8');
+    if (content.includes('connectPreferredChrome')) continue;
+    const next = patchContent(content);
+    if (next !== content) {
+      await fsp.writeFile(file, next, 'utf8');
+      patched += 1;
+    }
+  }
+  if (patched > 0) {
+    sendLog(`[browser] Patched ${patched} browser-tool.js file(s) to prefer host Chrome debug before headless Chromium.`);
+  }
+
+  const browserMd = `# Browser Automation
+
+This plugin skill owns browser automation only. For normal web search, use OpenClaw's built-in \`web_search\` capability.
+
+Run commands from this folder or pass the full path from the workspace root:
+
+- \`cd plugin-skills/browser-automation && node browser-tool.js status\`
+- \`node plugin-skills/browser-automation/browser-tool.js status\`
+
+## Chrome Debug Mode
+
+On a desktop machine, start real Chrome in debug mode before asking the bot to browse:
+
+- Windows: run \`start-chrome-debug.bat\`
+- macOS/Linux: run \`./start-chrome-debug.sh\`
+
+The tool will try real host Chrome first. If Chrome debug is not available, it falls back to local headless Chromium, which is suitable for VPS/server use.
+
+## Browser Commands
+
+- \`node plugin-skills/browser-automation/browser-tool.js status\`: check the active browser/tab
+- \`node plugin-skills/browser-automation/browser-tool.js open <url>\`: open a page
+- \`node plugin-skills/browser-automation/browser-tool.js get_text [max_chars]\`: read rendered page text
+- \`node plugin-skills/browser-automation/browser-tool.js get_links [filter]\`: list links
+- \`node plugin-skills/browser-automation/browser-tool.js click "<selector>"\`: click an element
+- \`node plugin-skills/browser-automation/browser-tool.js fill "<selector>" "<text>"\`: fill an input
+- \`node plugin-skills/browser-automation/browser-tool.js scroll [px]\`: scroll the page
+- \`node plugin-skills/browser-automation/browser-tool.js screenshot [path]\`: capture the viewport
+- \`node plugin-skills/browser-automation/browser-tool.js tabs\`: list tabs
+
+Do not call \`search-tool.js\`; browser-automation does not own search. Use \`web_search\` for search and this browser tool only when a rendered browser is needed.
+`;
+
+  const removeManagedBlock = (content, blockId) => {
+    const startTag = `<!-- OPENCLAW:${blockId}:START -->`;
+    const endTag = `<!-- OPENCLAW:${blockId}:END -->`;
+    const startIdx = content.indexOf(startTag);
+    const endIdx = content.indexOf(endTag);
+    if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return content;
+    return `${content.substring(0, startIdx).trimEnd()}\n${content.substring(endIdx + endTag.length).trimStart()}`.trim() + '\n';
+  };
+
+  const hostOs = normalizeHostOs(await resolveProjectHostOs(projectDir));
+  const shouldKeepBat = hostOs === 'win';
+  const scriptToKeep = shouldKeepBat ? 'start-chrome-debug.bat' : 'start-chrome-debug.sh';
+  const scriptToRemove = shouldKeepBat ? 'start-chrome-debug.sh' : 'start-chrome-debug.bat';
+  const sourceScript = extensionDirs.map((dir) => join(dir, scriptToKeep)).find((file) => existsSync(file));
+  const sourceBrowserTool = extensionDirs.map((dir) => join(dir, 'browser-tool.js')).find((file) => existsSync(file));
+
+  let sanitized = 0;
+  for (const workspacePath of workspaceDirs) {
+    if (!existsSync(workspacePath)) continue;
+    const pluginSkillPath = join(workspacePath, 'plugin-skills', 'browser-automation');
+    await fsp.mkdir(pluginSkillPath, { recursive: true }).catch(() => {});
+    await fsp.rm(join(workspacePath, 'search-tool.js'), { force: true }).catch(() => {});
+    await fsp.rm(join(workspacePath, 'browser-tool.js'), { force: true }).catch(() => {});
+    await fsp.rm(join(workspacePath, 'BROWSER.md'), { force: true }).catch(() => {});
+    await fsp.rm(join(workspacePath, scriptToRemove), { force: true }).catch(() => {});
+    await fsp.rm(join(workspacePath, scriptToKeep), { force: true }).catch(() => {});
+    await fsp.rm(join(pluginSkillPath, scriptToRemove), { force: true }).catch(() => {});
+    if (sourceBrowserTool) {
+      const targetBrowserTool = join(pluginSkillPath, 'browser-tool.js');
+      await fsp.copyFile(sourceBrowserTool, targetBrowserTool).catch(() => {});
+      if (existsSync(targetBrowserTool)) {
+        const content = await fsp.readFile(targetBrowserTool, 'utf8');
+        const next = content.includes('connectPreferredChrome') ? content : patchContent(content);
+        if (next !== content) await fsp.writeFile(targetBrowserTool, next, 'utf8');
+      }
+    }
+    if (sourceScript) {
+      await fsp.copyFile(sourceScript, join(pluginSkillPath, scriptToKeep)).catch(() => {});
+      if (scriptToKeep.endsWith('.sh')) await fsp.chmod(join(pluginSkillPath, scriptToKeep), 0o755).catch(() => {});
+    }
+    await fsp.writeFile(join(pluginSkillPath, 'BROWSER.md'), browserMd, 'utf8');
+    for (const dirName of ['cl-stealth-search', 'openclaw-smart-search']) {
+      await fsp.rm(join(workspacePath, 'plugin-skills', dirName), { recursive: true, force: true }).catch(() => {});
+    }
+    const toolsMdPath = join(workspacePath, 'TOOLS.md');
+    if (existsSync(toolsMdPath)) {
+      const toolsContent = await fsp.readFile(toolsMdPath, 'utf8');
+      const cleaned = removeManagedBlock(toolsContent, 'STEALTH_BROWSER_GUIDE');
+      if (cleaned !== toolsContent) await fsp.writeFile(toolsMdPath, cleaned, 'utf8');
+    }
+    sanitized += 1;
+  }
+  if (sanitized > 0) {
+    sendLog(`[browser] Sanitized ${sanitized} workspace(s): browser assets are in plugin-skills/browser-automation; web_search remains responsible for search.`);
+  }
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WEB_DIR = resolve(__dirname, '../web');
 const SETUP_VERSION = (() => { try { return JSON.parse(fs.readFileSync(resolve(__dirname, '../../package.json'), 'utf8')).version || '0.0.0'; } catch { return '0.0.0'; } })();
@@ -120,6 +301,32 @@ function detectOs() {
   if (platform === 'darwin') return 'macos';
   if (platform === 'linux') return os.release().toLowerCase().includes('microsoft') ? 'linux-desktop' : 'linux-desktop';
   return 'linux-desktop';
+}
+
+function normalizeHostOs(value = '') {
+  const v = String(value || '').trim().toLowerCase();
+  if (['win', 'windows', 'win32'].includes(v)) return 'win';
+  if (['mac', 'macos', 'darwin'].includes(v)) return 'macos';
+  if (['vps', 'server'].includes(v)) return 'vps';
+  if (['linux', 'linux-desktop', 'ubuntu', 'debian'].includes(v)) return 'linux-desktop';
+  return '';
+}
+
+async function resolveProjectHostOs(projectDir = '') {
+  try {
+    const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
+    if (existsSync(cfgPath)) {
+      const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
+      const pluginEntries = cfg.plugins?.entries || {};
+      const browserEntry = pluginEntries['browser-automation'] || pluginEntries['openclaw-browser-automation'] || {};
+      const fromConfig = normalizeHostOs(browserEntry.config?.hostOs || cfg.meta?.osChoice || cfg.meta?.hostOs);
+      if (fromConfig) return fromConfig;
+    }
+  } catch {}
+  const fromState = normalizeHostOs(state.os);
+  if (fromState) return fromState;
+  if (/^[A-Za-z]:[\\/]/.test(String(projectDir || ''))) return 'win';
+  return detectOs();
 }
 
 function getRealHomedir() {
@@ -410,6 +617,12 @@ function openclawProjectEnv(projectDir) {
   };
 }
 
+function parseJsonText(text, fallback = undefined) {
+  const clean = String(text || '').replace(/^\uFEFF/, '');
+  if (!clean.trim() && fallback !== undefined) return fallback;
+  return JSON.parse(clean);
+}
+
 async function runOpenclawJson(projectDir, args = [], timeout = 12000) {
   const out = await runCapture('openclaw', args, {
     cwd: projectDir,
@@ -419,7 +632,7 @@ async function runOpenclawJson(projectDir, args = [], timeout = 12000) {
   });
   if (out.code !== 0) throw new Error((out.stderr || out.stdout || `openclaw ${args.join(' ')} failed`).trim());
   const text = String(out.stdout || '').trim();
-  return text ? JSON.parse(text) : null;
+  return text ? parseJsonText(text) : null;
 }
 
 async function readComposeText(projectDir) {
@@ -467,7 +680,7 @@ function parseBaseUrlPort(baseUrl = '') {
 
 async function detectRuntime(projectDir) {
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
-  const cfg = existsSync(cfgPath) ? JSON.parse(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}')) : {};
+  const cfg = existsSync(cfgPath) ? parseJsonText(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}'), {}) : {};
   let cliGatewayStatus = null;
   let cliGatewayPort = 0;
   let cliRouterPort = 0;
@@ -836,7 +1049,7 @@ async function applyResolved9RouterApiKey(projectDir, cfg = null) {
   if (!projectDir) return '';
   const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
   if (!existsSync(cfgPath)) return '';
-  const current = cfg || ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
+  const current = cfg || ensureConfigShape(parseJsonText(await fsp.readFile(cfgPath, 'utf8')));
   const apiKey = await resolveProject9RouterApiKey(projectDir, current);
   if (!apiKey) return '';
   current.models = current.models || { mode: 'merge', providers: {} };
@@ -852,7 +1065,7 @@ async function applyResolved9RouterApiKey(projectDir, cfg = null) {
 async function readBotCredentials(projectDir) {
   const found = readProjectConfig(projectDir);
   if (!found) return { openclawToken: '', nineRouterApiKey: '' };
-  const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(found.cfgPath, 'utf8')));
+  const cfg = ensureConfigShape(parseJsonText(await fsp.readFile(found.cfgPath, 'utf8')));
   return {
     openclawToken: cfg.gateway?.auth?.token || '',
     nineRouterApiKey: await resolveProject9RouterApiKey(projectDir, cfg),
@@ -863,7 +1076,7 @@ async function updateBotCredentials(projectDir, body = {}) {
   const found = readProjectConfig(projectDir);
   if (!found) throw httpError(400, 'Install project not found');
   const raw = await fsp.readFile(found.cfgPath, 'utf8');
-  const cfg = ensureConfigShape(JSON.parse(raw));
+  const cfg = ensureConfigShape(parseJsonText(raw));
   const nineRouterApiKey = String(body.nineRouterApiKey || '').trim();
   if (Object.prototype.hasOwnProperty.call(body, 'nineRouterApiKey')) {
     cfg.models = cfg.models || { mode: 'merge', providers: {} };
@@ -935,7 +1148,7 @@ async function listConfiguredBots(projectDir) {
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
   if (!projectDir || !existsSync(cfgPath)) return [];
   const raw = await fsp.readFile(cfgPath, 'utf8');
-  const cfg = ensureConfigShape(JSON.parse(raw));
+  const cfg = ensureConfigShape(parseJsonText(raw));
   const normalized = JSON.stringify(cfg, null, 2) + '\n';
   if (normalized !== raw) await fsp.writeFile(cfgPath, normalized, 'utf8');
   const rows = await Promise.all(cfg.agents.list.map(async (agent) => {
@@ -970,7 +1183,7 @@ async function deleteBotInProject(projectDir, agentId) {
   const openclawHome = join(projectDir, '.openclaw');
   const cfgPath = join(openclawHome, 'openclaw.json');
   if (!existsSync(cfgPath)) throw httpError(404, 'openclaw.json not found');
-  const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
+  const cfg = ensureConfigShape(parseJsonText(await fsp.readFile(cfgPath, 'utf8')));
   const agent = cfg.agents.list.find((a) => a.id === agentId);
   if (!agent) throw httpError(404, 'Bot not found');
 
@@ -1610,6 +1823,7 @@ async function syncDockerInfra(projectDir, force = false) {
   const composeName = (compose.match(/^name:\s*(\S+)/m) || [])[1] || `oc-${slugify(basename(projectDir))}`;
   const gatewayPort = state.gatewayPort || 18789;
   const routerPort = state.routerPort || 20128;
+  const osChoice = await resolveProjectHostOs(projectDir);
 
   // Detect features from openclaw.json
   const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
@@ -1626,6 +1840,7 @@ async function syncDockerInfra(projectDir, force = false) {
     openClawRuntimePackages: '',
     allSkills: [],
     dockerfilePlugins: [],
+    osChoice,
     gatewayPort,
     routerPort,
     singleComposeName: composeName,
@@ -1762,7 +1977,7 @@ async function readJson(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   if (!chunks.length) return {};
-  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  return parseJsonText(Buffer.concat(chunks).toString('utf8'));
 }
 
 function json(res, data, status = 200) {
@@ -1995,7 +2210,7 @@ function isRestrictedSystemDir(dirPath) {
     ]);
     if (unixBlacklist.has(basename(lower))) return true;
     
-    if (lower.startsWith('/home') || lower.startsWith('/root') || lower.startsWith('/mnt/') || lower.startsWith('/users/') || lower === '/users') {
+    if (lower.startsWith('/mnt/') || lower.startsWith('/users/') || lower === '/users') {
       const realHome = resolve(getRealHomedir()).toLowerCase();
       if (lower !== realHome && !lower.startsWith(realHome + '/')) {
         const cwd = resolve(process.cwd()).toLowerCase();
@@ -2115,18 +2330,18 @@ async function resolveProjectDir(rootProjectDir, body = {}) {
     await syncRuntimeState(state.projectDir);
     return state.projectDir;
   }
-  const envProjectDir = process.env.OPENCLAW_PROJECT_DIR || (process.env.OPENCLAW_HOME ? dirname(process.env.OPENCLAW_HOME) : '');
-  if (envProjectDir && existsSync(join(resolve(String(envProjectDir)), '.openclaw', 'openclaw.json'))) {
-    state.projectDir = resolve(String(envProjectDir));
-    await syncRuntimeState(state.projectDir);
-    return state.projectDir;
-  }
   if (state.projectDir && existsSync(join(state.projectDir, '.openclaw', 'openclaw.json'))) {
     await syncRuntimeState(state.projectDir);
     return state.projectDir;
   }
   await loadSavedState(rootProjectDir);
   if (state.projectDir && existsSync(join(state.projectDir, '.openclaw', 'openclaw.json'))) {
+    await syncRuntimeState(state.projectDir);
+    return state.projectDir;
+  }
+  const envProjectDir = process.env.OPENCLAW_PROJECT_DIR || (process.env.OPENCLAW_HOME ? dirname(process.env.OPENCLAW_HOME) : '');
+  if (envProjectDir && existsSync(join(resolve(String(envProjectDir)), '.openclaw', 'openclaw.json'))) {
+    state.projectDir = resolve(String(envProjectDir));
     await syncRuntimeState(state.projectDir);
     return state.projectDir;
   }
@@ -2276,39 +2491,7 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
 
   const k = `${kind}:${id}`;
 
-  if (kind === 'skill' && id === 'browser') {
-    delete cfg.browser;
-    cfg.plugins = cfg.plugins || { entries: {} };
-    cfg.plugins.entries = cfg.plugins.entries || {};
-    const aliases = ['browser-automation', 'openclaw-browser-automation'];
-    const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
-    cfg.plugins.entries[existingKey] = cfg.plugins.entries[existingKey] || {};
-    cfg.plugins.entries[existingKey].enabled = !!enabled;
-    cfg.plugins.allow = cfg.plugins.allow || [];
-    if (enabled) {
-      if (!cfg.plugins.allow.includes(existingKey)) cfg.plugins.allow.push(existingKey);
-    } else {
-      cfg.plugins.allow = cfg.plugins.allow.filter((x) => x !== existingKey);
-      for (const a of cfg.agents.list) {
-        const bf = await readWorkspaceText(projectDir, a, 'BROWSER.md');
-        if (existsSync(bf.file)) await fsp.rm(bf.file, { force: true });
-        const bt = await readWorkspaceText(projectDir, a, 'browser-tool.js');
-        if (existsSync(bt.file)) await fsp.rm(bt.file, { force: true });
-      }
-    }
 
-    // Write cfgPath early so syncDockerInfra reads the updated openclaw.json
-    await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
-
-    // Force Docker Infrastructure sync and container recreation
-    const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
-    if (hasDocker) {
-      sendLog(`[docker] Browser skill toggled to ${enabled}. Regenerating Dockerfiles...`);
-      await syncDockerInfra(projectDir, true).catch((err) => sendLog(`[docker] Warning: Failed to sync docker infra: ${err.message}`));
-      sendLog(`[docker] Rebuilding and recreating containers...`);
-      await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
-    }
-  }
 
   if (kind === 'skill' && id === 'cron') {
     cfg.skills = cfg.skills || { entries: {} };
@@ -2372,8 +2555,18 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     cfg.plugins.allow = cfg.plugins.allow || [];
     if (enabled) {
       if (!cfg.plugins.allow.includes('duckduckgo')) cfg.plugins.allow.push('duckduckgo');
+      cfg.tools = cfg.tools || { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
+      cfg.tools.alsoAllow = Array.from(new Set([...(cfg.tools.alsoAllow || []), 'group:web']));
     } else {
       cfg.plugins.allow = cfg.plugins.allow.filter((x) => x !== 'duckduckgo');
+      const aliases = ['browser-automation', 'openclaw-browser-automation'];
+      const isBrowserEnabled = aliases.some((a) => cfg.plugins?.entries?.[a]?.enabled);
+      if (!isBrowserEnabled) {
+        if (cfg.tools?.alsoAllow) {
+          cfg.tools.alsoAllow = cfg.tools.alsoAllow.filter((x) => x !== 'group:web');
+          if (cfg.tools.alsoAllow.length === 0) delete cfg.tools.alsoAllow;
+        }
+      }
     }
 
     // Write cfgPath early so recreation reads updated openclaw.json
@@ -2455,29 +2648,77 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
     cfg.plugins.entries[existingKey] = cfg.plugins.entries[existingKey] || {};
     cfg.plugins.entries[existingKey].enabled = !!enabled;
-    if (existingKey === 'zalo-mod' || existingKey === 'openclaw-zalo-mod') {
-      ensureZaloModPluginConfig(cfg.plugins.entries[existingKey], cfg);
-    }
-    // Only add the canonical config key to allow list (not all aliases)
-    cfg.plugins.allow = cfg.plugins.allow || [];
-    if (!cfg.plugins.allow.includes(existingKey)) cfg.plugins.allow.push(existingKey);
-    // Auto-expose zalo-mod dashboard port in docker-compose.yml when enabling
-    if (enabled && (existingKey === 'zalo-mod' || existingKey === 'openclaw-zalo-mod')) {
-      const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
-      if (existsSync(composeFile)) {
-        try {
-          let composeContent = await fsp.readFile(composeFile, 'utf8');
-          const dashPort = cfg.plugins.entries[existingKey].config?.dashboardPort;
-          if (dashPort && !composeContent.includes(`:${dashPort}`)) {
-            const gwPortStr = String(Number(cfg.gateway?.port) || state.gatewayPort || 18789);
-            composeContent = composeContent.replace(
-              new RegExp(`^(\\s*-\\s*"(?:\\d+:)?${gwPortStr}(?::${gwPortStr})?"\\s*)$`, 'm'),
-              `$1\n      - "127.0.0.1:${dashPort}:${dashPort}"  # zalo-mod dashboard`
-            );
-            await fsp.writeFile(composeFile, composeContent, 'utf8');
-            sendLog(`[plugin] Added dashboard port ${dashPort} to docker-compose.yml`);
+
+    if (enabled) {
+      if (existingKey === 'zalo-mod' || existingKey === 'openclaw-zalo-mod') {
+        ensureZaloModPluginConfig(cfg.plugins.entries[existingKey], cfg);
+      }
+      // Only add the canonical config key to allow list (not all aliases)
+      cfg.plugins.allow = cfg.plugins.allow || [];
+      if (!cfg.plugins.allow.includes(existingKey)) cfg.plugins.allow.push(existingKey);
+
+      // Auto-expose zalo-mod dashboard port in docker-compose.yml when enabling
+      if (existingKey === 'zalo-mod' || existingKey === 'openclaw-zalo-mod') {
+        const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
+        if (existsSync(composeFile)) {
+          try {
+            let composeContent = await fsp.readFile(composeFile, 'utf8');
+            const dashPort = cfg.plugins.entries[existingKey].config?.dashboardPort;
+            if (dashPort && !composeContent.includes(`:${dashPort}`)) {
+              const gwPortStr = String(Number(cfg.gateway?.port) || state.gatewayPort || 18789);
+              composeContent = composeContent.replace(
+                new RegExp(`^(\\s*-\\s*"(?:\\d+:)?${gwPortStr}(?::${gwPortStr})?"\\s*)$`, 'm'),
+                `$1\n      - "127.0.0.1:${dashPort}:${dashPort}"  # zalo-mod dashboard`
+              );
+              await fsp.writeFile(composeFile, composeContent, 'utf8');
+              sendLog(`[plugin] Added dashboard port ${dashPort} to docker-compose.yml`);
+            }
+          } catch (e) { sendLog(`[plugin] Warning: could not add dashboard port: ${e.message}`); }
+        }
+      }
+
+      if (existingKey === 'browser-automation' || existingKey === 'openclaw-browser-automation') {
+        cfg.tools = cfg.tools || { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
+        cfg.tools.alsoAllow = Array.from(new Set([...(cfg.tools.alsoAllow || []), 'group:web']));
+
+        // Force Docker sync and recreate container to include chrome/playwright dependencies
+        const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
+        if (hasDocker) {
+          sendLog(`[docker] Browser plugin enabled. Regenerating Dockerfiles...`);
+          await syncDockerInfra(projectDir, true).catch((err) => sendLog(`[docker] Warning: Failed to sync docker infra: ${err.message}`));
+          sendLog(`[docker] Rebuilding and recreating containers...`);
+          await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
+        }
+      }
+    } else {
+      if (Array.isArray(cfg.plugins.allow)) {
+        cfg.plugins.allow = cfg.plugins.allow.filter((x) => x !== existingKey);
+      }
+      if (existingKey === 'browser-automation' || existingKey === 'openclaw-browser-automation') {
+        const isWebSearchEnabled = !!cfg.plugins?.entries?.['duckduckgo']?.enabled;
+        if (!isWebSearchEnabled) {
+          if (cfg.tools?.alsoAllow) {
+            cfg.tools.alsoAllow = cfg.tools.alsoAllow.filter((x) => x !== 'group:web');
+            if (cfg.tools.alsoAllow.length === 0) delete cfg.tools.alsoAllow;
           }
-        } catch (e) { sendLog(`[plugin] Warning: could not add dashboard port: ${e.message}`); }
+        }
+        for (const a of cfg.agents.list) {
+          const bf = await readWorkspaceText(projectDir, a, 'BROWSER.md');
+          if (existsSync(bf.file)) await fsp.rm(bf.file, { force: true });
+          const bt = await readWorkspaceText(projectDir, a, 'browser-tool.js');
+          if (existsSync(bt.file)) await fsp.rm(bt.file, { force: true });
+          const rel = workspaceRelForAgent(a, cfg, projectDir);
+          await fsp.rm(join(projectDir, '.openclaw', rel, 'plugin-skills', 'browser-automation'), { recursive: true, force: true }).catch(() => {});
+        }
+
+        // Force Docker sync and recreate container to clean up browser dependencies/ports
+        const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
+        if (hasDocker) {
+          sendLog(`[docker] Browser plugin disabled. Regenerating Dockerfiles...`);
+          await syncDockerInfra(projectDir, true).catch((err) => sendLog(`[docker] Warning: Failed to sync docker infra: ${err.message}`));
+          sendLog(`[docker] Rebuilding and recreating containers...`);
+          await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
+        }
       }
     }
   }
@@ -2589,6 +2830,13 @@ async function installFeature(projectDir, agentId, kind, id) {
         const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
         cfg.plugins.entries[existingKey] = cfg.plugins.entries[existingKey] || {};
         cfg.plugins.entries[existingKey].enabled = true;
+        if (existingKey === 'browser-automation' || existingKey === 'openclaw-browser-automation') {
+          cfg.plugins.entries[existingKey].config = Object.assign({}, cfg.plugins.entries[existingKey].config, {
+            hostOs: await resolveProjectHostOs(projectDir),
+          });
+          cfg.tools = cfg.tools || { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
+          cfg.tools.alsoAllow = Array.from(new Set([...(cfg.tools.alsoAllow || []), 'group:web']));
+        }
         if (existingKey === 'zalo-mod' || existingKey === 'openclaw-zalo-mod') {
           ensureZaloModPluginConfig(cfg.plugins.entries[existingKey], cfg);
         }
@@ -2622,6 +2870,7 @@ async function installFeature(projectDir, agentId, kind, id) {
       // Browser-automation plugin needs Docker rebuild for Playwright/Chromium deps
       const isBrowserPlugin = id === 'openclaw-browser-automation' || id === 'browser-automation';
       if (isBrowserPlugin && composeDir) {
+        await patchBrowserAutomationHostPreference(projectDir, aliases, sendLog);
         sendLog(`[plugin] Browser plugin requires Docker rebuild for Playwright/Chromium...`);
         const svcName = getBotServiceName(projectDir);
         await run('docker', ['compose', '-f', join(composeDir, 'docker-compose.yml'), 'up', '-d', '--build', '--force-recreate', svcName], { shell: false }).catch((err) => {
@@ -2667,6 +2916,7 @@ async function installFeature(projectDir, agentId, kind, id) {
         cfg.plugins = cfg.plugins || { entries: {} };
         cfg.plugins.entries = cfg.plugins.entries || {};
         const pluginAliasMap = {
+          'openclaw-browser-automation': ['browser-automation', 'openclaw-browser-automation'],
           'openclaw-zalo-mod': ['zalo-mod', 'openclaw-zalo-mod'],
           'openclaw-facebook-crawler': ['openclaw-facebook-crawler', 'openclaw-n8n-facebook-crawler', 'n8n-facebook-crawler'],
           'openclaw-n8n-facebook-poster': ['openclaw-n8n-facebook-poster', 'openclaw-facebook-poster', 'facebook-poster'],
@@ -2675,10 +2925,22 @@ async function installFeature(projectDir, agentId, kind, id) {
         const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
         cfg.plugins.entries[existingKey] = cfg.plugins.entries[existingKey] || {};
         cfg.plugins.entries[existingKey].enabled = true;
+        if (existingKey === 'browser-automation' || existingKey === 'openclaw-browser-automation') {
+          cfg.plugins.entries[existingKey].config = Object.assign({}, cfg.plugins.entries[existingKey].config, {
+            hostOs: await resolveProjectHostOs(projectDir),
+          });
+          cfg.tools = cfg.tools || { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
+          cfg.tools.alsoAllow = Array.from(new Set([...(cfg.tools.alsoAllow || []), 'group:web']));
+        }
         if (existingKey === 'zalo-mod' || existingKey === 'openclaw-zalo-mod') {
           ensureZaloModPluginConfig(cfg.plugins.entries[existingKey], cfg);
         }
         await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+      }
+
+      if (id === 'openclaw-browser-automation' || id === 'browser-automation') {
+        const aliases = ['browser-automation', 'openclaw-browser-automation'];
+        await patchBrowserAutomationHostPreference(projectDir, aliases, sendLog);
       }
     }
   }
@@ -2752,14 +3014,14 @@ async function getInstalledSkillVersion(projectDir, agentId, skillFolder, cfg = 
 
 async function getFeatureFlags(projectDir, agentId = '') {
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
-  const cfg = existsSync(cfgPath) ? ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}'))) : {};
+  const cfg = existsSync(cfgPath) ? ensureConfigShape(parseJsonText(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}'), {})) : {};
   const aid = agentId || cfg.agents?.list?.[0]?.id || 'bot';
   const browserOn = !!cfg.browser?.enabled;
   const cronOn = !!cfg.skills?.entries?.['cronjob']?.enabled || !!cfg.skills?.entries?.['cron']?.enabled || !!(cfg.tools?.alsoAllow || []).includes('group:automation');
   const fresh = cfg;
   const freshSaved = {};
   const installsPath = join(projectDir || '', '.openclaw', 'plugins', 'installs.json');
-  const installs = existsSync(installsPath) ? JSON.parse(await fsp.readFile(installsPath, 'utf8').catch(() => '{}')) : {};
+  const installs = existsSync(installsPath) ? parseJsonText(await fsp.readFile(installsPath, 'utf8').catch(() => '{}'), {}) : {};
   const installRecords = installs.installRecords || {};
   const installedKeys = new Set(Object.keys(installRecords).map((k) => String(k || '').toLowerCase()));
   const installedSpecs = new Set(Object.values(installRecords).flatMap((r) => {
@@ -2956,7 +3218,7 @@ async function handler(req, res, rootProjectDir) {
       return json(res, await connectPickedProject(body.projectName, rootProjectDir));
     }
     if (url.pathname === '/api/bot/status' && req.method === 'GET') {
-      await resolveProjectDir(rootProjectDir);
+      await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
       return json(res, await buildBotStatus());
     }
     if (url.pathname === '/api/bot/credentials' && req.method === 'PUT') {
@@ -3087,23 +3349,30 @@ async function handler(req, res, rootProjectDir) {
     }
     if (url.pathname.startsWith('/api/bot/') && req.method === 'DELETE' && !url.pathname.startsWith('/api/bot/files/')) {
       const agentId = decodeURIComponent(url.pathname.replace('/api/bot/', ''));
-      const projectDir = await resolveProjectDir(rootProjectDir);
+      const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
       const result = await deleteBotInProject(projectDir, agentId);
       sendLog(`? Bot deleted: ${agentId}`);
       await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] recreate skipped/failed: ${err.message}`));
       return json(res, result);
     }
     if (url.pathname === '/api/bot/files' && req.method === 'GET') {
-      await resolveProjectDir(rootProjectDir);
-      return json(res, { files: state.projectDir ? await listMarkdownFiles(state.projectDir, url.searchParams.get('agentId') || '') : [] });
+      const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
+      if (!projectDir) return json(res, { files: [] });
+      const agentId = url.searchParams.get('agentId') || '';
+      return json(res, { files: await listMarkdownFiles(projectDir, agentId).catch(() => []) });
     }
-    if (url.pathname.startsWith('/api/bot/files/') && state.projectDir) {
+    if (url.pathname.startsWith('/api/bot/files/')) {
       const name = decodeURIComponent(url.pathname.replace('/api/bot/files/', ''));
-      const file = safeJoin(state.projectDir, name);
-      if (req.method === 'GET') return json(res, { name, content: await fsp.readFile(file, 'utf8') });
+      if (req.method === 'GET') {
+        const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
+        const file = safeJoin(projectDir, name);
+        return json(res, { name, content: await fsp.readFile(file, 'utf8') });
+      }
       if (req.method === 'PUT') {
         if (!name.endsWith('.md')) throw httpError(400, 'Only markdown files (.md) can be modified');
         const body = await readJson(req);
+        const projectDir = await resolveProjectDir(rootProjectDir, body);
+        const file = safeJoin(projectDir, name);
         await fsp.writeFile(file, String(body.content || ''), 'utf8');
         return json(res, { ok: true });
       }
@@ -3123,17 +3392,18 @@ async function handler(req, res, rootProjectDir) {
       ]
     });
     if (url.pathname === '/api/features' && req.method === 'GET') {
-      const projectDir = await resolveProjectDir(rootProjectDir);
+      const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
+      if (!projectDir) return json(res, { flags: {}, installed: {}, versions: {} });
       return json(res, await getFeatureFlags(projectDir, url.searchParams.get('agentId') || ''));
     }
     if (url.pathname === '/api/features/toggle' && req.method === 'POST') {
       const body = await readJson(req);
-      const projectDir = await resolveProjectDir(rootProjectDir);
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
       return json(res, await applyFeatureToggle(projectDir, body.agentId || '', body.kind, body.id, !!body.enabled));
     }
     if (url.pathname === '/api/features/install' && req.method === 'POST') {
       const body = await readJson(req);
-      const projectDir = await resolveProjectDir(rootProjectDir);
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
       return json(res, await installFeature(projectDir, body.agentId || '', body.kind, body.id));
     }
     if (await serveStatic(req, res)) return;
