@@ -617,6 +617,12 @@ function openclawProjectEnv(projectDir) {
   };
 }
 
+function parseJsonText(text, fallback = undefined) {
+  const clean = String(text || '').replace(/^\uFEFF/, '');
+  if (!clean.trim() && fallback !== undefined) return fallback;
+  return JSON.parse(clean);
+}
+
 async function runOpenclawJson(projectDir, args = [], timeout = 12000) {
   const out = await runCapture('openclaw', args, {
     cwd: projectDir,
@@ -626,7 +632,7 @@ async function runOpenclawJson(projectDir, args = [], timeout = 12000) {
   });
   if (out.code !== 0) throw new Error((out.stderr || out.stdout || `openclaw ${args.join(' ')} failed`).trim());
   const text = String(out.stdout || '').trim();
-  return text ? JSON.parse(text) : null;
+  return text ? parseJsonText(text) : null;
 }
 
 async function readComposeText(projectDir) {
@@ -674,7 +680,7 @@ function parseBaseUrlPort(baseUrl = '') {
 
 async function detectRuntime(projectDir) {
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
-  const cfg = existsSync(cfgPath) ? JSON.parse(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}')) : {};
+  const cfg = existsSync(cfgPath) ? parseJsonText(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}'), {}) : {};
   let cliGatewayStatus = null;
   let cliGatewayPort = 0;
   let cliRouterPort = 0;
@@ -1043,7 +1049,7 @@ async function applyResolved9RouterApiKey(projectDir, cfg = null) {
   if (!projectDir) return '';
   const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
   if (!existsSync(cfgPath)) return '';
-  const current = cfg || ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
+  const current = cfg || ensureConfigShape(parseJsonText(await fsp.readFile(cfgPath, 'utf8')));
   const apiKey = await resolveProject9RouterApiKey(projectDir, current);
   if (!apiKey) return '';
   current.models = current.models || { mode: 'merge', providers: {} };
@@ -1059,7 +1065,7 @@ async function applyResolved9RouterApiKey(projectDir, cfg = null) {
 async function readBotCredentials(projectDir) {
   const found = readProjectConfig(projectDir);
   if (!found) return { openclawToken: '', nineRouterApiKey: '' };
-  const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(found.cfgPath, 'utf8')));
+  const cfg = ensureConfigShape(parseJsonText(await fsp.readFile(found.cfgPath, 'utf8')));
   return {
     openclawToken: cfg.gateway?.auth?.token || '',
     nineRouterApiKey: await resolveProject9RouterApiKey(projectDir, cfg),
@@ -1070,7 +1076,7 @@ async function updateBotCredentials(projectDir, body = {}) {
   const found = readProjectConfig(projectDir);
   if (!found) throw httpError(400, 'Install project not found');
   const raw = await fsp.readFile(found.cfgPath, 'utf8');
-  const cfg = ensureConfigShape(JSON.parse(raw));
+  const cfg = ensureConfigShape(parseJsonText(raw));
   const nineRouterApiKey = String(body.nineRouterApiKey || '').trim();
   if (Object.prototype.hasOwnProperty.call(body, 'nineRouterApiKey')) {
     cfg.models = cfg.models || { mode: 'merge', providers: {} };
@@ -1142,7 +1148,7 @@ async function listConfiguredBots(projectDir) {
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
   if (!projectDir || !existsSync(cfgPath)) return [];
   const raw = await fsp.readFile(cfgPath, 'utf8');
-  const cfg = ensureConfigShape(JSON.parse(raw));
+  const cfg = ensureConfigShape(parseJsonText(raw));
   const normalized = JSON.stringify(cfg, null, 2) + '\n';
   if (normalized !== raw) await fsp.writeFile(cfgPath, normalized, 'utf8');
   const rows = await Promise.all(cfg.agents.list.map(async (agent) => {
@@ -1177,7 +1183,7 @@ async function deleteBotInProject(projectDir, agentId) {
   const openclawHome = join(projectDir, '.openclaw');
   const cfgPath = join(openclawHome, 'openclaw.json');
   if (!existsSync(cfgPath)) throw httpError(404, 'openclaw.json not found');
-  const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
+  const cfg = ensureConfigShape(parseJsonText(await fsp.readFile(cfgPath, 'utf8')));
   const agent = cfg.agents.list.find((a) => a.id === agentId);
   if (!agent) throw httpError(404, 'Bot not found');
 
@@ -1971,7 +1977,7 @@ async function readJson(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   if (!chunks.length) return {};
-  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  return parseJsonText(Buffer.concat(chunks).toString('utf8'));
 }
 
 function json(res, data, status = 200) {
@@ -2980,14 +2986,14 @@ async function getInstalledSkillVersion(projectDir, agentId, skillFolder, cfg = 
 
 async function getFeatureFlags(projectDir, agentId = '') {
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
-  const cfg = existsSync(cfgPath) ? ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}'))) : {};
+  const cfg = existsSync(cfgPath) ? ensureConfigShape(parseJsonText(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}'), {})) : {};
   const aid = agentId || cfg.agents?.list?.[0]?.id || 'bot';
   const browserOn = !!cfg.browser?.enabled;
   const cronOn = !!cfg.skills?.entries?.['cronjob']?.enabled || !!cfg.skills?.entries?.['cron']?.enabled || !!(cfg.tools?.alsoAllow || []).includes('group:automation');
   const fresh = cfg;
   const freshSaved = {};
   const installsPath = join(projectDir || '', '.openclaw', 'plugins', 'installs.json');
-  const installs = existsSync(installsPath) ? JSON.parse(await fsp.readFile(installsPath, 'utf8').catch(() => '{}')) : {};
+  const installs = existsSync(installsPath) ? parseJsonText(await fsp.readFile(installsPath, 'utf8').catch(() => '{}'), {}) : {};
   const installRecords = installs.installRecords || {};
   const installedKeys = new Set(Object.keys(installRecords).map((k) => String(k || '').toLowerCase()));
   const installedSpecs = new Set(Object.values(installRecords).flatMap((r) => {
