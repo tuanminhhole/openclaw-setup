@@ -182,6 +182,15 @@
     if (alsoAllow.length > 0) {
       cfg.tools.alsoAllow = alsoAllow;
     }
+    // DuckDuckGo is the bundled, credential-free web_search provider. Auto-detect only
+    // picks providers that have credentials, so a free provider must be selected
+    // explicitly, otherwise web_search reports "no provider is available".
+    if (selectedSkills.includes('web-search') || selectedSkills.includes('web_search')) {
+      cfg.tools.web = {
+        ...(cfg.tools.web || {}),
+        search: { ...((cfg.tools.web && cfg.tools.web.search) || {}), provider: 'duckduckgo' },
+      };
+    }
     if (isMultiBot) {
       cfg.tools.agentToAgent = {
         enabled: true,
