@@ -217,6 +217,8 @@
       selectedSkills,
       botName: agentMetas[0]?.name || 'Bot',
       agentId: agentMetas[0]?.agentId || 'bot',
+      hasBrowser: hasBrowserDesktop || hasBrowserServer
+        || selectedSkills.includes('browser') || selectedSkills.includes('browser-automation'),
     });
     cfg.plugins = pluginsConfig.plugins;
 
@@ -312,7 +314,7 @@
   // buildPluginsConfig — returns { plugins: { ... } }
   // ═══════════════════════════════════════════════════════════════════════════════
   function buildPluginsConfig(opts) {
-    const { channelKey, selectedSkills = [], botName = 'Bot', agentId = 'bot' } = opts;
+    const { channelKey, selectedSkills = [], botName = 'Bot', agentId = 'bot', hasBrowser = false } = opts;
 
     const entries = {};
 
@@ -338,6 +340,13 @@
       if (!allow.includes('duckduckgo')) {
         allow.push('duckduckgo');
       }
+    }
+
+    // Browser automation depends on the bundled `browser` plugin, which provides the
+    // browser-control service. With an allowlist in use it must be explicitly allowed,
+    // otherwise browser control stays disabled ("browser control is disabled").
+    if (hasBrowser && !allow.includes('browser')) {
+      allow.push('browser');
     }
 
     const plugins = { entries };

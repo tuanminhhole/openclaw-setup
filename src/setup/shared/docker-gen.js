@@ -471,6 +471,7 @@ services:
 ${appEnvironmentBlock}${extraHostsBlock}\n    volumes:
       - ${volumeMount}
       - openclaw-plugins:/home/node/project/.openclaw/npm
+      - openclaw-extensions:/home/node/project/.openclaw/extensions
     ports:
       - "${gatewayPort}:${gatewayPort}"
 
@@ -496,7 +497,8 @@ ${indentBlock(docker9RouterEntrypointScript, 8)}
 
 volumes:
   9router-data:
-  openclaw-plugins:`;
+  openclaw-plugins:
+  openclaw-extensions:`;
     } else if (isLocal) {
       const ollamaModelTag = String(selectedModel || 'ollama/gemma4:e2b').replace('ollama/', '');
       compose = `name: ${singleComposeName}
