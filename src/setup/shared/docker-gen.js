@@ -185,7 +185,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       const port = routerPort || 20128;
       const nineRouterSpec = (typeof globalThis !== 'undefined' && globalThis.__openclawCommon && globalThis.__openclawCommon.NINE_ROUTER_NPM_SPEC) || '9router@latest';
       return [
-      `npm install -g ` + nineRouterSpec + ` better-sqlite3`,
+      `npm install -g ` + nineRouterSpec,
       'node /tmp/patch-9router.js || true',
       'node -e "const fs=require(\'fs\'),path=require(\'path\'); const DB_PATH=\'/root/.9router/db/data.sqlite\'; const dir=path.dirname(DB_PATH); if(!fs.existsSync(dir))fs.mkdirSync(dir,{recursive:true}); try{ const {DatabaseSync}=require(\'node:sqlite\'); const db=new DatabaseSync(DB_PATH); db.prepare(\'CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL)\').run(); const existing=db.prepare(\'SELECT * FROM settings WHERE id = 1\').get(); if(!existing){ db.prepare(\'INSERT INTO settings (id, data) VALUES (1, ?)\').run(JSON.stringify({requireLogin:false})); } db.close(); }catch(e){}" || true',
       'node /tmp/sync.js > /tmp/sync.log 2>&1 &',
