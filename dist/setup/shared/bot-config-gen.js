@@ -182,6 +182,15 @@
     if (alsoAllow.length > 0) {
       cfg.tools.alsoAllow = alsoAllow;
     }
+    // DuckDuckGo is the bundled, credential-free web_search provider. Auto-detect only
+    // picks providers that have credentials, so a free provider must be selected
+    // explicitly, otherwise web_search reports "no provider is available".
+    if (selectedSkills.includes('web-search') || selectedSkills.includes('web_search')) {
+      cfg.tools.web = {
+        ...(cfg.tools.web || {}),
+        search: { ...((cfg.tools.web && cfg.tools.web.search) || {}), provider: 'duckduckgo' },
+      };
+    }
     if (isMultiBot) {
       cfg.tools.agentToAgent = {
         enabled: true,
@@ -217,6 +226,8 @@
       selectedSkills,
       botName: agentMetas[0]?.name || 'Bot',
       agentId: agentMetas[0]?.agentId || 'bot',
+      hasBrowser: hasBrowserDesktop || hasBrowserServer
+        || selectedSkills.includes('browser') || selectedSkills.includes('browser-automation'),
     });
     cfg.plugins = pluginsConfig.plugins;
 
@@ -312,7 +323,7 @@
   // buildPluginsConfig — returns { plugins: { ... } }
   // ═══════════════════════════════════════════════════════════════════════════════
   function buildPluginsConfig(opts) {
-    const { channelKey, selectedSkills = [], botName = 'Bot', agentId = 'bot' } = opts;
+    const { channelKey, selectedSkills = [], botName = 'Bot', agentId = 'bot', hasBrowser = false } = opts;
 
     const entries = {};
 
@@ -338,6 +349,13 @@
       if (!allow.includes('duckduckgo')) {
         allow.push('duckduckgo');
       }
+    }
+
+    // Browser automation depends on the bundled `browser` plugin, which provides the
+    // browser-control service. With an allowlist in use it must be explicitly allowed,
+    // otherwise browser control stays disabled ("browser control is disabled").
+    if (hasBrowser && !allow.includes('browser')) {
+      allow.push('browser');
     }
 
     const plugins = { entries };

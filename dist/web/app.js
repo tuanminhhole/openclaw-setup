@@ -855,6 +855,7 @@ function botSkillsPanel() {
     { id: 'image-gen', title: 'Tạo ảnh Infographic', desc: 'Tạo ảnh infographic, poster tự động qua 9Router' },
     { id: 'web-search', title: 'Web Search', desc: 'Tìm kiếm web thời gian thực (DuckDuckGo)' },
     { id: 'sticker-mention', title: 'Sticker & Auto-Tag (Zalo)', desc: 'Tự động tag người gửi và gửi sticker Zalo theo từ khóa' },
+    { id: 'learning-memory', title: 'Siêu Trí Nhớ Dài Hạn (learning-memory)', desc: 'Tự động ghi nhớ bài học vào MEMORY.md, tự đóng gói và tiến hóa kỹ năng mới vào skills/' },
   ];
   const plugins = [
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },
@@ -867,7 +868,7 @@ function botSkillsPanel() {
   const row = (item, group) => {
     const key = `${group}:${item.id}`;
     const loading = !!state.featureLoading[key];
-    const requiresInstall = group === 'plugin' || (group === 'skill' && (item.id === 'image-gen' || item.id === 'sticker-mention'));
+    const requiresInstall = group === 'plugin' || (group === 'skill' && (item.id === 'image-gen' || item.id === 'sticker-mention' || item.id === 'learning-memory'));
     const isInstalled = !requiresInstall || !!state.featureInstalled?.[key];
     
     let actionsHtml = '';

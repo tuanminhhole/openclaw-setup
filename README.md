@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.22-0EA5E9?style=for-the-badge" alt="Version 5.8.22" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.23-0EA5E9?style=for-the-badge" alt="Version 5.8.23" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -23,18 +23,15 @@ A next-generation **Web UI Setup** and management dashboard that automates 100% 
 
 ---
 
-## 🆕 What's New in v5.8.22
+## 🆕 What's New in v5.8.23
 
-### 🚀 New Features: Deep Integration of Infographic Image Generator, Zalo Sticker & Auto-Tag Skills, and Workspace Docs Optimization
+### 🚀 New Features: Deep Integration of Autonomous Learning & Long-Term Memory (learning-memory) Skill
 
-- **New: Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script `image-generator.js` (synchronizing API credentials from `openclaw.json`) and a comprehensive `SKILL.md` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
-- **New: Zalo Sticker & Auto-Tag Skill**:
-  - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with `@Name` anymore, the system handles it).
-  - Enables agents to dynamically send Zalo stickers by appending `[Sticker: <keyword>]` at the end of their text responses.
-  - Automatically maps emotional keywords (such as `love`, `haha`, `ca khia`, `angry`, `thank you`, etc.) to actual Zalo sticker IDs.
-  - Generates the patch script `mentions.js` and a dedicated `SKILL.md` inside the agent's workspace.
-- **Polish: Simplified TOOLS.md generation**: Streamlined the `TOOLS.md` generator to output a concise, static guide focusing on general principles and referencing the `./skills/` directory, rather than generating dynamic lists based on installed plugins.
-- **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated `AGENTS.md` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (`TEAMS.md` for single-bot, `BROWSER.md`) and standardizing descriptions to keep exactly 9 core documents.
+- **New: Long-Term Memory & Skill Auto-Evolution (learning-memory)**: Pre-integrates the autonomous memory and learning skill from ClawHub.
+  - Automatically records newly learned facts, instructions, and user preferences into `MEMORY.md` in real-time.
+  - Enables agents to self-package and compile newly acquired behaviors and workflows into reusable `.js` and `SKILL.md` files directly within the `./skills/` folder, allowing the bot to organically evolve its capabilities.
+  - Implements OS-agnostic post-install triggers on all platforms (Docker, Windows, macOS, Linux) without requiring manual setup.
+- **New: UI Skill Toggle**: Added the "Siêu Trí Nhớ Dài Hạn" (learning-memory) toggle option directly to the Setup Wizard interface with full installation logic support.
 
 <details>
 <summary><b>Previous: What's new in v5.8.0 (Major Release)</b></summary>
