@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.23-0EA5E9?style=for-the-badge" alt="Version 5.8.23" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.24-0EA5E9?style=for-the-badge" alt="Version 5.8.24" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -23,9 +23,14 @@ Trình cài đặt và quản trị **Web UI Setup** thế hệ mới giúp tự
 
 ---
 
-## 🆕 Có gì mới trong v5.8.23
+## 🆕 Có gì mới trong v5.8.24
 
-### 🚀 Tính năng mới: Tích hợp sâu Skill Tự học & Siêu Trí Nhớ Dài Hạn (learning-memory)
+### 🔧 Sửa lỗi: Tự động cập nhật phiên bản Launcher
+
+- **Sửa lỗi: Lệch phiên bản cache Launcher**: Tự động phát hiện nếu launcher đang chạy (tải qua `npx`) có phiên bản mới hơn hoặc khác với bản đang cache trong `~/.openclaw-setup` và tự nâng cấp tương ứng.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.8.23 (Tích hợp Skill Siêu Trí Nhớ)</b></summary>
 
 - **Mới: Siêu Trí Nhớ Dài Hạn & Tự Đóng Gói Kỹ Năng (learning-memory)**: Tích hợp sẵn skill tự học và tự tiến hóa kỹ năng mới cho Agent.
   - Tự động ghi nhận thông tin, kiến thức và chỉ dẫn mới từ người dùng vào file `MEMORY.md` để ghi nhớ lâu dài.
@@ -33,16 +38,19 @@ Trình cài đặt và quản trị **Web UI Setup** thế hệ mới giúp tự
   - Hỗ trợ chạy tự động script cài đặt (postinstall) mượt mà trên mọi nền tảng (Docker, Windows, macOS, Linux) ngay sau khi cài từ ClawHub.
 - **Mới: Quản lý Skill trên UI**: Thêm nút bật/tắt và quản lý cài đặt skill "Siêu Trí Nhớ Dài Hạn" trực tiếp trên giao diện quản trị Web UI Setup.
 
-<details>
-<summary><b>Trước đó: Có gì mới trong v5.8.0 (Bản nâng cấp lớn)</b></summary>
+</details>
 
-- 🎨 **Giao diện Quản trị Web UI Mới**: Thay thế hoàn toàn các file tĩnh `index.html` và kịch bản dòng lệnh thủ công bằng một Dashboard cài đặt và quản lý bot cực kỳ trực quan với tone màu Dark Red/Black cao cấp.
-- 🔀 **Hợp nhất Cấu hình AI qua 9Router**: Sử dụng duy nhất **9Router** làm Gateway AI Proxy trung tâm. Người dùng không cần cấu hình API key phức tạp hay thủ công cho từng provider nữa. Thông qua 9Router, bạn có thể dễ dàng quản lý và kết nối mọi nhà cung cấp AI từ miễn phí (Gemini free, Ollama offline) đến các mô hình trả phí (GPT-4o, Claude...) qua OAuth nhanh chóng.
-- 📊 **Bảng điều khiển Tiến trình (Process Controller)**: Dễ dàng Bật (`Start`), Tắt (`Stop`), hoặc Tạo lại (`Recreate`) các bot container ngay trên giao diện Web.
-- 📑 **Xem Log thời gian thực (Live Logs)**: Tích hợp trình xem nhật ký hoạt động trực tiếp (streaming logs) từ bot lên giao diện.
-- 📁 **Trình quản lý File trực quan (File Tree Editor)**: Cho phép xem và chỉnh sửa trực tiếp các file cấu hình quan trọng như `openclaw.json`, `SOUL.md`, `AGENTS.md` ngay từ trình duyệt web.
-- 🔑 **Đăng nhập Zalo QR trực tiếp**: Tích hợp luồng kích hoạt Zalo Personal bằng cách quét mã QR hiển thị ngay trên giao diện quản trị.
-- 🔄 **Phân bổ Cổng Mạng thông minh**: Cơ chế tự động phát hiện cổng rảnh và gán cổng động (`routerPort`) giúp loại bỏ hoàn toàn xung đột mạng khi chạy nhiều bot trên cùng một máy.
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.8.22</b></summary>
+
+- **Hỗ trợ Skill Tạo ảnh Infographic chuyên nghiệp**: Tích hợp hoàn toàn công cụ tạo ảnh infographic, poster tự động thông qua API của 9Router. Tự động sinh mã nguồn script `image-generator.js` đồng bộ API credentials từ `openclaw.json` và hướng dẫn `SKILL.md` cụ thể giúp Agent nắm vững cấu trúc prompt, font chữ tiếng Việt, layout và quy tắc thiết kế ảnh.
+- **Hỗ trợ Skill Sticker & Auto-Tag (Zalo)**:
+  - Tự động tag tên người gửi tin nhắn gần nhất trong group chat Zalo (Agent không cần tự điền `@Tên` ở đầu câu trả lời nữa, hệ thống sẽ tự làm).
+  - Cho phép Agent gửi kèm Sticker Zalo trực tiếp trong câu trả lời thông qua thẻ `[Sticker: <từ_khóa>]` đặt ở cuối tin nhắn.
+  - Tích hợp bộ giải nghĩa từ khóa cảm xúc thông minh (như `love`, `haha`, `ca khia`, `angry`, `thank you`,...) để tự động map sang sticker Zalo phù hợp.
+  - Tự động sinh script vá logic `mentions.js` và tài liệu hướng dẫn `SKILL.md` trong workspace.
+- **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng.
+- **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
 
 </details>
 
