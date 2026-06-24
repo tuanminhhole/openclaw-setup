@@ -1,5 +1,16 @@
 # Changelog (English)
 
+
+## [5.8.23] — 2026-06-24
+
+### 🚀 New Features: Deep Integration of Autonomous Learning & Long-Term Memory (learning-memory) Skill
+
+- **New: Long-Term Memory & Skill Auto-Evolution (learning-memory)**: Pre-integrates the autonomous memory and learning skill from ClawHub.
+  - Automatically records newly learned facts, instructions, and user preferences into `MEMORY.md` in real-time.
+  - Enables agents to self-package and compile newly acquired behaviors and workflows into reusable `.js` and `SKILL.md` files directly within the `./skills/` folder, allowing the bot to organically evolve its capabilities.
+  - Implements OS-agnostic post-install triggers on all platforms (Docker, Windows, macOS, Linux) without requiring manual setup.
+- **New: UI Skill Toggle**: Added the "Siêu Trí Nhớ Dài Hạn" (learning-memory) toggle option directly to the Setup Wizard interface with full installation logic support.
+
 ## [5.8.22] — 2026-06-16
 
 - Improve browser-automation

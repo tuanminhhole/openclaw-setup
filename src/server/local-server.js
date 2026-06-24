@@ -2635,6 +2635,23 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     }
   }
 
+  if (kind === 'skill' && id === 'learning-memory') {
+    cfg.skills = cfg.skills || { entries: {} };
+    cfg.skills.entries = cfg.skills.entries || {};
+    cfg.skills.entries['learning-memory'] = cfg.skills.entries['learning-memory'] || {};
+    cfg.skills.entries['learning-memory'].enabled = !!enabled;
+
+    // Write cfgPath early so recreation reads updated openclaw.json
+    await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+
+    // Recreate container to apply updated openclaw.json
+    const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
+    if (hasDocker) {
+      sendLog(`[docker] Learning Memory skill toggled to ${enabled}. Recreating containers...`);
+      await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
+    }
+  }
+
   if (kind === 'plugin') {
     cfg.plugins = cfg.plugins || { entries: {} };
     cfg.plugins.entries = cfg.plugins.entries || {};
@@ -2732,6 +2749,7 @@ async function installFeature(projectDir, agentId, kind, id) {
     const skillSlugMap = {
       'image-gen': 'infographic-generator',
       'sticker-mention': 'zalo-sticker-mention',
+      'learning-memory': 'learning-memory',
     };
     const slug = skillSlugMap[id] || id;
 
@@ -3047,6 +3065,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
   const imageGenOn = !!cfg.skills?.entries?.['image-gen']?.enabled;
   const webSearchOn = isEnabled(['duckduckgo']);
   const stickerMentionOn = !!cfg.skills?.entries?.['sticker-mention']?.enabled;
+  const learningMemoryOn = !!cfg.skills?.entries?.['learning-memory']?.enabled;
   const aliases = {
     browser: ['openclaw-browser-automation', 'browser-automation'],
     zalo: ['openclaw-zalo-mod', 'zalo-mod'],
@@ -3059,6 +3078,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'skill:image-gen': imageGenOn,
     'skill:web-search': webSearchOn,
     'skill:sticker-mention': stickerMentionOn,
+    'skill:learning-memory': learningMemoryOn,
     'plugin:openclaw-browser-automation': isEnabled(aliases.browser),
     'plugin:openclaw-zalo-mod': isEnabled(aliases.zalo),
     'plugin:openclaw-facebook-crawler': isEnabled(aliases.crawler),
@@ -3072,6 +3092,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
   const installed = {
     'skill:image-gen': isSkillFolderExists(projectDir, aid, 'infographic-generator', cfg),
     'skill:sticker-mention': isSkillFolderExists(projectDir, aid, 'zalo-sticker-mention', cfg),
+    'skill:learning-memory': isSkillFolderExists(projectDir, aid, 'learning-memory', cfg),
     'plugin:openclaw-browser-automation': isActuallyInstalled(aliases.browser),
     'plugin:openclaw-zalo-mod': isActuallyInstalled(aliases.zalo),
     'plugin:openclaw-facebook-crawler': isActuallyInstalled(aliases.crawler),
@@ -3080,6 +3101,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
   const versions = {
     'skill:image-gen': await getInstalledSkillVersion(projectDir, aid, 'infographic-generator', cfg),
     'skill:sticker-mention': await getInstalledSkillVersion(projectDir, aid, 'zalo-sticker-mention', cfg),
+    'skill:learning-memory': await getInstalledSkillVersion(projectDir, aid, 'learning-memory', cfg),
     'plugin:openclaw-browser-automation': await getInstalledPluginVersion(projectDir, aliases.browser),
     'plugin:openclaw-zalo-mod': await getInstalledPluginVersion(projectDir, aliases.zalo),
     'plugin:openclaw-facebook-crawler': await getInstalledPluginVersion(projectDir, aliases.crawler),

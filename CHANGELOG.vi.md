@@ -1,5 +1,16 @@
 # Changelog (Tiếng Việt)
 
+
+## [5.8.23] — 2026-06-24
+
+### 🚀 Tính năng mới: Tích hợp sâu Skill Tự học & Siêu Trí Nhớ Dài Hạn (learning-memory)
+
+- **Mới: Siêu Trí Nhớ Dài Hạn & Tự Đóng Gói Kỹ Năng (learning-memory)**: Tích hợp sẵn skill tự học và tự tiến hóa kỹ năng mới cho Agent.
+  - Tự động ghi nhận thông tin, kiến thức và chỉ dẫn mới từ người dùng vào file `MEMORY.md` để ghi nhớ lâu dài.
+  - Cho phép Agent tự đóng gói các quy trình làm việc hoặc logic mới học được thành mã nguồn `.js` và file hướng dẫn `SKILL.md` trực tiếp vào thư mục `./skills/`, giúp bot tự phát triển kỹ năng mà không cần lập trình viên can thiệp.
+  - Hỗ trợ chạy tự động script cài đặt (postinstall) mượt mà trên mọi nền tảng (Docker, Windows, macOS, Linux) ngay sau khi cài từ ClawHub.
+- **Mới: Quản lý Skill trên UI**: Thêm nút bật/tắt và quản lý cài đặt skill "Siêu Trí Nhớ Dài Hạn" trực tiếp trên giao diện quản trị Web UI Setup.
+
 ## [5.8.22] — 2026-06-16
 
 - Cải tiến browser-automation
