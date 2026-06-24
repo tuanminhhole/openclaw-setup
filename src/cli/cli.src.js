@@ -109,9 +109,33 @@ if (process.env.OPENCLAW_SETUP_WIZARD === 'true' || isLocalRepo()) {
       fs.writeFileSync(pkgPath, JSON.stringify({ name: 'openclaw-setup-container', version: '1.0.0', private: true, dependencies: {} }, null, 2), 'utf8');
     }
 
-    if (!fs.existsSync(cliPath) || shouldUpdate) {
-      console.log(`Checking/Installing latest Setup Wizard package in: ${targetPath}...`);
-      await runCmd('npm', ['install', 'create-openclaw-bot@latest', '--no-audit', '--no-fund'], { cwd: targetPath });
+    let needsInstall = !fs.existsSync(cliPath) || shouldUpdate;
+    let installSpec = 'create-openclaw-bot@latest';
+
+    try {
+      const runningPkgPath = path.join(__dirname, '..', 'package.json');
+      if (fs.existsSync(runningPkgPath)) {
+        const runningPkg = JSON.parse(fs.readFileSync(runningPkgPath, 'utf8'));
+        if (runningPkg.version) {
+          installSpec = `create-openclaw-bot@${runningPkg.version}`;
+
+          const installedPkgPath = path.join(targetPath, 'node_modules', 'create-openclaw-bot', 'package.json');
+          if (fs.existsSync(installedPkgPath)) {
+            const installedPkg = JSON.parse(fs.readFileSync(installedPkgPath, 'utf8'));
+            if (runningPkg.version !== installedPkg.version) {
+              console.log(`Version mismatch: Launcher is v${runningPkg.version}, but cached installation is v${installedPkg.version}.`);
+              needsInstall = true;
+            }
+          } else {
+            needsInstall = true;
+          }
+        }
+      }
+    } catch (err) {}
+
+    if (needsInstall) {
+      console.log(`Checking/Installing Setup Wizard package (${installSpec}) in: ${targetPath}...`);
+      await runCmd('npm', ['install', installSpec, '--no-audit', '--no-fund'], { cwd: targetPath });
     }
 
     console.log('\nStarting Setup Wizard...');

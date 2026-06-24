@@ -1,6 +1,13 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.8.24] — 2026-06-24
+
+### 🔧 Sửa lỗi: Tự động cập nhật phiên bản Launcher
+
+- **Sửa lỗi: Lệch phiên bản cache Launcher**: Tự động phát hiện nếu launcher đang chạy (tải qua `npx`) có phiên bản mới hơn hoặc khác với bản đang cache trong `~/.openclaw-setup` và tự nâng cấp tương ứng.
+
+
 ## [5.8.23] — 2026-06-24
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tự học & Siêu Trí Nhớ Dài Hạn (learning-memory)

@@ -3,7 +3,7 @@
 # 🦞 OpenClaw Setup
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.23-0EA5E9?style=for-the-badge" alt="Version 5.8.23" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.24-0EA5E9?style=for-the-badge" alt="Version 5.8.24" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -23,9 +23,14 @@ A next-generation **Web UI Setup** and management dashboard that automates 100% 
 
 ---
 
-## 🆕 What's New in v5.8.23
+## 🆕 What's New in v5.8.24
 
-### 🚀 New Features: Deep Integration of Autonomous Learning & Long-Term Memory (learning-memory) Skill
+### 🔧 Fixes: Auto-update Launcher Version
+
+- **Fix: Cached Launcher Out-of-Sync**: Automatically detects if the running launcher (e.g. downloaded via `npx`) has a newer/different version than the cached installation inside `~/.openclaw-setup`, and automatically triggers an upgrade to match.
+
+<details>
+<summary><b>Previous: What's new in v5.8.23 (Memory Skill Integration)</b></summary>
 
 - **New: Long-Term Memory & Skill Auto-Evolution (learning-memory)**: Pre-integrates the autonomous memory and learning skill from ClawHub.
   - Automatically records newly learned facts, instructions, and user preferences into `MEMORY.md` in real-time.
@@ -33,16 +38,19 @@ A next-generation **Web UI Setup** and management dashboard that automates 100% 
   - Implements OS-agnostic post-install triggers on all platforms (Docker, Windows, macOS, Linux) without requiring manual setup.
 - **New: UI Skill Toggle**: Added the "Siêu Trí Nhớ Dài Hạn" (learning-memory) toggle option directly to the Setup Wizard interface with full installation logic support.
 
-<details>
-<summary><b>Previous: What's new in v5.8.0 (Major Release)</b></summary>
+</details>
 
-- 🎨 **Modern Web UI Dashboard**: Completely replaces the legacy `index.html` static wizard and terminal-based manual setups with a highly intuitive, premium dark red/black themed web dashboard to install and manage bots.
-- 🔀 **Centralized AI Proxy via 9Router**: The installer now relies exclusively on **9Router** as the unified AI gateway. Through 9Router's OAuth sign-in flow, you can easily route requests to free models (like Google Gemini free tier, Ollama local offline models) as well as premium paid models.
-- 📊 **Process Controller**: Directly Start, Stop, or Recreate bot containers and processes via user-friendly dashboard buttons.
-- 📑 **Real-Time Live Logs**: View real-time streaming console logs of your bot processes directly on the Web UI.
-- 📁 **File Tree Editor**: Read, modify, and save configuration files (`openclaw.json`, `SOUL.md`, `AGENTS.md`) directly in the browser.
-- 🔑 **Zalo QR Authorization**: Authorize Zalo Personal bots in seconds by scanning the Zalo login QR code rendered directly on the management dashboard.
-- 🔄 **Smart Port Conflict Resolution**: Automatically scans and dynamically assigns unique network ports (`routerPort`) to avoid conflicts when launching multiple bot instances.
+<details>
+<summary><b>Previous: What's new in v5.8.22</b></summary>
+
+- **Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script `image-generator.js` (synchronizing API credentials from `openclaw.json`) and a comprehensive `SKILL.md` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
+- **Zalo Sticker & Auto-Tag Skill**:
+  - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with `@Name` anymore, the system handles it).
+  - Enables agents to dynamically send Zalo stickers by appending `[Sticker: <keyword>]` at the end of their text responses.
+  - Automatically maps emotional keywords (such as `love`, `haha`, `ca khia`, `angry`, `thank you`, etc.) to Zalo sticker IDs.
+  - Generates the patch script `mentions.js` and a dedicated `SKILL.md` inside the agent's workspace.
+- **Polish: Simplified TOOLS.md generation**: Streamlined the `TOOLS.md` generator to output a concise, static guide focusing on general principles and referencing the `./skills/` directory.
+- **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated `AGENTS.md` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (`TEAMS.md` for single-bot, `BROWSER.md`) and standardizing descriptions to keep exactly 9 core documents.
 
 </details>
 
