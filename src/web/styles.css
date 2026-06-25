@@ -1744,15 +1744,17 @@ html[data-theme="light"] .project-tab-btn.active {
   color: var(--primary) !important;
 }
 
-.bottom .nav.active::after {
+.bottom .nav-ico { position: relative; display: inline-flex; line-height: 0; }
+.bottom .nav.active .nav-ico::after {
   content: "" !important;
   position: absolute !important;
-  bottom: 8px !important;
-  width: 5px !important;
-  height: 5px !important;
+  top: -2px !important;
+  right: -5px !important;
+  width: 6px !important;
+  height: 6px !important;
   border-radius: 50% !important;
   background-color: var(--primary) !important;
-  box-shadow: 0 0 10px var(--primary) !important;
+  box-shadow: 0 0 8px var(--primary) !important;
   animation: pulseActiveDot 1.5s infinite alternate !important;
 }
 
@@ -1840,3 +1842,73 @@ html[data-theme="light"] .bot-create-card {
 html[data-theme="light"] .bot-create-card:hover {
   background: rgba(244, 63, 94, 0.05) !important;
 }
+
+/* Facebook Messenger bot form layout (responsive) */
+.fb-fields{grid-column:1/-1;display:grid;gap:14px}
+.fb-row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.fb-row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.fb-fields label{display:grid;gap:8px;color:var(--body);font-size:13px;font-weight:800}
+.fb-fields label.fb-wide{grid-column:1/-1}
+.fb-label-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:18px}
+.fb-help-link{font-size:11px;font-weight:600;color:var(--soft);text-decoration:none;white-space:nowrap}
+.fb-help-link:hover{color:var(--primary);text-decoration:underline}
+@media(max-width:900px){.fb-row3,.fb-row2{grid-template-columns:1fr}}
+
+.bot-modal-chan img{width:42px;height:42px;border-radius:11px;object-fit:contain;display:block}
+.fb-help-link{margin-right:8px}
+
+/* Compact channel picker in the bot create modal (scales as more channels are added) */
+.bot-channel-grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))!important;gap:10px!important}
+.bot-channel-grid .choice-card{min-height:auto!important;grid-template-columns:1fr!important;justify-items:center!important;text-align:center;gap:6px!important;padding:10px 8px!important;border-radius:12px!important}
+.bot-channel-grid .choice-card__icon{width:34px!important;height:34px!important;border-radius:9px!important}
+.bot-channel-grid .choice-card__icon img{width:20px!important;height:20px!important}
+.bot-channel-grid .choice-card__body{justify-items:center!important;text-align:center;gap:0!important}
+.bot-channel-grid .choice-card__body strong{font-size:13px}
+.bot-channel-grid .choice-card__body small{display:none!important}
+@media(max-width:760px){.bot-channel-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))!important}}
+/* Mobile/tablet (bottom nav visible): keep the create/edit modal clear of the fixed native bar */
+@media(max-width:1180px){
+  .bot-modal-backdrop{padding-bottom:84px!important}
+  .bot-modal{max-height:calc(100dvh - 108px)!important}
+}
+@media(max-width:760px){
+  .bot-modal-backdrop{padding:12px 12px 80px!important}
+  .bot-modal{max-height:calc(100dvh - 96px)!important}
+  /* 2-up channel picker on phones — less scrolling than a single column */
+  .bot-modal .bot-channel-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
+/* Collapsible sidebar + status, and bot-page full-width layout */
+.bot-page{display:grid;gap:18px}
+.bot-top-row{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;align-items:start}
+.bot-top-row .bot-side-col{display:grid;gap:18px}
+@media(max-width:1180px){.bot-top-row{grid-template-columns:1fr}}
+.nav-collapse-btn{position:absolute;top:14px;right:10px;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--hair);background:var(--surface2);color:var(--body);cursor:pointer;z-index:3}
+.nav-collapse-btn:hover{color:var(--primary);border-color:var(--primary)}
+.nav-collapse-btn svg{width:16px;height:16px;transition:transform .2s}
+:root[data-nav="collapsed"] .nav-collapse-btn svg{transform:rotate(180deg)}
+:root[data-nav="collapsed"] .sidebar{width:66px!important;padding-left:8px!important;padding-right:8px!important}
+:root[data-nav="collapsed"] .sidebar .brand div,:root[data-nav="collapsed"] .sidebar .sidebar-nav span,:root[data-nav="collapsed"] .sidebar .sidebar-extra,:root[data-nav="collapsed"] .sidebar .cmd{display:none!important}
+:root[data-nav="collapsed"] .sidebar .brand{justify-content:center}
+:root[data-nav="collapsed"] .sidebar .nav{justify-content:center}
+:root[data-nav="collapsed"] main{margin-left:66px!important}
+:root[data-nav="collapsed"] .topbar{left:90px!important}
+.sidebar,.topbar{transition:width .2s,left .2s}
+main{transition:margin .2s}
+
+/* Coming-soon channels (Discord, Lark): logo stays fully visible, corner badge, not selectable */
+.choice-card.is-coming-soon{cursor:not-allowed}
+.choice-card.is-coming-soon:hover{transform:none;border-color:var(--hair);box-shadow:none}
+.choice-card.is-coming-soon .choice-card__body strong{opacity:.78}
+.choice-card.is-coming-soon .coming-badge{position:absolute;top:8px;right:8px;z-index:3;font-size:9px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:linear-gradient(135deg,#ff2436,#ff5260);color:#fff;box-shadow:0 4px 12px rgba(255,36,54,.32);white-space:nowrap;pointer-events:none}
+/* Channel tabs (bot page): single horizontally-scrollable row */
+.channel-tabs{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;padding-bottom:6px}
+.channel-tabs button{flex:0 0 auto;white-space:nowrap}
+.channel-tabs button.is-coming-soon{opacity:.5;cursor:not-allowed}
+.channel-tabs::-webkit-scrollbar{height:6px}
+.channel-tabs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:999px}
+/* Bottom "native" nav bar: center the 4 items (overrides an earlier repeat(5,1fr) !important rule) */
+.bottom{grid-template-columns:repeat(4,1fr)!important}
+/* Tablet/mobile bot page: stop horizontal overflow so .channel-tabs scrolls instead of stretching the layout */
+.bot-page,.bot-top-row,.bot-main,.bot-main-content,.bot-projects-and-bots,.bot-side-col,.bot-list{min-width:0}
+@media(max-width:1180px){.bot-top-row{grid-template-columns:minmax(0,1fr)}}
