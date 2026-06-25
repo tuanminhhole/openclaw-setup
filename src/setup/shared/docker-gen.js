@@ -227,6 +227,13 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       routerPort = 20128,
       osChoice = '',
     } = options;
+    // Windows bind-mounts give ClawHub-installed plugins world-writable perms (which openclaw
+    // blocks), so on Windows we isolate extensions in a named volume. On macOS/Linux bind-mounts
+    // are fine, so keep extensions under the .openclaw bind mount → plugins stay visible/synced
+    // on the host (e.g. you can see zalo-mod in .openclaw/extensions).
+    const useExtensionsVolume = osChoice === 'win';
+    const extVolMount = useExtensionsVolume ? '\n      - openclaw-extensions:/home/node/project/.openclaw/extensions' : '';
+    const extVolDecl = useExtensionsVolume ? '\n  openclaw-extensions:' : '';
     const skillLines = dockerfileSkillInstallMode === 'build' && allSkills.length > 0
       ? `\n# Install skills (ClawHub)\n${allSkills.map((skill) => `RUN openclaw skills install ${skill} || echo "Warning: Failed to install ${skill} due to rate limits."`).join('\n')}\n`
       : '';
@@ -470,8 +477,7 @@ services:
       - 9router
 ${appEnvironmentBlock}${extraHostsBlock}\n    volumes:
       - ${volumeMount}
-      - openclaw-plugins:/home/node/project/.openclaw/npm
-      - openclaw-extensions:/home/node/project/.openclaw/extensions
+      - openclaw-plugins:/home/node/project/.openclaw/npm${extVolMount}
     ports:
       - "${gatewayPort}:${gatewayPort}"
 
@@ -497,8 +503,7 @@ ${indentBlock(docker9RouterEntrypointScript, 8)}
 
 volumes:
   9router-data:
-  openclaw-plugins:
-  openclaw-extensions:`;
+  openclaw-plugins:${extVolDecl}`;
     } else if (isLocal) {
       const ollamaModelTag = String(selectedModel || 'ollama/gemma4:e2b').replace('ollama/', '');
       compose = `name: ${singleComposeName}

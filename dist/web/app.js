@@ -1,5 +1,5 @@
 const $ = (sel) => document.querySelector(sel);
-const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, installTab: 'docker', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, openDirs: {} };
+const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'docker', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, openDirs: {} };
 const SVG_CDN = 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons';
 const OS_OPTIONS = [
   { id: 'win', title: 'Windows', subtitle: 'Auto-detected desktop', icon: `${SVG_CDN}/windows/default.svg`, badge: 'Desktop' },
@@ -15,19 +15,26 @@ const BOT_CHANNELS = [
   { id: 'telegram', title: 'Telegram', subtitle: 'Bot API', icon: `${SVG_CDN}/telegram/default.svg`, badge: 'Tele' },
   { id: 'zalo-personal', title: 'Zalo User', subtitle: 'Personal account', icon: `${SVG_CDN}/zalo/default.svg`, badge: 'User' },
   { id: 'zalo-bot', title: 'Zalo API', subtitle: 'Official Account', icon: `${SVG_CDN}/zalo/default.svg`, badge: 'API' },
+  { id: 'fb-messenger', title: 'Facebook', subtitle: 'Messenger', icon: `${SVG_CDN}/messenger/default.svg`, badge: 'FB' },
+  { id: 'discord', title: 'Discord', subtitle: 'Bot', icon: `${SVG_CDN}/discord/default.svg`, badge: 'Discord', comingSoon: true },
+  { id: 'lark', title: 'Lark', subtitle: 'Lark / Feishu', icon: '/lark.svg', badge: 'Lark', comingSoon: true },
 ];
 
 function choiceCard(group, item, current) {
-  return `<label class="choice-card logo-card ${item.id === current ? 'is-selected' : ''}">
-    <input name="${group}" type="radio" value="${item.id}" ${item.id===current?'checked':''}/>
+  const coming = !!item.comingSoon;
+  const badge = coming ? t('Sắp ra mắt', 'Coming soon') : item.badge;
+  return `<label class="choice-card logo-card ${item.id === current ? 'is-selected' : ''} ${coming ? 'is-coming-soon' : ''}" ${coming ? `title="${t('Sắp ra mắt','Coming soon')}"` : ''}>
+    <input name="${group}" type="radio" value="${item.id}" ${item.id===current?'checked':''} ${coming?'disabled':''}/>
+    ${coming ? `<span class="coming-badge">${t('Sắp ra mắt','Coming soon')}</span>` : ''}
     <span class="choice-card__icon"><img src="${item.icon}" alt="${item.title} icon" loading="lazy" onerror="this.style.display='none'"/></span>
-    <span class="choice-card__body"><strong>${item.title}</strong><small>${item.badge}</small></span>
+    <span class="choice-card__body"><strong>${item.title}</strong><small>${badge}</small></span>
   </label>`;
 }
 function staticChoiceCard(item) {
-  return `<div class="choice-card logo-card is-selected bot-channel-static" aria-label="${escapeHtml(item.title)}">
+  const badge = item.comingSoon ? t('Sắp ra mắt', 'Coming soon') : item.badge;
+  return `<div class="choice-card logo-card is-selected bot-channel-static ${item.comingSoon ? 'is-coming-soon' : ''}" aria-label="${escapeHtml(item.title)}">
     <span class="choice-card__icon"><img src="${item.icon}" alt="${escapeHtml(item.title)} icon" loading="lazy" onerror="this.style.display='none'"/></span>
-    <span class="choice-card__body"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.badge)}</small></span>
+    <span class="choice-card__body"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(badge)}</small></span>
   </div>`;
 }
 
@@ -67,7 +74,7 @@ async function withButtonLoading(btn, task) {
 }
 document.addEventListener('click', (ev) => {
   const btn = ev.target.closest('button');
-  if (!btn || btn.disabled || btn.classList.contains('is-loading')) return;
+  if (!btn || btn.disabled || btn.classList.contains('is-loading') || btn.classList.contains('nav-collapse-btn')) return;
   btn.classList.add('is-press-loading');
   setTimeout(() => btn.classList.remove('is-press-loading'), 450);
 }, true);
@@ -136,6 +143,25 @@ function donateModal() {
     <div class="donate-head"><span aria-hidden="true">&#10084;</span><div><p>${t('\u1ee6ng h\u1ed9 OpenClaw', 'Support OpenClaw')}</p><h2>Donate</h2><small>${t('\u0110\u00f3ng g\u00f3p c\u1ee7a b\u1ea1n gi\u00fap duy tr\u00ec h\u1ea1 t\u1ea7ng, s\u1eeda l\u1ed7i v\u00e0 c\u1ea3i ti\u1ebfn OpenClaw m\u1ed7i ng\u00e0y.', 'Your support keeps infrastructure running, fixes bugs, and improves OpenClaw every day.')}</small></div></div>
     <div class="donate-grid"><article><div class="qr-frame"><img src="/bvvbank.jpg" alt="BVBank transfer info"></div><b>BVBank</b></article><article><div class="qr-frame"><img src="/momo.jpg" alt="Momo transfer info"></div><b>Momo</b></article></div>
   </section></div>`;
+}
+function fbPluginModal() {
+  if (!state.fbPluginModalOpen) return '';
+  const socials = [
+    ['facebook','https://www.facebook.com/holeminhtuan.it/'],
+    ['telegram','https://t.me/holeminhtuan_it'],
+    ['zalo','https://zalo.me/0962794917'],
+    ['github','https://github.com/tuanminhhole/']
+  ];
+  return `<div class="modal-backdrop confirm-backdrop" data-fbplugin="close">
+    <section class="donate-modal confirm-modal" role="dialog" aria-modal="true" aria-label="fb-messenger plugin" onclick="event.stopPropagation()">
+      <button class="modal-x" data-fbplugin="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <div class="donate-head"><span aria-hidden="true">🔌</span><div><p>${t('Cần plugin','Plugin required')}</p><h2>fb-messenger</h2><small>${t('Để tạo bot <b>Facebook Messenger</b>, bạn cần plugin <b>fb-messenger</b> do <b>tuanminhhole</b> cung cấp. Plugin hiện chưa public — vui lòng liên hệ để nhận.','To create a <b>Facebook Messenger</b> bot you need the <b>fb-messenger</b> plugin provided by <b>tuanminhhole</b>. It is not public yet — please reach out to get it.')}</small></div></div>
+      <div class="socials" style="justify-content:center;display:flex;gap:10px;width:100%;margin:8px 0 4px;">
+        ${socials.map(([n,u])=>`<a href="${u}" target="_blank" rel="noopener" aria-label="${n}">${socialIcon(n)}</a>`).join('')}
+      </div>
+      <div class="confirm-actions"><button class="primary" data-fbplugin="close" type="button">${t('Đã hiểu','Got it')}</button></div>
+    </section>
+  </div>`;
 }
 function confirmModal() {
   const m = state.confirmModal;
@@ -235,6 +261,7 @@ function trChoice(item) {
 function applyPrefs() {
   document.documentElement.dataset.theme = state.theme;
   document.documentElement.lang = state.lang;
+  document.documentElement.dataset.nav = state.navCollapsed ? 'collapsed' : 'open';
 }
 function toggleGroup(kind, current, items) {
   return `<div class="seg" role="group" aria-label="${kind}">${items.map(([id,label]) => `<button class="seg__btn ${current===id?'is-active':''}" data-pref="${kind}" data-value="${id}">${label}</button>`).join('')}</div>`;
@@ -334,7 +361,7 @@ function render() {
   let mainContainer = $('#app-main-content');
   if (!mainContainer) {
     $('#app').innerHTML = `
-      <aside class="sidebar">
+      <aside class="sidebar"><button class="nav-collapse-btn" data-nav-toggle type="button" aria-label="Toggle sidebar" title="Thu gọn/Mở rộng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
         <div class="brand"><img src="/openclaw-logo.svg" onerror="this.src='/openclaw-logo.png'" alt="OpenClaw"/><div style="display: flex; flex-direction: column; align-items: center; text-align: center;"><b>OpenClaw Setup</b><span id="sidebar-version" style="display: block; width: 100%; text-align: center; font-size: 13.5px; font-weight: 600; margin-top: 6px; color: var(--muted);">v${state.system?.versions?.setup || '...'}</span></div></div>
         <nav class="sidebar-nav">${tabs.map(([id,label]) => `<button class="nav ${state.tab===id?'active':''}" data-tab="${id}">${icon(id)}<span>${label}</span></button>`).join('')}</nav>
         ${sidebarExtras()}
@@ -362,7 +389,7 @@ function render() {
           </p>
         </footer>
       </main>
-      <nav class="bottom bottom-nav">${tabs.map(([id,label]) => `<button class="nav ${state.tab===id?'active':''}" data-tab="${id}">${icon(id)}<small>${label}</small></button>`).join('')}</nav>
+      <nav class="bottom bottom-nav">${tabs.map(([id,label]) => `<button class="nav ${state.tab===id?'active':''}" data-tab="${id}"><span class="nav-ico">${icon(id)}</span><small>${label}</small></button>`).join('')}</nav>
       <div id="modal-container"></div>
     `;
     mainContainer = $('#app-main-content');
@@ -394,7 +421,11 @@ function render() {
 
   const modalContainer = $('#modal-container');
   if (modalContainer) {
-    modalContainer.innerHTML = `${donateModal()}${botCreateModal()}${confirmModal()}${pathModal()}${zaloLoginModal()}${installModal()}`;
+    const modalSig = JSON.stringify({ d: state.donateOpen, bm: state.botModalOpen, be: state.botEditId, msg: state.botMessage, bc: state.botChannel, cm: state.confirmModal, pm: state.pathModal, zl: state.zaloLoginOpen, zq: state.zaloQrDataUrl, zll: state.zaloLoginLines, im: state.installModalOpen, fp: state.fbPluginModalOpen, it: state.installTab, idr: state.installDraft });
+    if (modalContainer.dataset.sig !== modalSig) {
+      modalContainer.innerHTML = `${donateModal()}${botCreateModal()}${confirmModal()}${pathModal()}${zaloLoginModal()}${installModal()}${fbPluginModal()}`;
+      modalContainer.dataset.sig = modalSig;
+    }
   }
 
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => withButtonLoading(b, async () => { 
@@ -407,8 +438,11 @@ function render() {
       await loadStatus(true); 
       await loadFiles(true); 
     } 
-    render(); 
+    render();
   }));
+
+  const navToggle = $('[data-nav-toggle]');
+  if (navToggle) navToggle.onclick = () => { state.navCollapsed = !state.navCollapsed; localStorage.setItem('openclaw-nav', state.navCollapsed ? '1' : '0'); applyPrefs(); };
 
   wireTab();
 }
@@ -658,8 +692,8 @@ function botView() {
   const nodeVer = String((s.runtimeVersions?.node || sys.versions?.currentNode || sys.versions?.node || sys.node?.output || '-')).replace(/^v/, '');
   const machineLabel = `${sys.os || '-'} \u00b7 ${sys.arch || '-'}`;
 
-  return `<div class="bot-layout">
-    <div class="bot-main-col" style="display: grid; gap: 18px;">
+  return `<div class="bot-page">
+    <div class="bot-top-row">
       <section class="card bot-meta bot-main bot-projects-and-bots">
         <div class="card-head" style="margin-bottom: 12px;">
           <h3>${t('Project & bot','Project & bot')}</h3>
@@ -686,15 +720,14 @@ function botView() {
             <h3 style="margin: 0; font-size: 16px;">${t('Danh sách bot','Bot list')}</h3>
             ${(ch === 'zalo-personal' && channelBots.length > 0) ? `<button class="secondary btn-inline" data-zalo-login-trigger type="button" style="min-height: 36px; padding: 6px 12px; font-size: 13px;">🔑 ${t('Đăng nhập Zalo','Zalo Login')}</button>` : ''}
           </div>
-          <div class="channel-tabs" style="margin-bottom: 16px;">${BOT_CHANNELS.map(c => `<button class="${ch===c.id?'active':''}" data-bot-channel="${c.id}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${bots.filter(b=>b.channel===c.id).length}</span></button>`).join('')}</div>
+          <div class="channel-tabs" style="margin-bottom: 16px;">${BOT_CHANNELS.map(c => c.comingSoon
+            ? `<button class="is-coming-soon" disabled title="${t('Sắp ra mắt','Coming soon')}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${t('Sắp','Soon')}</span></button>`
+            : `<button class="${ch===c.id?'active':''}" data-bot-channel="${c.id}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${bots.filter(b=>b.channel===c.id).length}</span></button>`
+          ).join('')}</div>
           ${botListPanel(channelBots)}
         </div>
       </section>
-      <section class="card bot-skills-panel"><div class="card-head"><h3>${ui('skills')} & ${ui('plugins')}</h3></div>${botSkillsPanel()}</section>
-      <section class="card bot-files-panel">${channelBots.length ? botFilesPanel() : `<div class="bot-files-head"><div><h3>${t('Cây thư mục bot','Bot file tree')}</h3>${projectPathLine()}</div></div><p>${t('Chưa có bot trong kênh này. Tạo bot trước để xem file workspace.','No bot in this channel. Create a bot first to view workspace files.')}</p>`}</section>
-    </div>
-    
-    <div class="bot-side-col" style="display: grid; gap: 18px; position: sticky; top: 96px;">
+      <div class="bot-side-col">
       <section class="card bot-status-card">
         <div class="card-head"><h3>${t('Trạng thái','Status')}</h3></div>
         <div class="runtime-status-grid" style="grid-template-columns: 1fr; margin-top: 14px;">
@@ -707,18 +740,23 @@ function botView() {
           <div><span>9Router</span><b>${escapeHtml(routerVer || '-')}</b></div>
         </div>
       </section>
+      </div>
     </div>
+    <section class="card bot-skills-panel"><div class="card-head"><h3>${ui('skills')} & ${ui('plugins')}</h3></div>${botSkillsPanel()}</section>
+    <section class="card bot-files-panel">${channelBots.length ? botFilesPanel() : `<div class="bot-files-head"><div><h3>${t('Cây thư mục bot','Bot file tree')}</h3>${projectPathLine()}</div></div><p>${t('Chưa có bot trong kênh này. Tạo bot trước để xem file workspace.','No bot in this channel. Create a bot first to view workspace files.')}</p>`}</section>
   </div>`;
 }
 
 function botCreateForm(ch, empty, data = {}) {
   const needsToken = ch === 'telegram' || ch === 'zalo-bot';
   const tokenRequired = needsToken && data.mode !== 'edit';
+  const isFb = ch === 'fb-messenger';
+  const fbRequired = isFb && data.mode !== 'edit';
   const selectedChannel = BOT_CHANNELS.find((x) => x.id === ch);
   return `<form class="bot-create" id="bot-create">
     ${empty ? `<div class="empty-create"><h3>${t('\u0043h\u01b0a c\u00f3 bot n\u00e0o','No bots yet')}</h3><p>${t('\u0054\u1ea1o bot \u0111\u1ea7u ti\u00ean \u0111\u1ec3 b\u1eaft \u0111\u1ea7u.','Create the first bot to start.')}</p></div>` : ``}
     ${data.mode === 'edit'
-      ? `${selectedChannel ? staticChoiceCard(selectedChannel) : ''}<input name="channel" type="hidden" value="${escapeHtml(ch)}"/>`
+      ? `<input name="channel" type="hidden" value="${escapeHtml(ch)}"/>`
       : `<div class="choice-grid bot-channel-grid">${BOT_CHANNELS.map(o => choiceCard('bot-channel', o, ch)).join('')}</div>`}
     <div class="bot-form-grid">
       <label><span>${t('\u0054\u00ean bot','Bot name')}</span><input name="botName" required placeholder="Williams" value="${escapeHtml(data.botName || '')}"/></label>
@@ -729,8 +767,22 @@ function botCreateForm(ch, empty, data = {}) {
         </label>
       ` : ''}
       <label><span>${t('\u0056ai tr\u00f2','Role')}</span><input name="role" required placeholder="${t('\u0054r\u1ee3 l\u00fd AI c\u00e1 nh\u00e2n','Personal AI assistant')}" value="${escapeHtml(data.role || '')}"/></label>
-      <label><span>Emoji</span><input name="emoji" maxlength="8" placeholder="\uD83E\uDD16" value="${escapeHtml(data.emoji || '')}"/></label>
+      ${!isFb ? `<label><span>Emoji</span><input name="emoji" maxlength="8" placeholder="\uD83E\uDD16" value="${escapeHtml(data.emoji || '')}"/></label>` : ''}
       ${needsToken ? `<label><span>Token</span><input name="token" ${tokenRequired ? 'required' : ''} autocomplete="off" placeholder="${ch==='telegram'?'123456:ABC...':'Zalo OA token'}" value="${escapeHtml(data.token || '')}"/></label>` : `<input name="token" type="hidden" value="${escapeHtml(data.token || '')}"/>`}
+      ${isFb ? `
+        <div class="fb-fields">
+          <div class="fb-row3">
+            <label><span>Emoji</span><input name="emoji" maxlength="8" placeholder="🤖" value="${escapeHtml(data.emoji || '')}"/></label>
+            <label><div class="fb-label-row"><span>Page ID</span><a class="fb-help-link" href="https://monkeytech.io.vn/tools" target="_blank" rel="noopener">🔎 ${t('Lấy Page ID','Get Page ID')}</a></div><input name="pageId" autocomplete="off" placeholder="601677496361008" value="${escapeHtml(data.pageId || '')}"/></label>
+            <label><span>Verify Token</span><input name="verifyToken" ${fbRequired ? 'required' : ''} autocomplete="off" placeholder="my-verify-token" value="${escapeHtml(data.verifyToken || '')}"/></label>
+          </div>
+          <div class="fb-row2">
+            <label><span>App ID</span><input name="appId" autocomplete="off" placeholder="App ID" value="${escapeHtml(data.appId || '')}"/></label>
+            <label><span>App Secret</span><input name="appSecret" autocomplete="off" placeholder="App Secret" value="${escapeHtml(data.appSecret || '')}"/></label>
+          </div>
+          <label class="fb-wide"><span>Page Access Token</span><input name="pageAccessToken" ${fbRequired ? 'required' : ''} autocomplete="off" placeholder="EAAB..." value="${escapeHtml(data.pageAccessToken || '')}"/></label>
+        </div>
+      ` : ''}
       <label class="wide"><span>${t('\u0054\u00ednh c\u00e1ch','Personality')}</span><textarea name="personality" rows="3" placeholder="${t('\u0054h\u00e2n thi\u1ec7n, r\u00f5 r\u00e0ng, ch\u1ee7 \u0111\u1ed9ng.','Friendly, clear, proactive.')}">${escapeHtml(data.personality || '')}</textarea></label>
       <label><span>${t('\u0054\u00ean user','User name')}</span><input name="userName" placeholder="${t('\u0054\u00ean c\u1ee7a b\u1ea1n','Your name')}" value="${escapeHtml(data.userName || '')}"/></label>
       <label><span>${t('\u004d\u00f4 t\u1ea3 user','User description')}</span><input name="userDescription" placeholder="${t('\u0053\u1edf th\u00edch, ng\u1eef c\u1ea3nh, c\u00e1ch x\u01b0ng h\u00f4...','Preferences, context, address style...')}" value="${escapeHtml(data.userDescription || '')}"/></label>
@@ -742,12 +794,12 @@ function botCreateForm(ch, empty, data = {}) {
 function botCreateModal() {
   if (!state.botModalOpen) return '';
   const current = (state.install?.bots || []).find((b) => b.id === state.botEditId) || null;
-  const data = current ? { mode: 'edit', channel: current.channel || state.botChannel, botName: current.name, role: current.role || '', token: '', personality: '', userName: '', userDescription: '' } : { mode: 'create' };
+  const data = current ? { mode: 'edit', channel: current.channel || state.botChannel, botName: current.name, role: current.role || '', token: '', personality: current.persona || '', userName: current.userName || '', userDescription: current.userDescription || '', emoji: current.emoji || '', pageId: current.pageId || '', appId: current.appId || '', pageAccessToken: current.pageAccessToken || '', appSecret: current.appSecret || '', verifyToken: current.verifyToken || '' } : { mode: 'create' };
   const currentChannel = BOT_CHANNELS.find((x) => x.id === ((current && current.channel) || state.botChannel || 'telegram'));
   return `<div class="modal-backdrop bot-modal-backdrop" data-bot-modal="close">
     <section class="donate-modal bot-modal" role="dialog" aria-modal="true" aria-label="${t('\u0054\u1ea1o bot','Create bot')}" onclick="event.stopPropagation()">
       <button class="modal-x" data-bot-modal="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-      <div class="donate-head"><span aria-hidden="true">${current ? actionIcon('edit') : actionIcon('spark')}</span><div><p>${escapeHtml(currentChannel?.title || t('\u004b\u00eanh bot','Bot channel'))}</p><h2>${current ? t('\u0043h\u1ec9nh s\u1eeda bot','Edit bot') : t('\u0054\u1ea1o bot m\u1edbi','Create bot')}</h2><small>${t('\u0043h\u1ecdn k\u00eanh, nh\u1eadp persona; OpenClaw s\u1ebd c\u1eadp nh\u1eadt config + markdown.','Pick a channel and persona; OpenClaw will update config + markdown.')}</small></div></div>
+      <div class="donate-head"><span aria-hidden="true" class="bot-modal-chan">${currentChannel?.icon ? `<img src="${currentChannel.icon}" alt="" onerror="this.style.display='none'"/>` : (current ? actionIcon('edit') : actionIcon('spark'))}</span><div><p>${escapeHtml(currentChannel?.title || t('\u004b\u00eanh bot','Bot channel'))}</p><h2>${current ? t('\u0043h\u1ec9nh s\u1eeda bot','Edit bot') : t('\u0054\u1ea1o bot m\u1edbi','Create bot')}</h2><small>${t('\u0043h\u1ecdn k\u00eanh, nh\u1eadp persona; OpenClaw s\u1ebd c\u1eadp nh\u1eadt config + markdown.','Pick a channel and persona; OpenClaw will update config + markdown.')}</small></div></div>
       ${botCreateForm((current && current.channel) || state.botChannel || 'telegram', false, data)}
     </section>
   </div>`;
@@ -854,16 +906,21 @@ function botSkillsPanel() {
     { id: 'cron', title: 'Cron', desc: 'Native scheduler (SQLite) — cron guide in TOOLS.md' },
     { id: 'image-gen', title: 'Tạo ảnh Infographic', desc: 'Tạo ảnh infographic, poster tự động qua 9Router' },
     { id: 'web-search', title: 'Web Search', desc: 'Tìm kiếm web thời gian thực (DuckDuckGo)' },
-    { id: 'sticker-mention', title: 'Sticker & Auto-Tag (Zalo)', desc: 'Tự động tag người gửi và gửi sticker Zalo theo từ khóa' },
+    { id: 'sticker-mention', title: 'Sticker & Auto-Tag (Zalo)', desc: 'Tự động tag người gửi và gửi sticker Zalo theo từ khóa', channels: ['zalo-personal'] },
     { id: 'learning-memory', title: 'Siêu Trí Nhớ Dài Hạn (learning-memory)', desc: 'Tự động ghi nhớ bài học vào MEMORY.md, tự đóng gói và tiến hóa kỹ năng mới vào skills/' },
   ];
   const plugins = [
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },
-    { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers' },
-    { id: 'openclaw-facebook-crawler', title: 'openclaw-facebook-crawler', desc: 'Facebook crawler automation' },
-    { id: 'openclaw-n8n-facebook-poster', title: 'openclaw-n8n-facebook-poster', desc: 'Facebook post automation (n8n)' },
+    { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers', channels: ['zalo-personal'] },
+    { id: 'openclaw-facebook-crawler', title: 'openclaw-facebook-crawler', desc: 'Facebook crawler automation', channels: ['fb-messenger'] },
+    { id: 'openclaw-n8n-facebook-poster', title: 'openclaw-n8n-facebook-poster', desc: 'Facebook post automation (n8n)', channels: ['fb-messenger'] },
   ];
   const bot = currentBot();
+  // Channel-scoped features: items with a `channels` whitelist only show for those
+  // channels (e.g. Zalo helpers won't appear on Telegram/FB bots). Items without a
+  // `channels` field are universal.
+  const activeChannel = bot?.channel || state.botChannel || 'telegram';
+  const forChannel = (item) => !item.channels || item.channels.includes(activeChannel);
   const scope = `${state.install?.projectDir || '-'} ? ${bot?.id || '-'}`;
   const row = (item, group) => {
     const key = `${group}:${item.id}`;
@@ -891,14 +948,14 @@ function botSkillsPanel() {
   };
   return `
     <h4 class="feature-group">⚡ ${t('Skills','Skills')}</h4>
-    <div class="grid two">${skills.map(s=>row(s,'skill')).join('')}</div>
-    
+    <div class="grid two">${skills.filter(forChannel).map(s=>row(s,'skill')).join('')}</div>
+
     <div class="feature-divider-wrap">
       <hr class="feature-divider" />
     </div>
-    
+
     <h4 class="feature-group">🔌 ${t('Plugins','Plugins')}</h4>
-    <div class="grid two">${plugins.map(p=>row(p,'plugin')).join('')}</div>
+    <div class="grid two">${plugins.filter(forChannel).map(p=>row(p,'plugin')).join('')}</div>
   `;
 }
 
@@ -914,6 +971,7 @@ function wireTab() {
     catch { state.confirmModal = { title: t('Không copy được','Copy failed'), message: text || t('Không có log','No logs'), okText: t('Đóng','Close'), onConfirm: () => {} }; render(); }
   }));
   document.querySelectorAll('[data-donate]').forEach(el => el.onclick = () => { state.donateOpen = el.dataset.donate === 'open'; render(); });
+  document.querySelectorAll('[data-fbplugin]').forEach(el => el.onclick = () => { state.fbPluginModalOpen = false; render(); });
   document.querySelectorAll('[data-bot-modal]').forEach(el => el.onclick = () => { state.botModalOpen = el.dataset.botModal === 'open'; if (el.dataset.botModal === 'open') state.botEditId = ''; state.botMessage = ''; render(); });
   document.querySelectorAll('[data-edit-bot]').forEach(btn => btn.onclick = (ev) => { ev.stopPropagation(); state.botEditId = btn.dataset.editBot; state.botChannel = (state.install?.bots || []).find((b) => b.id === state.botEditId)?.channel || state.botChannel; state.botModalOpen = true; state.botMessage = ''; render(); });
   document.querySelectorAll('[data-zalo-login]').forEach(el => el.onclick = () => { state.zaloLoginOpen = el.dataset.zaloLogin === 'open'; render(); });
@@ -1072,7 +1130,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     };
     render();
   });
-  document.querySelectorAll('input[name="bot-channel"]').forEach(i => i.onchange = () => { state.botChannel = i.value; state.botMessage = ''; render(); });
+  document.querySelectorAll('input[name="bot-channel"]').forEach(i => i.onchange = () => { state.botChannel = i.value; state.botMessage = ''; if (i.value === 'fb-messenger' && !state.featureInstalled?.['plugin:openclaw-fb-messenger']) state.fbPluginModalOpen = true; render(); });
   document.querySelectorAll('[data-bot-channel]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { state.botChannel = btn.dataset.botChannel; state.botPane = 'list'; state.activeBotId = ''; state.selectedFile = ''; state.botMessage = ''; render(); await loadFiles(); await loadFeatureFlags(); }));
   document.querySelectorAll('[data-bot-id]').forEach(btn => btn.onclick = (ev) => withButtonLoading(btn, async () => { if (ev.target.closest('[data-delete-bot]')) return; state.activeBotId = btn.dataset.botId; state.selectedFile = ''; render(); await loadFiles(); await loadFeatureFlags(); }));
   document.querySelectorAll('[data-delete-bot]').forEach(btn => btn.onclick = async (ev) => {
@@ -1192,6 +1250,13 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
   });
   $('#bot-create')?.addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    // Facebook Messenger needs the private fb-messenger plugin. If it isn't installed,
+    // show a contact modal instead of creating a broken bot.
+    if (state.botChannel === 'fb-messenger' && !state.botEditId && !state.featureInstalled?.['plugin:openclaw-fb-messenger']) {
+      state.fbPluginModalOpen = true;
+      render();
+      return;
+    }
     const submitBtn = ev.currentTarget.querySelector('button[type="submit"]');
     if (submitBtn?.classList.contains('is-loading')) return;
     await withButtonLoading(submitBtn, async () => {

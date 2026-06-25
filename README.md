@@ -2,6 +2,10 @@
 
 # 🦞 OpenClaw Setup
 
+### One **Web UI** to scaffold, deploy & run free multi-bot AI assistants — zero terminal required
+
+*Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS, on Docker or native.*
+
 <p align="center">
   <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.24-0EA5E9?style=for-the-badge" alt="Version 5.8.24" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
@@ -11,7 +15,7 @@
 
 [![Tiếng Việt](https://flagcdn.com/20x15/vn.png) Tiếng Việt](README.vi.md) · ![English](https://flagcdn.com/20x15/gb.png) **English**
 
-A next-generation **Web UI Setup** and management dashboard that automates 100% of the project scaffolding, deployment, and control of free multi-bot AI assistants on Telegram or Zalo — supports **Windows, macOS, Ubuntu, and VPS**.
+> 💡 Open-source & free. A management dashboard that automates 100% of project scaffolding, deployment, and control for AI bots on **Telegram · Zalo · Facebook Messenger** (Discord & Lark soon) — set up in minutes, no coding needed.
 
 <p align="center" style="margin: 24px 0;">
   <img src="https://raw.githubusercontent.com/tuanminhhole/openclaw-setup/main/docs/openclaw-setup.png" alt="OpenClaw Setup" width="90%" style="border-radius: 8px; border: 1px solid #333; margin-bottom: 16px;" />
@@ -58,7 +62,7 @@ A next-generation **Web UI Setup** and management dashboard that automates 100% 
 
 ## ✨ Features
 
-- 🤖 **Multi-Channel** — Telegram (single or multi-bot relay), Zalo Bot API, or Zalo Personal.
+- 🤖 **Multi-Channel** — Telegram (single or multi-bot relay), Zalo Bot API, Zalo Personal, and Facebook Messenger (Discord & Lark coming soon).
 - 🧑‍🤝‍🧑 **Multi-Bot Team** — Run multiple Telegram/Zalo bots simultaneously with synchronized workspaces and teamwork.
 - 🧠 **Unified AI Routing via 9Router** — Easily route messages to Google Gemini, Claude, GPT-4o, OpenRouter, and Ollama (local offline models).
 - 🧩 **Built-in Skills** — Web Search, Browser Automation (Chrome CDP), and Cron/Scheduler tasks.
@@ -70,7 +74,7 @@ A next-generation **Web UI Setup** and management dashboard that automates 100% 
 
 ## 🗺️ Quick Start
 
-### 1️⃣ Method 1: Using NPX (Recommended)
+### 1️⃣ Method 1 — Quick install (Recommended)
 
 Open your terminal and run this single command:
 
@@ -78,24 +82,88 @@ Open your terminal and run this single command:
 npx create-openclaw-bot
 ```
 
-_The bootstrapper will automatically download package files, launch the local backend server, and open the Setup UI in your browser._
+It downloads the wizard, starts the local server, and opens the Setup UI in your browser at **http://127.0.0.1:51789**.
 
-### 2️⃣ Method 2: Manual Clone
+### 2️⃣ Method 2 — Manual clone (for developers)
 
-If you downloaded or cloned the repository files locally:
+For contributors who want the full source. Run each line in order:
 
 ```bash
+git clone https://github.com/tuanminhhole/openclaw-setup.git
+cd openclaw-setup
 npm install
 npm start
+```
+
+Then open **http://127.0.0.1:51789** if the browser doesn't open by itself.
+
+> ⚠️ `npm install` / `npm start` only work **inside the cloned `openclaw-setup` folder**. If you used Method 1 (npx), you did **not** clone the repo — use the reopen command below instead.
+
+### 🔁 Reopen the UI later
+
+The **first launch automatically creates a short `openclaw-ui` command** for your OS (zsh/bash on macOS & Linux, PowerShell on Windows). Next time, just open a **new** terminal and run:
+
+```bash
+openclaw-ui
+```
+
+<details>
+<summary>Manual command (fallback — also no re-download)</summary>
+
+```bash
+# macOS / Linux
+OPENCLAW_SETUP_WIZARD=true node ~/.openclaw-setup/node_modules/create-openclaw-bot/dist/cli.js
+```
+
+```powershell
+# Windows (PowerShell)
+$env:OPENCLAW_SETUP_WIZARD="true"; node "$env:USERPROFILE\.openclaw-setup\node_modules\create-openclaw-bot\dist\cli.js"
+```
+
+</details>
+
+### ⬆️ Update to the newest version
+
+```bash
+npx create-openclaw-bot --update
 ```
 
 ---
 
 ## 📋 System Prerequisites
 
-- **Node.js**: Version 20, 22, or 24 (Avoid Node 25 due to runtime library deprecations).
+- **Node.js 24 LTS** (required) — the Setup wizard itself runs on Node, so it's needed for **both** Docker and Native modes. [Download Node.js](https://nodejs.org/).
 - **Git**: Installed and available in your environment PATH.
-- **Docker Desktop** (If deploying via Docker): Support for Docker Compose V2.
+- **Docker Desktop** (recommended, for the bot runtime): Docker Compose V2. [Download Docker](https://www.docker.com/products/docker-desktop/).
+
+---
+
+## 🚀 Step-by-step Setup Guide
+
+> First time? Follow these in order — no terminal needed beyond opening the UI.
+
+**1. Open the Setup UI** — run the install command above; the dashboard opens in your browser.
+
+**2. Pick OS & run mode** — first make sure [Node.js 24 LTS](https://nodejs.org/) is installed (the wizard runs on Node — needed for **both** modes). Then open the **Setup** tab, choose your OS and the run mode:
+- **Docker** (recommended) — isolated, and lets you create **multiple projects/bots**. Also install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+- **Native** — lighter, runs the bot directly on the host (no Docker needed).
+
+**3. Project path & name** — enter a folder path and a project name (example name: `bot`), then click **Install**. Example paths:
+- Windows: `D:\bot`
+- macOS: `/Users/<you>/bot`
+- Linux: `/home/<you>/bot`
+
+**4. Log in to 9Router** — click **Open 9Router website**, then log in with the default password **`123456`**.
+
+**5. Create an API key (9Router)** — in **Endpoints**, create a new API key. Then open your project folder → `openclaw.json` → scroll to the **`models`** section → paste the key into the empty `apiKey` field and save.
+
+**6. Connect a provider (9Router)** — go to **Providers**, pick the provider you want; it connects automatically.
+
+**7. Create the routing combo (9Router)** — go to **Combos**, create a combo named exactly **`smart-route`** and add the models it should route to.
+
+**8. Create your bot** — back in the Setup UI, choose a channel, fill in the bot info + your personal info, then click **Create bot**.
+
+**9. Restart & test** — restart the bot container, then message your bot to test it. 🎉
 
 ---
 
@@ -110,6 +178,9 @@ npm start
 - **Telegram**: Acquire your official Bot Token from `@BotFather`.
 - **Zalo Bot API**: Obtain credentials from [developers.zalo.me](https://developers.zalo.me).
 - **Zalo Personal**: Scan the QR authorization image displayed on the OpenClaw Dashboard.
+- **Facebook Messenger**: Via the private `fb-messenger` plugin (contact **tuanminhhole** to receive it) — just provide a Page token.
+- **Discord**: _Coming soon._
+- **Lark**: _Coming soon._
 
 ---
 
@@ -176,8 +247,36 @@ Yes. You can edit the config JSON directly via the integrated File Editor in the
 
 ---
 
+## 🙌 Author & Contributing
+
+Built by **[tuanminhhole (Kent)](https://github.com/tuanminhhole)** as an open gift for the community.
+Suggestions and PRs are always welcome. If this saved you time, please ⭐ the repo so more people can find it!
+
+---
+
+## 🦞 OpenClaw Ecosystem (same author)
+
+Companion repos to build a complete, self-running AI assistant:
+
+**🚀 Setup & framework**
+- [openclaw-setup](https://github.com/tuanminhhole/openclaw-setup) — *(this repo)* Set up free AI bots with OpenClaw + 9Router (Telegram/Zalo/Messenger, Docker)
+- [vietbrain](https://github.com/tuanminhhole/vietbrain) — Vietnamese "Second Brain" framework for Obsidian (AI-ready)
+
+**🔌 Plugins (runtime)**
+- `openclaw-fb-messenger` — Facebook Messenger channel *(private — contact to receive)*
+- [openclaw-telegram-multibot-relay](https://github.com/tuanminhhole/openclaw-telegram-multibot-relay) — Multibot Telegram relay, delegation & native cron reminders
+- [openclaw-zalo-mod](https://github.com/tuanminhhole/openclaw-zalo-mod) — Zero-token Zalo group management (slash commands, anti-spam, warn, memory)
+- [openclaw-browser-automation](https://github.com/tuanminhhole/openclaw-browser-automation) — Smart Search & Browser Automation
+- [openclaw-facebook-crawler](https://github.com/tuanminhhole/openclaw-facebook-crawler) — Facebook data crawler
+- [openclaw-n8n-facebook-poster](https://github.com/tuanminhhole/openclaw-n8n-facebook-poster) — Auto-post to Facebook via n8n
+
+**🧩 Skills**
+- [openclaw-skill-super-memory](https://github.com/tuanminhhole/openclaw-skill-super-memory) — Advanced long-term memory for agents
+- [openclaw-skill-infographic](https://github.com/tuanminhhole/openclaw-skill-infographic) — Infographic generation
+- [openclaw-skill-zalo-sticker-mention](https://github.com/tuanminhhole/openclaw-skill-zalo-sticker-mention) — Stickers & mentions on Zalo
+
+---
+
 <div align="center">
-
-Made with 🦞 by [tuanminhhole](https://github.com/tuanminhhole)
-
+<sub>🦞 <b>openclaw-setup</b> · part of the <a href="https://github.com/tuanminhhole">tuanminhhole (Kent)</a> ecosystem · MIT License</sub>
 </div>

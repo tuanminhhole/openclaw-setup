@@ -851,6 +851,41 @@ async function readAgentIdentity(projectDir, agent) {
   return parseIdentityFields(await fsp.readFile(file, 'utf8').catch(() => ''));
 }
 
+// Sidecar storing the RAW editable persona fields (config strips them, markdown
+// is lossy). Lets the edit modal prefill exactly what the user entered.
+async function writeBotMeta(projectDir, workspaceDir, meta) {
+  try {
+    const dir = join(projectDir, '.openclaw', workspaceDir);
+    await fsp.mkdir(dir, { recursive: true });
+    await fsp.writeFile(join(dir, 'bot-meta.json'), JSON.stringify(meta || {}, null, 2), 'utf8');
+  } catch { /* non-fatal */ }
+}
+
+async function readBotMeta(projectDir, agent, cfg) {
+  try {
+    const rel = workspaceRelForAgent(agent, cfg, projectDir);
+    if (!rel) return {};
+    const file = join(projectDir, '.openclaw', rel, 'bot-meta.json');
+    if (!existsSync(file)) return {};
+    return JSON.parse(await fsp.readFile(file, 'utf8').catch(() => '{}')) || {};
+  } catch { return {}; }
+}
+
+async function readProjectEnv(projectDir) {
+  try {
+    const p = join(projectDir, '.env');
+    if (!existsSync(p)) return {};
+    const txt = await fsp.readFile(p, 'utf8');
+    const out = {};
+    for (const line of txt.split(/\r?\n/)) {
+      const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
+      if (m) out[m[1]] = m[2];
+    }
+    return out;
+  } catch { return {}; }
+}
+
+
 function ensureConfigShape(cfg) {
   if (!cfg || typeof cfg !== 'object') throw httpError(400, 'Invalid openclaw.json');
   cfg.agents = cfg.agents || {};
@@ -924,6 +959,23 @@ function ensureZaloUserChannel(cfg) {
   cfg.plugins.entries.zalouser = cfg.plugins.entries.zalouser || { enabled: true };
   cfg.plugins.allow = cfg.plugins.allow || [];
   if (!cfg.plugins.allow.includes('zalouser')) cfg.plugins.allow.push('zalouser');
+}
+
+function ensureFbMessengerChannel(cfg, pageId, appId) {
+  cfg.channels['fb-messenger'] = cfg.channels['fb-messenger'] || {
+    enabled: true,
+    dmPolicy: 'open',
+    allowFrom: ['*'],
+    historyLimit: 50,
+  };
+  cfg.channels['fb-messenger'].enabled = true;
+  if (pageId) cfg.channels['fb-messenger'].pageId = pageId;
+  // Secrets (pageAccessToken/appSecret/verifyToken) live in .env, not openclaw.json.
+  // Register the external channel plugin so the gateway loads it.
+  cfg.plugins.entries = cfg.plugins.entries || {};
+  cfg.plugins.entries['fb-messenger'] = cfg.plugins.entries['fb-messenger'] || { enabled: true };
+  cfg.plugins.allow = cfg.plugins.allow || [];
+  if (!cfg.plugins.allow.includes('fb-messenger')) cfg.plugins.allow.push('fb-messenger');
 }
 
 function ensureZaloApiChannel(cfg, token) {
@@ -1120,27 +1172,29 @@ function validateOpenclawConfig(cfg) {
 
 function mapAgentChannel(agent, cfg) {
   const agentId = typeof agent === 'string' ? agent : agent?.id;
-  if (agent && typeof agent === 'object' && ['telegram', 'zalo-personal', 'zalo-bot'].includes(agent.channel)) return agent.channel;
+  if (agent && typeof agent === 'object' && ['telegram', 'zalo-personal', 'zalo-bot', 'fb-messenger'].includes(agent.channel)) return agent.channel;
   const binding = (cfg.bindings || []).find((b) => b.agentId === agentId);
   const ch = binding?.match?.channel;
   if (ch === 'zalouser') return 'zalo-personal';
   if (ch === 'zalo') return 'zalo-bot';
   if (ch === 'telegram') return 'telegram';
+  if (ch === 'fb-messenger') return 'fb-messenger';
   if (cfg.channels?.telegram && agentId) return 'telegram';
   return 'unknown';
 }
 
 function mapAgentChannels(agent, cfg) {
-  if (agent?.channel && ['telegram', 'zalo-personal', 'zalo-bot'].includes(agent.channel)) return [agent.channel];
+  if (agent?.channel && ['telegram', 'zalo-personal', 'zalo-bot', 'fb-messenger'].includes(agent.channel)) return [agent.channel];
   const channels = (cfg.bindings || [])
     .filter((b) => b.agentId === agent?.id)
     .map((b) => b.match?.channel === 'zalouser' ? 'zalo-personal' : b.match?.channel === 'zalo' ? 'zalo-bot' : b.match?.channel)
-    .filter((ch) => ['telegram', 'zalo-personal', 'zalo-bot'].includes(ch));
+    .filter((ch) => ['telegram', 'zalo-personal', 'zalo-bot', 'fb-messenger'].includes(ch));
   if (channels.length) return Array.from(new Set(channels));
   const enabled = [];
   if (cfg.channels?.telegram?.enabled) enabled.push('telegram');
   if (cfg.channels?.zalouser?.enabled) enabled.push('zalo-personal');
   if (cfg.channels?.zalo?.enabled) enabled.push('zalo-bot');
+  if (cfg.channels?.['fb-messenger']?.enabled) enabled.push('fb-messenger');
   return enabled.length === 1 ? enabled : [mapAgentChannel(agent, cfg)];
 }
 
@@ -1153,15 +1207,26 @@ async function listConfiguredBots(projectDir) {
   if (normalized !== raw) await fsp.writeFile(cfgPath, normalized, 'utf8');
   const rows = await Promise.all(cfg.agents.list.map(async (agent) => {
     const identity = await readAgentIdentity(projectDir, agent);
+    const meta = await readBotMeta(projectDir, agent, cfg);
+    const env = await readProjectEnv(projectDir);
     const hasOwnWorkspace = !!agent.workspace;
     const identityName = usableIdentityName(identity.name);
     return mapAgentChannels(agent, cfg).map((channel) => ({
       id: agent.id,
       name: (hasOwnWorkspace ? identityName : agent.name) || agent.name || identityName || agent.id,
-      role: identity.role || agent.role || agent.desc || agent.description || '',
+      role: identity.role || meta.role || agent.role || agent.desc || agent.description || '',
       channel,
       workspace: agent.workspace || `.openclaw/${workspaceRelForAgent(agent, cfg, projectDir)}`,
       agentDir: agent.agentDir,
+      persona: meta.persona || '',
+      userName: meta.userName || '',
+      userDescription: meta.userDescription || '',
+      emoji: meta.emoji || '',
+      pageId: channel === 'fb-messenger' ? (cfg.channels?.['fb-messenger']?.pageId || '') : '',
+      appId: meta.appId || '',
+      pageAccessToken: channel === 'fb-messenger' ? (env.FB_MESSENGER_PAGE_ACCESS_TOKEN || '') : '',
+      appSecret: channel === 'fb-messenger' ? (env.FB_MESSENGER_APP_SECRET || '') : '',
+      verifyToken: channel === 'fb-messenger' ? (env.FB_MESSENGER_VERIFY_TOKEN || '') : '',
     }));
   }));
   return rows.flat();
@@ -1278,9 +1343,17 @@ async function buildBotStatus() {
 async function createBotInProject(projectDir, body = {}, runtime = {}) {
   if (!projectDir) throw httpError(400, 'Install project not found');
   const channel = body.channel || 'telegram';
-  if (!['telegram', 'zalo-personal', 'zalo-bot'].includes(channel)) throw httpError(400, 'Unsupported channel');
+  if (!['telegram', 'zalo-personal', 'zalo-bot', 'fb-messenger'].includes(channel)) throw httpError(400, 'Unsupported channel');
   const token = String(body.token || '').trim();
   if ((channel === 'telegram' || channel === 'zalo-bot') && !token) throw httpError(400, 'Token is required for this channel');
+  const fbPageId = String(body.pageId || '').trim();
+  const fbPageToken = String(body.pageAccessToken || '').trim();
+  const fbAppSecret = String(body.appSecret || '').trim();
+  const fbVerifyToken = String(body.verifyToken || '').trim();
+  const fbAppId = String(body.appId || '').trim();
+  if (channel === 'fb-messenger' && (!fbPageToken || !fbVerifyToken)) {
+    throw httpError(400, 'Page Access Token and Verify Token are required for Facebook Messenger');
+  }
 
   const requestedBotName = String(body.botName || '').trim() || 'OpenClaw Bot';
   const botDesc = String(body.role || body.botDesc || '').trim() || 'Personal OpenClaw assistant';
@@ -1342,6 +1415,18 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     const hasZaloBinding = cfg.bindings.some((b) => b.match?.channel === 'zalouser');
     if (!hasZaloBinding) cfg.bindings.push({ agentId, match: { channel: 'zalouser' } });
     else warning = 'Zalo User already has a channel binding; new agent created, route manually if needed.';
+  } else if (channel === 'fb-messenger') {
+    // Token handling (user token → permanent Page token) is done by the fb-messenger
+    // plugin itself; here we just persist whatever the user supplied plus the App ID
+    // (the plugin needs it to exchange the token).
+    ensureFbMessengerChannel(cfg, fbPageId, fbAppId);
+    const hasFbBinding = cfg.bindings.some((b) => b.match?.channel === 'fb-messenger');
+    if (!hasFbBinding) cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: 'default' } });
+    else warning = 'Facebook Messenger already has a channel binding; new agent created, route manually if needed.';
+    await appendEnvValue(projectDir, 'FB_MESSENGER_PAGE_ACCESS_TOKEN', fbPageToken);
+    await appendEnvValue(projectDir, 'FB_MESSENGER_APP_SECRET', fbAppSecret);
+    await appendEnvValue(projectDir, 'FB_MESSENGER_VERIFY_TOKEN', fbVerifyToken);
+    if (fbAppId) await appendEnvValue(projectDir, 'FB_MESSENGER_APP_ID', fbAppId);
   } else {
     ensureZaloApiChannel(cfg, token);
     const hasZaloApiBinding = cfg.bindings.some((b) => b.match?.channel === 'zalo');
@@ -1379,6 +1464,11 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     await fsp.mkdir(dirname(join(wsRoot, name)), { recursive: true });
     await fsp.writeFile(join(wsRoot, name), content || '', 'utf8');
   }
+  const botMeta = { persona, userName, userDescription: userDesc, emoji, role: botDesc };
+  // appId is only meaningful for Facebook Messenger (the plugin needs it to exchange
+  // the token); don't pollute other channels' bot-meta.json with an empty appId.
+  if (channel === 'fb-messenger') botMeta.appId = fbAppId;
+  await writeBotMeta(projectDir, workspaceDir, botMeta);
 
   return { ok: true, agentId, accountId, channel, workspace: `.openclaw/${workspaceDir}`, warning };
 }
@@ -1423,6 +1513,18 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   } else if (channel === 'zalo-personal') {
     ensureZaloUserChannel(cfg);
     cfg.bindings.push({ agentId, match: { channel: 'zalouser' } });
+  } else if (channel === 'fb-messenger') {
+    ensureFbMessengerChannel(cfg, String(body.pageId || '').trim(), String(body.appId || '').trim());
+    cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: 'default' } });
+    // Update secrets only when re-supplied (edit form leaves them blank to keep existing).
+    const fbPageToken = String(body.pageAccessToken || '').trim();
+    const fbAppSecret = String(body.appSecret || '').trim();
+    const fbVerifyToken = String(body.verifyToken || '').trim();
+    const fbAppIdIn = String(body.appId || '').trim();
+    if (fbPageToken) await appendEnvValue(projectDir, 'FB_MESSENGER_PAGE_ACCESS_TOKEN', fbPageToken);
+    if (fbAppSecret) await appendEnvValue(projectDir, 'FB_MESSENGER_APP_SECRET', fbAppSecret);
+    if (fbVerifyToken) await appendEnvValue(projectDir, 'FB_MESSENGER_VERIFY_TOKEN', fbVerifyToken);
+    if (fbAppIdIn) await appendEnvValue(projectDir, 'FB_MESSENGER_APP_ID', fbAppIdIn);
   } else {
     ensureZaloApiChannel(cfg, token || cfg.channels?.zalo?.botToken || '');
     cfg.bindings.push({ agentId, match: { channel: 'zalo' } });
@@ -1484,6 +1586,9 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     await fsp.mkdir(dirname(join(wsRoot, name)), { recursive: true });
     await fsp.writeFile(join(wsRoot, name), content || '', 'utf8');
   }
+  const botMeta = { persona, userName, userDescription: userDesc, emoji, role: botDesc };
+  if (channel === 'fb-messenger') botMeta.appId = String(body.appId || '').trim();
+  await writeBotMeta(projectDir, workspaceDir, botMeta);
 
   return { ok: true, agentId, channel, workspace: `.openclaw/${workspaceDir}` };
 }
@@ -1772,8 +1877,105 @@ try{
     runLoginAttempt();
     return { message: 'Generating Zalo QR. The image will appear automatically.' };
   }
-  zaloLoginInFlight = false;
-  return { message: 'Native Zalo login UI not implemented yet in local setup.' };
+
+  // ── Native (non-Docker) path ──────────────────────────────────────────────
+  // Same flow as Docker but on the host: run `openclaw channels login` directly,
+  // read the QR PNG straight off the host filesystem, then restart the native
+  // gateway so the saved credentials take effect.
+  const gatewayPort = state.gatewayPort || 18789;
+  const runtimeEnv = {
+    ...process.env,
+    OPENCLAW_HOME: join(projectDir, '.openclaw'),
+    OPENCLAW_STATE_DIR: join(projectDir, '.openclaw'),
+    OPENCLAW_GATEWAY_PORT: String(gatewayPort),
+    OPENCLAW_PORT: String(gatewayPort),
+  };
+
+  // The runtime writes the QR to a uid-scoped temp dir; probe the likely locations.
+  const uid = (typeof process.getuid === 'function') ? process.getuid() : '';
+  const qrNames = profile === 'default'
+    ? ['openclaw-zalouser-qr.png', 'openclaw-zalouser-qr-default.png', `openclaw-zalouser-qr-${profile}.png`]
+    : [`openclaw-zalouser-qr-${profile}.png`];
+  const qrDirs = [join(os.tmpdir(), 'openclaw'), '/tmp/openclaw', `/tmp/openclaw-${uid}`, '/tmp/openclaw-1000', join(os.tmpdir(), `openclaw-${uid}`)];
+  const nativeQrPaths = [...new Set(qrDirs.flatMap((d) => qrNames.map((n) => join(d, n))))];
+
+  // Clean stale credentials & QR files so we only ever surface a fresh code.
+  const credFile = profile === 'default' ? 'credentials.json' : `credentials-${profile}.json`;
+  const credPath = join(projectDir, '.openclaw', 'credentials', 'zalouser', credFile);
+  try { await fsp.rm(credPath, { force: true }); } catch {}
+  for (const p of nativeQrPaths) { try { await fsp.rm(p, { force: true }); } catch {} }
+
+  sendLog('[zalouser] Generating Zalo QR (native). The image will appear automatically.');
+
+  const MAX_LOGIN_ATTEMPTS = 4;
+  const RETRY_DELAYS = [0, 8000, 15000, 20000];
+  let loginAttempt = 0;
+  let sent = false;
+  let restartAfterLogin = false;
+
+  // Poll the host filesystem for the QR PNG across all retry attempts.
+  let tries = 0;
+  const poll = setInterval(() => {
+    if (sent || tries++ > 120) {
+      clearInterval(poll);
+      if (!sent) sendLog('[zalouser] QR not found yet. Try closing/reopening login, or run `openclaw channels login --channel zalouser --verbose` on the host.');
+      return;
+    }
+    for (const p of nativeQrPaths) {
+      try {
+        if (existsSync(p) && fs.statSync(p).size > 100) {
+          const b64 = fs.readFileSync(p).toString('base64');
+          if (b64.length > 100) {
+            sent = true;
+            clearInterval(poll);
+            sendLog(`[zalouser:qr] data:image/png;base64,${b64}`);
+            sendLog('[zalouser] Scan this QR with the Zalo app.');
+            break;
+          }
+        }
+      } catch {}
+    }
+  }, 1000);
+
+  const loginArgs = ['channels', 'login', '--channel', 'zalouser', '--account', profile, '--verbose'];
+  const runLoginAttempt = () => {
+    loginAttempt++;
+    if (loginAttempt > 1) sendLog(`[zalouser] Retry attempt ${loginAttempt}/${MAX_LOGIN_ATTEMPTS}...`);
+    const child = spawn('openclaw', loginArgs, { cwd: projectDir, env: runtimeEnv, shell: false, windowsHide: true });
+    const handleLoginLine = (line) => {
+      sendLog(line);
+      if (/login successful|saved auth/i.test(line)) restartAfterLogin = true;
+    };
+    child.stdout.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLoginLine));
+    child.stderr.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLoginLine));
+    child.on('error', (err) => sendLog(`[zalouser] Login process failed: ${err.message}. Is the 'openclaw' CLI installed on PATH?`));
+    child.on('close', async (code) => {
+      sendLog(`[zalouser] Login process exited ${code}`);
+      if (code === 0 || restartAfterLogin || sent) {
+        if (restartAfterLogin) {
+          sendLog('[zalouser] Login saved. Restarting native gateway so Zalo User can receive messages...');
+          try {
+            await run('openclaw', ['gateway', 'stop'], { cwd: projectDir, env: runtimeEnv });
+            state.botPid = startDetached('openclaw', ['gateway', 'run'], { cwd: projectDir, env: runtimeEnv });
+            sendLog(`[zalouser] Native gateway restarted (pid=${state.botPid || 'unknown'}). Try sending a Zalo message now.`);
+          } catch (err) {
+            sendLog(`[zalouser] Gateway restart failed: ${err.message}. Restart it manually: openclaw gateway run`);
+          }
+        }
+        zaloLoginInFlight = false;
+      } else if (loginAttempt < MAX_LOGIN_ATTEMPTS && !sent) {
+        const delay = RETRY_DELAYS[loginAttempt] || 10000;
+        sendLog(`[zalouser] QR not ready yet. Waiting ${delay / 1000}s before retry...`);
+        setTimeout(runLoginAttempt, delay);
+      } else {
+        sendLog('[zalouser] All login attempts exhausted. Try clicking "Đăng nhập Zalo" again.');
+        zaloLoginInFlight = false;
+      }
+    });
+  };
+
+  runLoginAttempt();
+  return { message: 'Generating Zalo QR (native). The image will appear automatically.' };
 }
 
 function getBotServiceName(projectDir) {
@@ -2530,19 +2732,61 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     }
   }
 
-  if (kind === 'skill' && id === 'image-gen') {
+  // Folder-based per-bot skills (image-gen / sticker-mention / learning-memory). These load
+  // from <workspace>/skills, so each bot's copy is independent. Toggling here affects ONLY the
+  // active bot's workspace folder. The global skills.entries[id].enabled flag is kept true
+  // while ANY bot still has the folder (openclaw needs it true to load the skill at all).
+  if (kind === 'skill' && (id === 'image-gen' || id === 'sticker-mention' || id === 'learning-memory')) {
+    const slugMap = { 'image-gen': 'infographic-generator', 'sticker-mention': 'zalo-sticker-mention', 'learning-memory': 'learning-memory' };
+    const slug = slugMap[id];
+    const rel = workspaceRelForAgent(agent, cfg, projectDir) || `workspace-${agent.id}`;
+    const folder = join(projectDir, '.openclaw', rel, 'skills', slug);
+    const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
+
+    // Sticker skill needs its outbound patch applied on enable / restored on disable (Zalo personal only).
+    const applyStickerPatch = async (restore) => {
+      if (id !== 'sticker-mention') return;
+      const channel = (cfg.bindings || []).find((b) => b.agentId === agent.id)?.match?.channel || '';
+      if (channel !== 'zalo-personal' && channel !== 'zalouser') return;
+      let hostJs = join(projectDir, '.openclaw', rel, 'skills/zalo-sticker-mention/mentions.js');
+      let contJs = `/home/node/project/.openclaw/${rel}/skills/zalo-sticker-mention/mentions.js`;
+      if (!existsSync(hostJs)) {
+        hostJs = join(projectDir, '.openclaw', rel, 'skills/sticker-mention/mentions.js');
+        contJs = `/home/node/project/.openclaw/${rel}/skills/sticker-mention/mentions.js`;
+      }
+      if (!existsSync(hostJs)) return;
+      const extra = restore ? ['--restore'] : [];
+      try {
+        if (hasDocker) {
+          await runCapture('docker', ['exec', getBotContainerName(projectDir), 'node', contJs, ...extra], { cwd: projectDir, shell: false });
+        } else {
+          await run('node', [hostJs, ...extra], { cwd: projectDir });
+        }
+      } catch (e) { sendLog(`[zalo-patch] ${restore ? 'restore' : 'patch'} failed: ${e.message}`); }
+    };
+
+    let installedNow = false;
+    if (enabled) {
+      // Enable for THIS bot only: ensure its workspace has the skill folder.
+      if (!existsSync(folder)) { await installFeature(projectDir, agent.id, 'skill', id); installedNow = true; }
+      await applyStickerPatch(false);
+    } else {
+      // Disable for THIS bot only: restore any patch, then remove just this bot's folder.
+      await applyStickerPatch(true);
+      await fsp.rm(folder, { recursive: true, force: true }).catch(() => {});
+    }
+
+    // Global flag stays true while any bot still has the folder; false only when none do.
+    const anyAgentHas = cfg.agents.list.some((a) => existsSync(join(projectDir, '.openclaw', workspaceRelForAgent(a, cfg, projectDir) || `workspace-${a.id}`, 'skills', slug)));
     cfg.skills = cfg.skills || { entries: {} };
     cfg.skills.entries = cfg.skills.entries || {};
-    cfg.skills.entries['image-gen'] = cfg.skills.entries['image-gen'] || {};
-    cfg.skills.entries['image-gen'].enabled = !!enabled;
-
-    // Write cfgPath early so recreation reads updated openclaw.json
+    cfg.skills.entries[id] = cfg.skills.entries[id] || {};
+    cfg.skills.entries[id].enabled = anyAgentHas;
     await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
 
-    // Recreate container to apply updated openclaw.json
-    const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
-    if (hasDocker) {
-      sendLog(`[docker] Infographic skill toggled to ${enabled}. Recreating containers...`);
+    // installFeature already restarted the container; otherwise recreate to apply the change.
+    if (hasDocker && !installedNow) {
+      sendLog(`[docker] Skill ${id} toggled to ${enabled} for bot ${agent.id}. Recreating containers...`);
       await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
     }
   }
@@ -2576,78 +2820,6 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
     if (hasDocker) {
       sendLog(`[docker] Web Search skill toggled to ${enabled}. Recreating containers...`);
-      await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
-    }
-  }
-
-  if (kind === 'skill' && id === 'sticker-mention') {
-    cfg.skills = cfg.skills || { entries: {} };
-    cfg.skills.entries = cfg.skills.entries || {};
-    cfg.skills.entries['sticker-mention'] = cfg.skills.entries['sticker-mention'] || {};
-    cfg.skills.entries['sticker-mention'].enabled = !!enabled;
-
-    for (const a of cfg.agents.list) {
-      const binding = (cfg.bindings || []).find((b) => b.agentId === a.id);
-      const channel = binding?.match?.channel || 'telegram';
-      if (channel === 'zalo-personal' || channel === 'zalouser') {
-        try {
-          const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
-          const workspaceDir = workspaceRelForAgent(a, cfg, projectDir) || `workspace-${a.id}`;
-          let mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/zalo-sticker-mention/mentions.js');
-          let containerJsPath = `/home/node/project/.openclaw/${workspaceDir}/skills/zalo-sticker-mention/mentions.js`;
-          if (!existsSync(mentionsJsPath)) {
-            mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/sticker-mention/mentions.js');
-            containerJsPath = `/home/node/project/.openclaw/${workspaceDir}/skills/sticker-mention/mentions.js`;
-          }
-          if (existsSync(mentionsJsPath)) {
-            if (enabled) {
-              sendLog('[zalo-patch] Running patch on enable...');
-              if (hasDocker) {
-                const botContainer = getBotContainerName(projectDir);
-                await runCapture('docker', ['exec', botContainer, 'node', containerJsPath], { cwd: projectDir, shell: false });
-              } else {
-                await run('node', [mentionsJsPath], { cwd: projectDir });
-              }
-            } else {
-              sendLog('[zalo-patch] Running restore before disabling skill...');
-              if (hasDocker) {
-                const botContainer = getBotContainerName(projectDir);
-                await runCapture('docker', ['exec', botContainer, 'node', containerJsPath, '--restore'], { cwd: projectDir, shell: false });
-              } else {
-                await run('node', [mentionsJsPath, '--restore'], { cwd: projectDir });
-              }
-            }
-          }
-        } catch (e) {
-          sendLog(`[zalo-patch] Zalo patch/restore action failed: ${e.message}`);
-        }
-      }
-    }
-
-    // Write cfgPath early so recreation reads updated openclaw.json
-    await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
-
-    // Recreate container to apply updated openclaw.json
-    const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
-    if (hasDocker) {
-      sendLog(`[docker] Sticker & Mention skill toggled to ${enabled}. Recreating containers...`);
-      await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
-    }
-  }
-
-  if (kind === 'skill' && id === 'learning-memory') {
-    cfg.skills = cfg.skills || { entries: {} };
-    cfg.skills.entries = cfg.skills.entries || {};
-    cfg.skills.entries['learning-memory'] = cfg.skills.entries['learning-memory'] || {};
-    cfg.skills.entries['learning-memory'].enabled = !!enabled;
-
-    // Write cfgPath early so recreation reads updated openclaw.json
-    await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
-
-    // Recreate container to apply updated openclaw.json
-    const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
-    if (hasDocker) {
-      sendLog(`[docker] Learning Memory skill toggled to ${enabled}. Recreating containers...`);
       await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] Warning: Failed to recreate container: ${err.message}`));
     }
   }
@@ -2988,6 +3160,26 @@ async function getInstalledPluginVersion(projectDir, aliases = []) {
   return '';
 }
 
+// In Docker installs the extensions/ dir is a named volume mounted over the bind-mounted
+// .openclaw, so plugin folders (e.g. zalo-mod) live ONLY inside the container, not on the
+// host. Read every extension's version in a single `docker exec` and return a
+// { dirName: version } map. Returns {} for native installs (host paths handle those).
+async function getContainerExtensionVersions(projectDir) {
+  if (!projectDir) return {};
+  const composeDir = existsSync(join(projectDir, 'docker-compose.yml'))
+    ? projectDir
+    : existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'))
+      ? join(projectDir, 'docker', 'openclaw')
+      : null;
+  if (!composeDir) return {};
+  try {
+    const botContainer = getBotContainerName(projectDir);
+    const script = "const fs=require('fs');const d='/home/node/project/.openclaw/extensions';const o={};try{for(const n of fs.readdirSync(d)){try{const p=d+'/'+n+'/package.json';if(fs.existsSync(p))o[n]=JSON.parse(fs.readFileSync(p,'utf8')).version||''}catch(e){}}}catch(e){}process.stdout.write(JSON.stringify(o))";
+    const out = await runCapture('docker', ['exec', botContainer, 'node', '-e', script], { cwd: projectDir, shell: false });
+    return JSON.parse(String(out.stdout || '{}')) || {};
+  } catch (e) { return {}; }
+}
+
 function isSkillFolderExists(projectDir, agentId, skillFolder, cfg = null) {
   if (!projectDir) return false;
   if (!cfg) {
@@ -3062,15 +3254,18 @@ async function getFeatureFlags(projectDir, agentId = '') {
       Array.from(installedSpecs).some((spec) => spec.includes(a)) ||
       allowSet.has(a)
     );
-  const imageGenOn = !!cfg.skills?.entries?.['image-gen']?.enabled;
+  // Folder-based skills are scoped per bot: their "on" state = the skill folder existing in
+  // THIS agent's workspace (not the global skills.entries flag, which would leak across bots).
+  const imageGenOn = isSkillFolderExists(projectDir, aid, 'infographic-generator', cfg);
   const webSearchOn = isEnabled(['duckduckgo']);
-  const stickerMentionOn = !!cfg.skills?.entries?.['sticker-mention']?.enabled;
-  const learningMemoryOn = !!cfg.skills?.entries?.['learning-memory']?.enabled;
+  const stickerMentionOn = isSkillFolderExists(projectDir, aid, 'zalo-sticker-mention', cfg);
+  const learningMemoryOn = isSkillFolderExists(projectDir, aid, 'learning-memory', cfg);
   const aliases = {
     browser: ['openclaw-browser-automation', 'browser-automation'],
     zalo: ['openclaw-zalo-mod', 'zalo-mod'],
     crawler: ['openclaw-facebook-crawler', 'openclaw-n8n-facebook-crawler', 'n8n-facebook-crawler'],
     poster: ['openclaw-n8n-facebook-poster', 'openclaw-facebook-poster', 'facebook-poster'],
+    fbMessenger: ['openclaw-fb-messenger', 'fb-messenger'],
   };
   const flags = {
     'skill:browser': browserOn,
@@ -3083,6 +3278,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'plugin:openclaw-zalo-mod': isEnabled(aliases.zalo),
     'plugin:openclaw-facebook-crawler': isEnabled(aliases.crawler),
     'plugin:openclaw-n8n-facebook-poster': isEnabled(aliases.poster),
+    'plugin:openclaw-fb-messenger': isEnabled(aliases.fbMessenger),
   };
   const extensionsDir = join(projectDir || '', '.openclaw', 'extensions');
   const extensionDirExists = (aliases = []) =>
@@ -3097,6 +3293,10 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'plugin:openclaw-zalo-mod': isActuallyInstalled(aliases.zalo),
     'plugin:openclaw-facebook-crawler': isActuallyInstalled(aliases.crawler),
     'plugin:openclaw-n8n-facebook-poster': isActuallyInstalled(aliases.poster),
+    // fb-messenger is auto-added to plugins.allow by the wizard, so the allow-list is NOT
+    // proof of install — require a real extension dir or an install record instead.
+    'plugin:openclaw-fb-messenger': extensionDirExists(aliases.fbMessenger)
+      || aliases.fbMessenger.some((a) => installedKeys.has(a) || Array.from(installedSpecs).some((spec) => spec.includes(a))),
   };
   const versions = {
     'skill:image-gen': await getInstalledSkillVersion(projectDir, aid, 'infographic-generator', cfg),
@@ -3106,7 +3306,19 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'plugin:openclaw-zalo-mod': await getInstalledPluginVersion(projectDir, aliases.zalo),
     'plugin:openclaw-facebook-crawler': await getInstalledPluginVersion(projectDir, aliases.crawler),
     'plugin:openclaw-n8n-facebook-poster': await getInstalledPluginVersion(projectDir, aliases.poster),
+    'plugin:openclaw-fb-messenger': await getInstalledPluginVersion(projectDir, aliases.fbMessenger),
   };
+  // Docker: fill any plugin version still empty from the container's extensions volume
+  // (e.g. bundled/clawhub plugins like zalo-mod that aren't on the host). One docker exec.
+  const containerExtVersions = await getContainerExtensionVersions(projectDir);
+  if (Object.keys(containerExtVersions).length) {
+    const fillVer = (key, names) => { if (!versions[key]) { for (const n of names) { if (containerExtVersions[n]) { versions[key] = containerExtVersions[n]; break; } } } };
+    fillVer('plugin:openclaw-browser-automation', aliases.browser);
+    fillVer('plugin:openclaw-zalo-mod', aliases.zalo);
+    fillVer('plugin:openclaw-facebook-crawler', aliases.crawler);
+    fillVer('plugin:openclaw-n8n-facebook-poster', aliases.poster);
+    fillVer('plugin:openclaw-fb-messenger', aliases.fbMessenger);
+  }
   return { flags, installed, versions };
 }
 
@@ -3487,6 +3699,45 @@ function restartInstaller() {
   }, 2000);
 }
 
+/**
+ * One-time convenience: drop a short `openclaw-ui` command into the user's shell
+ * profile so reopening the wizard later is a single word — no long manual setup.
+ * OS/shell-aware, idempotent, and fully best-effort (never throws, never blocks
+ * startup). Only runs for npx-installed users (the cache dir must exist).
+ */
+function ensureReopenShortcut() {
+  try {
+    const home = os.homedir();
+    const cliPath = join(home, '.openclaw-setup', 'node_modules', 'create-openclaw-bot', 'dist', 'cli.js');
+    if (!existsSync(cliPath)) return; // running from a cloned repo (dev) — nothing to shortcut
+    const MARK = '# >>> openclaw-ui (auto-added by OpenClaw Setup) >>>';
+    const END = '# <<< openclaw-ui <<<';
+
+    if (process.platform === 'win32') {
+      const candidates = [
+        join(home, 'Documents', 'PowerShell', 'Microsoft.PowerShell_profile.ps1'),
+        join(home, 'Documents', 'WindowsPowerShell', 'Microsoft.PowerShell_profile.ps1'),
+      ];
+      const profile = candidates.find((p) => existsSync(dirname(p))) || candidates[1];
+      const content = existsSync(profile) ? fs.readFileSync(profile, 'utf8') : '';
+      if (content.includes(MARK)) { console.log("💡 Reopen anytime with:  openclaw-ui  (in a new PowerShell)"); return; }
+      const block = `\n${MARK}\nfunction openclaw-ui { $env:OPENCLAW_SETUP_WIZARD="true"; node "${cliPath.replace(/\\/g, '\\\\')}" }\n${END}\n`;
+      fs.mkdirSync(dirname(profile), { recursive: true });
+      fs.appendFileSync(profile, block, 'utf8');
+      console.log("✓ Shortcut installed — open a NEW PowerShell and type:  openclaw-ui");
+    } else {
+      const shell = process.env.SHELL || '';
+      const rcName = shell.includes('zsh') ? '.zshrc' : shell.includes('bash') ? '.bashrc' : '.profile';
+      const rc = join(home, rcName);
+      const content = existsSync(rc) ? fs.readFileSync(rc, 'utf8') : '';
+      if (content.includes(MARK)) { console.log("💡 Reopen anytime with:  openclaw-ui"); return; }
+      const block = `\n${MARK}\nalias openclaw-ui='OPENCLAW_SETUP_WIZARD=true node "${cliPath}"'\n${END}\n`;
+      fs.appendFileSync(rc, block, 'utf8');
+      console.log(`✓ Shortcut added to ~/${rcName} — open a NEW terminal (or run 'source ~/${rcName}') and type:  openclaw-ui`);
+    }
+  } catch { /* best-effort: a shortcut failure must never break startup */ }
+}
+
 export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 51789, openBrowser = true, projectDir = process.cwd() } = {}) {
   const port = await findPort(host, preferredPort);
   const server = http.createServer((req, res) => handler(req, res, projectDir));
@@ -3494,6 +3745,7 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   await new Promise((resolve) => server.listen(port, host, resolve));
   const url = `http://${host}:${port}`;
   console.log(`OpenClaw Setup UI: ${url}`);
+  ensureReopenShortcut();
   if (openBrowser) openUrl(url);
 }
 
