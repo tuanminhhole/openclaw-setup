@@ -235,7 +235,12 @@ async function fetchLatestSetupVersionBg() {
   if (isFetchingLatestSetup) return;
   isFetchingLatestSetup = true;
   try {
-    const resp = await fetch('https://registry.npmjs.org/create-openclaw-bot/latest', { signal: AbortSignal.timeout(4000) });
+    // Distribution is GitHub (not npm) — read the version straight from main so the
+    // "latest" reflects `npx github:…`, not the stale last-published npm release.
+    const resp = await fetch(
+      'https://raw.githubusercontent.com/tuanminhhole/openclaw-setup/main/package.json',
+      { signal: AbortSignal.timeout(4000), headers: { 'Cache-Control': 'no-cache' } },
+    );
     if (resp.ok) {
       const data = await resp.json();
       if (data.version) {
@@ -255,6 +260,11 @@ const DEFAULT_MODEL = 'smart-route';
 const logClients = new Set();
 let zaloLoginInFlight = false;
 let activeServerInstance = null;
+// Captured at startup so a self-restart (update button) re-binds the SAME host/port,
+// letting the browser tab reconnect to the new UI instead of hanging.
+let activeUiHost = '127.0.0.1';
+let activeUiPort = 51789;
+let activeUiProjectDir = process.cwd();
 const state = {
   installing: false,
   installed: false,
@@ -462,6 +472,23 @@ async function getCurrentRuntimeVersions() {
   };
 }
 
+// Per-project cache for EXPENSIVE runtime/version probes (docker exec + openclaw CLI). These
+// values are effectively static between updates/rebuilds/installs, so caching them avoids
+// re-probing on every Dashboard/Bot page load (the main source of slow loads). Entries with
+// ttl=0 live until explicitly cleared (see probeCacheClear calls on update/rebuild/restart/install).
+const _probeCache = new Map();
+function probeCacheGet(key) {
+  const e = _probeCache.get(key);
+  if (!e) return undefined;
+  if (e.exp && e.exp < Date.now()) { _probeCache.delete(key); return undefined; }
+  return e.value;
+}
+function probeCacheSet(key, value, ttlMs = 0) { _probeCache.set(key, { value, exp: ttlMs ? Date.now() + ttlMs : 0 }); }
+function probeCacheClear(prefix = '') {
+  if (!prefix) { _probeCache.clear(); return; }
+  for (const k of [..._probeCache.keys()]) if (k.startsWith(prefix)) _probeCache.delete(k);
+}
+
 async function resolveProjectRuntimeVersions(projectDir, mode = state.mode || 'docker') {
   const fallback = {
     openclaw: '',
@@ -469,6 +496,10 @@ async function resolveProjectRuntimeVersions(projectDir, mode = state.mode || 'd
     node: process.version || '',
   };
   if (!projectDir) return fallback;
+  const ck = `ver:${projectDir}:${mode}`;
+  const cached = probeCacheGet(ck);
+  if (cached) return cached;
+  let result;
   if (mode === 'docker') {
     const compose = await readComposeText(projectDir);
     const botContainer = getBotContainerName(projectDir);
@@ -478,18 +509,22 @@ async function resolveProjectRuntimeVersions(projectDir, mode = state.mode || 'd
       runCapture('docker', ['exec', routerContainer, 'node', '-e', "fetch('http://localhost:20128/api/version').then(async r=>{const d=await r.json().catch(()=>({}));process.stdout.write(String(d.currentVersion||''));}).catch(()=>process.stdout.write(''))"], { shell: false }),
       runCapture('docker', ['exec', botContainer, 'node', '--version'], { shell: false }),
     ]);
-    return {
+    result = {
       openclaw: String(openclawOut.stdout || '').trim(),
       nineRouter: String(routerOut.stdout || '').trim(),
       node: String(nodeOut.stdout || '').trim(),
     };
+  } else {
+    const current = await getCurrentRuntimeVersions();
+    result = {
+      openclaw: current.openclaw || '',
+      nineRouter: current.nineRouter || '',
+      node: current.node || process.version || '',
+    };
   }
-  const current = await getCurrentRuntimeVersions();
-  return {
-    openclaw: current.openclaw || '',
-    nineRouter: current.nineRouter || '',
-    node: current.node || process.version || '',
-  };
+  // Cache only meaningful results (don't pin empties from a container that's mid-restart).
+  if (result.openclaw || result.nineRouter || result.node) probeCacheSet(ck, result);
+  return result;
 }
 
 function runStreamed(cmd, args, opts = {}) {
@@ -679,6 +714,9 @@ function parseBaseUrlPort(baseUrl = '') {
 }
 
 async function detectRuntime(projectDir) {
+  const ck = `runtime:${projectDir}`;
+  const cached = probeCacheGet(ck);
+  if (cached) return cached;
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
   const cfg = existsSync(cfgPath) ? parseJsonText(await fsp.readFile(cfgPath, 'utf8').catch(() => '{}'), {}) : {};
   let cliGatewayStatus = null;
@@ -718,7 +756,7 @@ async function detectRuntime(projectDir) {
     20128,
   ) || 20128;
   if (syncSource !== 'cli' && compose) syncSource = 'compose';
-  return {
+  const rt = {
     gatewayPort,
     routerPort,
     gatewayUrl: `http://127.0.0.1:${gatewayPort}`,
@@ -727,13 +765,25 @@ async function detectRuntime(projectDir) {
     cliGatewayStatus,
     syncSource,
   };
+  // Ports/mode are static; cache briefly so repeated page loads don't re-run the slow openclaw
+  // CLI probes. Cleared explicitly on update/rebuild/restart.
+  if (projectDir) probeCacheSet(ck, rt, 120000);
+  return rt;
 }
 
-async function syncRuntimeState(projectDir) {
+// Projects whose one-time migration + Docker-infra sync has already run this server lifetime.
+// The legacy-path migration, 9router-key resolution and Docker-file regeneration only need to
+// happen once per project (or after an explicit update) — not on every status poll. detectRuntime
+// (cached) still refreshes ports/mode cheaply on each call so state stays current.
+const _runtimeSynced = new Set();
+async function syncRuntimeState(projectDir, { full = false } = {}) {
   if (!projectDir || !existsSync(join(projectDir, '.openclaw', 'openclaw.json'))) return;
-  // Auto-migrate legacy /root/project paths → /home/node/project in openclaw.json
-  await migrateContainerPaths(projectDir).catch(() => {});
-  await applyResolved9RouterApiKey(projectDir).catch(() => {});
+  const firstSync = full || !_runtimeSynced.has(projectDir);
+  if (firstSync) {
+    // Auto-migrate legacy /root/project paths → /home/node/project in openclaw.json
+    await migrateContainerPaths(projectDir).catch(() => {});
+    await applyResolved9RouterApiKey(projectDir).catch(() => {});
+  }
   const rt = await detectRuntime(projectDir).catch(() => null);
   if (!rt) return;
   state.projectDir = projectDir;
@@ -744,12 +794,15 @@ async function syncRuntimeState(projectDir) {
   state.mode = state.mode || rt.mode;
   state.syncSource = rt.syncSource || 'config';
   state.installed = true;
-  // Auto-sync Docker files if outdated
-  if (rt.mode === 'docker') {
+  // Auto-sync Docker files if outdated — only on first sync (or forced); the version stamp gate
+  // inside syncDockerInfra already no-ops on matching versions, but skipping the call entirely
+  // avoids the repeated file reads on every page load.
+  if (firstSync && rt.mode === 'docker') {
     await syncDockerInfra(projectDir).catch((err) =>
       sendLog(`[sync] Docker infra sync skipped: ${err.message}`)
     );
   }
+  _runtimeSynced.add(projectDir);
 }
 
 /**
@@ -1412,9 +1465,21 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     await appendEnvValue(projectDir, accountId === 'default' ? 'TELEGRAM_BOT_TOKEN' : `TELEGRAM_BOT_TOKEN_${agentId.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}`, token);
   } else if (channel === 'zalo-personal') {
     ensureZaloUserChannel(cfg);
-    const hasZaloBinding = cfg.bindings.some((b) => b.match?.channel === 'zalouser');
-    if (!hasZaloBinding) cfg.bindings.push({ agentId, match: { channel: 'zalouser' } });
-    else warning = 'Zalo User already has a channel binding; new agent created, route manually if needed.';
+    const zu = cfg.channels.zalouser;
+    zu.accounts = zu.accounts || {};
+    const defAcct = zu.defaultAccount || 'default';
+    // Make legacy catch-all zalouser bindings (no accountId) account-specific so a second
+    // account isn't swallowed by them. The existing single bot owns the default account.
+    for (const b of cfg.bindings) {
+      if (b.match?.channel === 'zalouser' && !b.match.accountId) b.match.accountId = defAcct;
+    }
+    // First Zalo bot → the default account; each subsequent bot gets its own account
+    // (keyed by agentId) with a matching login profile — mirrors the Telegram multi-account flow.
+    const existingZaloBindings = cfg.bindings.filter((b) => b.match?.channel === 'zalouser').length;
+    accountId = existingZaloBindings === 0 ? defAcct : agentId;
+    zu.enabled = true;
+    zu.accounts[accountId] = zu.accounts[accountId] || { enabled: true, profile: accountId };
+    cfg.bindings.push({ agentId, match: { channel: 'zalouser', accountId } });
   } else if (channel === 'fb-messenger') {
     // Token handling (user token → permanent Page token) is done by the fb-messenger
     // plugin itself; here we just persist whatever the user supplied plus the App ID
@@ -1718,9 +1783,13 @@ async function startZaloUserLogin(projectDir, mode = state.mode, agentId = '') {
     const checkRegistryScript = `
 const fs = require('fs');
 try {
-  const dist = '/home/node/project/.openclaw/npm/node_modules/@openclaw/zalouser/dist/index.js';
+  // zalouser may live under npm/ (docker install) OR extensions/ (migrated/native). Treat
+  // either as present so we never re-download it on top of an existing copy (that creates a
+  // duplicate plugin id and breaks the shared ZCA API map).
+  const distNpm = '/home/node/project/.openclaw/npm/node_modules/@openclaw/zalouser/dist/index.js';
+  const distExt = '/home/node/project/.openclaw/extensions/zalouser/dist/index.js';
   const inst = '/home/node/project/.openclaw/plugins/installs.json';
-  if (!fs.existsSync(dist)) { console.log('MISSING'); process.exit(0); }
+  if (!fs.existsSync(distNpm) && !fs.existsSync(distExt)) { console.log('MISSING'); process.exit(0); }
   if (!fs.existsSync(inst)) { console.log('MISSING_CHANNELS'); process.exit(0); }
   const j = JSON.parse(fs.readFileSync(inst, 'utf8'));
   const z = j.plugins.find(x => x.pluginId === 'zalouser');
@@ -2020,6 +2089,16 @@ async function syncDockerInfra(projectDir, force = false) {
 
   // Read existing compose to preserve customizations
   const compose = await readComposeText(projectDir);
+
+  // If the compose was hand-customized (reverse-proxy/Traefik labels, an external network
+  // like `web`, or an explicit opt-out marker), DO NOT regenerate ANY infra file — a full
+  // docker-gen rewrite would wipe that routing (this once silently broke a live webhook).
+  // Leave everything untouched; the version stamp stays old but each check just no-ops.
+  if (/^\s*traefik\.|external:\s*true|openclaw-setup:\s*custom|openclaw-setup:keep/im.test(compose)) {
+    sendLog('[sync] Custom docker-compose.yml detected (Traefik/external network/keep marker) — leaving infra untouched to preserve your routing.');
+    return false;
+  }
+
   const botContainer = parseComposeServiceContainerName(compose, 'ai-bot') || `openclaw-${slugify(basename(projectDir))}`;
   const routerContainer = parseComposeServiceContainerName(compose, '9router') || `9router-${slugify(basename(projectDir))}`;
   const composeName = (compose.match(/^name:\s*(\S+)/m) || [])[1] || `oc-${slugify(basename(projectDir))}`;
@@ -2134,6 +2213,8 @@ async function recreateDockerBot(projectDir) {
     sendLog(`[zalo-patch] Failed to auto-run mentions.js: ${err.message}`);
   }
 
+  // Container was rebuilt/recreated: runtime, versions and extension versions may all have changed.
+  probeCacheClear();
   return true;
 }
 
@@ -2153,7 +2234,8 @@ async function updateRuntime(target, projectDir) {
       await run('docker', ['compose', 'build', '--no-cache', serviceName], { cwd: dockerDir });
       await run('docker', ['compose', 'up', '-d', '--force-recreate', serviceName], { cwd: dockerDir });
     }
-    await syncRuntimeState(projectDir).catch(() => {});
+    await syncRuntimeState(projectDir, { full: true }).catch(() => {});
+    probeCacheClear();
     return { ok: true, target, spec, mode: 'docker' };
   }
   await run('npm', ['install', '-g', spec]);
@@ -2163,7 +2245,8 @@ async function updateRuntime(target, projectDir) {
   } else {
     await run('npm', ['install', '-g', OPENCLAW_NPM_SPEC]);
   }
-  await syncRuntimeState(projectDir).catch(() => {});
+  await syncRuntimeState(projectDir, { full: true }).catch(() => {});
+  probeCacheClear();
   return { ok: true, target, spec, mode: 'native' };
 }
 
@@ -2172,7 +2255,97 @@ async function restartDockerBotContainer(projectDir = state.projectDir) {
   sendLog(`[docker] Restarting ${containerName} container...`);
   await run('docker', ['restart', containerName], { shell: false });
   await waitForDockerContainer(containerName);
+  // Restart may apply config/port changes — drop cached runtime/status for this project.
+  probeCacheClear(`runtime:${projectDir}`);
   return true;
+}
+
+// Grant the bot access to a host disk/folder by mounting it into the container at /mnt/<name>.
+// Project-scoped: all bots in this project share the container, so all of them can use it.
+// Per-bot limits are described in AGENTS.md (not enforced at the mount layer).
+async function addBotMount(projectDir, hostPath, mountName = '') {
+  // Cross-OS normalize: trim, convert Windows backslashes → forward slashes (Docker accepts
+  // forward slashes on every OS, incl. `C:/Users/...`), drop trailing separators. This avoids
+  // YAML backslash issues and keeps the path uniform.
+  const cleanPath = String(hostPath || '').trim().replace(/\\+/g, '/').replace(/\/+$/, '');
+  if (!cleanPath) throw httpError(400, 'Đường dẫn ổ đĩa/thư mục đang trống');
+  const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
+  if (!existsSync(composeFile)) throw httpError(400, 'Không tìm thấy docker-compose.yml (project có thể không chạy ở chế độ Docker)');
+  const base = mountName || cleanPath.split('/').filter(Boolean).pop() || 'data';
+  const name = base.toLowerCase().replace(/[^a-z0-9-_]+/g, '-').replace(/^-+|-+$/g, '') || 'data';
+  const target = `/mnt/${name}`;
+  let compose = await fsp.readFile(composeFile, 'utf8');
+  if (compose.includes(`target: ${target}`) || compose.includes(`:${target}"`) || compose.includes(`:${target}\n`) || compose.includes(cleanPath)) {
+    return { ok: true, target, hostPath: cleanPath, alreadyMounted: true };
+  }
+  // Long-form bind mount: unambiguous across OSes. Short syntax `host:container` breaks on
+  // Windows because the drive-letter colon (C:/...) collides with the host:container separator.
+  // Source is single-quoted YAML (literal) so paths with spaces are safe.
+  const src = `'${cleanPath.replace(/'/g, "''")}'`;
+  const mountBlock = `      - type: bind\n        source: ${src}\n        target: ${target}`;
+  const anchor = /^(\s*-\s*\.\.\/\.\.\/\.openclaw:\/home\/node\/project\/\.openclaw)\s*$/m;
+  if (!anchor.test(compose)) throw httpError(500, 'Không định vị được block volumes của bot trong docker-compose.yml');
+  compose = compose.replace(anchor, `$1\n${mountBlock}`);
+  await fsp.writeFile(composeFile, compose, 'utf8');
+  sendLog(`[mount] Đã thêm mount ${cleanPath} -> ${target} (long-form bind) vào docker-compose.yml`);
+  await updateGrantedMountsInAgents(projectDir).catch((e) => sendLog(`[mount] Cập nhật AGENTS.md bỏ qua: ${e.message}`));
+  // Apply immediately: a volume change only takes effect after the container is recreated,
+  // otherwise the running container won't have /mnt/<name> even though compose/AGENTS.md list it.
+  let applied = false;
+  try {
+    sendLog('[mount] Recreate container để áp dụng mount mới...');
+    await recreateDockerBot(projectDir);
+    applied = true;
+  } catch (e) {
+    sendLog(`[mount] Tự áp dụng thất bại (hãy bấm Rebuild thủ công): ${e.message}`);
+  }
+  return { ok: true, target, hostPath: cleanPath, applied, needsRebuild: !applied };
+}
+
+// Sync a managed "granted mounts" block into every agent's AGENTS.md from the /mnt/* mounts in
+// docker-compose.yml (excludes /mnt/project — that's the project root, always mounted).
+async function updateGrantedMountsInAgents(projectDir) {
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
+  if (!existsSync(cfgPath) || !existsSync(composeFile)) return;
+  const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
+  const compose = await fsp.readFile(composeFile, 'utf8');
+  const mounts = [];
+  const lines = compose.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    // Long-form bind: `target: /mnt/<name>` with a nearby `source:` line above.
+    const tm = lines[i].match(/^\s*target:\s*['"]?(\/mnt\/[A-Za-z0-9._-]+)['"]?\s*$/);
+    if (tm && tm[1] !== '/mnt/project') {
+      let host = '';
+      for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
+        const sm = lines[j].match(/^\s*source:\s*['"]?(.+?)['"]?\s*$/);
+        if (sm) { host = sm[1].replace(/''/g, "'"); break; }
+      }
+      mounts.push({ host, target: tm[1] });
+      continue;
+    }
+    // Legacy short form: `- "<host>:/mnt/<name>"` (Unix-style host only).
+    const ssm = lines[i].match(/^\s*-\s*"?([^":\n]+):(\/mnt\/[A-Za-z0-9._-]+)"?\s*$/);
+    if (ssm && ssm[2] !== '/mnt/project') mounts.push({ host: ssm[1].trim(), target: ssm[2] });
+  }
+  const START = '<!-- granted-mounts:start -->';
+  const END = '<!-- granted-mounts:end -->';
+  const block = mounts.length
+    ? `${START}\n## 💽 Thư mục/ổ đĩa được cấp quyền (toàn project)\n`
+      + mounts.map((x) => `- \`${x.target}\` ← host \`${x.host}\` — bot được phép đọc/ghi tại đây.`).join('\n')
+      + `\n- Mặc định MỌI bot trong project đều dùng được các thư mục trên. Muốn giới hạn theo từng bot thì ghi rõ ngay dưới mục này.\n${END}`
+    : '';
+  const blockRe = new RegExp(`\\n*${START}[\\s\\S]*?${END}\\n*`);
+  for (const agent of cfg.agents.list) {
+    const rel = workspaceRelForAgent(agent, cfg, projectDir);
+    if (!rel) continue;
+    const file = join(projectDir, '.openclaw', rel, 'AGENTS.md');
+    if (!existsSync(file)) continue;
+    let doc = await fsp.readFile(file, 'utf8');
+    if (blockRe.test(doc)) doc = doc.replace(blockRe, block ? `\n\n${block}\n` : '\n');
+    else if (block) doc = doc.replace(/\s*$/, '') + `\n\n${block}\n`;
+    await fsp.writeFile(file, doc, 'utf8');
+  }
 }
 
 async function readJson(req) {
@@ -2428,6 +2601,32 @@ function isRestrictedSystemDir(dirPath) {
   return false;
 }
 
+// Project roots of OpenClaw bot containers currently running under Docker. This is the
+// strongest, OS/-environment-agnostic signal that a real project lives on this machine —
+// so a fresh `npx github:…` run (e.g. on a VPS where bots are already running) targets the
+// live project instead of defaulting to an empty ~/openclaw-setup folder.
+async function discoverDockerBotProjectRoots() {
+  const roots = [];
+  try {
+    const r = await runCapture(
+      'docker',
+      ['ps', '--filter', 'label=com.docker.compose.service=ai-bot',
+        '--format', '{{.Label "com.docker.compose.project.working_dir"}}'],
+      { shell: false, timeout: 5000 },
+    );
+    if (r.code === 0) {
+      for (const line of String(r.stdout).split('\n')) {
+        const wd = line.trim();
+        if (!wd) continue;
+        // ai-bot's compose dir is "<root>/docker/openclaw" → project root is two levels up.
+        const root = resolve(wd, '..', '..');
+        if (existsSync(join(root, '.openclaw', 'openclaw.json'))) roots.push(root);
+      }
+    }
+  } catch {}
+  return [...new Set(roots)];
+}
+
 async function findLatestProject(rootProjectDir) {
   const realHome = getRealHomedir();
   const roots = [
@@ -2474,6 +2673,11 @@ async function findLatestProject(rootProjectDir) {
     }
   }
   for (const r of roots) await walk(r);
+  // Prefer a project whose bot is actually running (boost above filesystem matches).
+  for (const dr of await discoverDockerBotProjectRoots()) {
+    const st = await fsp.stat(join(dr, '.openclaw', 'openclaw.json')).catch(() => null);
+    candidates.push({ dir: dr, mtimeMs: (st?.mtimeMs || 0) + 1e15 });
+  }
   candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
   return candidates[0]?.dir || null;
 }
@@ -2494,6 +2698,15 @@ async function ensureProjectsLoaded(rootProjectDir) {
 
 async function discoverProjects(rootProjectDir) {
   await ensureProjectsLoaded(rootProjectDir);
+
+  // Surface projects whose bot is running in Docker even if this install has no saved
+  // state for them (e.g. first `npx github:…` run on a server with bots already up).
+  for (const dr of await discoverDockerBotProjectRoots()) {
+    if (!state.projects.some(p => resolve(p.projectDir) === resolve(dr))) {
+      const meta = await buildProjectMeta(dr).catch(() => null);
+      if (meta) state.projects.push(meta);
+    }
+  }
 
   if (state.projectDir && existsSync(join(state.projectDir, '.openclaw', 'openclaw.json'))) {
     const resolved = resolve(state.projectDir);
@@ -2579,15 +2792,25 @@ async function buildProjectMeta(projectDir) {
 async function connectExistingProject(projectDir, rootProjectDir) {
   const resolved = resolve(String(projectDir || ''));
   if (!existsSync(join(resolved, '.openclaw', 'openclaw.json'))) throw httpError(404, 'openclaw.json not found in selected project');
-  await syncRuntimeState(resolved);
+  // Switch the active project + return its bots FAST (a plain file read). The heavy runtime
+  // probing — detectRuntime runs `openclaw gateway status` + `config get` (slow CLI / docker
+  // exec) and used to run TWICE here (syncRuntimeState + buildProjectMeta), ~6s total — is
+  // deferred to the background so the UI switches instantly. The frontend's loadStatus/loadSystem
+  // refresh live status + versions right after.
+  state.projectDir = resolved;
   await ensureProjectsLoaded(rootProjectDir);
-  const meta = await buildProjectMeta(resolved).catch(() => null);
-  if (meta) {
-    state.projects = state.projects.filter(p => resolve(p.projectDir) !== resolved);
-    state.projects.unshift(meta);
-  }
-  await saveState(rootProjectDir);
   const bots = await listConfiguredBots(resolved).catch(() => []);
+  setImmediate(async () => {
+    try {
+      await syncRuntimeState(resolved);
+      const meta = await buildProjectMeta(resolved).catch(() => null);
+      if (meta) {
+        state.projects = state.projects.filter(p => resolve(p.projectDir) !== resolved);
+        state.projects.unshift(meta);
+      }
+      await saveState(rootProjectDir);
+    } catch (e) { sendLog(`[connect] background runtime sync failed: ${e.message}`); }
+  });
   return {
     ok: true,
     projectDir: resolved,
@@ -2916,6 +3139,13 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
   return { ok: true };
 }
 
+// Most plugins are ClawHub packages (installed as `clawhub:<id>`). A few ship as plain npm
+// packages and need their real package spec instead. Map id → install spec here.
+const PLUGIN_NPM_SPEC = {
+  'memory-tencentdb': '@tencentdb-agent-memory/memory-tencentdb',
+};
+const pluginInstallSpec = (id) => PLUGIN_NPM_SPEC[id] || `clawhub:${id}`;
+
 async function installFeature(projectDir, agentId, kind, id) {
   if (kind === 'skill') {
     const skillSlugMap = {
@@ -2986,9 +3216,9 @@ async function installFeature(projectDir, agentId, kind, id) {
 
     if (composeDir) {
       const botContainer = getBotContainerName(projectDir);
-      sendLog(`[plugin] Installing/updating clawhub:${id} inside container ${botContainer}...`);
+      sendLog(`[plugin] Installing/updating ${pluginInstallSpec(id)} inside container ${botContainer}...`);
       
-      const cmd = `cd /home/node/project && openclaw plugins install clawhub:${id} --force`;
+      const cmd = `cd /home/node/project && openclaw plugins install ${pluginInstallSpec(id)} --force`;
       const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
       
       if (cmdOut) {
@@ -3080,10 +3310,10 @@ async function installFeature(projectDir, agentId, kind, id) {
     } else {
       // Fix any legacy config issues first
       await run('openclaw', ['doctor', '--fix'], { cwd: projectDir, env: openclawProjectEnv(projectDir) }).catch((err) => sendLog(`[plugin] doctor --fix skipped: ${err.message}`));
-      sendLog(`[plugin] Installing clawhub:${id}...`);
-      
+      sendLog(`[plugin] Installing ${pluginInstallSpec(id)}...`);
+
       let installSuccess = true;
-      await run('openclaw', ['plugins', 'install', `clawhub:${id}`, '--force'], {
+      await run('openclaw', ['plugins', 'install', pluginInstallSpec(id), '--force'], {
         cwd: projectDir,
         env: openclawProjectEnv(projectDir),
         resolveOnPattern: /Installed plugin:/
@@ -3134,6 +3364,10 @@ async function installFeature(projectDir, agentId, kind, id) {
       }
     }
   }
+  // A skill/plugin install changes container packages and may restart it — drop cached
+  // extension versions and runtime status so the next page load re-probes fresh.
+  probeCacheClear(`extver:${projectDir}`);
+  probeCacheClear(`runtime:${projectDir}`);
   return { ok: true };
 }
 
@@ -3172,11 +3406,16 @@ async function getContainerExtensionVersions(projectDir) {
       ? join(projectDir, 'docker', 'openclaw')
       : null;
   if (!composeDir) return {};
+  const ck = `extver:${projectDir}`;
+  const cached = probeCacheGet(ck);
+  if (cached) return cached;
   try {
     const botContainer = getBotContainerName(projectDir);
     const script = "const fs=require('fs');const d='/home/node/project/.openclaw/extensions';const o={};try{for(const n of fs.readdirSync(d)){try{const p=d+'/'+n+'/package.json';if(fs.existsSync(p))o[n]=JSON.parse(fs.readFileSync(p,'utf8')).version||''}catch(e){}}}catch(e){}process.stdout.write(JSON.stringify(o))";
     const out = await runCapture('docker', ['exec', botContainer, 'node', '-e', script], { cwd: projectDir, shell: false });
-    return JSON.parse(String(out.stdout || '{}')) || {};
+    const parsed = JSON.parse(String(out.stdout || '{}')) || {};
+    if (Object.keys(parsed).length) probeCacheSet(ck, parsed); // plugin versions change only on install
+    return parsed;
   } catch (e) { return {}; }
 }
 
@@ -3266,6 +3505,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     crawler: ['openclaw-facebook-crawler', 'openclaw-n8n-facebook-crawler', 'n8n-facebook-crawler'],
     poster: ['openclaw-n8n-facebook-poster', 'openclaw-facebook-poster', 'facebook-poster'],
     fbMessenger: ['openclaw-fb-messenger', 'fb-messenger'],
+    tencentMemory: ['memory-tencentdb'],
   };
   const flags = {
     'skill:browser': browserOn,
@@ -3279,6 +3519,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'plugin:openclaw-facebook-crawler': isEnabled(aliases.crawler),
     'plugin:openclaw-n8n-facebook-poster': isEnabled(aliases.poster),
     'plugin:openclaw-fb-messenger': isEnabled(aliases.fbMessenger),
+    'plugin:memory-tencentdb': isEnabled(aliases.tencentMemory),
   };
   const extensionsDir = join(projectDir || '', '.openclaw', 'extensions');
   const extensionDirExists = (aliases = []) =>
@@ -3297,6 +3538,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     // proof of install — require a real extension dir or an install record instead.
     'plugin:openclaw-fb-messenger': extensionDirExists(aliases.fbMessenger)
       || aliases.fbMessenger.some((a) => installedKeys.has(a) || Array.from(installedSpecs).some((spec) => spec.includes(a))),
+    'plugin:memory-tencentdb': isActuallyInstalled(aliases.tencentMemory),
   };
   const versions = {
     'skill:image-gen': await getInstalledSkillVersion(projectDir, aid, 'infographic-generator', cfg),
@@ -3307,6 +3549,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'plugin:openclaw-facebook-crawler': await getInstalledPluginVersion(projectDir, aliases.crawler),
     'plugin:openclaw-n8n-facebook-poster': await getInstalledPluginVersion(projectDir, aliases.poster),
     'plugin:openclaw-fb-messenger': await getInstalledPluginVersion(projectDir, aliases.fbMessenger),
+    'plugin:memory-tencentdb': await getInstalledPluginVersion(projectDir, aliases.tencentMemory),
   };
   // Docker: fill any plugin version still empty from the container's extensions volume
   // (e.g. bundled/clawhub plugins like zalo-mod that aren't on the host). One docker exec.
@@ -3318,6 +3561,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     fillVer('plugin:openclaw-facebook-crawler', aliases.crawler);
     fillVer('plugin:openclaw-n8n-facebook-poster', aliases.poster);
     fillVer('plugin:openclaw-fb-messenger', aliases.fbMessenger);
+    fillVer('plugin:memory-tencentdb', aliases.tencentMemory);
   }
   return { flags, installed, versions };
 }
@@ -3388,6 +3632,12 @@ async function handler(req, res, rootProjectDir) {
           node: mergedVersions.node,
           setup: SETUP_VERSION,
           latestSetup: latestSetupVersion
+        },
+        remote: {
+          headless: isHeadlessServer(),
+          host: await getPublicIp().catch(() => null),
+          user: sshUserName(),
+          uiPort: activeUiPort,
         },
         projects
       });
@@ -3471,50 +3721,52 @@ async function handler(req, res, rootProjectDir) {
       sendLog(`[update] ${target} update completed (${result.mode})`);
       return json(res, result);
     }
+    if (url.pathname === '/api/bot/restart' && req.method === 'POST') {
+      const body = await readJson(req);
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
+      await restartDockerBotContainer(projectDir);
+      return json(res, { ok: true });
+    }
+    if (url.pathname === '/api/bot/rebuild' && req.method === 'POST') {
+      const body = await readJson(req);
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
+      sendLog('[docker] Rebuild: docker compose up -d --build --force-recreate');
+      await recreateDockerBot(projectDir);
+      return json(res, { ok: true });
+    }
+    if (url.pathname === '/api/bot/add-mount' && req.method === 'POST') {
+      const body = await readJson(req);
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
+      return json(res, await addBotMount(projectDir, body.hostPath, body.mountName));
+    }
     if (url.pathname === '/api/setup/update' && req.method === 'POST') {
       const installerDir = resolve(__dirname, '../..');
       const isGit = existsSync(resolve(installerDir, '.git'));
-      const isNpmPack = __dirname.includes('node_modules');
-      if (isGit) {
-        sendLog('[update-setup] Git repository detected. Pulling latest code and building...');
-        setImmediate(async () => {
-          try {
-            await run('git', ['pull'], { cwd: installerDir });
-            await run('npm', ['install'], { cwd: installerDir });
-            await run('npm', ['run', 'build'], { cwd: installerDir });
-            sendLog('[update-setup] Setup Wizard updated successfully! Restarting installer...');
-            restartInstaller();
-          } catch (err) {
-            sendLog(`[update-setup] Error updating: ${err.message}`);
+      const mode = isGit ? 'git' : 'github';
+      setImmediate(async () => {
+        try {
+          if (isGit) {
+            // Clone/dev install: pull the latest (committed dist comes with it).
+            sendLog('[update-setup] Git install detected — pulling latest from GitHub…');
+            await run('git', ['pull', '--ff-only'], { cwd: installerDir });
+            await run('npm', ['install', '--omit=dev', '--no-audit', '--no-fund'], { cwd: installerDir });
+            // docs_dev (build tooling) is gitignored, so clones can't rebuild — and
+            // don't need to: dist/ is committed. Only rebuild when tooling is present.
+            if (existsSync(resolve(installerDir, 'docs_dev'))) {
+              await run('npm', ['run', 'build'], { cwd: installerDir }).catch((e) =>
+                sendLog(`[update-setup] build skipped: ${e.message}`));
+            }
+          } else {
+            // Ephemeral `npx github:…` install: nothing to pull in place — the relaunch
+            // re-runs `npx github:…`, which fetches the latest from GitHub.
+            sendLog('[update-setup] Fetching the latest from GitHub on relaunch…');
           }
-        });
-        return json(res, { ok: true, mode: 'git' });
-      } else if (isNpmPack) {
-        const installerHome = resolve(__dirname, '../../../..');
-        sendLog(`[update-setup] Published npm package detected. Updating package in: ${installerHome}...`);
-        setImmediate(async () => {
-          try {
-            await run('npm', ['install', 'create-openclaw-bot@latest', '--no-audit', '--no-fund'], { cwd: installerHome });
-            sendLog('[update-setup] Setup Wizard updated successfully! Restarting installer...');
-            restartInstaller();
-          } catch (err) {
-            sendLog(`[update-setup] Error updating: ${err.message}`);
-          }
-        });
-        return json(res, { ok: true, mode: 'npm' });
-      } else {
-        sendLog('[update-setup] Global npm package installation detected. Updating via npm...');
-        setImmediate(async () => {
-          try {
-            await run('npm', ['install', '-g', 'create-openclaw-bot@latest'], { cwd: rootProjectDir });
-            sendLog('[update-setup] Setup Wizard updated successfully! Restarting installer...');
-            restartInstaller();
-          } catch (err) {
-            sendLog(`[update-setup] Error updating: ${err.message}`);
-          }
-        });
-        return json(res, { ok: true, mode: 'npm' });
-      }
+          restartInstaller();
+        } catch (err) {
+          sendLog(`[update-setup] Error updating: ${err.message}`);
+        }
+      });
+      return json(res, { ok: true, mode });
     }
     if (url.pathname === '/api/bot/create' && req.method === 'POST') {
       const body = await readJson(req);
@@ -3670,33 +3922,66 @@ function openUrl(url) {
 }
 
 function restartInstaller() {
-  sendLog('[update-setup] Restarting Setup Wizard to apply update...');
+  // Emit the phrase the UI watches for (see appendLogLine) BEFORE we tear down the
+  // server, so the browser tab starts polling and then reloads onto the new UI once
+  // it's back up on the SAME host/port — instead of hanging on a dead server.
+  sendLog('[update-setup] Setup Wizard updated successfully! Restarting UI to apply the new version...');
+
+  const underSystemd = !!(process.env.INVOCATION_ID || process.env.JOURNAL_STREAM);
+  const isNpx = /[\\/]_npx[\\/]/.test(process.argv[1] || '');
+
   setTimeout(() => {
     try {
+      // Release the listening port first so the replacement can bind the same one.
       if (activeServerInstance) {
-        activeServerInstance.close();
+        try { activeServerInstance.closeAllConnections?.(); } catch {}
+        try { activeServerInstance.close(); } catch {}
       }
-      
-      const entryFile = process.argv[1];
-      const args = process.argv.slice(2);
-      
-      if (!args.includes('--no-open')) {
-        args.push('--no-open');
+
+      // Under a service manager (systemd, pm2, …) just exit — it relaunches us with
+      // the freshly pulled code. Re-spawning ourselves would escape the unit and
+      // collide on the port.
+      if (underSystemd) {
+        sendLog('[update-setup] Service-managed install — exiting so the supervisor relaunches the new version.');
+        setTimeout(() => process.exit(0), 400);
+        return;
       }
-      
-      const bin = process.argv[0];
-      const child = spawn(bin, [entryFile, ...args], {
-        detached: true,
-        stdio: 'inherit',
-        shell: false
-      });
-      child.unref();
-      
-      process.exit(0);
+
+      const uiArgs = [
+        `--host=${activeUiHost}`,
+        `--port=${activeUiPort}`,
+        `--project-dir=${activeUiProjectDir}`,
+        '--no-open',
+      ];
+
+      let bin, spawnArgs, opts;
+      if (isNpx) {
+        // Ephemeral `npx github:…` run — re-fetch the latest from GitHub and relaunch.
+        const win = process.platform === 'win32';
+        bin = win ? 'npx.cmd' : 'npx';
+        spawnArgs = ['-y', 'github:tuanminhhole/openclaw-setup', ...uiArgs];
+        opts = { detached: true, stdio: 'inherit', shell: win };
+      } else {
+        // Local clone / file install — re-run this entry (git pull already updated it).
+        bin = process.argv[0];
+        spawnArgs = [process.argv[1], ...uiArgs];
+        opts = { detached: true, stdio: 'inherit', shell: false };
+      }
+
+      // Brief delay to let the port fully release before the child binds it.
+      setTimeout(() => {
+        try {
+          const child = spawn(bin, spawnArgs, opts);
+          child.unref();
+        } catch (err) {
+          sendLog(`[update-setup] Failed to relaunch: ${err.message}`);
+        }
+        process.exit(0);
+      }, 800);
     } catch (err) {
       sendLog(`[update-setup] Failed to restart: ${err.message}`);
     }
-  }, 2000);
+  }, 1500);
 }
 
 /**
@@ -3738,8 +4023,46 @@ function ensureReopenShortcut() {
   } catch { /* best-effort: a shortcut failure must never break startup */ }
 }
 
+let publicIpCache = null, publicIpFetched = false;
+// Best-effort public IP of this host (for the remote-access SSH-tunnel hint). Cached.
+async function getPublicIp() {
+  if (publicIpFetched) return publicIpCache;
+  publicIpFetched = true;
+  for (const u of ['https://api.ipify.org', 'https://ifconfig.me/ip', 'https://icanhazip.com']) {
+    try {
+      const r = await fetch(u, { signal: AbortSignal.timeout(4000) });
+      if (r.ok) {
+        const ip = String(await r.text()).trim();
+        if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) { publicIpCache = ip; return ip; }
+      }
+    } catch {}
+  }
+  return null;
+}
+function sshUserName() { try { return os.userInfo().username || 'root'; } catch { return 'root'; } }
+function isHeadlessServer() {
+  return process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY;
+}
+// On a headless server there's no local browser — print an SSH-tunnel command so the
+// operator can reach the dashboard AND the Open-web UIs from their own machine. This is
+// the discoverable answer for ANY user on a VPS (no manual ssh-config knowledge needed).
+async function printRemoteAccessHint(uiPort) {
+  if (!isHeadlessServer()) return;
+  const ip = (await getPublicIp()) || '<your-server-ip>';
+  const fwd = [uiPort, 18789, 20128, 18790].map((p) => `-L ${p}:127.0.0.1:${p}`).join(' ');
+  console.log('');
+  console.log('🌐 No local browser detected (server/VPS). Open the UI from YOUR computer:');
+  console.log(`   ssh ${fwd} ${sshUserName()}@${ip}`);
+  console.log(`   then open:  http://localhost:${uiPort}`);
+  console.log('   (forwards the dashboard + OpenClaw gateway + 9Router + zalo-mod web UIs)');
+  console.log('');
+}
+
 export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 51789, openBrowser = true, projectDir = process.cwd() } = {}) {
   const port = await findPort(host, preferredPort);
+  activeUiHost = host;
+  activeUiPort = port;
+  activeUiProjectDir = projectDir;
   const server = http.createServer((req, res) => handler(req, res, projectDir));
   activeServerInstance = server;
   await new Promise((resolve) => server.listen(port, host, resolve));
@@ -3747,6 +4070,7 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   console.log(`OpenClaw Setup UI: ${url}`);
   ensureReopenShortcut();
   if (openBrowser) openUrl(url);
+  printRemoteAccessHint(port).catch(() => {});
 }
 
 export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloUserLogin, readBotCredentials, resolveProject9RouterApiKey };

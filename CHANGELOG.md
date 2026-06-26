@@ -1,6 +1,62 @@
 # Changelog (English)
 
 
+## [5.9.0] — 2026-06-28
+
+### 🚀 New: run straight from GitHub
+- Launch the wizard with one command, no npm publish required (works on macOS, Linux & Windows; Node.js ≥ 22):
+  ```bash
+  npx github:tuanminhhole/openclaw-setup
+  ```
+  The CLI detects its bundled server (`dist/`) and runs the local dashboard directly.
+
+### 🔧 Fixes
+- **zalo-mod can reach the Zalo API again (Sync Account / group admin works).** The entrypoint now exposes zalouser's `globalThis.__zcaApiByProfile` map **before the gateway imports zalouser**, so `openclaw-zalo-mod` sees the live API. Previously zalo-mod patched the file only at plugin-load time — after zalouser was already imported — so the shared map was never set on the running module and the dashboard failed with "ZCA API unavailable".
+- **Don't reinstall zalouser when it already exists (no more duplicate plugin).** Both the container entrypoint and the QR-login flow now treat an existing `extensions/zalouser` as installed, so they won't `npm install @openclaw/zalouser` on top of it. A duplicate zalouser (two copies/versions) breaks the shared ZCA API map that `zalo-mod` relies on (Sync Account → "ZCA API unavailable").
+- **Telegram DM reactions target the latest message.** The generated TOOLS.md now tells Telegram bots to react WITHOUT passing `messageId` (Telegram auto-reacts to the user's current inbound message) instead of guessing an id and hitting an older message. Zalo (which needs an explicit message id) is unchanged.
+- **Never clobber a customized `docker-compose.yml`.** The infra auto-sync used to fully regenerate the compose on a version bump, wiping any hand-added reverse-proxy/Traefik labels, external networks, or extra published ports (this could silently break a live webhook). It now detects a customized compose (Traefik labels / external network / a `# openclaw-setup: custom` marker) and leaves your infra untouched. The zalo-mod "Open" button targets the dashboard at `:18790/dashboard`.
+- **Easy remote access for VPS/headless installs.** On a server with no browser, the CLI now prints a ready **SSH-tunnel command** (auto-filled with the server's public IP + the dashboard/OpenClaw/9Router/zalo-mod ports), and the dashboard shows a matching **"Open from another machine"** panel (one-click copy) — so any user can reach the web UIs from their own computer without knowing how to set up tunnels. The **"Open" buttons now follow the host you're viewing the dashboard from** (no more pointing at your local machine's localhost when browsing from elsewhere), and the **zalo-mod plugin card got its own "Open" button**.
+- **Multi-account Zalo (zalouser) routing fixed.** Adding a 2nd+ Zalo bot now registers its own `channels.zalouser.accounts.<id>` entry and an account-specific binding (`match.accountId`) with its own login profile — so it no longer shows up under Telegram in the UI, and its QR login saves to its own profile instead of overwriting the first bot's. Legacy catch-all zalouser bindings are auto-upgraded to be account-specific.
+- **Auto-detects the project with running bots.** On any machine/OS, a fresh run now finds the project whose bot is live in Docker (instead of defaulting to an empty `~/openclaw-setup`) — so `npx` on a server already running bots targets the right folder, and Restart/Update act on the real bot.
+- **"Update" button no longer freezes the UI.** Clicking **Update** applies the new version and **auto-restarts the dashboard on the same port** — the browser tab reconnects on its own. It adapts to how you run it: service-managed installs (systemd) exit so the supervisor relaunches; `npx`/GitHub installs re-fetch the latest on relaunch; git clones `git pull` and reuse the committed `dist/`.
+- **Version-aware Update button**: reads the latest from **GitHub** (the real distribution source, not the stale npm registry) and only shows when a strictly newer semver exists — no more "Update available" while already on the latest.
+- **Removed the broken self-update path** that tried `npm install create-openclaw-bot@latest` (unpublished → `ETARGET`).
+
+### 🔒 Security
+- **Gateway & 9Router host ports now bind to `127.0.0.1`** instead of `0.0.0.0`. The control plane stays off the public internet; reverse proxies still reach containers over the Docker network. This also fixes the dashboard showing a false **OFFLINE** status when the bot runs behind a proxy.
+
+### 🧠 New: TencentDB Agent Memory — one click in the UI
+- **New memory plugin**: Install **TencentDB Agent Memory** straight from the Skills & Plugins panel. A 4-tier (L0–L3) layered-memory pipeline with context compression that keeps long sessions coherent and cuts token usage by up to ~61%. Runs fully local (SQLite + sqlite-vec) — no API key, works inside Docker.
+
+### ⚡ New: Token-lean defaults for every new bot
+- **Smarter context budget out of the box**: New bots now ship with `contextPruning: { mode: "cache-ttl", ttl: "5m" }` + `compaction: safeguard`. The stable system prompt stays cached while stale tool results are trimmed before the cache window expires — cheaper and sharper long conversations, with zero tuning.
+
+### 🎯 Improved: Per-bot & per-channel Skills/Plugins
+- **Per-bot skills**: Installing/enabling/disabling a skill now applies to **that bot only** (workspace-scoped) instead of leaking across every bot in the project.
+- **Channel-aware panel**: The Skills & Plugins UI only shows what fits the bot's channel — Zalo helpers on Zalo, Facebook plugins on Messenger, and so on.
+
+### 📤 Improved: Reliable file sending on Zalo & Telegram
+- **Outbound file guide baked into AGENTS.md**: Generated bots now follow the correct ritual — export the file, copy it into `.openclaw/media/outbound/`, then send via the `message` tool — fixing "the file won't send" on Zalo's sandbox.
+- **Format guard**: Bots are instructed to use modern formats (`.xlsx`, `.pdf`, `.png`) and avoid legacy `.xls`, which OpenClaw blocks because its content type can't be buffer-verified.
+
+### 🐳 New: One-click Docker controls — no terminal needed
+- **Restart & Rebuild buttons** in the Bot tab: restart the bot container, or rebuild + recreate it (`docker compose up -d --build --force-recreate`), straight from the dashboard — no command line.
+- **Grant disk access button**: point the bot at any host folder/drive; it mounts into the container at `/mnt/<name>` (cross-OS, including Windows `C:/…` via long-form bind), the container auto-recreates to apply, and each bot's AGENTS.md is updated so the agent knows it may use the path. Project-scoped by default (all bots share it).
+
+### ✨ Improved: Bot tab UX & faster page loads
+- **Probe once, reuse everywhere**: The slow runtime/version detection and Docker-infra sync (multiple `docker exec` + `openclaw` CLI calls) now run **once** and are cached, instead of re-running on every Dashboard and Bot page load. First load warms the cache; subsequent loads are near-instant (bot status ~4s → ~3ms in local testing). The cache is automatically invalidated on update, rebuild, restart, and plugin/skill install so versions never go stale.
+- Project switching now renders the new project's bots immediately (optimistic render) instead of waiting on background runtime-version probing.
+- The channel tab strip keeps its scroll position after picking an off-screen channel (no more jumping back to the start).
+
+### 🔧 Fixes
+- **Correct plugin version display**: Plugin versions (e.g. `zalo-mod`) are read from the container's extensions volume, so the real version shows instead of a generic fallback.
+- **Extensions now sync to host**: On macOS/Linux, `.openclaw/extensions` stays on the host bind-mount (Windows keeps the named volume for file permissions), so ClawHub-installed plugins are visible and editable on the host again.
+- **`bot-meta.json` hygiene**: `appId` is written only for Facebook Messenger bots, no longer polluting Zalo/Telegram bots.
+- **No more boot crash from `meta.lastTouchedVersion`**: Generated configs no longer seed an invalid `lastTouchedVersion` (an npm range / `latest`, not a real version) that could crash the container on first boot — OpenClaw stamps the correct `{ lastTouchedVersion, lastTouchedAt }` itself.
+- **Longer agent-turn timeout**: Default `timeoutSeconds` raised from 120 → 900s so multi-step turns (OCR, file generation, long tool chains) aren't cut off prematurely.
+- **Sturdier file sending & cleaner SOUL.md**: the AGENTS.md outbound-file rule now `mkdir -p`s `media/outbound` before copying (fixes intermittent "copy failed"); SOUL.md no longer hard-caps replies at 200 chars or carries the Zalo silent-mode block.
+
+
 ## [5.8.24] — 2026-06-24
 
 ### 🔧 Fixes: Auto-update Launcher Version

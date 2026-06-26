@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS, chạy Docker hoặc native.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.24-0EA5E9?style=for-the-badge" alt="Version 5.8.24" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.9.0-0EA5E9?style=for-the-badge" alt="Version 5.9.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,11 +27,21 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.8.24
+## 🆕 Có gì mới trong v5.9.0
 
-### 🔧 Sửa lỗi: Tự động cập nhật phiên bản Launcher
+- 🧠 **TencentDB Agent Memory — cài 1 chạm**: Plugin bộ nhớ mới ngay trên UI. Bộ nhớ phân tầng 4 lớp (L0–L3) + nén ngữ cảnh, giữ session dài mạch lạc và **tiết kiệm tới ~61% token**. Chạy local hoàn toàn (SQLite), không cần API key, sẵn sàng cho Docker.
+- ⚡ **Cấu hình tiết kiệm token mặc định cho mọi bot mới**: Tự có context pruning (cache-TTL) + compaction `safeguard` — **hội thoại dài rẻ hơn & sắc nét hơn**, không cần chỉnh tay.
+- 🎯 **Skills/Plugins theo từng bot & từng kênh**: Cài/bật/tắt skill chỉ cho **đúng 1 bot** (không lan sang bot khác); bảng chỉ hiện thứ phù hợp với kênh (Zalo / Telegram / Messenger).
+- 📤 **Gửi file ổn định trên Zalo & Telegram**: Bot đã biết quy trình gửi đúng (`media/outbound` + tool `message`) và dùng định dạng hiện đại như `.xlsx` — hết cảnh "không gửi được file".
+- 🐳 **Nút điều khiển Docker 1 chạm**: Restart / Rebuild container bot và cấp quyền ổ đĩa (mount thư mục host bất kỳ vào `/mnt/<tên>`, đa OS) ngay trên dashboard — khởi động lại bot mà không cần gõ lệnh.
+- ⚡ **Trang Dashboard & Bot load nhanh hơn**: Việc dò runtime/version giờ chỉ chạy **một lần** rồi cache thay vì lặp lại mỗi lần tải trang — bot status giảm từ ~4s xuống ~3ms ở các lần tải sau. Cache tự xoá khi update/rebuild/restart/cài đặt.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.8.24 (Tự động cập nhật Launcher)</b></summary>
 
 - **Sửa lỗi: Lệch phiên bản cache Launcher**: Tự động phát hiện nếu launcher đang chạy (tải qua `npx`) có phiên bản mới hơn hoặc khác với bản đang cache trong `~/.openclaw-setup` và tự nâng cấp tương ứng.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.8.23 (Tích hợp Skill Siêu Trí Nhớ)</b></summary>
@@ -76,10 +86,10 @@
 
 ### 1️⃣ Cách 1 — Cài nhanh (Khuyên dùng)
 
-Mở terminal và chạy đúng một lệnh:
+Mở terminal và chạy đúng một lệnh (chạy trên macOS, Linux & Windows — cần Node.js ≥ 22):
 
 ```bash
-npx create-openclaw-bot
+npx github:tuanminhhole/openclaw-setup
 ```
 
 Lệnh này tự tải wizard, chạy server và **mở giao diện Setup** trên trình duyệt tại **http://127.0.0.1:51789**.
@@ -124,8 +134,10 @@ $env:OPENCLAW_SETUP_WIZARD="true"; node "$env:USERPROFILE\.openclaw-setup\node_m
 
 ### ⬆️ Cập nhật lên phiên bản mới
 
+Bấm **Cập nhật** ngay trong dashboard — nó tự kéo bản mới và **tự khởi động lại UI** (tab tự kết nối lại). Hoặc chạy lại lệnh trong terminal — luôn lấy bản mới nhất từ GitHub:
+
 ```bash
-npx create-openclaw-bot --update
+npx github:tuanminhhole/openclaw-setup
 ```
 
 ---

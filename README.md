@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS, on Docker or native.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.8.24-0EA5E9?style=for-the-badge" alt="Version 5.8.24" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.9.0-0EA5E9?style=for-the-badge" alt="Version 5.9.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,11 +27,21 @@
 
 ---
 
-## 🆕 What's New in v5.8.24
+## 🆕 What's New in v5.9.0
 
-### 🔧 Fixes: Auto-update Launcher Version
+- 🧠 **TencentDB Agent Memory — 1-click install**: New memory plugin in the UI. A 4-tier (L0–L3) layered-memory + context-compression engine that keeps long sessions coherent and **cuts token usage by up to ~61%**. Fully local (SQLite), no API key, Docker-ready.
+- ⚡ **Token-lean defaults for every new bot**: Ships with context pruning (cache-TTL) + `safeguard` compaction — **cheaper & sharper long conversations** with zero tuning.
+- 🎯 **Per-bot & per-channel Skills/Plugins**: Install/enable/disable a skill for **one bot only** (no more leaking across bots); the panel shows only what fits each channel (Zalo / Telegram / Messenger).
+- 📤 **Reliable file sending on Zalo & Telegram**: Bots now know the correct outbound ritual (`media/outbound` + `message` tool) and to use modern formats like `.xlsx` — no more "the file won't send".
+- 🐳 **One-click Docker controls**: Restart / Rebuild the bot container and grant it disk access (mount any host folder at `/mnt/<name>`, cross-OS) right from the dashboard — restart your bot without touching the command line.
+- ⚡ **Faster Dashboard & Bot pages**: Runtime/version detection now probes **once** and is cached instead of re-running on every page load — bot status dropped from ~4s to ~3ms on repeat loads. Cache auto-invalidates on update/rebuild/restart/install.
+
+<details>
+<summary><b>Previous: What's new in v5.8.24 (Launcher Auto-Update)</b></summary>
 
 - **Fix: Cached Launcher Out-of-Sync**: Automatically detects if the running launcher (e.g. downloaded via `npx`) has a newer/different version than the cached installation inside `~/.openclaw-setup`, and automatically triggers an upgrade to match.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.8.23 (Memory Skill Integration)</b></summary>
@@ -76,10 +86,10 @@
 
 ### 1️⃣ Method 1 — Quick install (Recommended)
 
-Open your terminal and run this single command:
+Open your terminal and run this single command (works on macOS, Linux & Windows — needs Node.js ≥ 22):
 
 ```bash
-npx create-openclaw-bot
+npx github:tuanminhhole/openclaw-setup
 ```
 
 It downloads the wizard, starts the local server, and opens the Setup UI in your browser at **http://127.0.0.1:51789**.
@@ -124,8 +134,10 @@ $env:OPENCLAW_SETUP_WIZARD="true"; node "$env:USERPROFILE\.openclaw-setup\node_m
 
 ### ⬆️ Update to the newest version
 
+Click **Update** in the dashboard — it pulls the latest and **auto-restarts the UI** for you (the tab reconnects on its own). Or from the terminal, just re-run the command — it always fetches the latest from GitHub:
+
 ```bash
-npx create-openclaw-bot --update
+npx github:tuanminhhole/openclaw-setup
 ```
 
 ---

@@ -91,8 +91,11 @@
     }));
 
     const cfg = {
+      // NOTE: do NOT seed `lastTouchedVersion` here. OPENCLAW_NPM_SPEC is a range/`latest`
+      // (e.g. `>=2026.6.10`), not a concrete version — writing it makes OpenClaw fail to parse
+      // it on boot and crash the container. OpenClaw stamps the correct
+      // `{ lastTouchedVersion, lastTouchedAt }` itself on first run.
       meta: {
-        lastTouchedVersion: (_common.OPENCLAW_NPM_SPEC || 'latest').replace('openclaw@', ''),
         osChoice,
         deployMode,
       },
@@ -100,7 +103,15 @@
         defaults: {
           model: { primary: model, fallbacks: [] },
           compaction: { mode: 'safeguard' },
-          timeoutSeconds: isLocal ? 900 : 120,
+          // Trim stale tool results before Anthropic's prompt-cache TTL expires so the
+          // re-cache write stays small → lower token cost on long sessions, zero downside.
+          // The stable system prompt (AGENTS.md/SOUL.md…) stays cached above the boundary.
+          contextPruning: { mode: 'cache-ttl', ttl: '5m' },
+          // Agent-TURN budget (seconds). 120 was too short for multi-step cloud turns (OCR +
+          // file gen + tool calls). 900 = OpenClaw's own native default and the practical max
+          // we use. This is the turn budget — a DIFFERENT layer from 9router's per-request
+          // timeout, so raising it does not conflict with / overrun 9router.
+          timeoutSeconds: 900,
           ...(isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
         },
         list: agentsList,
@@ -236,7 +247,9 @@
       cfg.bindings = cfg.bindings || [];
       const firstAgentId = agentMetas[0]?.agentId || 'bot';
       if (!cfg.bindings.some(b => b.match && b.match.channel === 'zalouser')) {
-        cfg.bindings.push({ agentId: firstAgentId, match: { channel: 'zalouser' } });
+        // Account-specific from the start so a second Zalo account added later routes
+        // correctly (each zalouser account binds by accountId).
+        cfg.bindings.push({ agentId: firstAgentId, match: { channel: 'zalouser', accountId: 'default' } });
       }
     }
 
@@ -307,6 +320,10 @@
         groupPolicy: 'allowlist',
         groupAllowFrom: ['*'],
         historyLimit: 50,
+        // NOTE: do NOT add `reactionLevel`/`actions` here — the zalouser plugin's config
+        // schema is strict and rejects them ("must not have additional properties"), which
+        // crashes the gateway on boot. zalouser already supports the `react` action by
+        // default; reaction behavior is driven by the prompt (TOOLS.md), not channel config.
         groups: {
           '*': { enabled: true, requireMention: false },
         },

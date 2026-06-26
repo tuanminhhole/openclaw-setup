@@ -276,8 +276,8 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       'ensure_zalouser() {',
       '  NPM_DIR="$OPENCLAW_HOME/npm"',
       '  PKG_DIR="$NPM_DIR/node_modules/@openclaw/zalouser"',
-      '  if [ -d "$PKG_DIR" ]; then',
-      '    echo "[entrypoint] zalouser plugin already installed"',
+      '  if [ -d "$PKG_DIR" ] || [ -d "$OPENCLAW_HOME/extensions/zalouser" ]; then',
+      '    echo "[entrypoint] zalouser plugin already installed (npm or extensions) — skipping"',
       '  else',
       '    echo "[entrypoint] zalouser plugin missing; installing via npm"',
       '    mkdir -p "$NPM_DIR"',
@@ -320,6 +320,21 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '  fi',
       'done',
     ].join('\n'));
+    // Expose zalouser's ZCA API map (globalThis.__zcaApiByProfile) BEFORE the gateway imports
+    // zalouser, so openclaw-zalo-mod can reach the live Zalo API (dashboard Sync Account, group
+    // admin lookups, …). zalo-mod's own runtime patch lands AFTER zalouser is already imported,
+    // so it never takes effect on the running module — patching here (post sticker-mention restore,
+    // pre gateway-run) is the reliable fix.
+    {
+      const exposeZcaScript = [
+        "const fs=require('fs'),cp=require('child_process');",
+        "let files=[];",
+        "try{ files=cp.execSync('find \"'+(process.env.OPENCLAW_HOME||'')+'/npm\" -path \"*/@openclaw/zalouser/dist/zalo-js-*.js\" -type f 2>/dev/null',{encoding:'utf8'}).split('\\n').filter(Boolean); }catch(e){}",
+        "const reps=[['const apiByProfile = /* @__PURE__ */ new Map();','const apiByProfile = globalThis.__zcaApiByProfile || (globalThis.__zcaApiByProfile = /* @__PURE__ */ new Map());'],['const apiByProfile = new Map();','const apiByProfile = globalThis.__zcaApiByProfile || (globalThis.__zcaApiByProfile = new Map());']];",
+        "for(const f of files){ try{ let s=fs.readFileSync(f,'utf8'); if(s.includes('globalThis.__zcaApiByProfile')) continue; for(const pair of reps){ if(s.includes(pair[0])){ s=s.replace(pair[0],pair[1]); fs.writeFileSync(f,s); console.log('[entrypoint] exposed __zcaApiByProfile for zalo-mod in '+f); break; } } }catch(e){} }",
+      ].join('\n');
+      runtimeParts.push(`# Expose zalouser ZCA API map for openclaw-zalo-mod (before gateway imports zalouser)\nnode - <<'NODE'\n${exposeZcaScript}\nNODE`);
+    }
     runtimeParts.push([
       '# Zalo channel auto-restart monitor (background)',
       '(',
@@ -385,7 +400,7 @@ services:
 ${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
-      - "${gatewayPort}:${gatewayPort}"
+      - "127.0.0.1:${gatewayPort}:${gatewayPort}"
 
   9router:
     image: node:22-slim
@@ -405,7 +420,7 @@ ${indentBlock(docker9RouterEntrypointScript, 8)}
       - ./sync.js:/tmp/sync.js:ro
       - ./patch-9router.js:/tmp/patch-9router.js:ro
     ports:
-      - "${routerPort}:${routerPort}"
+      - "127.0.0.1:${routerPort}:${routerPort}"
 
 volumes:
   9router-data:`;
@@ -422,7 +437,7 @@ services:
 ${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
-      - "${gatewayPort}:${gatewayPort}"
+      - "127.0.0.1:${gatewayPort}:${gatewayPort}"
 
   ollama:
     image: ollama/ollama:latest
@@ -462,7 +477,7 @@ services:
 ${appEnvironmentBlock}${extraHosts}    volumes:
       - ${volumeMount}
     ports:
-      - "${gatewayPort}:${gatewayPort}"`;
+      - "127.0.0.1:${gatewayPort}:${gatewayPort}"`;
       }
     } else if (is9Router) {
       compose = `name: ${singleComposeName}
@@ -479,7 +494,7 @@ ${appEnvironmentBlock}${extraHostsBlock}\n    volumes:
       - ${volumeMount}
       - openclaw-plugins:/home/node/project/.openclaw/npm${extVolMount}
     ports:
-      - "${gatewayPort}:${gatewayPort}"
+      - "127.0.0.1:${gatewayPort}:${gatewayPort}"
 
   9router:
     image: node:22-slim
@@ -499,7 +514,7 @@ ${indentBlock(docker9RouterEntrypointScript, 8)}
       - ./sync.js:/tmp/sync.js:ro
       - ./patch-9router.js:/tmp/patch-9router.js:ro
     ports:
-      - "${routerPort}:${routerPort}"
+      - "127.0.0.1:${routerPort}:${routerPort}"
 
 volumes:
   9router-data:
@@ -517,7 +532,7 @@ ${appEnvironmentBlock}    depends_on:
       ollama:
         condition: service_healthy
 ${extraHostsBlock}\n    ports:
-      - "${gatewayPort}:${gatewayPort}"
+      - "127.0.0.1:${gatewayPort}:${gatewayPort}"
     volumes:
       - ${volumeMount}
 
@@ -559,7 +574,7 @@ services:
 ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    volumes:
       - ${volumeMount}
     ports:
-      - "${gatewayPort}:${gatewayPort}"`;
+      - "127.0.0.1:${gatewayPort}:${gatewayPort}"`;
     }
 
     return {
