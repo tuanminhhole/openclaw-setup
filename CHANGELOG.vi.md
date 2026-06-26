@@ -1,6 +1,62 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.9.0] — 2026-06-28
+
+### 🚀 Mới: chạy thẳng từ GitHub
+- Khởi động wizard bằng một lệnh, không cần publish lên npm (chạy trên macOS, Linux & Windows; Node.js ≥ 22):
+  ```bash
+  npx github:tuanminhhole/openclaw-setup
+  ```
+  CLI tự nhận biết server đi kèm (`dist/`) và chạy dashboard local trực tiếp.
+
+### 🔧 Sửa lỗi
+- **zalo-mod lấy lại được Zalo API (Sync Account / quản lý group chạy).** Entrypoint giờ expose map `globalThis.__zcaApiByProfile` của zalouser **trước khi gateway import zalouser**, nên `openclaw-zalo-mod` thấy API live. Trước đây zalo-mod chỉ patch lúc plugin-load — sau khi zalouser đã import — nên map shared không bao giờ được set trên module đang chạy, dashboard báo "ZCA API unavailable".
+- **Không cài lại zalouser khi đã có sẵn (hết plugin trùng).** Cả entrypoint container lẫn luồng QR-login giờ coi `extensions/zalouser` có sẵn là đã cài, nên không `npm install @openclaw/zalouser` đè lên nữa. zalouser bị trùng (2 bản/2 version) làm hỏng shared ZCA API map mà `zalo-mod` dùng (Sync Account → "ZCA API unavailable").
+- **Reaction DM Telegram nhắm đúng tin mới nhất.** TOOLS.md sinh ra giờ hướng dẫn bot Telegram reaction mà **không truyền `messageId`** (Telegram tự reaction vào tin inbound hiện tại của user) thay vì tự đoán id rồi reaction nhầm tin cũ. Zalo (cần message id rõ ràng) giữ nguyên.
+- **Không bao giờ ghi đè `docker-compose.yml` đã tuỳ biến.** Trước đây cơ chế auto-sync infra regenerate toàn bộ compose khi đổi version, xoá mất reverse-proxy/Traefik labels, network ngoài, hay port publish thêm (có thể âm thầm làm chết webhook đang chạy). Giờ nó nhận diện compose đã tuỳ biến (Traefik labels / external network / marker `# openclaw-setup: custom`) và **không đụng vào** infra của bạn. Nút "Mở web" của zalo-mod trỏ tới dashboard ở `:18790/dashboard`.
+- **Truy cập từ xa dễ dàng cho bản VPS/headless.** Trên server không có trình duyệt, CLI giờ in sẵn **lệnh SSH-tunnel** (tự điền IP public + các port dashboard/OpenClaw/9Router/zalo-mod), và dashboard có panel **"Mở từ máy khác"** (copy 1 chạm) — để bất kỳ user nào cũng mở được UI từ máy mình mà không cần biết cách tạo tunnel. Các **nút "Mở web" giờ theo host đang xem dashboard** (hết nhầm với localhost máy mình khi truy cập từ máy khác), và **card plugin zalo-mod có nút "Mở web" riêng**.
+- **Sửa định tuyến Zalo (zalouser) đa tài khoản.** Thêm bot Zalo thứ 2 trở đi giờ tự tạo `channels.zalouser.accounts.<id>` riêng + binding theo `accountId` riêng với profile đăng nhập riêng — nên không còn bị xếp nhầm vào Telegram trong UI, và QR login lưu đúng profile của nó thay vì đè lên bot đầu. Binding zalouser kiểu catch-all cũ được tự nâng cấp thành account-specific.
+- **Tự nhận diện project có bot đang chạy.** Trên mọi máy/OS, lần chạy mới giờ tự tìm project có bot đang chạy trong Docker (thay vì mặc định thư mục rỗng `~/openclaw-setup`) — nên chạy `npx` trên server đã có bot sẽ trỏ đúng thư mục, Restart/Cập nhật tác động đúng bot thật.
+- **Nút Cập nhật không còn làm treo UI.** Bấm **Cập nhật** áp dụng bản mới và **tự khởi động lại dashboard trên đúng port** — tab tự kết nối lại. Tự thích ứng theo cách chạy: systemd thoát để supervisor bật lại; `npx`/GitHub kéo lại bản mới khi relaunch; git clone thì `git pull` và dùng `dist/` đã commit.
+- **Nút Cập nhật nhận biết phiên bản**: đọc bản mới nhất từ **GitHub** (nguồn phát hành thật, không phải npm cũ) và chỉ hiện khi có bản mới hơn thật sự (đúng semver) — hết cảnh đang ở bản mới nhất mà vẫn báo "Cập nhật".
+- **Bỏ nhánh tự cập nhật hỏng** vốn chạy `npm install create-openclaw-bot@latest` (chưa publish → `ETARGET`).
+
+### 🔒 Bảo mật
+- **Port host của Gateway & 9Router giờ bind `127.0.0.1`** thay vì `0.0.0.0`. Lớp điều khiển không lộ ra internet; reverse proxy vẫn vào container qua mạng Docker. Đồng thời sửa lỗi dashboard báo **OFFLINE** sai khi bot chạy sau proxy.
+
+### 🧠 Mới: TencentDB Agent Memory — cài 1 chạm ngay trên UI
+- **Plugin bộ nhớ mới**: Cài **TencentDB Agent Memory** thẳng trong bảng Skills & Plugins. Bộ nhớ phân tầng 4 lớp (L0–L3) kèm nén ngữ cảnh — giữ session dài mạch lạc và tiết kiệm tới ~61% token. Chạy hoàn toàn local (SQLite + sqlite-vec) — không cần API key, hoạt động trong Docker.
+
+### ⚡ Mới: Cấu hình tiết kiệm token mặc định cho mọi bot mới
+- **Tối ưu ngân sách ngữ cảnh sẵn sàng dùng ngay**: Bot mới giờ tự có `contextPruning: { mode: "cache-ttl", ttl: "5m" }` + `compaction: safeguard`. System prompt ổn định vẫn được cache, còn tool-result cũ bị cắt trước khi hết cache → hội thoại dài rẻ hơn và sắc nét hơn, không cần chỉnh tay.
+
+### 🎯 Cải tiến: Skills/Plugins theo từng bot & từng kênh
+- **Skill theo từng bot**: Cài/bật/tắt skill giờ chỉ áp dụng cho **đúng bot đó** (theo workspace), không còn lan sang mọi bot trong project.
+- **Bảng lọc theo kênh**: Giao diện Skills & Plugins chỉ hiển thị thứ phù hợp với kênh của bot — helper Zalo ở Zalo, plugin Facebook ở Messenger, v.v.
+
+### 📤 Cải tiến: Gửi file ổn định trên Zalo & Telegram
+- **Hướng dẫn gửi file nhúng sẵn vào AGENTS.md**: Bot sinh ra đã biết quy trình đúng — xuất file, copy vào `.openclaw/media/outbound/`, rồi gửi qua tool `message` — khắc phục lỗi "không gửi được file" do sandbox Zalo.
+- **Chuẩn định dạng**: Bot được hướng dẫn dùng định dạng hiện đại (`.xlsx`, `.pdf`, `.png`) và tránh `.xls` đời cũ — thứ bị OpenClaw chặn vì không xác thực được loại nội dung (buffer-verified).
+
+### 🐳 Mới: Nút điều khiển Docker 1 chạm — không cần gõ lệnh
+- **Nút Restart & Rebuild** trong tab Bot: khởi động lại container bot, hoặc rebuild + recreate (`docker compose up -d --build --force-recreate`) ngay trên dashboard — khỏi dùng dòng lệnh.
+- **Nút cấp quyền ổ đĩa**: trỏ bot tới thư mục/ổ đĩa bất kỳ trên host; nó được mount vào container tại `/mnt/<tên>` (đa OS, kể cả Windows `C:/…` nhờ long-form bind), container tự recreate để áp dụng, và AGENTS.md của từng bot được cập nhật để bot biết được phép dùng. Mặc định theo project (mọi bot dùng chung).
+
+### ✨ Cải tiến: UX tab Bot & tải trang nhanh hơn
+- **Dò một lần, dùng lại mọi nơi**: Việc dò runtime/version và đồng bộ Docker-infra chậm (nhiều lệnh `docker exec` + `openclaw` CLI) giờ chỉ chạy **một lần** rồi được cache, thay vì lặp lại mỗi lần tải trang Dashboard và trang Bot. Lần tải đầu làm nóng cache; các lần sau gần như tức thì (bot status ~4s → ~3ms khi test cục bộ). Cache tự động bị xoá khi cập nhật, rebuild, restart và cài plugin/skill nên version không bao giờ bị cũ.
+- Chuyển project giờ hiển thị bot của project mới ngay lập tức (optimistic render) thay vì chờ quá trình dò version chạy nền.
+- Thanh tab kênh giữ nguyên vị trí cuộn sau khi chọn kênh nằm ngoài vùng nhìn (không còn nhảy về đầu).
+
+### 🔧 Sửa lỗi
+- **Hiển thị đúng version plugin**: Version plugin (vd `zalo-mod`) được đọc từ volume extensions trong container, hiển thị version thật thay vì giá trị fallback chung chung.
+- **Extensions đồng bộ ra host**: Trên macOS/Linux, `.openclaw/extensions` được giữ trên bind-mount host (Windows vẫn dùng named volume để đảm bảo quyền file), nên plugin cài từ ClawHub lại hiển thị & sửa được trên host.
+- **Dọn `bot-meta.json`**: `appId` chỉ ghi cho bot Facebook Messenger, không còn dính vào bot Zalo/Telegram.
+- **Hết crash container do `meta.lastTouchedVersion`**: Config sinh ra không còn ghi `lastTouchedVersion` sai (là dải phiên bản npm / `latest`, không phải version thật) gây crash container lúc khởi động — OpenClaw tự ghi đúng `{ lastTouchedVersion, lastTouchedAt }`.
+- **Tăng timeout cho lượt agent**: `timeoutSeconds` mặc định tăng từ 120 → 900s để các lượt nhiều bước (OCR, tạo file, chuỗi tool dài) không bị cắt giữa chừng.
+- **Gửi file chắc tay hơn & dọn SOUL.md**: rule gửi file trong AGENTS.md nay `mkdir -p` thư mục `media/outbound` trước khi copy (hết lỗi "copy failed" lúc thư mục chưa có); SOUL.md bỏ giới hạn cứng 200 ký tự và bỏ khối silent-mode Zalo.
+
+
 ## [5.8.24] — 2026-06-24
 
 ### 🔧 Sửa lỗi: Tự động cập nhật phiên bản Launcher

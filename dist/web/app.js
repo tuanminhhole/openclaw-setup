@@ -182,6 +182,7 @@ function pathModal() {
       <button class="modal-x" data-path-action="cancel" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       <div class="donate-head"><span aria-hidden="true">📁</span><div><p>${escapeHtml(m.eyebrow || t('Nhập đường dẫn','Enter path'))}</p><h2>${escapeHtml(m.title || t('Đường dẫn project','Project path'))}</h2><small>${escapeHtml(m.message || '')}</small></div></div>
       <label class="field wide"><input id="path-modal-input" value="${escapeHtml(m.value || '')}" placeholder="${escapeHtml(m.placeholder || '')}" /></label>
+      ${m.field2 ? `<label class="field wide" style="margin-top:8px;"><span style="display:block;font-size:12px;opacity:.8;margin-bottom:4px;">${escapeHtml(m.field2.label || '')}</span><input id="path-modal-input2" value="${escapeHtml(m.field2.value || '')}" placeholder="${escapeHtml(m.field2.placeholder || '')}" /></label>` : ''}
       <div class="confirm-actions"><button class="secondary" data-path-action="cancel">${t('Hủy','Cancel')}</button><button class="primary" data-path-action="ok">${t('Xác nhận','Confirm')}</button></div>
     </section>
   </div>`;
@@ -298,8 +299,8 @@ function refreshInstallDraft(next = {}) {
   state.installDraft = { projectName, projectRoot, projectDir, os, mode };
   return state.installDraft;
 }
-function openPathModal({ title, message, value = '', placeholder = '', onConfirm = null }) {
-  state.pathModal = { title, message, value, placeholder, onConfirm };
+function openPathModal({ title, message, value = '', placeholder = '', field2 = null, onConfirm = null }) {
+  state.pathModal = { title, message, value, placeholder, field2, onConfirm };
   render();
   setTimeout(() => document.getElementById('path-modal-input')?.focus(), 0);
 }
@@ -323,10 +324,58 @@ async function pickFolderPathShared() {
   return null;
 }
 
+// true when `a` is a strictly newer semver than `b` (numeric dot parts)
+function isVersionNewer(a, b) {
+  const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x > y) return true;
+    if (x < y) return false;
+  }
+  return false;
+}
+
+// Build a URL on the SAME host the dashboard is currently viewed from, so "Open" works
+// whether you reached it via a localhost tunnel, the server's IP, or a domain — and never
+// points at the viewer's own localhost when browsing from another machine. Port comes from
+// the backend-provided URL (which carries the right port) or the fallback.
+function sameHostUrl(rawUrl, fallbackPort) {
+  let port = fallbackPort;
+  try { const u = new URL(rawUrl); if (u.port) port = u.port; } catch {}
+  const proto = (typeof location !== 'undefined' && location.protocol === 'https:') ? 'https:' : 'http:';
+  const host = (typeof location !== 'undefined' && location.hostname) ? location.hostname : '127.0.0.1';
+  return `${proto}//${host}:${port}`;
+}
+
+// "Open from another machine" helper — builds a ready SSH-tunnel command (auto-filled
+// with the server's public IP + the dashboard/gateway/9router/zalo-mod ports) so any user
+// on a VPS can reach the web UIs from their own computer without knowing how to set it up.
+function remoteAccessPanel(s = {}) {
+  const r = state.system?.remote;
+  if (!r) return '';
+  const host = r.host || '<your-server-ip>';
+  const user = r.user || 'root';
+  const portOf = (raw, def) => { try { return new URL(raw).port || def; } catch { return def; } };
+  const ports = Array.from(new Set([r.uiPort || 51789, portOf(s.gatewayUrl, 18789), portOf(s.routerUrl, 20128), 18790]));
+  const cmd = `ssh ${ports.map((p) => `-L ${p}:127.0.0.1:${p}`).join(' ')} ${user}@${host}`;
+  return `<details class="card" style="margin-top:12px;" ${r.headless ? 'open' : ''}>
+    <summary style="cursor:pointer; font-weight:600;">🌐 ${t('Mở từ máy khác (VPS/server)', 'Open from another machine (VPS/server)')}</summary>
+    <p class="lead" style="margin-top:8px;">${t('Server không có trình duyệt — trên MÁY của bạn chạy lệnh này rồi mở', 'No browser on the server — on YOUR computer run this, then open')} <code>http://localhost:${r.uiPort || 51789}</code>:</p>
+    <div style="display:flex; gap:8px;">
+      <input readonly value="${escapeHtml(cmd)}" onclick="this.select()" style="flex:1; font-family:ui-monospace,monospace; font-size:12px; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.03); color:inherit;" />
+      <button class="secondary icon-btn2" type="button" data-copy="${escapeHtml(cmd)}">${actionIcon('link')}<span>${t('Copy', 'Copy')}</span></button>
+    </div>
+    <p class="lead" style="margin-top:8px; font-size:12px; opacity:.75;">${t('Forward dashboard + OpenClaw + 9Router + zalo-mod. Mở localhost xong, các nút “Mở web” sẽ chạy.', 'Forwards the dashboard + OpenClaw + 9Router + zalo-mod. Once on localhost, the “Open” buttons work.')}</p>
+  </details>`;
+}
+
 function topbarActionsHtml() {
   const setupVer = state.system?.versions?.setup;
   const latestSetupVer = state.system?.versions?.latestSetup;
-  const hasNewVersion = setupVer && latestSetupVer && setupVer !== latestSetupVer;
+  // Only offer the update when the remote is genuinely newer (not merely different —
+  // a local/dev build can be ahead of what's published).
+  const hasNewVersion = !!(setupVer && latestSetupVer && isVersionNewer(latestSetupVer, setupVer));
   return `
     <div class="seg" role="group" aria-label="theme">
       <button class="seg__btn ${state.theme==='light'?'is-active':''}" data-pref="theme" data-value="light" style="display: inline-flex; align-items: center; gap: 6px;">
@@ -630,11 +679,12 @@ function dashboardView() {
       <div class="card dash-status" style="height: max-content;">
         <div class="card-head"><h3>${ui('status')}</h3></div>
         <div class="runtime-status-grid" style="grid-template-columns: 1fr;">
-          <div class="runtime-status-card"><div class="runtime-status-head"><span>OpenClaw</span>${statusBadge(s.gatewayStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${s.gatewayUrl||'http://127.0.0.1:18789'}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('M\u1edf web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-app type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
-          <div class="runtime-status-card"><div class="runtime-status-head"><span>9Router</span>${statusBadge(s.routerStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${s.routerUrl||'http://127.0.0.1:20128'}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('M\u1edf web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-router type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
+          <div class="runtime-status-card"><div class="runtime-status-head"><span>OpenClaw</span>${statusBadge(s.gatewayStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${sameHostUrl(s.gatewayUrl, 18789)}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('M\u1edf web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-app type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
+          <div class="runtime-status-card"><div class="runtime-status-head"><span>9Router</span>${statusBadge(s.routerStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${sameHostUrl(s.routerUrl, 20128)}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('M\u1edf web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-router type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
         </div>
         <div class="dash-version-list"><div><span>OpenClaw</span><b>${escapeHtml(openclawVer || '-')}</b></div><div><span>9Router</span><b>${escapeHtml(routerVer || '-')}</b></div><div><span>Node.js</span><b>${escapeHtml(nodeVer || '-')}</b></div><div><span>${t('Machine','Machine')}</span><b>${escapeHtml(machineLabel)}</b></div></div>
       </div>
+      ${remoteAccessPanel(s)}
     </section>
     <section class="card dash-logs">
       <div class="card-head"><h3>${ui('liveLogs')}</h3><button class="icon-btn copy-log" data-copy-log type="button" aria-label="Copy logs">${copyIcon()}</button></div>
@@ -731,10 +781,16 @@ function botView() {
       <section class="card bot-status-card">
         <div class="card-head"><h3>${t('Trạng thái','Status')}</h3></div>
         <div class="runtime-status-grid" style="grid-template-columns: 1fr; margin-top: 14px;">
-          <div class="runtime-status-card"><div class="runtime-status-head"><span>OpenClaw</span>${statusBadge(s.gatewayStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${s.gatewayUrl||'http://127.0.0.1:18789'}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('Mở web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-app type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
-          <div class="runtime-status-card"><div class="runtime-status-head"><span>9Router</span>${statusBadge(s.routerStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${s.routerUrl||'http://127.0.0.1:20128'}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('Mở web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-router type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
+          <div class="runtime-status-card"><div class="runtime-status-head"><span>OpenClaw</span>${statusBadge(s.gatewayStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${sameHostUrl(s.gatewayUrl, 18789)}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('Mở web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-app type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
+          <div class="runtime-status-card"><div class="runtime-status-head"><span>9Router</span>${statusBadge(s.routerStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${sameHostUrl(s.routerUrl, 20128)}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('Mở web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-router type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
         </div>
         
+        <div class="bot-docker-actions" style="display:flex; gap:8px; margin-top:14px;">
+          <button class="secondary icon-btn2" data-bot-restart type="button" style="flex:1; justify-content:center; font-size:12px; height:34px; border-width:1px;" title="${t('Khởi động lại container bot','Restart bot container')}">🔄 ${t('Restart','Restart')}</button>
+          <button class="secondary icon-btn2" data-bot-rebuild type="button" style="flex:1; justify-content:center; font-size:12px; height:34px; border-width:1px;" title="docker compose up -d --build">🔨 ${t('Rebuild','Rebuild')}</button>
+          <button class="secondary icon-btn2" data-bot-add-mount type="button" style="flex:1; justify-content:center; font-size:12px; height:34px; border-width:1px;" title="${t('Cấp quyền ổ đĩa/thư mục cho bot','Grant the bot a disk/folder')}">💽 ${t('Cấp quyền ổ đĩa','Grant disk')}</button>
+        </div>
+
         <div class="dash-version-list" style="margin-top: 18px;">
           <div><span>OpenClaw</span><b>${escapeHtml(openclawVer || '-')}</b></div>
           <div><span>9Router</span><b>${escapeHtml(routerVer || '-')}</b></div>
@@ -828,8 +884,8 @@ function botStatusPanel(s) {
   const c = s.credentials || {};
   return `<aside class="card bot-side"><h3>${ui('status')}</h3>
     <div class="runtime-status-grid">
-      <div class="runtime-status-card"><div class="runtime-status-head"><span>OpenClaw</span>${statusBadge(s.gatewayStatus)}</div><a class="runtime-open-btn" href="${s.gatewayUrl||'http://127.0.0.1:18789'}" target="_blank" rel="noopener">${t('Mở website','Open website')}</a></div>
-      <div class="runtime-status-card"><div class="runtime-status-head"><span>9Router</span>${statusBadge(s.routerStatus)}</div><a class="runtime-open-btn" href="${s.routerUrl||'http://127.0.0.1:20128'}" target="_blank" rel="noopener">${t('Mở website','Open website')}</a></div>
+      <div class="runtime-status-card"><div class="runtime-status-head"><span>OpenClaw</span>${statusBadge(s.gatewayStatus)}</div><a class="runtime-open-btn" href="${sameHostUrl(s.gatewayUrl, 18789)}" target="_blank" rel="noopener">${t('Mở website','Open website')}</a></div>
+      <div class="runtime-status-card"><div class="runtime-status-head"><span>9Router</span>${statusBadge(s.routerStatus)}</div><a class="runtime-open-btn" href="${sameHostUrl(s.routerUrl, 20128)}" target="_blank" rel="noopener">${t('Mở website','Open website')}</a></div>
     </div>
     <form class="credential-panel" id="credential-form">
       ${credentialField({ id: 'openclawToken', label: 'OpenClaw token', value: c.openclawToken || '', editable: false })}
@@ -910,8 +966,9 @@ function botSkillsPanel() {
     { id: 'learning-memory', title: 'Siêu Trí Nhớ Dài Hạn (learning-memory)', desc: 'Tự động ghi nhớ bài học vào MEMORY.md, tự đóng gói và tiến hóa kỹ năng mới vào skills/' },
   ];
   const plugins = [
+    { id: 'memory-tencentdb', title: 'TencentDB Agent Memory', desc: 'Bộ nhớ phân tầng L0–L3 + nén ngữ cảnh: nhớ tốt session dài, tiết kiệm ~61% token (local SQLite, không cần API)' },
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },
-    { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers', channels: ['zalo-personal'] },
+    { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers', channels: ['zalo-personal'], openWebPort: 18790, openWebPath: '/dashboard' },
     { id: 'openclaw-facebook-crawler', title: 'openclaw-facebook-crawler', desc: 'Facebook crawler automation', channels: ['fb-messenger'] },
     { id: 'openclaw-n8n-facebook-poster', title: 'openclaw-n8n-facebook-poster', desc: 'Facebook post automation (n8n)', channels: ['fb-messenger'] },
   ];
@@ -931,6 +988,9 @@ function botSkillsPanel() {
     let actionsHtml = '';
     if (isInstalled) {
       actionsHtml = `<div style="display:flex; align-items:center; gap:8px;">`;
+      if (item.openWebPort) {
+        actionsHtml += `<a class="secondary icon-btn2" href="${sameHostUrl('', item.openWebPort)}${item.openWebPath || ''}" target="_blank" rel="noopener" title="${t('Mở dashboard của plugin','Open the plugin dashboard')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px;">${actionIcon('link')}<span>${t('Mở web','Open')}</span></a>`;
+      }
       if (requiresInstall) {
         actionsHtml += `<button class="secondary icon-btn2 update-plugin-btn" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''} title="${t('Cập nhật lên bản mới nhất','Update to latest version')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#ffb020; border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.05);">${actionIcon('refresh')}<span>${t('Cập nhật','Update')}</span></button>`;
       }
@@ -970,6 +1030,17 @@ function wireTab() {
     }
     catch { state.confirmModal = { title: t('Không copy được','Copy failed'), message: text || t('Không có log','No logs'), okText: t('Đóng','Close'), onConfirm: () => {} }; render(); }
   }));
+  document.querySelectorAll('[data-copy]').forEach(btn => btn.onclick = async () => {
+    const text = btn.getAttribute('data-copy') || '';
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // clipboard API needs a secure context (https/localhost); fall back to selecting the field.
+      const input = btn.parentElement && btn.parentElement.querySelector('input');
+      if (input) { input.focus(); input.select(); try { document.execCommand('copy'); } catch {} }
+    }
+    showToast(t('Đã copy','Copied'), text, 'success');
+  });
   document.querySelectorAll('[data-donate]').forEach(el => el.onclick = () => { state.donateOpen = el.dataset.donate === 'open'; render(); });
   document.querySelectorAll('[data-fbplugin]').forEach(el => el.onclick = () => { state.fbPluginModalOpen = false; render(); });
   document.querySelectorAll('[data-bot-modal]').forEach(el => el.onclick = () => { state.botModalOpen = el.dataset.botModal === 'open'; if (el.dataset.botModal === 'open') state.botEditId = ''; state.botMessage = ''; render(); });
@@ -1024,9 +1095,15 @@ function wireTab() {
       state.activeBotId = '';
       state.selectedFile = '';
       state.files = [];
+      // Optimistic render: the connect response already carries the project's bots, so switch the
+      // active tab + show the bot list IMMEDIATELY instead of waiting for the slow background
+      // refresh (runtime-version probing via docker exec in loadStatus can take a few seconds).
+      state.install = { ...(state.install || {}), ...result };
+      autoSwitchBotChannel();
+      render();
+      // Background: full refresh (versions, files, flags) — UI already shows the new project.
       await loadSystem(true);
       await loadStatus(true);
-      // Auto-switch to the first channel that has bots in the new project
       autoSwitchBotChannel();
       await loadFiles(true);
       await loadFeatureFlags(true);
@@ -1096,7 +1173,35 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     await api('/api/runtime/update', { method: 'POST', body: { projectDir: activeProjectDir(), target: '9router' } });
     await loadSystem();
     await loadStatus();
-  }));document.querySelectorAll('[data-project-remove]').forEach(btn => btn.onclick = (ev) => {
+  }));
+  document.querySelectorAll('[data-bot-restart]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => {
+    await api('/api/bot/restart', { method: 'POST', body: { projectDir: activeProjectDir() } });
+    showToast(t('Thành công','Success'), t('Đã restart container bot','Bot container restarted'), 'success');
+    await loadStatus();
+  }));
+  document.querySelectorAll('[data-bot-rebuild]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => {
+    await api('/api/bot/rebuild', { method: 'POST', body: { projectDir: activeProjectDir() } });
+    showToast(t('Thành công','Success'), t('Đã rebuild & recreate container','Rebuilt & recreated the container'), 'success');
+    await loadStatus();
+  }));
+  document.querySelectorAll('[data-bot-add-mount]').forEach(btn => btn.onclick = () => openPathModal({
+    title: t('Cấp quyền ổ đĩa/thư mục','Grant disk/folder access'),
+    message: t('Nhập đường dẫn host (vd /Users/ban/Documents hoặc D:/data). Mount cho MỌI bot trong project rồi tự recreate container để áp dụng (mất ~10–20s).','Enter a host path (e.g. /Users/you/Documents or D:/data). Mounts for ALL bots in this project, then auto-recreates the container to apply (~10–20s).'),
+    placeholder: '/Users/ban/Documents',
+    field2: { label: t('Tên mount (tùy chọn) — sẽ thành /mnt/<tên>. Bỏ trống = tự lấy theo tên thư mục.','Mount name (optional) — becomes /mnt/<name>. Empty = derived from folder name.'), placeholder: 'baocao' },
+    onConfirm: async (val, name) => {
+      const hostPath = String(val || '').trim();
+      if (!hostPath) return;
+      showToast(t('Đang xử lý','Working'), t('Đang mount & recreate container...','Mounting & recreating container...'), 'success');
+      try {
+        const r = await api('/api/bot/add-mount', { method: 'POST', body: { projectDir: activeProjectDir(), hostPath, mountName: String(name || '').trim() } });
+        showToast(r.alreadyMounted ? t('Đã có sẵn','Already mounted') : t('Đã thêm mount','Mount added'),
+          `${hostPath} → ${r.target}` + (r.applied ? t(' · đã áp dụng (đã recreate)',' · applied (recreated)') : t(' · bấm Rebuild để áp dụng',' · click Rebuild to apply')), 'success');
+        await loadStatus();
+      } catch (err) { showToast(t('Thất bại','Failed'), err.message, 'error'); }
+    },
+  }));
+  document.querySelectorAll('[data-project-remove]').forEach(btn => btn.onclick = (ev) => {
     ev.stopPropagation();
     const projectDir = btn.dataset.projectRemove;
     state.confirmModal = {
@@ -1131,7 +1236,14 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     render();
   });
   document.querySelectorAll('input[name="bot-channel"]').forEach(i => i.onchange = () => { state.botChannel = i.value; state.botMessage = ''; if (i.value === 'fb-messenger' && !state.featureInstalled?.['plugin:openclaw-fb-messenger']) state.fbPluginModalOpen = true; render(); });
-  document.querySelectorAll('[data-bot-channel]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { state.botChannel = btn.dataset.botChannel; state.botPane = 'list'; state.activeBotId = ''; state.selectedFile = ''; state.botMessage = ''; render(); await loadFiles(); await loadFeatureFlags(); }));
+  document.querySelectorAll('[data-bot-channel]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => {
+    const sl = document.querySelector('.channel-tabs')?.scrollLeft || 0;
+    const keepScroll = () => { const s = document.querySelector('.channel-tabs'); if (s) s.scrollLeft = sl; };
+    state.botChannel = btn.dataset.botChannel; state.botPane = 'list'; state.activeBotId = ''; state.selectedFile = ''; state.botMessage = '';
+    render(); keepScroll();                          // switch + keep scroll synchronously (no visible jump)
+    await loadFiles(true); await loadFeatureFlags(true);  // SILENT: avoid mid-flight re-renders (the features call is slow)
+    render(); keepScroll();                          // final reconcile with loaded data, scroll preserved
+  }));
   document.querySelectorAll('[data-bot-id]').forEach(btn => btn.onclick = (ev) => withButtonLoading(btn, async () => { if (ev.target.closest('[data-delete-bot]')) return; state.activeBotId = btn.dataset.botId; state.selectedFile = ''; render(); await loadFiles(); await loadFeatureFlags(); }));
   document.querySelectorAll('[data-delete-bot]').forEach(btn => btn.onclick = async (ev) => {
     ev.stopPropagation();
@@ -1241,7 +1353,8 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     if (!modal) return;
     if (action === 'ok') {
       const value = document.getElementById('path-modal-input')?.value?.trim() || '';
-      if (value && typeof modal.onConfirm === 'function') modal.onConfirm(value);
+      const value2 = document.getElementById('path-modal-input2')?.value?.trim() || '';
+      if (value && typeof modal.onConfirm === 'function') modal.onConfirm(value, value2);
     } else {
       if (typeof modal.onCancel === 'function') modal.onCancel();
     }
@@ -1369,7 +1482,7 @@ async function loadFeatureFlags(silent=false){
   if (!silent) render();
 }
 function appendLogLine(line) {
-  if (line.includes('Setup Wizard updated successfully! Please restart the installer.')) {
+  if (line.includes('Setup Wizard updated successfully')) {
     showToast(t('Đang khởi động lại UI', 'Restarting Setup UI'), t('Hệ thống đang tự khởi động lại để áp dụng phiên bản mới...', 'The system is restarting to apply the new version...'), 'info', 12000);
     let attempts = 0;
     const interval = setInterval(async () => {
@@ -1384,7 +1497,7 @@ function appendLogLine(line) {
           }, 1500);
         }
       } catch (e) {
-        if (attempts > 30) {
+        if (attempts > 75) {
           clearInterval(interval);
           showToast(t('Lỗi kết nối', 'Connection Error'), t('Không thể kết nối lại với Setup UI. Vui lòng tự chạy lại lệnh khởi động.', 'Cannot reconnect to Setup UI. Please run start command manually.'), 'error');
         }

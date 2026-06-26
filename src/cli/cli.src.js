@@ -42,6 +42,16 @@ function isLocalRepo() {
   return false;
 }
 
+// True when the full server code is bundled next to this CLI (dist build, npm/global
+// install, or `npx github:...`). In that case run it directly instead of bootstrapping
+// the published package — works even though `files` ships only `dist/` (no `src/`).
+function hasBundledServer() {
+  return [
+    path.join(__dirname, 'server', 'local-server.js'),
+    path.join(__dirname, '..', 'server', 'local-server.js'),
+  ].some((p) => fs.existsSync(p));
+}
+
 const LOGO = `
 ╭────────────────────────────────────────╮
 │          🦞 OpenClaw Setup 🦞          │
@@ -85,7 +95,7 @@ if (!fs.existsSync(projectDir)) {
   }
 }
 
-if (process.env.OPENCLAW_SETUP_WIZARD === 'true' || isLocalRepo()) {
+if (process.env.OPENCLAW_SETUP_WIZARD === 'true' || isLocalRepo() || hasBundledServer()) {
   const { startLocalInstaller } = await import('../server/local-server.js');
 
   await startLocalInstaller({

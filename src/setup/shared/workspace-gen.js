@@ -94,10 +94,9 @@ description: Vibe and reply style
         ? `# Tính cách\n\n**Hữu ích thật sự.** Bỏ qua câu nệ, cứ giúp thẳng.\n**Có cá tính.** Trợ lý không có cá tính thì chỉ là công cụ.\n\n## Phong cách\n- Tự nhiên, gần gũi\n- Trực tiếp, ngắn gọn${persona ? `\n\n## Custom Rules\n${persona}` : ''}`
         : `# Soul\n\n**Be genuinely helpful.** Skip filler and just help.\n**Have personality.** An assistant with no personality is just a tool.\n\n## Style\n- Natural and concise\n- Direct and practical${persona ? `\n\n## Custom Rules\n${persona}` : ''}`;
     }
-    if (hasZaloMod) {
-      doc += buildZaloSoulSection(isVi, botName);
-    }
-    return frontmatter + doc + limitSection + related;
+    // (Removed) Zalo silent-mode rule + the hard 200-char reply limit — these caused
+    // over-constrained behavior; the plugin already handles silent-mode routing.
+    return frontmatter + doc + related;
   }
 
   function buildTeamDoc(options = {}) {
@@ -387,9 +386,9 @@ Truyền tham số \`job\` (object) gồm:
 
   function buildSecurityRules(isVi = true) {
     if (isVi) {
-      return `\n\n## 🔐 Quy Tắc Bảo Mật — BẮT BUỘC (Red Lines)\n\n**GIỚI HẠN FILE & HỆ THỐNG:**\n- ✅ CHỈ làm việc trong thư mục project (workspace).\n- ❌ KHÔNG cung cấp file nội bộ của \`.openclaw\` (config.json, registry.json, task-memory.json, workspace-memory...)\n- ❌ KHÔNG đọc, sao chép, hoặc truy cập bất kỳ file nào ngoài thư mục project\n- ❌ KHÔNG quét hoặc liệt kê các thư mục hệ thống: Documents, Desktop, Downloads, AppData\n- ❌ KHÔNG truy cập registry, system32, hoặc Program Files\n- ❌ KHÔNG cài đặt phần mềm, driver, hoặc service ngoài Docker\n\n**API KEY & CREDENTIALS:**\n- ❌ KHÔNG BAO GIỜ hiển thị API key, token, hoặc mật khẩu trong chat\n- ❌ KHÔNG viết API key trực tiếp vào mã nguồn\n- ❌ KHÔNG commit file credentials lên Git\n- ✅ LUÔN lưu credentials trong file .env riêng\n- ✅ LUÔN dùng biến môi trường thay vì hardcode\n\n**VÍ CRYPTO & TÀI SẢN SỐ:**\n- ❌ TUYỆT ĐỐI KHÔNG truy cập, đọc, hoặc quét các thư mục ví crypto\n- ❌ KHÔNG quét clipboard (có thể chứa seed phrases)\n- ❌ KHÔNG truy cập browser profile, cookie, hoặc mật khẩu đã lưu\n- ❌ KHÔNG cài đặt npm package lạ (chỉ openclaw và plugin chính thức)\n\n**DOCKER:**\n- ✅ Chỉ mount đúng thư mục cần thiết (config + workspace)\n- ❌ KHÔNG mount nguyên ổ đĩa (C:/ hoặc D:/)\n- ❌ KHÔNG chạy container với --privileged\n- ✅ Giới hạn port expose (chỉ 18789)`;
+      return `\n\n## 🔐 Quy Tắc Bảo Mật — BẮT BUỘC (Red Lines)\n\n**GIỚI HẠN FILE & HỆ THỐNG:**\n- ✅ Được phép đọc/ghi trong: (1) workspace của bạn, và (2) các thư mục/ổ đĩa được CHỦ cấp quyền — mount tại \`/mnt/...\` (xem mục "💽 Thư mục/ổ đĩa được cấp quyền" ở trên nếu có). Mặc định quyền theo PROJECT: mọi bot dùng chung các mount này, trừ khi mục đó ghi giới hạn riêng cho từng bot.\n- ❌ KHÔNG truy cập file/thư mục NGOÀI workspace và các mount \`/mnt/...\` đã được cấp.\n- ❌ KHÔNG tiết lộ file nội bộ \`.openclaw\` (config.json, credentials, registry.json, token...).\n- ❌ KHÔNG tự ý quét/liệt kê thư mục hệ thống (Documents, Desktop, Downloads, AppData, registry, system32, Program Files) khi chưa được mount.\n- ❌ KHÔNG cài đặt phần mềm, driver, hoặc service ngoài Docker\n\n**API KEY & CREDENTIALS:**\n- ❌ KHÔNG BAO GIỜ hiển thị API key, token, hoặc mật khẩu trong chat\n- ❌ KHÔNG viết API key trực tiếp vào mã nguồn\n- ❌ KHÔNG commit file credentials lên Git\n- ✅ LUÔN lưu credentials trong file .env riêng\n- ✅ LUÔN dùng biến môi trường thay vì hardcode\n\n**VÍ CRYPTO & TÀI SẢN SỐ:**\n- ❌ TUYỆT ĐỐI KHÔNG truy cập, đọc, hoặc quét các thư mục ví crypto\n- ❌ KHÔNG quét clipboard (có thể chứa seed phrases)\n- ❌ KHÔNG truy cập browser profile, cookie, hoặc mật khẩu đã lưu\n- ❌ KHÔNG cài đặt npm package lạ (chỉ openclaw và plugin chính thức)\n\n**DOCKER:**\n- ✅ Việc cấp thêm ổ đĩa/thư mục cho bot là do CHỦ chủ động làm qua dashboard (nút "Cấp quyền ổ đĩa") — khi đó mount xuất hiện ở \`/mnt/...\` và bot ĐƯỢC PHÉP dùng. Đây là hợp lệ.\n- ❌ KHÔNG tự thêm/sửa mount trong docker-compose.yml; KHÔNG đề nghị mount nguyên ổ đĩa nếu chủ không yêu cầu.\n- ❌ KHÔNG chạy container với \`--privileged\`.\n- ✅ Chỉ expose cổng thật sự cần thiết.`;
     }
-    return `\n\n## 🔐 Security Rules — MANDATORY (Red Lines)\n\n**SYSTEM & FILE LIMITS:**\n- ✅ ONLY work within the project folder (workspace).\n- ❌ DO NOT provide internal \`.openclaw\` files (config.json, registry.json, task-memory.json, workspace-memory...)\n- ❌ DO NOT read, copy, or access any file outside the project folder\n- ❌ DO NOT scan or list system directories: Documents, Desktop, Downloads, AppData\n- ❌ DO NOT access the registry, system32, or Program Files\n- ❌ DO NOT install software, drivers, or services outside Docker\n\n**API KEYS & CREDENTIALS:**\n- ❌ NEVER display API keys, tokens, or passwords in chat\n- ❌ DO NOT write API keys directly into source code\n- ❌ DO NOT commit credential files to Git\n- ✅ ALWAYS store credentials in a separate .env file\n- ✅ ALWAYS use environment variables instead of hardcoding\n\n**CRYPTO WALLETS & DIGITAL ASSETS:**\n- ❌ ABSOLUTELY DO NOT access, read, or scan crypto wallet directories\n- ❌ DO NOT scan the clipboard (may contain seed phrases)\n- ❌ DO NOT access browser profiles, cookies, or saved passwords\n- ❌ DO NOT install unknown npm packages (only openclaw and official plugins)\n\n**DOCKER:**\n- ✅ Only mount required directories (config + workspace)\n- ❌ DO NOT mount entire drives (C:/ or D:/)\n- ❌ DO NOT run containers with --privileged\n- ✅ Limit exposed ports (only 18789)`;
+    return `\n\n## 🔐 Security Rules — MANDATORY (Red Lines)\n\n**SYSTEM & FILE LIMITS:**\n- ✅ You MAY read/write in: (1) your workspace, and (2) any disks/folders the OWNER granted — mounted at \`/mnt/...\` (see the "💽 Granted disks/folders" section above if present). Permissions are PROJECT-scoped by default: all bots share these mounts unless a per-bot limit is written there.\n- ❌ DO NOT access files/folders OUTSIDE your workspace and the granted \`/mnt/...\` mounts.\n- ❌ DO NOT reveal internal \`.openclaw\` files (config.json, credentials, registry.json, tokens...).\n- ❌ DO NOT scan/list system directories (Documents, Desktop, Downloads, AppData, registry, system32, Program Files) unless they are mounted/granted.\n- ❌ DO NOT install software, drivers, or services outside Docker\n\n**API KEYS & CREDENTIALS:**\n- ❌ NEVER display API keys, tokens, or passwords in chat\n- ❌ DO NOT write API keys directly into source code\n- ❌ DO NOT commit credential files to Git\n- ✅ ALWAYS store credentials in a separate .env file\n- ✅ ALWAYS use environment variables instead of hardcoding\n\n**CRYPTO WALLETS & DIGITAL ASSETS:**\n- ❌ ABSOLUTELY DO NOT access, read, or scan crypto wallet directories\n- ❌ DO NOT scan the clipboard (may contain seed phrases)\n- ❌ DO NOT access browser profiles, cookies, or saved passwords\n- ❌ DO NOT install unknown npm packages (only openclaw and official plugins)\n\n**DOCKER:**\n- ✅ Granting extra disks/folders is done by the OWNER via the dashboard ("Grant disk access") — the mount then appears at \`/mnt/...\` and the bot MAY use it. This is legitimate.\n- ❌ DO NOT add/edit mounts in docker-compose.yml yourself; DO NOT request mounting whole drives unless the owner asks.\n- ❌ DO NOT run containers with \`--privileged\`.\n- ✅ Only expose ports that are truly needed.`;
   }
 
   function buildAgentsDoc(options = {}) {
@@ -410,7 +409,13 @@ Truyền tham số \`job\` (object) gồm:
       ? otherAgents.map((p) => `\`${p.name}\``).join(', ')
       : (isVi ? '`bot khác`' : '`another bot`');
 
-    const security = includeSecurity ? buildSecurityRules(isVi) : '';
+    // Outbound file rule: OpenClaw's sandbox (esp. Zalo personal) blocks sending files
+    // straight from the workspace path; files must be copied into the shared outbound media
+    // store first, then sent via the `message` tool. Injected into every AGENTS.md variant.
+    const fileSendRule = isVi
+      ? `\n\n## 📤 Quy tắc xuất & gửi file (Excel, tài liệu, ảnh...)\nDo sandbox bảo mật của OpenClaw (nhất là kênh Zalo cá nhân), khi cần gửi BẤT KỲ file nào cho user:\n1. Tạo/xuất file trong workspace của bạn (vd: \`${workspacePath}/bao-cao.xlsx\`).\n2. Tạo thư mục outbound (nếu chưa có) RỒI copy — chạy đúng 1 lệnh: \`mkdir -p /home/node/project/.openclaw/media/outbound && cp <đường-dẫn-file> /home/node/project/.openclaw/media/outbound/\`. (Bỏ qua \`mkdir -p\` thì copy sẽ lỗi khi thư mục chưa tồn tại. Dùng \`cp\`, KHÔNG dùng \`copy\`.)\n3. Gửi cho user bằng tool \`message\` (action="send") với đường dẫn file trong \`media/outbound/\`.\n- ⚠️ **Định dạng:** dùng định dạng HIỆN ĐẠI (\`.xlsx\`, \`.pdf\`, \`.png\`, \`.jpg\`). TUYỆT ĐỐI tránh \`.xls\` đời cũ. Lý do: OpenClaw chỉ cho gửi file mà loại media/tài liệu **xác thực được từ nội dung** (buffer-verified); \`.xls\` chỉ ra MIME fallback (\`application/vnd.ms-excel\`) nên bị CHẶN — đây là policy của OpenClaw, KHÔNG phải do Zalo/Telegram chặn, và KHÔNG liên quan group hay DM. Xuất Excel thì luôn xuất \`.xlsx\`.\n- KHÔNG gửi thẳng từ đường dẫn workspace (dễ bị sandbox chặn).\n- Đặt tên file rõ ràng (kèm thời gian/tên nhóm) để phân biệt; áp dụng cho cả Zalo lẫn Telegram.`
+      : `\n\n## 📤 File export & sending rule (Excel, documents, images...)\nDue to OpenClaw's security sandbox (especially the Zalo personal channel), to send ANY file to the user:\n1. Create/export the file in your workspace (e.g. \`${workspacePath}/report.xlsx\`).\n2. Create the outbound dir (if missing) THEN copy — run as one command: \`mkdir -p /home/node/project/.openclaw/media/outbound && cp <file-path> /home/node/project/.openclaw/media/outbound/\`. (Skipping \`mkdir -p\` makes the copy fail when the dir doesn't exist yet. Use \`cp\`, not \`copy\`.)\n3. Send it to the user via the \`message\` tool (action="send") using the path inside \`media/outbound/\`.\n- ⚠️ **Format:** use MODERN formats (\`.xlsx\`, \`.pdf\`, \`.png\`, \`.jpg\`). NEVER use legacy \`.xls\`. Reason: OpenClaw only allows sending files whose media/document type is **buffer-verified** (sniffed from content); \`.xls\` only yields a fallback MIME (\`application/vnd.ms-excel\`) and is BLOCKED — this is an OpenClaw policy, NOT a Zalo/Telegram limit, and is unrelated to group vs DM. Always export Excel as \`.xlsx\`.\n- DO NOT send directly from the workspace path (the sandbox may block it).\n- Use a clear filename (with timestamp/group name); applies to both Zalo and Telegram.`;
+    const security = fileSendRule + (includeSecurity ? buildSecurityRules(isVi) : '');
 
     if (variant === 'relay') {
       const directMessageRuleVi = replyToDirectMessages
@@ -522,13 +527,39 @@ description: Guide for utilizing tools and skills
       ? `\n## Related\n- [Vận hành](./AGENTS.md)\n- [Khởi động](./BOOTSTRAP.md)`
       : `\n## Related\n- [Operating Manual](./AGENTS.md)\n- [Bootstrap](./BOOTSTRAP.md)`;
 
-    const dmOverride = isVi
+    // Reaction guide (DM only). Detailed: lists the emoji palette + concrete examples + the
+    // exact tool-call shape, to maximize the model's adherence (it's prompt-driven — there is
+    // no config gate for zalouser reactions).
+    // Zalo reactions = EXACTLY the 6 native codes (Zalo renders them as icons). Telegram uses
+    // unicode. `emoji` value sent to the react action MUST be one of these codes on Zalo.
+    const reactList = isVi
       ? (isZalo
-          ? `\n\n## Override: DM và Zalo reaction\n- Nếu metadata không nói rõ đây là group/supergroup, mặc định xem là chat riêng/DM và trả lời bình thường.\n- Quy tắc im lặng khi không ai được gọi chỉ áp dụng cho group chat, không áp dụng cho DM/chat riêng.\n- Trước MỖI phản hồi Zalo nhìn thấy bởi user, nếu turn hiện tại có tool/action reaction native thì ưu tiên dùng nó để thả \`👍\` trước, trừ khi \`👍\` đã có sẵn.\n- Nếu turn hiện tại không expose tool reaction hoặc chat đích không hỗ trợ reaction thật, cứ trả lời đúng vai trò và không được nói là mình đã thả reaction.`
-          : `\n\n## Override: DM và Telegram reaction\n- Nếu metadata không nói rõ đây là group/supergroup, mặc định xem là chat riêng/DM và trả lời bình thường.\n- Quy tắc im lặng khi không ai được gọi chỉ áp dụng cho group chat, không áp dụng cho DM/chat riêng.\n- Trước MỖI phản hồi Telegram nhìn thấy bởi user, nếu turn hiện tại có tool/action reaction native thì ưu tiên dùng nó để thả \`👍\` trước, trừ khi \`👍\` đã có sẵn.\n- Nếu turn hiện tại không expose tool reaction hoặc chat đích không hỗ trợ reaction thật, cứ trả lời đúng vai trò và không được nói là mình đã thả reaction.`)
+          ? 'Reaction Zalo hỗ trợ — CHỈ dùng đúng 6 mã này (Zalo tự render thành icon): `/-strong` 👍 (mặc định/ok/đồng ý), `/-heart` ❤️ (thân thiện/cảm ơn), `:>` 😂 (vui/hài hước), `:o` 😮 (ngạc nhiên), `:-((` 😭 (buồn/thông cảm), `:-h` 😡 (bực/giận). KHÔNG dùng emoji unicode khác.'
+          : 'Telegram hỗ trợ nhiều emoji reaction (👍 ❤️ 🔥 😁 😮 😢 🙏 …) — chọn cái hợp ngữ cảnh.')
       : (isZalo
-          ? `\n\n## Override: DM and Zalo reaction\n- If metadata does not clearly say this is a group/supergroup, treat it as a private DM and reply normally.\n- The stay-silent rule for unaddressed messages applies only to group chats, never to DMs.\n- Before EVERY user-visible Zalo reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- If the reaction tool is unavailable or the target chat does not support real reactions, just reply in-character and do not claim that you reacted.`
-          : `\n\n## Override: DM and Telegram reaction\n- If metadata does not clearly say this is a group/supergroup, treat it as a private DM and reply normally.\n- The stay-silent rule for unaddressed messages applies only to group chats, never to DMs.\n- Before EVERY user-visible Telegram reply, if the current turn exposes a native reaction tool/action, use it to add \`👍\` first unless \`👍\` is already present.\n- If the reaction tool is unavailable or the target chat does not support real reactions, just reply in-character and do not claim that you reacted.`);
+          ? 'Zalo reactions — use EXACTLY these 6 codes (Zalo renders them as icons): `/-strong` 👍 (default/ok), `/-heart` ❤️ (warm/thanks), `:>` 😂 (funny), `:o` 😮 (surprise), `:-((` 😭 (sad/empathy), `:-h` 😡 (annoyed). Do NOT use other unicode emoji.'
+          : 'Telegram supports many reaction emojis (👍 ❤️ 🔥 😁 😮 😢 🙏 …) — pick what fits.');
+    const reactValue = isZalo
+      ? (isVi ? '`emoji` = đúng 1 trong 6 mã trên (vd `emoji: "/-strong"`)' : '`emoji` = exactly one of the 6 codes above (e.g. `emoji: "/-strong"`)')
+      : (isVi ? '`emoji` = 1 emoji ở trên' : '`emoji` = one emoji above');
+    const reactExamples = isZalo
+      ? (isVi ? 'Ví dụ: khen/cảm ơn → `/-heart`; hỏi/trao đổi thường → `/-strong`; chuyện vui → `:>`; tin bất ngờ → `:o`; tin buồn → `:-((`; bực → `:-h`.'
+              : 'Examples: praise/thanks → `/-heart`; normal → `/-strong`; funny → `:>`; surprise → `:o`; sad → `:-((`; annoyed → `:-h`.')
+      : (isVi ? 'Ví dụ: khen → ❤️; hỏi thường → 👍; chuyện vui → 😂; tin buồn → 😢; bất ngờ → 😮.'
+              : 'Examples: praise → ❤️; normal → 👍; funny → 😂; sad → 😢; surprise → 😮.');
+    // How to target the reaction. Telegram's react action auto-targets the user's latest
+    // inbound message when no messageId is given — passing a stale messageId reacts to the
+    // wrong (older) message. Zalo needs the explicit message id, so keep that as-is.
+    const reactHow = isZalo
+      ? (isVi
+          ? `Cách gọi: tool \`message\` với \`action: "react"\`, \`messageId\` = id tin nhắn của user, ${reactValue}.`
+          : `How: \`message\` tool with \`action: "react"\`, \`messageId\` = the user's message id, ${reactValue}.`)
+      : (isVi
+          ? `Reaction phải nhắm vào **tin nhắn mới nhất của user** (inbound hiện tại), KHÔNG phải tin cũ hơn hay tin của chính mình.\n- Cách đúng: tool \`message\` với \`action: "react"\`, ${reactValue}, **KHÔNG truyền \`messageId\`** — tool sẽ tự reaction vào inbound message mới nhất. Chỉ truyền \`messageId\` khi cần reaction vào một tin CỤ THỂ không phải tin mới nhất.`
+          : `The reaction MUST target the **user's latest (current inbound) message**, not an older one or your own message.\n- Correct: \`message\` tool with \`action: "react"\`, ${reactValue}, **do NOT pass \`messageId\`** — the tool auto-reacts to the latest inbound message. Only pass \`messageId\` to react to a specific OLDER message.`);
+    const dmOverride = isVi
+      ? `\n\n## ⚡ Reaction khi nhắn riêng (DM) — BẮT BUỘC\n- Khi DM với user, PHẢI luôn dùng tool/action reaction native để thả reaction CÙNG LÚC khi trả lời.\n- KHÔNG thả reaction trong group chat.\n- Chọn theo cảm xúc/ngữ cảnh tin của user. ${reactList}\n- ${reactHow}\n- ${reactExamples}`
+      : `\n\n## ⚡ Reactions in DMs — MANDATORY\n- In DMs with the user, you MUST always use the native reaction tool/action to react WHILE replying.\n- Do NOT react in group chats.\n- Pick by the user's emotion/context. ${reactList}\n- ${reactHow}\n- ${reactExamples}`;
 
     if (variant === 'relay') {
       return frontmatter + (isVi
