@@ -29,12 +29,23 @@
 
 ## 🆕 What's New in v5.10.0
 
+- 🔄 **Native auto-restart (process supervision)**: native installs now register the gateway + 9router as OS services (macOS launchd, Linux systemd, Windows detached) that restart on crash/reboot — mirroring Docker's `restart: always`. Best-effort, falls back to a plain detached process.
+- 🔐 **9router first-install sync — fixed**: no longer permanently disables "Require login". The generated `sync.js` logs in with 9router's default password `123456`, builds the `smart-route` combo from active providers **once**, then stops. Require login stays ON (change the password later); `/v1` model calls are unaffected.
+- 📁 **Native workspace path — fixed**: agent `workspace` is now relative, so persona/memory/skills resolve correctly on native installs (previously a container-absolute path pointing nowhere on the host).
+- 🧩 **Config `meta` no longer clobbered**: the generator stops seeding `meta`, so OpenClaw owns it — prevents config parse failures from a version-range `lastTouchedVersion`.
+- 💅 **Dashboard UI polish**: Bot/Setup hero shortcuts, plugin version badges, cleaner feature-toggle layout, responsive/mobile fixes, and no more duplicate page title on the dashboard tab.
+
+<details>
+<summary><b>Previous: What's new in v5.9.0</b></summary>
+
 - 🧠 **TencentDB Agent Memory — 1-click install**: New memory plugin in the UI. A 4-tier (L0–L3) layered-memory + context-compression engine that keeps long sessions coherent and **cuts token usage by up to ~61%**. Fully local (SQLite), no API key, Docker-ready.
 - ⚡ **Token-lean defaults for every new bot**: Ships with context pruning (cache-TTL) + `safeguard` compaction — **cheaper & sharper long conversations** with zero tuning.
 - 🎯 **Per-bot & per-channel Skills/Plugins**: Install/enable/disable a skill for **one bot only** (no more leaking across bots); the panel shows only what fits each channel (Zalo / Telegram / Messenger).
 - 📤 **Reliable file sending on Zalo & Telegram**: Bots now know the correct outbound ritual (`media/outbound` + `message` tool) and to use modern formats like `.xlsx` — no more "the file won't send".
 - 🐳 **One-click Docker controls**: Restart / Rebuild the bot container and grant it disk access (mount any host folder at `/mnt/<name>`, cross-OS) right from the dashboard — restart your bot without touching the command line.
 - ⚡ **Faster Dashboard & Bot pages**: Runtime/version detection now probes **once** and is cached instead of re-running on every page load — bot status dropped from ~4s to ~3ms on repeat loads. Cache auto-invalidates on update/rebuild/restart/install.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.8.24 (Launcher Auto-Update)</b></summary>
