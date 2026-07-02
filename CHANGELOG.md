@@ -1,6 +1,17 @@
 # Changelog (English)
 
 
+## [5.10.0] — 2026-07-02
+
+### Added
+- **Native process supervision (auto-restart):** native installs now register the gateway and 9router as OS services (macOS launchd, Linux systemd, Windows detached) that restart on crash/reboot — mirroring Docker's `restart: always`. Best-effort with fallback to a plain detached process.
+- **Dashboard UI polish:** Bot/Setup hero shortcut buttons, plugin version badges, cleaner feature-toggle layout, responsive/mobile fixes, and removal of the duplicate page title on the dashboard tab.
+
+### Fixed
+- **9router first-install auto-sync:** the generated `sync.js` no longer permanently disables "Require login". It logs in with 9router's default password `123456`, creates the `smart-route` combo from active providers' models **once**, then stops (no perpetual loop, no forcing login off). Require login stays ON with the default password (users change it later). `/v1` model calls are unaffected (API-key auth, separate from dashboard login).
+- **Native workspace path:** agent `workspace` is now a relative path, so persona/memory/skills resolve correctly on native installs (was a container-absolute path pointing nowhere on the host).
+- **Config `meta` block:** no longer seeded by the generator (OpenClaw owns it) — prevents config parse failures from a version-range `lastTouchedVersion`.
+
 ## [5.9.0] — 2026-06-28
 
 ### 🚀 New: run straight from GitHub

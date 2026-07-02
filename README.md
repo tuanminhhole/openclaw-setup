@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS, on Docker or native.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.9.0-0EA5E9?style=for-the-badge" alt="Version 5.9.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.10.0-0EA5E9?style=for-the-badge" alt="Version 5.10.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,7 +27,7 @@
 
 ---
 
-## 🆕 What's New in v5.9.0
+## 🆕 What's New in v5.10.0
 
 - 🧠 **TencentDB Agent Memory — 1-click install**: New memory plugin in the UI. A 4-tier (L0–L3) layered-memory + context-compression engine that keeps long sessions coherent and **cuts token usage by up to ~61%**. Fully local (SQLite), no API key, Docker-ready.
 - ⚡ **Token-lean defaults for every new bot**: Ships with context pruning (cache-TTL) + `safeguard` compaction — **cheaper & sharper long conversations** with zero tuning.

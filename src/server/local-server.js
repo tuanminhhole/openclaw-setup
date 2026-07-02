@@ -605,6 +605,136 @@ Timed out after ${opts.timeout}ms`.trim() : stderr });
   });
 }
 
+// ── Native process supervision (auto-restart) ───────────────────────────────
+// Docker containers get `restart: always` for free. For native installs we register the gateway
+// and 9router as OS services so they survive crashes and reboots, mirroring that guarantee:
+//   • macOS  → per-user launchd LaunchAgent (KeepAlive + RunAtLoad)
+//   • Linux  → systemd unit (system unit when root, else --user) with Restart=always
+//   • Windows / anything else → plain detached process (no supervision; unchanged behaviour)
+// Every step is best-effort: any failure falls back to startDetached, so a native install can
+// never end up worse off than before this feature existed.
+function escapeXml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function nativeServiceId(projectDir) { return slugify(basename(projectDir || 'openclaw')) || 'bot'; }
+function nativeServiceLabels(projectDir) {
+  const id = nativeServiceId(projectDir);
+  return {
+    '9router': { launchd: `com.openclaw.9router.${id}`, systemd: `openclaw-9router-${id}.service` },
+    sync: { launchd: `com.openclaw.sync.${id}`, systemd: `openclaw-sync-${id}.service` },
+    gateway: { launchd: `com.openclaw.gateway.${id}`, systemd: `openclaw-gateway-${id}.service` },
+  };
+}
+async function resolveAbsoluteBin(cmd) {
+  try {
+    const out = await runCapture(process.platform === 'win32' ? 'where' : 'which', [cmd], { shell: false, timeout: 5000 });
+    const first = String(out.stdout || '').split(/\r?\n/).map((s) => s.trim()).find(Boolean);
+    if (out.code === 0 && first) return first;
+  } catch {}
+  return resolveBinPath(cmd);
+}
+function systemdUserUnitDir() { return join(getRealHomedir(), '.config', 'systemd', 'user'); }
+function isRootUser() { return typeof process.getuid === 'function' && process.getuid() === 0; }
+
+/**
+ * Start one native process under OS supervision (auto-restart). Falls back to a plain detached
+ * process on Windows/unknown platforms or if the service tooling errors. Returns the method used:
+ * 'launchd' | 'systemd' | 'detached'.
+ */
+async function startNativeService({ projectDir, name, cmd, args, desc, env }) {
+  const labels = nativeServiceLabels(projectDir)[name];
+  const logDir = join(projectDir, '.openclaw', 'logs');
+  await fsp.mkdir(logDir, { recursive: true }).catch(() => {});
+  const serviceEnv = { PATH: process.env.PATH || '', HOME: getRealHomedir(), ...env };
+  try {
+    const absBin = await resolveAbsoluteBin(cmd);
+    if (process.platform === 'darwin') {
+      const agentsDir = join(getRealHomedir(), 'Library', 'LaunchAgents');
+      await fsp.mkdir(agentsDir, { recursive: true });
+      const progArgs = [absBin, ...args].map((a) => `      <string>${escapeXml(a)}</string>`).join('\n');
+      const envDict = Object.entries(serviceEnv).map(([k, v]) => `      <key>${escapeXml(k)}</key><string>${escapeXml(String(v))}</string>`).join('\n');
+      const plist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>${labels.launchd}</string>
+  <key>ProgramArguments</key><array>
+${progArgs}
+  </array>
+  <key>WorkingDirectory</key><string>${escapeXml(projectDir)}</string>
+  <key>EnvironmentVariables</key><dict>
+${envDict}
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>${escapeXml(join(logDir, name + '.out.log'))}</string>
+  <key>StandardErrorPath</key><string>${escapeXml(join(logDir, name + '.err.log'))}</string>
+</dict></plist>`;
+      const plistPath = join(agentsDir, `${labels.launchd}.plist`);
+      await fsp.writeFile(plistPath, plist, 'utf8');
+      await run('launchctl', ['unload', plistPath], {}).catch(() => {});
+      await run('launchctl', ['load', '-w', plistPath], {});
+      sendLog(`[native] launchd service ${labels.launchd} loaded (auto-restart)`);
+      return 'launchd';
+    }
+    if (process.platform === 'linux') {
+      const root = isRootUser();
+      const unitDir = root ? '/etc/systemd/system' : systemdUserUnitDir();
+      await fsp.mkdir(unitDir, { recursive: true });
+      const sc = (a) => run('systemctl', root ? a : ['--user', ...a], {});
+      const envLines = Object.entries(serviceEnv).map(([k, v]) => `Environment="${k}=${String(v).replace(/\n/g, ' ')}"`).join('\n');
+      const execStart = [absBin, ...args].map((a) => (/[\s"']/.test(a) ? JSON.stringify(a) : a)).join(' ');
+      const unit = `[Unit]
+Description=${desc}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=${projectDir}
+${envLines}
+ExecStart=${execStart}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=${root ? 'multi-user.target' : 'default.target'}
+`;
+      await fsp.writeFile(join(unitDir, labels.systemd), unit, 'utf8');
+      await sc(['daemon-reload']);
+      await sc(['enable', '--now', labels.systemd]);
+      sendLog(`[native] systemd ${root ? 'system' : 'user'} service ${labels.systemd} enabled (Restart=always)`);
+      return 'systemd';
+    }
+  } catch (e) {
+    sendLog(`[native] ${name} service setup failed (${e.message}); falling back to detached process`);
+  }
+  const pid = startDetached(cmd, args, { cwd: projectDir, env });
+  if (name === 'gateway') state.botPid = pid;
+  return 'detached';
+}
+
+/** Remove any launchd/systemd services registered for a native project (used on delete). */
+async function removeNativeAutostart(projectDir) {
+  const labels = nativeServiceLabels(projectDir);
+  try {
+    if (process.platform === 'darwin') {
+      const agentsDir = join(getRealHomedir(), 'Library', 'LaunchAgents');
+      for (const k of ['9router', 'sync', 'gateway']) {
+        const p = join(agentsDir, `${labels[k].launchd}.plist`);
+        if (existsSync(p)) { await run('launchctl', ['unload', p], {}).catch(() => {}); await fsp.unlink(p).catch(() => {}); }
+      }
+    } else if (process.platform === 'linux') {
+      const root = isRootUser();
+      const unitDir = root ? '/etc/systemd/system' : systemdUserUnitDir();
+      const sc = (a) => run('systemctl', root ? a : ['--user', ...a], {}).catch(() => {});
+      let changed = false;
+      for (const k of ['9router', 'sync', 'gateway']) {
+        const u = join(unitDir, labels[k].systemd);
+        if (existsSync(u)) { await sc(['disable', '--now', labels[k].systemd]); await fsp.unlink(u).catch(() => {}); changed = true; }
+      }
+      if (changed) await sc(['daemon-reload']);
+    }
+  } catch (e) { sendLog(`[native] autostart teardown skipped: ${e.message}`); }
+}
+
 function safeJoin(root, name) {
   const clean = normalize(String(name || '')).replace(/^([/\\])+/, '');
   if (!clean || clean.includes('..')) throw httpError(400, 'Invalid file path');
@@ -1445,7 +1575,9 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   cfg.agents.list.push({
     id: agentId,
     name: botName,
-    workspace: `/home/node/project/.openclaw/${workspaceDir}`,
+    // Relative workspace path — resolves against the process cwd (project root) in both docker
+    // and native. See buildOpenclawJson() for the full rationale.
+    workspace: `.openclaw/${workspaceDir}`,
     agentDir: `agents/${agentId}/agent`,
     model: { primary: model === '9router/smart-route' || model === 'openai/smart-route' ? DEFAULT_MODEL : model, fallbacks: [] },
   });
@@ -2436,17 +2568,62 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
       await applyResolved9RouterApiKey(projectDir).catch(() => {});
       await recreateDockerBot(projectDir).catch(() => {});
     } else {
+      const nineRouterDataDir = join(projectDir, '.9router');
+      const nineRouterDbPath = join(nineRouterDataDir, 'db', 'data.sqlite');
       const runtimeEnv = {
         OPENCLAW_HOME: join(projectDir, '.openclaw'),
         OPENCLAW_STATE_DIR: join(projectDir, '.openclaw'),
-        DATA_DIR: join(projectDir, '.9router'),
+        DATA_DIR: nineRouterDataDir,
         OPENCLAW_GATEWAY_PORT: String(gatewayPort),
         OPENCLAW_PORT: String(gatewayPort),
+        // Parity with the docker runtime env (docker-gen.js) so the gateway and browser plugin
+        // behave the same natively: allow the private-network control-UI websocket and tell the
+        // browser plugin which host OS it is running on.
+        OPENCLAW_ALLOW_INSECURE_PRIVATE_WS: '1',
+        OPENCLAW_SETUP_OS: osChoice || '',
+        OPENCLAW_BROWSER_HOST_OS: osChoice || '',
       };
       await run('openclaw', ['gateway', 'stop'], { cwd: projectDir, env: runtimeEnv }).catch(() => {});
-      startDetached('9router', ['-n', '-l', '-H', '127.0.0.1', '-p', String(routerPort), '--skip-update'], { cwd: projectDir, env: runtimeEnv });
-      state.botPid = startDetached('openclaw', ['gateway', 'run'], { cwd: projectDir, env: runtimeEnv });
-      sendLog(`Native gateway started in background (pid=${state.botPid || 'unknown'})`);
+      // 9router binds loopback in native mode on purpose: openclaw runs on the SAME host and
+      // reaches it via localhost (see get9RouterBaseUrl), so there is no reason to expose the LLM
+      // proxy on 0.0.0.0 — even on a VPS that would be an open relay. Only the gateway is exposed.
+      // Start 9router first (auto-restart supervised), then sync, then the gateway — so the gateway
+      // boots after 9router is reachable and after the API key has been written to its config.
+      const routerMethod = await startNativeService({
+        projectDir, name: '9router', cmd: '9router', desc: `OpenClaw 9router (${nativeServiceId(projectDir)})`,
+        args: ['-n', '-l', '-H', '127.0.0.1', '-p', String(routerPort), '--skip-update'], env: runtimeEnv,
+      });
+      // Smart-route auto-sync: the docker sidecar runs a script that disables 9router's login
+      // requirement and builds the default `smart-route` combo from the active providers. Native
+      // mode skipped this, so the default model had no backing models. Reuse the exact docker
+      // script with the native DB path (passed via env to stay cross-platform / shell-safe).
+      try {
+        const artifacts = buildDockerArtifacts({ is9Router: true, osChoice, openClawNpmSpec: OPENCLAW_NPM_SPEC, gatewayPort, routerPort });
+        if (artifacts.syncScript) {
+          await fsp.mkdir(nineRouterDataDir, { recursive: true });
+          const syncPath = join(nineRouterDataDir, 'sync.js');
+          await fsp.writeFile(syncPath, artifacts.syncScript, 'utf8');
+          // Run the sync under supervision too (managed service) so it is torn down cleanly on
+          // delete instead of leaking an orphaned `node sync.js` process.
+          await startNativeService({
+            projectDir, name: 'sync', cmd: process.execPath, args: [syncPath],
+            desc: `OpenClaw 9router smart-route sync (${nativeServiceId(projectDir)})`,
+            env: { ...runtimeEnv, NINEROUTER_DB_PATH: nineRouterDbPath, PORT: String(routerPort) },
+          });
+          sendLog('[native] 9router smart-route sync started');
+        }
+      } catch (e) {
+        sendLog(`[native] smart-route sync setup skipped: ${e.message}`);
+      }
+      // Give 9router a moment to boot + sync to disable its login gate, then resolve its API key
+      // into openclaw.json BEFORE the gateway starts (so the gateway reads it on first boot).
+      await new Promise((r) => setTimeout(r, 8000));
+      await applyResolved9RouterApiKey(projectDir).catch(() => {});
+      const gatewayMethod = await startNativeService({
+        projectDir, name: 'gateway', cmd: 'openclaw', desc: `OpenClaw gateway (${nativeServiceId(projectDir)})`,
+        args: ['gateway', 'run'], env: runtimeEnv,
+      });
+      sendLog(`Native runtime started — 9router via ${routerMethod}, gateway via ${gatewayMethod}${state.botPid ? ` (pid=${state.botPid})` : ''}`);
     }
     state.installed = true;
     sendLog('✅ Install completed');
@@ -2851,6 +3028,10 @@ async function deleteProjectFolder(projectDir, rootProjectDir) {
     });
     // Sleep 2.5 seconds to let Windows file system release overlays/locks
     await new Promise((resolve) => setTimeout(resolve, 2500));
+  } else {
+    // Native project: stop & remove any launchd/systemd auto-restart services so they don't keep
+    // respawning a deleted bot. No-op when no services were registered.
+    await removeNativeAutostart(resolved);
   }
 
   try {
@@ -4073,7 +4254,7 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   printRemoteAccessHint(port).catch(() => {});
 }
 
-export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloUserLogin, readBotCredentials, resolveProject9RouterApiKey };
+export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloUserLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, removeNativeAutostart };
 
 
 
