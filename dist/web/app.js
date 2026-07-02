@@ -405,6 +405,9 @@ function topbarActionsHtml() {
 
 function render() {
   applyPrefs();
+  // Expose the active tab on <body> so CSS can drop the redundant page-title header on the
+  // dashboard (the dashboard hero already carries its own title).
+  document.body.dataset.activeTab = state.tab;
   const tabs = [['dashboard',t('Dashboard','Dashboard')],['setup',ui('setup')],['bot',ui('bot')],['logs',ui('logs')]];
   
   let mainContainer = $('#app-main-content');
@@ -617,9 +620,9 @@ function dashboardView() {
           <h2>${t('Dashboard v\u1eadn h\u00e0nh', 'Operational Dashboard')}</h2>
           <p class="lead" style="margin-top:6px">${t('M\u1edf website, xem version, tr\u1ea1ng th\u00e1i, bot v\u00e0 project.', 'Open website, view versions, status, bots and projects.')}</p>
         </div>
-        <div class="dash-actions" style="flex-direction:column; align-items:stretch; gap:8px;">
-          <button class="primary icon-btn2" data-tab-jump="bot" type="button" style="justify-content:center; min-width:140px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"></path></svg>${t('Bot','Bot')}</button>
-          <button class="secondary icon-btn2" data-tab-jump="setup" type="button" style="justify-content:center; border-width:2px; min-width:140px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path></svg>${t('C\u00e0i \u0111\u1eb7t','Setup')}</button>
+        <div class="dash-actions" style="flex-direction:row; gap:10px;">
+          <button class="primary icon-btn2" data-tab-jump="bot" type="button" style="justify-content:center; flex:1; min-width:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"></path></svg>${t('Bot','Bot')}</button>
+          <button class="secondary icon-btn2" data-tab-jump="setup" type="button" style="justify-content:center; border-width:2px; flex:1; min-width:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17"></path></svg>${t('C\u00e0i \u0111\u1eb7t','Setup')}</button>
         </div>
       </div>
       <div class="project-tabs" style="display:flex; gap:8px; flex-wrap:wrap; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06);">
@@ -627,7 +630,7 @@ function dashboardView() {
       </div>
     </section>
     
-    <section class="dash-layout" style="grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);">
+    <section class="dash-layout">
       <div style="display:flex; flex-direction:column; gap:18px;">
         <div class="dash-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start;">
           ${widgets.map(w => `<article class="card dash-metric"><span>${escapeHtml(w.label)}</span><strong style="font-size:22px; word-break:break-all;">${w.value}</strong><small>${escapeHtml(w.meta)}</small></article>`).join('')}
@@ -985,26 +988,31 @@ function botSkillsPanel() {
     const requiresInstall = group === 'plugin' || (group === 'skill' && (item.id === 'image-gen' || item.id === 'sticker-mention' || item.id === 'learning-memory'));
     const isInstalled = !requiresInstall || !!state.featureInstalled?.[key];
     
-    let actionsHtml = '';
+    const version = requiresInstall && isInstalled ? (state.featureVersions?.[key] || '') : '';
+    const versionBadge = version ? `<span class="plugin-version-badge" style="display:inline-block; font-size: 11px; background: rgba(66, 133, 244, 0.15); color: #4285F4; padding: 2px 6px; border-radius: 4px; font-weight: 600; border: 1px solid rgba(66,133,244,0.25); flex:0 0 auto;">v${escapeHtml(version)}</span>` : '';
+
+    // The on/off toggle stays inline with the title (one line, name truncates with ellipsis if
+    // long). The wider Open / Update / Install controls drop to their own row below the description.
+    let toggleHtml = '';
+    const secs = [];
     if (isInstalled) {
-      actionsHtml = `<div style="display:flex; align-items:center; gap:8px;">`;
+      toggleHtml = `<label class="feature-switch"><input type="checkbox" data-feature-toggle="${key}" ${flags[key] ? 'checked' : ''} ${loading ? 'disabled' : ''}/><span></span></label>`;
       if (item.openWebPort) {
-        actionsHtml += `<a class="secondary icon-btn2" href="${sameHostUrl('', item.openWebPort)}${item.openWebPath || ''}" target="_blank" rel="noopener" title="${t('Mở dashboard của plugin','Open the plugin dashboard')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px;">${actionIcon('link')}<span>${t('Mở web','Open')}</span></a>`;
+        secs.push(`<a class="secondary icon-btn2" href="${sameHostUrl('', item.openWebPort)}${item.openWebPath || ''}" target="_blank" rel="noopener" title="${t('Mở dashboard của plugin','Open the plugin dashboard')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px;">${actionIcon('link')}<span>${t('Mở web','Open')}</span></a>`);
       }
       if (requiresInstall) {
-        actionsHtml += `<button class="secondary icon-btn2 update-plugin-btn" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''} title="${t('Cập nhật lên bản mới nhất','Update to latest version')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#ffb020; border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.05);">${actionIcon('refresh')}<span>${t('Cập nhật','Update')}</span></button>`;
+        secs.push(`<button class="secondary icon-btn2 update-plugin-btn" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''} title="${t('Cập nhật lên bản mới nhất','Update to latest version')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#ffb020; border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.05);">${actionIcon('refresh')}<span>${t('Cập nhật','Update')}</span></button>`);
       }
-      actionsHtml += `<label class="feature-switch"><input type="checkbox" data-feature-toggle="${key}" ${flags[key] ? 'checked' : ''} ${loading ? 'disabled' : ''}/><span></span></label></div>`;
     } else {
-      actionsHtml = `<button class="secondary icon-btn2" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''}>${actionIcon('download')} ${ui('installVerb')}</button>`;
+      secs.push(`<button class="secondary icon-btn2" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''}>${actionIcon('download')} ${ui('installVerb')}</button>`);
     }
+    const secondaryHtml = secs.length ? `<div class="feature-actions">${secs.join('')}</div>` : '';
 
-    const version = requiresInstall && isInstalled ? (state.featureVersions?.[key] || '') : '';
-    const versionBadge = version ? `<span class="plugin-version-badge" style="display:inline-block; font-size: 11px; background: rgba(66, 133, 244, 0.15); color: #4285F4; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 8px; border: 1px solid rgba(66,133,244,0.25);">v${escapeHtml(version)}</span>` : '';
-
-    return `<article class="card feature-card ${loading ? 'is-loading' : ''}"><div class="feature-head"><div><b>${escapeHtml(item.title)}${versionBadge}</b><p>${escapeHtml(item.desc)}</p></div>` + 
-      actionsHtml +
-      `</div>${loading ? '<div class="feature-progress"><i></i></div>' : ''}</article>`;
+    return `<article class="card feature-card ${loading ? 'is-loading' : ''}">` +
+      `<div class="feature-head"><div class="feature-title"><b class="feature-name">${escapeHtml(item.title)}</b>${versionBadge}</div>${toggleHtml}</div>` +
+      `<p class="feature-desc">${escapeHtml(item.desc)}</p>` +
+      secondaryHtml +
+      `${loading ? '<div class="feature-progress"><i></i></div>' : ''}</article>`;
   };
   return `
     <h4 class="feature-group">⚡ ${t('Skills','Skills')}</h4>

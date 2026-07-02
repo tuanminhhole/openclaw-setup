@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS, chạy Docker hoặc native.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.9.0-0EA5E9?style=for-the-badge" alt="Version 5.9.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.10.0-0EA5E9?style=for-the-badge" alt="Version 5.10.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,7 +27,7 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.9.0
+## 🆕 Có gì mới trong v5.10.0
 
 - 🧠 **TencentDB Agent Memory — cài 1 chạm**: Plugin bộ nhớ mới ngay trên UI. Bộ nhớ phân tầng 4 lớp (L0–L3) + nén ngữ cảnh, giữ session dài mạch lạc và **tiết kiệm tới ~61% token**. Chạy local hoàn toàn (SQLite), không cần API key, sẵn sàng cho Docker.
 - ⚡ **Cấu hình tiết kiệm token mặc định cho mọi bot mới**: Tự có context pruning (cache-TTL) + compaction `safeguard` — **hội thoại dài rẻ hơn & sắc nét hơn**, không cần chỉnh tay.

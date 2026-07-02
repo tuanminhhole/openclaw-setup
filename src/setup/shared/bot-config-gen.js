@@ -82,23 +82,29 @@
     const isLocal = !!provider.isLocal;
 
     // ── agents ────────────────────────────────────────────────────────────────
+    // Workspace is a RELATIVE path (resolved by OpenClaw against the process cwd, which is the
+    // project root in both modes: WORKDIR=/home/node/project in docker, cwd=projectDir natively).
+    // OpenClaw's resolveUserPath() keeps absolute paths as-is, so the old container-absolute
+    // "/home/node/project/.openclaw/…" pointed at a non-existent path on a native host (the bot's
+    // persona/memory/skills silently lived in the wrong place). `agentDir` is already relative and
+    // proven to resolve correctly in docker, so relative `workspace` is byte-identical for docker
+    // and finally correct for native. See workspaceRelForAgent() which accepts both forms.
     const agentsList = agentMetas.map((meta) => ({
       id: meta.agentId,
       ...(meta.name ? { name: meta.name } : {}),
-      workspace: `/home/node/project/.openclaw/${meta.workspaceDir || 'workspace-' + meta.agentId}`,
+      workspace: `.openclaw/${meta.workspaceDir || 'workspace-' + meta.agentId}`,
       agentDir: `agents/${meta.agentId}/agent`,
       model: { primary: model, fallbacks: [] },
     }));
 
     const cfg = {
-      // NOTE: do NOT seed `lastTouchedVersion` here. OPENCLAW_NPM_SPEC is a range/`latest`
-      // (e.g. `>=2026.6.10`), not a concrete version — writing it makes OpenClaw fail to parse
-      // it on boot and crash the container. OpenClaw stamps the correct
-      // `{ lastTouchedVersion, lastTouchedAt }` itself on first run.
-      meta: {
-        osChoice,
-        deployMode,
-      },
+      // NOTE: do NOT seed a `meta` block here. `meta` is owned by OpenClaw — it stamps
+      // `{ lastTouchedVersion, lastTouchedAt }` itself on first run and adds the block if
+      // missing. Writing our own fields into it (osChoice/deployMode), or seeding
+      // `lastTouchedVersion` from OPENCLAW_NPM_SPEC which is a range/`latest`
+      // (e.g. `>=2026.6.10`) not a concrete version, makes OpenClaw fail to parse the config
+      // on boot and crash the container. osChoice/deployMode are installer-only concerns and
+      // are persisted via the browser plugin's `config.hostOs` + in-memory state instead.
       agents: {
         defaults: {
           model: { primary: model, fallbacks: [] },

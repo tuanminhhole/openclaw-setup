@@ -1,6 +1,17 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.10.0] — 2026-07-02
+
+### Thêm mới
+- **Tự khởi động lại tiến trình (native):** cài native giờ đăng ký gateway + 9router thành service hệ điều hành (macOS launchd, Linux systemd, Windows detached), tự chạy lại khi crash/reboot — giống `restart: always` của Docker. Best-effort, lỗi thì fallback về chạy detached bình thường.
+- **UI dashboard gọn hơn:** nút tắt Bot/Cài đặt ở hero, badge version plugin, layout toggle tính năng, responsive/mobile, bỏ tiêu đề trùng ở tab dashboard.
+
+### Sửa
+- **Auto-sync 9router lần đầu cài:** `sync.js` không còn tắt vĩnh viễn "Require login". Nó đăng nhập bằng mật khẩu mặc định `123456` của 9router, tạo combo `smart-route` từ model của các provider đang active **một lần** rồi dừng (không lặp vô hạn, không ép tắt login). Require login giữ ON với mật khẩu mặc định (user đổi sau). Model-call `/v1` không bị ảnh hưởng (xác thực bằng API-key, tách biệt login dashboard).
+- **Đường dẫn workspace (native):** `workspace` của agent giờ là đường dẫn tương đối, để persona/memory/skills nằm đúng chỗ khi cài native (trước là đường dẫn tuyệt đối kiểu container → trỏ sai trên host).
+- **Khối `meta` trong config:** không tự seed nữa (OpenClaw tự quản) — tránh lỗi parse config do `lastTouchedVersion` là dải version.
+
 ## [5.9.0] — 2026-06-28
 
 ### 🚀 Mới: chạy thẳng từ GitHub

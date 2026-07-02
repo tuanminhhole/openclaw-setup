@@ -49,7 +49,7 @@ html[data-theme="light"] .topbar{background:rgba(255,255,255,.82);box-shadow:0 1
 .setup-copy{display:grid!important;grid-template-columns:minmax(240px,.78fr) 1fr;align-items:center!important;gap:22px!important;min-height:128px;padding:22px 24px!important;background:linear-gradient(135deg,rgba(18,201,255,.075),rgba(255,255,255,.035),rgba(124,58,237,.055))!important;border-color:rgba(96,165,250,.20)!important}.setup-copy h2{margin:12px 0 0;font-size:22px;letter-spacing:-.035em;line-height:1.15}.setup-copy .lead{margin:0;font-size:18px;line-height:1.55;max-width:560px;color:var(--body);font-weight:500}.mini-pill{border-color:rgba(18,201,255,.38)!important;background:rgba(18,201,255,.09)!important;color:var(--soft)!important}
 .setup-section,.card,.choice-card,.system-card,.terminal{backdrop-filter:blur(14px);background:linear-gradient(145deg,rgba(8,18,32,.72),rgba(5,8,14,.82))!important;border-color:var(--hair)!important}.choice-card:has(input:checked),.choice-card.is-selected{border-color:var(--primary)!important;background:linear-gradient(145deg,rgba(18,201,255,.13),rgba(8,18,32,.88))!important;box-shadow:0 0 0 1px rgba(18,201,255,.25) inset,0 24px 70px rgba(18,201,255,.10)!important}.choice-card:has(input:checked) .choice-card__meta i,.choice-card.is-selected .choice-card__meta i{border-color:var(--primary)!important;background:radial-gradient(circle,var(--primary) 0 42%,transparent 46%)!important;box-shadow:0 0 0 5px rgba(18,201,255,.14),0 0 28px rgba(18,201,255,.34)!important}.install-cta{background:linear-gradient(135deg,var(--primary),var(--soft) 48%,#0284c7)!important;color:#001018!important}.install-cta small{color:rgba(0,16,24,.72)!important}
 html[data-theme="light"] .setup-section,html[data-theme="light"] .card,html[data-theme="light"] .choice-card,html[data-theme="light"] .system-card,html[data-theme="light"] .terminal{background:rgba(255,255,255,.82)!important;color:var(--ink)!important}.choice-card__body small{color:var(--body)!important}
-@media(max-width:900px){.topbar{height:auto;align-items:stretch;flex-direction:column}.topbar__actions{width:100%;justify-content:space-between}.setup-copy{grid-template-columns:1fr!important}.setup-copy .lead{font-size:16px}}
+@media(max-width:900px){.topbar{height:auto}.setup-copy{grid-template-columns:1fr!important}.setup-copy .lead{font-size:16px}}
 
 
 /* OpenClaw red theme + overflow containment fix */
@@ -651,6 +651,10 @@ html[data-theme="light"] .donut-chart::before {
 .chart-info span{color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase}
 .chart-info strong{font-size:18px;letter-spacing:-0.02em;line-height:1.2}
 .chart-info small{color:var(--body);font-size:13px}
+.chart-info span,.chart-info strong,.chart-info small{overflow-wrap:anywhere}
+/* On narrow screens the chart cards sit 2-up (~162px each); stack the donut above the
+   text so the labels ("Installed Extensions", model id) get the full card width. */
+@media(max-width:760px){.chart-card{flex-direction:column;text-align:center;gap:10px;padding:14px}.chart-info{align-items:center}}
 
 /* Premium Toast Notification System */
 .toast-container {
@@ -1912,3 +1916,99 @@ main{transition:margin .2s}
 /* Tablet/mobile bot page: stop horizontal overflow so .channel-tabs scrolls instead of stretching the layout */
 .bot-page,.bot-top-row,.bot-main,.bot-main-content,.bot-projects-and-bots,.bot-side-col,.bot-list{min-width:0}
 @media(max-width:1180px){.bot-top-row{grid-template-columns:minmax(0,1fr)}}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Mobile UX refinements (user feedback)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* [Hero] Dashboard already shows its title inside the hero card — drop the duplicate
+   page-title header so it doesn't repeat "Dashboard vận hành" twice. */
+body[data-active-tab="dashboard"] .top{display:none}
+
+/* [Modals] While any modal is open, hide the fixed bottom nav so it can't cover the modal's
+   lower content (and footer buttons) on mobile. The backdrop owns the screen at that point. */
+body:has(.modal-backdrop) .bottom{display:none!important}
+/* Bot / Cài đặt hero buttons sit side-by-side — keep their labels on one line. */
+.dash-actions .icon-btn2{white-space:nowrap}
+
+@media(max-width:760px){
+  /* [Topbar] Keep search + theme + language on ONE row; theme becomes icon-only and the
+     language globe icon is dropped so the whole bar stays compact. */
+  .topbar{flex-direction:row!important;align-items:center!important;gap:8px;padding:8px 10px}
+  .topbar__actions{width:auto!important;flex-wrap:nowrap!important;justify-content:flex-end!important;gap:6px}
+  .topbar__actions .seg{padding:3px;gap:2px}
+  .topbar__actions .seg[aria-label="theme"] .seg__btn span{display:none}
+  .topbar__actions .seg[aria-label="theme"] .seg__btn{padding:8px 9px}
+  .topbar__actions .seg[aria-label="lang"]>span{display:none!important}
+  .topbar__actions .seg__btn{padding:6px 9px;font-size:11px}
+  .search input{font-size:13px}
+
+  /* [Connect project] The action buttons were absolutely positioned and overlapped the
+     path text. Put the card into normal flow with full-width buttons below the content.
+     The card used overflow:hidden + a fixed min-height and the list capped at 260px with an
+     inner scroll — all of which clipped the now-in-flow buttons. Let everything grow. */
+  .detected-projects{max-height:none!important;overflow:visible!important}
+  .detected-project{padding:12px!important;min-height:0!important;height:auto!important;overflow:visible!important}
+  .detected-project__actions{position:static!important;transform:none!important;width:100%;margin-top:4px}
+  .detected-project__actions .secondary{min-width:0!important;flex:1}
+  .detected-project b{font-size:14px}
+  .detected-project small{font-size:11px}
+  .detected-project__meta{gap:6px}
+
+  /* [Connect project header] Title was squeezed to a 3-line column on the left with the two
+     buttons crammed to the right. Stack it: full-width title on top, buttons full-width below. */
+  .card-head:has(.existing-project-actions){flex-direction:column;align-items:stretch;gap:10px}
+  .existing-project-actions{width:100%;flex-direction:column}
+  .existing-project-actions .icon-btn2{width:100%;justify-content:center}
+
+  /* [Donate modal] The QR cards went full-width (one per row) and filled the screen. Cap each
+     card so the QR is just big enough to scan comfortably, centered in the modal. */
+  .donate-grid article{max-width:248px;width:100%;margin:0 auto}
+
+  /* [Skills/plugins] Mobile: tighter padding + smaller text (see the global feature-card design
+     block below for the one-line name + inline toggle layout). */
+  .feature-card{padding:14px}
+  .feature-name{font-size:13.5px!important}
+  .feature-desc{font-size:12px!important}
+
+  /* [Maintenance row] Restart / Rebuild / Grant-disk were locked to a 34px height in one row,
+     so "Cấp quyền ổ đĩa" overflowed. Let them wrap and grow vertically. */
+  .bot-docker-actions{flex-wrap:wrap}
+  .bot-docker-actions button{height:auto!important;min-height:40px;white-space:normal;line-height:1.2;flex:1 1 92px}
+
+  /* [File tree] Give the tree a touch more room on mobile and let the editor breathe. */
+  .file-tree{max-height:300px!important}
+  .tree-editor{min-height:300px!important}
+}
+
+@media(max-width:520px){
+  /* [Setup OS/mode] Shrink the logo cards: keep them 2-up (compact, less scrolling) with
+     much smaller icons — just large enough to tap comfortably. */
+  .os-grid,.mode-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .logo-card{min-height:0!important;gap:8px!important;padding:12px 8px!important;border-radius:14px!important}
+  .logo-card .choice-card__icon{width:40px!important;height:40px!important;border-radius:11px!important}
+  .logo-card .choice-card__icon img{width:24px!important;height:24px!important}
+  .logo-card .choice-card__body strong{font-size:13px!important}
+  .logo-card .choice-card__body small{font-size:10px!important}
+}
+
+/* ── Feature (skill/plugin) card design ──────────────────────────────────────
+   Name + a compact native-style toggle sit on ONE line; the name truncates with an ellipsis
+   instead of ever wrapping to a second line. Description goes below, and the wider
+   Open / Update / Install controls (when present) get their own row. */
+/* min-width:0 lets the card (a grid item, default min-width:auto) shrink below its nowrap
+   content so the name can ellipsis-truncate instead of overflowing the row off-screen. */
+.feature-card{min-width:0}
+.feature-head{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.feature-title{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 auto}
+.feature-name{display:block;font-size:15px;font-weight:800;line-height:1.2;margin:0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feature-desc{margin:8px 0 0;color:var(--body);font-size:13px;line-height:1.45}
+.feature-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+/* Keep the Install / Update / Open buttons small & compact (in line with the toggle), so the
+   "Cài đặt" button isn't the default oversized size. */
+.feature-actions .secondary,.feature-actions .icon-btn2{height:28px;min-height:0;padding:4px 11px;font-size:11px;font-weight:700;border-radius:8px;border-width:1px}
+.feature-actions svg{width:13px;height:13px}
+/* Smaller, native-app style on/off toggle (was 52×30). */
+.feature-switch span{width:42px;height:24px}
+.feature-switch span:after{top:2px;left:2px;width:18px;height:18px}
+.feature-switch input:checked + span:after{left:22px}
