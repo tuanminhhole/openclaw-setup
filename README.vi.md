@@ -29,12 +29,23 @@
 
 ## 🆕 Có gì mới trong v5.10.0
 
+- 🔄 **Tự khởi động lại tiến trình (native)**: cài native giờ đăng ký gateway + 9router thành service hệ điều hành (macOS launchd, Linux systemd, Windows detached), tự chạy lại khi crash/reboot — như `restart: always` của Docker. Best-effort, lỗi thì fallback chạy detached.
+- 🔐 **Sync 9router lần đầu — đã sửa**: không còn tắt vĩnh viễn "Require login". `sync.js` đăng nhập bằng mật khẩu mặc định `123456`, tạo combo `smart-route` từ provider đang active **một lần** rồi dừng. Require login giữ ON (đổi mật khẩu sau); model-call `/v1` không bị ảnh hưởng.
+- 📁 **Đường dẫn workspace native — đã sửa**: `workspace` của agent giờ là tương đối, persona/memory/skills nằm đúng chỗ khi cài native (trước là đường dẫn tuyệt đối kiểu container → trỏ sai trên host).
+- 🧩 **Không ghi đè khối `meta` trong config**: generator ngừng seed `meta` để OpenClaw tự quản — tránh lỗi parse config do `lastTouchedVersion` là dải version.
+- 💅 **UI dashboard gọn hơn**: nút tắt Bot/Cài đặt ở hero, badge version plugin, layout toggle tính năng, responsive/mobile, bỏ tiêu đề trùng ở tab dashboard.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.9.0</b></summary>
+
 - 🧠 **TencentDB Agent Memory — cài 1 chạm**: Plugin bộ nhớ mới ngay trên UI. Bộ nhớ phân tầng 4 lớp (L0–L3) + nén ngữ cảnh, giữ session dài mạch lạc và **tiết kiệm tới ~61% token**. Chạy local hoàn toàn (SQLite), không cần API key, sẵn sàng cho Docker.
 - ⚡ **Cấu hình tiết kiệm token mặc định cho mọi bot mới**: Tự có context pruning (cache-TTL) + compaction `safeguard` — **hội thoại dài rẻ hơn & sắc nét hơn**, không cần chỉnh tay.
 - 🎯 **Skills/Plugins theo từng bot & từng kênh**: Cài/bật/tắt skill chỉ cho **đúng 1 bot** (không lan sang bot khác); bảng chỉ hiện thứ phù hợp với kênh (Zalo / Telegram / Messenger).
 - 📤 **Gửi file ổn định trên Zalo & Telegram**: Bot đã biết quy trình gửi đúng (`media/outbound` + tool `message`) và dùng định dạng hiện đại như `.xlsx` — hết cảnh "không gửi được file".
 - 🐳 **Nút điều khiển Docker 1 chạm**: Restart / Rebuild container bot và cấp quyền ổ đĩa (mount thư mục host bất kỳ vào `/mnt/<tên>`, đa OS) ngay trên dashboard — khởi động lại bot mà không cần gõ lệnh.
 - ⚡ **Trang Dashboard & Bot load nhanh hơn**: Việc dò runtime/version giờ chỉ chạy **một lần** rồi cache thay vì lặp lại mỗi lần tải trang — bot status giảm từ ~4s xuống ~3ms ở các lần tải sau. Cache tự xoá khi update/rebuild/restart/cài đặt.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.8.24 (Tự động cập nhật Launcher)</b></summary>
