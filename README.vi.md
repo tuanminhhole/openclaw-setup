@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS, chạy Docker hoặc native.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.10.0-0EA5E9?style=for-the-badge" alt="Version 5.10.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.10.1-0EA5E9?style=for-the-badge" alt="Version 5.10.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,8 +27,9 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.10.0
+## 🆕 Có gì mới trong v5.10.1
 
+- 🔧 **Sửa lỗi Docker**: update plugin giữ nguyên port dashboard zalo-mod, và ổ đĩa/thư mục đã cấp quyền (kể cả nguyên ổ Windows như `D:\`) không còn bị mất sau khi rebuild.
 - 🔄 **Tự khởi động lại tiến trình (native)**: cài native giờ đăng ký gateway + 9router thành service hệ điều hành (macOS launchd, Linux systemd, Windows detached), tự chạy lại khi crash/reboot — như `restart: always` của Docker. Best-effort, lỗi thì fallback chạy detached.
 - 🔐 **Sync 9router lần đầu — đã sửa**: không còn tắt vĩnh viễn "Require login". `sync.js` đăng nhập bằng mật khẩu mặc định `123456`, tạo combo `smart-route` từ provider đang active **một lần** rồi dừng. Require login giữ ON (đổi mật khẩu sau); model-call `/v1` không bị ảnh hưởng.
 - 📁 **Đường dẫn workspace native — đã sửa**: `workspace` của agent giờ là tương đối, persona/memory/skills nằm đúng chỗ khi cài native (trước là đường dẫn tuyệt đối kiểu container → trỏ sai trên host).

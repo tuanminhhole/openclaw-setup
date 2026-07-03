@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS, on Docker or native.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.10.0-0EA5E9?style=for-the-badge" alt="Version 5.10.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.10.1-0EA5E9?style=for-the-badge" alt="Version 5.10.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,8 +27,9 @@
 
 ---
 
-## 🆕 What's New in v5.10.0
+## 🆕 What's New in v5.10.1
 
+- 🔧 **Docker fixes**: plugin updates keep the zalo-mod dashboard port, and granted disk/folder mounts (including whole Windows drives like `D:\`) now survive a rebuild instead of being dropped.
 - 🔄 **Native auto-restart (process supervision)**: native installs now register the gateway + 9router as OS services (macOS launchd, Linux systemd, Windows detached) that restart on crash/reboot — mirroring Docker's `restart: always`. Best-effort, falls back to a plain detached process.
 - 🔐 **9router first-install sync — fixed**: no longer permanently disables "Require login". The generated `sync.js` logs in with 9router's default password `123456`, builds the `smart-route` combo from active providers **once**, then stops. Require login stays ON (change the password later); `/v1` model calls are unaffected.
 - 📁 **Native workspace path — fixed**: agent `workspace` is now relative, so persona/memory/skills resolve correctly on native installs (previously a container-absolute path pointing nowhere on the host).

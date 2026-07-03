@@ -1,6 +1,13 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.10.1] — 2026-07-04
+
+### Sửa lỗi
+- **Update plugin không còn làm mất port dashboard zalo-mod.** Khi tạo lại `docker-compose.yml` (lúc update/rebuild plugin), port UI của zalo-mod (port gateway + 1) được thêm lại đúng — trước đây regex không khớp dòng port có tiền tố `127.0.0.1:` nên port bị mất âm thầm.
+- **Ổ đĩa/thư mục đã cấp quyền không bị mất khi rebuild.** Các mount `/mnt/*` do người dùng thêm được giữ lại khi regen compose, nên bot vẫn truy cập được sau khi update. Cấp nguyên ổ đĩa Windows (vd `D:\`) giờ tạo bind hợp lệ (`D:/` thay vì `D:` lỗi).
+
+
 ## [5.10.0] — 2026-07-02
 
 ### Thêm mới

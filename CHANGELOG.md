@@ -1,6 +1,13 @@
 # Changelog (English)
 
 
+## [5.10.1] — 2026-07-04
+
+### Fixed
+- **Plugin update no longer drops the zalo-mod dashboard port.** Regenerating `docker-compose.yml` (on plugin update/rebuild) now re-publishes the zalo-mod UI port (gateway port + 1) — the old match failed on `127.0.0.1:`-prefixed port lines, so the port silently disappeared.
+- **Granted disk/folder mounts survive a rebuild.** User-added `/mnt/*` mounts are carried over when the compose is regenerated, so bots keep access after an update. Mounting a whole Windows drive (e.g. `D:\`) now produces a valid bind (`D:/` instead of an invalid bare `D:`).
+
+
 ## [5.10.0] — 2026-07-02
 
 ### Added

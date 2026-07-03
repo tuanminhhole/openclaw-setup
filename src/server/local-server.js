@@ -2277,6 +2277,13 @@ async function syncDockerInfra(projectDir, force = false) {
 
   sendLog(`[sync] Updating Docker infrastructure files (v${existingVersion} \u2192 v${SETUP_VERSION})`);
   await fsp.writeFile(join(dockerDir, 'Dockerfile'), docker.dockerfile, 'utf8');
+  // Capture the user's custom disk/folder mounts from the OLD compose before we overwrite it — a
+  // full regen only re-emits the default volumes, so without this the bot loses granted drives.
+  let carriedMounts = [];
+  try {
+    const prevCompose = join(dockerDir, 'docker-compose.yml');
+    if (existsSync(prevCompose)) carriedMounts = parseComposeMounts(await fsp.readFile(prevCompose, 'utf8'));
+  } catch {}
   await fsp.writeFile(join(dockerDir, 'docker-compose.yml'), newCompose, 'utf8');
   // Preserve zalo-mod dashboard port if plugin is active
   try {
@@ -2287,14 +2294,29 @@ async function syncDockerInfra(projectDir, force = false) {
       let cc = await fsp.readFile(join(dockerDir, 'docker-compose.yml'), 'utf8');
       if (!cc.includes(`:${dp}`)) {
         const gpStr = String(gatewayPort);
+        // Match the gateway published-port line whatever the host prefix is — the generated form is
+        // "127.0.0.1:<gw>:<gw>", so keying off the container port (":<gw>" before the quote) is the
+        // only reliable anchor. The old `(?:\d+:)?` variant never matched the "127.0.0.1:" prefix.
         cc = cc.replace(
-          new RegExp(`^(\\s*-\\s*"(?:\\d+:)?${gpStr}(?::${gpStr})?"\\s*)$`, 'm'),
+          new RegExp(`^(\\s*-\\s*"[^"\\n]*:${gpStr}")\\s*$`, 'm'),
           `$1\n      - "127.0.0.1:${dp}:${dp}"  # zalo-mod dashboard`
         );
         await fsp.writeFile(join(dockerDir, 'docker-compose.yml'), cc, 'utf8');
       }
     }
   } catch {}
+  // Re-inject the user's custom mounts carried over from the old compose.
+  if (carriedMounts.length) {
+    try {
+      const cpath = join(dockerDir, 'docker-compose.yml');
+      const cur = await fsp.readFile(cpath, 'utf8');
+      const merged = injectMountsIntoCompose(cur, carriedMounts);
+      if (merged !== cur) {
+        await fsp.writeFile(cpath, merged, 'utf8');
+        sendLog(`[sync] Preserved ${carriedMounts.length} granted mount(s) across the compose regen`);
+      }
+    } catch (e) { sendLog(`[sync] Warning: could not re-apply granted mounts: ${e.message}`); }
+  }
   await fsp.writeFile(entrypointPath, entryScript, 'utf8');
   if (docker.syncScript) await fsp.writeFile(join(dockerDir, 'sync.js'), docker.syncScript, 'utf8');
   if (docker.patchScript) await fsp.writeFile(join(dockerDir, 'patch-9router.js'), docker.patchScript, 'utf8');
@@ -2392,6 +2414,45 @@ async function restartDockerBotContainer(projectDir = state.projectDir) {
   return true;
 }
 
+// Parse user-granted disk/folder mounts (/mnt/<name>, excluding the always-present /mnt/project)
+// from a docker-compose.yml string. Handles both the long-form bind (type/source/target) and the
+// legacy short form `- "<host>:/mnt/<name>"`.
+function parseComposeMounts(compose) {
+  const mounts = [];
+  const lines = String(compose || '').split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const tm = lines[i].match(/^\s*target:\s*['"]?(\/mnt\/[A-Za-z0-9._-]+)['"]?\s*$/);
+    if (tm && tm[1] !== '/mnt/project') {
+      let host = '';
+      for (let j = i - 1; j >= Math.max(0, i - 3); j--) {
+        const sm = lines[j].match(/^\s*source:\s*['"]?(.+?)['"]?\s*$/);
+        if (sm) { host = sm[1].replace(/''/g, "'"); break; }
+      }
+      if (host) mounts.push({ host, target: tm[1] });
+      continue;
+    }
+    const ssm = lines[i].match(/^\s*-\s*"?([^":\n]+):(\/mnt\/[A-Za-z0-9._-]+)"?\s*$/);
+    if (ssm && ssm[2] !== '/mnt/project') mounts.push({ host: ssm[1].trim(), target: ssm[2] });
+  }
+  return mounts;
+}
+
+// Insert long-form bind mounts (idempotent) after the project's .openclaw volume line. Returns the
+// original string unchanged if the anchor is missing or a mount is already present.
+function injectMountsIntoCompose(compose, mounts) {
+  const anchor = /^(\s*-\s*\.\.\/\.\.\/\.openclaw:\/home\/node\/project\/\.openclaw)\s*$/m;
+  if (!Array.isArray(mounts) || !mounts.length || !anchor.test(compose)) return compose;
+  let out = compose;
+  for (const m of mounts) {
+    if (!m || !m.host || !m.target) continue;
+    if (out.includes(`target: ${m.target}`) || out.includes(`:${m.target}"`) || out.includes(`:${m.target}\n`) || out.includes(m.host)) continue;
+    const src = `'${String(m.host).replace(/'/g, "''")}'`;
+    const block = `      - type: bind\n        source: ${src}\n        target: ${m.target}`;
+    out = out.replace(anchor, `$1\n${block}`);
+  }
+  return out;
+}
+
 // Grant the bot access to a host disk/folder by mounting it into the container at /mnt/<name>.
 // Project-scoped: all bots in this project share the container, so all of them can use it.
 // Per-bot limits are described in AGENTS.md (not enforced at the mount layer).
@@ -2399,7 +2460,10 @@ async function addBotMount(projectDir, hostPath, mountName = '') {
   // Cross-OS normalize: trim, convert Windows backslashes → forward slashes (Docker accepts
   // forward slashes on every OS, incl. `C:/Users/...`), drop trailing separators. This avoids
   // YAML backslash issues and keeps the path uniform.
-  const cleanPath = String(hostPath || '').trim().replace(/\\+/g, '/').replace(/\/+$/, '');
+  let cleanPath = String(hostPath || '').trim().replace(/\\+/g, '/').replace(/\/+$/, '');
+  // A bare Windows drive letter ("D:") is an INVALID Docker bind source — the trailing-slash strip
+  // above turns "D:/" into "D:". Restore the slash so mounting a whole drive (e.g. D:\) works.
+  if (/^[a-zA-Z]:$/.test(cleanPath)) cleanPath += '/';
   if (!cleanPath) throw httpError(400, 'Đường dẫn ổ đĩa/thư mục đang trống');
   const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
   if (!existsSync(composeFile)) throw httpError(400, 'Không tìm thấy docker-compose.yml (project có thể không chạy ở chế độ Docker)');
@@ -3260,7 +3324,7 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
             if (dashPort && !composeContent.includes(`:${dashPort}`)) {
               const gwPortStr = String(Number(cfg.gateway?.port) || state.gatewayPort || 18789);
               composeContent = composeContent.replace(
-                new RegExp(`^(\\s*-\\s*"(?:\\d+:)?${gwPortStr}(?::${gwPortStr})?"\\s*)$`, 'm'),
+                new RegExp(`^(\\s*-\\s*"[^"\\n]*:${gwPortStr}")\\s*$`, 'm'),
                 `$1\n      - "127.0.0.1:${dashPort}:${dashPort}"  # zalo-mod dashboard`
               );
               await fsp.writeFile(composeFile, composeContent, 'utf8');
@@ -3459,7 +3523,7 @@ async function installFeature(projectDir, agentId, kind, id) {
             // Insert dashboard port after the gateway port line
             const gwPortStr = String(gwPort);
             composeContent = composeContent.replace(
-              new RegExp(`^(\\s*-\\s*"(?:\\d+:)?${gwPortStr}(?::${gwPortStr})?"\\s*)$`, 'm'),
+              new RegExp(`^(\\s*-\\s*"[^"\\n]*:${gwPortStr}")\\s*$`, 'm'),
               `$1\n      - ${dashPortMapping}  # zalo-mod dashboard`
             );
             await fsp.writeFile(composeFile, composeContent, 'utf8');
