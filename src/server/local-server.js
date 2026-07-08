@@ -388,9 +388,9 @@ async function getAvailableDrives() {
   return drives.length ? drives : ['C:\\', 'D:\\'];
 }
 
-function recommendedMode(osChoice) {
-  if (osChoice === 'win' || osChoice === 'macos') return 'docker';
-  return 'native';
+// Docker is the only supported deploy mode now (native was removed).
+function recommendedMode() {
+  return 'docker';
 }
 
 function commandExists(cmd, args = ['--version']) {
@@ -436,27 +436,6 @@ function run(cmd, args, opts = {}) {
       }
     });
   });
-}
-
-function startDetached(cmd, args, opts = {}) {
-  sendLog(`$ ${cmd} ${args.join(' ')} &`);
-  const shell = process.platform === 'win32';
-  const rawBin = resolveBinPath(cmd);
-  const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
-  const child = spawn(bin, args, {
-    cwd: opts.cwd,
-    shell,
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: opts.windowsHide ?? true,
-    env: { ...process.env, ...(opts.env || {}) },
-  });
-  child.on('error', (err) => {
-    sendLog(`[error] Failed to start background command "${cmd}": ${err.message}`);
-    console.error(`Failed to start background command "${cmd}":`, err);
-  });
-  child.unref();
-  return child.pid;
 }
 
 async function getCurrentRuntimeVersions() {
@@ -605,135 +584,6 @@ Timed out after ${opts.timeout}ms`.trim() : stderr });
   });
 }
 
-// ── Native process supervision (auto-restart) ───────────────────────────────
-// Docker containers get `restart: always` for free. For native installs we register the gateway
-// and 9router as OS services so they survive crashes and reboots, mirroring that guarantee:
-//   • macOS  → per-user launchd LaunchAgent (KeepAlive + RunAtLoad)
-//   • Linux  → systemd unit (system unit when root, else --user) with Restart=always
-//   • Windows / anything else → plain detached process (no supervision; unchanged behaviour)
-// Every step is best-effort: any failure falls back to startDetached, so a native install can
-// never end up worse off than before this feature existed.
-function escapeXml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-function nativeServiceId(projectDir) { return slugify(basename(projectDir || 'openclaw')) || 'bot'; }
-function nativeServiceLabels(projectDir) {
-  const id = nativeServiceId(projectDir);
-  return {
-    '9router': { launchd: `com.openclaw.9router.${id}`, systemd: `openclaw-9router-${id}.service` },
-    sync: { launchd: `com.openclaw.sync.${id}`, systemd: `openclaw-sync-${id}.service` },
-    gateway: { launchd: `com.openclaw.gateway.${id}`, systemd: `openclaw-gateway-${id}.service` },
-  };
-}
-async function resolveAbsoluteBin(cmd) {
-  try {
-    const out = await runCapture(process.platform === 'win32' ? 'where' : 'which', [cmd], { shell: false, timeout: 5000 });
-    const first = String(out.stdout || '').split(/\r?\n/).map((s) => s.trim()).find(Boolean);
-    if (out.code === 0 && first) return first;
-  } catch {}
-  return resolveBinPath(cmd);
-}
-function systemdUserUnitDir() { return join(getRealHomedir(), '.config', 'systemd', 'user'); }
-function isRootUser() { return typeof process.getuid === 'function' && process.getuid() === 0; }
-
-/**
- * Start one native process under OS supervision (auto-restart). Falls back to a plain detached
- * process on Windows/unknown platforms or if the service tooling errors. Returns the method used:
- * 'launchd' | 'systemd' | 'detached'.
- */
-async function startNativeService({ projectDir, name, cmd, args, desc, env }) {
-  const labels = nativeServiceLabels(projectDir)[name];
-  const logDir = join(projectDir, '.openclaw', 'logs');
-  await fsp.mkdir(logDir, { recursive: true }).catch(() => {});
-  const serviceEnv = { PATH: process.env.PATH || '', HOME: getRealHomedir(), ...env };
-  try {
-    const absBin = await resolveAbsoluteBin(cmd);
-    if (process.platform === 'darwin') {
-      const agentsDir = join(getRealHomedir(), 'Library', 'LaunchAgents');
-      await fsp.mkdir(agentsDir, { recursive: true });
-      const progArgs = [absBin, ...args].map((a) => `      <string>${escapeXml(a)}</string>`).join('\n');
-      const envDict = Object.entries(serviceEnv).map(([k, v]) => `      <key>${escapeXml(k)}</key><string>${escapeXml(String(v))}</string>`).join('\n');
-      const plist = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>Label</key><string>${labels.launchd}</string>
-  <key>ProgramArguments</key><array>
-${progArgs}
-  </array>
-  <key>WorkingDirectory</key><string>${escapeXml(projectDir)}</string>
-  <key>EnvironmentVariables</key><dict>
-${envDict}
-  </dict>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>${escapeXml(join(logDir, name + '.out.log'))}</string>
-  <key>StandardErrorPath</key><string>${escapeXml(join(logDir, name + '.err.log'))}</string>
-</dict></plist>`;
-      const plistPath = join(agentsDir, `${labels.launchd}.plist`);
-      await fsp.writeFile(plistPath, plist, 'utf8');
-      await run('launchctl', ['unload', plistPath], {}).catch(() => {});
-      await run('launchctl', ['load', '-w', plistPath], {});
-      sendLog(`[native] launchd service ${labels.launchd} loaded (auto-restart)`);
-      return 'launchd';
-    }
-    if (process.platform === 'linux') {
-      const root = isRootUser();
-      const unitDir = root ? '/etc/systemd/system' : systemdUserUnitDir();
-      await fsp.mkdir(unitDir, { recursive: true });
-      const sc = (a) => run('systemctl', root ? a : ['--user', ...a], {});
-      const envLines = Object.entries(serviceEnv).map(([k, v]) => `Environment="${k}=${String(v).replace(/\n/g, ' ')}"`).join('\n');
-      const execStart = [absBin, ...args].map((a) => (/[\s"']/.test(a) ? JSON.stringify(a) : a)).join(' ');
-      const unit = `[Unit]
-Description=${desc}
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory=${projectDir}
-${envLines}
-ExecStart=${execStart}
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=${root ? 'multi-user.target' : 'default.target'}
-`;
-      await fsp.writeFile(join(unitDir, labels.systemd), unit, 'utf8');
-      await sc(['daemon-reload']);
-      await sc(['enable', '--now', labels.systemd]);
-      sendLog(`[native] systemd ${root ? 'system' : 'user'} service ${labels.systemd} enabled (Restart=always)`);
-      return 'systemd';
-    }
-  } catch (e) {
-    sendLog(`[native] ${name} service setup failed (${e.message}); falling back to detached process`);
-  }
-  const pid = startDetached(cmd, args, { cwd: projectDir, env });
-  if (name === 'gateway') state.botPid = pid;
-  return 'detached';
-}
-
-/** Remove any launchd/systemd services registered for a native project (used on delete). */
-async function removeNativeAutostart(projectDir) {
-  const labels = nativeServiceLabels(projectDir);
-  try {
-    if (process.platform === 'darwin') {
-      const agentsDir = join(getRealHomedir(), 'Library', 'LaunchAgents');
-      for (const k of ['9router', 'sync', 'gateway']) {
-        const p = join(agentsDir, `${labels[k].launchd}.plist`);
-        if (existsSync(p)) { await run('launchctl', ['unload', p], {}).catch(() => {}); await fsp.unlink(p).catch(() => {}); }
-      }
-    } else if (process.platform === 'linux') {
-      const root = isRootUser();
-      const unitDir = root ? '/etc/systemd/system' : systemdUserUnitDir();
-      const sc = (a) => run('systemctl', root ? a : ['--user', ...a], {}).catch(() => {});
-      let changed = false;
-      for (const k of ['9router', 'sync', 'gateway']) {
-        const u = join(unitDir, labels[k].systemd);
-        if (existsSync(u)) { await sc(['disable', '--now', labels[k].systemd]); await fsp.unlink(u).catch(() => {}); changed = true; }
-      }
-      if (changed) await sc(['daemon-reload']);
-    }
-  } catch (e) { sendLog(`[native] autostart teardown skipped: ${e.message}`); }
-}
 
 function safeJoin(root, name) {
   const clean = normalize(String(name || '')).replace(/^([/\\])+/, '');
@@ -2079,104 +1929,7 @@ try{
     return { message: 'Generating Zalo QR. The image will appear automatically.' };
   }
 
-  // ── Native (non-Docker) path ──────────────────────────────────────────────
-  // Same flow as Docker but on the host: run `openclaw channels login` directly,
-  // read the QR PNG straight off the host filesystem, then restart the native
-  // gateway so the saved credentials take effect.
-  const gatewayPort = state.gatewayPort || 18789;
-  const runtimeEnv = {
-    ...process.env,
-    OPENCLAW_HOME: join(projectDir, '.openclaw'),
-    OPENCLAW_STATE_DIR: join(projectDir, '.openclaw'),
-    OPENCLAW_GATEWAY_PORT: String(gatewayPort),
-    OPENCLAW_PORT: String(gatewayPort),
-  };
-
-  // The runtime writes the QR to a uid-scoped temp dir; probe the likely locations.
-  const uid = (typeof process.getuid === 'function') ? process.getuid() : '';
-  const qrNames = profile === 'default'
-    ? ['openclaw-zalouser-qr.png', 'openclaw-zalouser-qr-default.png', `openclaw-zalouser-qr-${profile}.png`]
-    : [`openclaw-zalouser-qr-${profile}.png`];
-  const qrDirs = [join(os.tmpdir(), 'openclaw'), '/tmp/openclaw', `/tmp/openclaw-${uid}`, '/tmp/openclaw-1000', join(os.tmpdir(), `openclaw-${uid}`)];
-  const nativeQrPaths = [...new Set(qrDirs.flatMap((d) => qrNames.map((n) => join(d, n))))];
-
-  // Clean stale credentials & QR files so we only ever surface a fresh code.
-  const credFile = profile === 'default' ? 'credentials.json' : `credentials-${profile}.json`;
-  const credPath = join(projectDir, '.openclaw', 'credentials', 'zalouser', credFile);
-  try { await fsp.rm(credPath, { force: true }); } catch {}
-  for (const p of nativeQrPaths) { try { await fsp.rm(p, { force: true }); } catch {} }
-
-  sendLog('[zalouser] Generating Zalo QR (native). The image will appear automatically.');
-
-  const MAX_LOGIN_ATTEMPTS = 4;
-  const RETRY_DELAYS = [0, 8000, 15000, 20000];
-  let loginAttempt = 0;
-  let sent = false;
-  let restartAfterLogin = false;
-
-  // Poll the host filesystem for the QR PNG across all retry attempts.
-  let tries = 0;
-  const poll = setInterval(() => {
-    if (sent || tries++ > 120) {
-      clearInterval(poll);
-      if (!sent) sendLog('[zalouser] QR not found yet. Try closing/reopening login, or run `openclaw channels login --channel zalouser --verbose` on the host.');
-      return;
-    }
-    for (const p of nativeQrPaths) {
-      try {
-        if (existsSync(p) && fs.statSync(p).size > 100) {
-          const b64 = fs.readFileSync(p).toString('base64');
-          if (b64.length > 100) {
-            sent = true;
-            clearInterval(poll);
-            sendLog(`[zalouser:qr] data:image/png;base64,${b64}`);
-            sendLog('[zalouser] Scan this QR with the Zalo app.');
-            break;
-          }
-        }
-      } catch {}
-    }
-  }, 1000);
-
-  const loginArgs = ['channels', 'login', '--channel', 'zalouser', '--account', profile, '--verbose'];
-  const runLoginAttempt = () => {
-    loginAttempt++;
-    if (loginAttempt > 1) sendLog(`[zalouser] Retry attempt ${loginAttempt}/${MAX_LOGIN_ATTEMPTS}...`);
-    const child = spawn('openclaw', loginArgs, { cwd: projectDir, env: runtimeEnv, shell: false, windowsHide: true });
-    const handleLoginLine = (line) => {
-      sendLog(line);
-      if (/login successful|saved auth/i.test(line)) restartAfterLogin = true;
-    };
-    child.stdout.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLoginLine));
-    child.stderr.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLoginLine));
-    child.on('error', (err) => sendLog(`[zalouser] Login process failed: ${err.message}. Is the 'openclaw' CLI installed on PATH?`));
-    child.on('close', async (code) => {
-      sendLog(`[zalouser] Login process exited ${code}`);
-      if (code === 0 || restartAfterLogin || sent) {
-        if (restartAfterLogin) {
-          sendLog('[zalouser] Login saved. Restarting native gateway so Zalo User can receive messages...');
-          try {
-            await run('openclaw', ['gateway', 'stop'], { cwd: projectDir, env: runtimeEnv });
-            state.botPid = startDetached('openclaw', ['gateway', 'run'], { cwd: projectDir, env: runtimeEnv });
-            sendLog(`[zalouser] Native gateway restarted (pid=${state.botPid || 'unknown'}). Try sending a Zalo message now.`);
-          } catch (err) {
-            sendLog(`[zalouser] Gateway restart failed: ${err.message}. Restart it manually: openclaw gateway run`);
-          }
-        }
-        zaloLoginInFlight = false;
-      } else if (loginAttempt < MAX_LOGIN_ATTEMPTS && !sent) {
-        const delay = RETRY_DELAYS[loginAttempt] || 10000;
-        sendLog(`[zalouser] QR not ready yet. Waiting ${delay / 1000}s before retry...`);
-        setTimeout(runLoginAttempt, delay);
-      } else {
-        sendLog('[zalouser] All login attempts exhausted. Try clicking "Đăng nhập Zalo" again.');
-        zaloLoginInFlight = false;
-      }
-    });
-  };
-
-  runLoginAttempt();
-  return { message: 'Generating Zalo QR (native). The image will appear automatically.' };
+  throw httpError(400, 'Zalo login cần project Docker đang chạy (không tìm thấy docker-compose.yml).');
 }
 
 function getBotServiceName(projectDir) {
@@ -2392,16 +2145,7 @@ async function updateRuntime(target, projectDir) {
     probeCacheClear();
     return { ok: true, target, spec, mode: 'docker' };
   }
-  await run('npm', ['install', '-g', spec]);
-  if (isRouter) {
-    await run('openclaw', ['gateway', 'stop'], { cwd: projectDir }).catch(() => {});
-    await run('npm', ['install', '-g', NINE_ROUTER_NPM_SPEC]);
-  } else {
-    await run('npm', ['install', '-g', OPENCLAW_NPM_SPEC]);
-  }
-  await syncRuntimeState(projectDir, { full: true }).catch(() => {});
-  probeCacheClear();
-  return { ok: true, target, spec, mode: 'native' };
+  throw httpError(400, 'Không có project Docker để cập nhật runtime.');
 }
 
 async function restartDockerBotContainer(projectDir = state.projectDir) {
@@ -2604,6 +2348,141 @@ async function writeCoreProject({ projectDir, osChoice, mode, gatewayPort = 1878
   }
 }
 
+// Locate a real Chrome/Chromium binary on the host (for the "grant Chrome to the bot" button).
+async function findChromeBinary() {
+  if (process.platform === 'darwin') {
+    for (const p of [
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    ]) if (existsSync(p)) return p;
+    return '';
+  }
+  if (process.platform === 'win32') {
+    for (const p of [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    ]) if (p && existsSync(p)) return p;
+    return '';
+  }
+  for (const c of ['google-chrome', 'google-chrome-stable', 'chromium-browser', 'chromium']) {
+    const r = await commandExists(c, ['--version']);
+    if (r.ok) return c;
+  }
+  return '';
+}
+
+// Launch real host Chrome in remote-debugging mode (port 9222) so the browser-automation plugin
+// can drive the user's actual Chrome (logged-in profile) instead of headless Chromium. The bot
+// reaches it via CDP (host.docker.internal:9222 from the container). Detached: keeps running after
+// this request. `--remote-allow-origins=*` is required by modern Chrome for cross-origin CDP.
+async function startChromeDebug() {
+  const bin = await findChromeBinary();
+  if (!bin) {
+    throw httpError(400, process.platform === 'linux'
+      ? 'Không tìm thấy Chrome/Chromium trên máy. Cài google-chrome hoặc chromium rồi thử lại (không áp dụng cho VPS không có giao diện).'
+      : 'Không tìm thấy Google Chrome. Hãy cài Chrome rồi thử lại.');
+  }
+  const port = 9222;
+  const userDataDir = join(os.tmpdir(), 'openclaw-chrome-debug');
+  const args = [
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${userDataDir}`,
+    '--remote-allow-origins=*',
+    '--no-first-run',
+    '--no-default-browser-check',
+  ];
+  const child = spawn(bin, args, { detached: true, stdio: 'ignore', windowsHide: false });
+  child.on('error', (e) => sendLog(`[chrome] Không mở được Chrome debug: ${e.message}`));
+  child.unref();
+  sendLog(`[chrome] Đã mở Chrome debug ở cổng ${port} (${bin}). Bot sẽ ưu tiên dùng Chrome này.`);
+  return { ok: true, port, browser: bin, userDataDir };
+}
+
+// Poll until the Docker daemon responds (or timeout). Returns true if ready.
+async function waitForDockerDaemon(timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const ok = await commandExists('docker', ['version', '--format', '{{.Server.Version}}']);
+    if (ok.ok) return true;
+    if (Date.now() >= deadline) return false;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+}
+
+// Ensure Docker (engine + compose) is available before a docker-mode install, auto-installing the
+// latest version appropriate for the host OS when it is missing:
+//   • Linux → Docker's official convenience script (get.docker.com; auto-detects the distro) + start daemon
+//   • macOS → Docker Desktop via Homebrew cask, then launch it
+//   • Windows → Docker Desktop via winget (fallback Chocolatey), then launch it
+// macOS/Windows Docker Desktop needs a GUI/WSL startup (and sometimes a reboot), so we install +
+// launch + wait, and give a clear next-step if the daemon still isn't up when we time out.
+async function ensureDockerInstalled(osChoice) {
+  if (await waitForDockerDaemon(0)) return; // already running
+  const cliOk = await commandExists('docker', ['--version']);
+
+  if (process.platform === 'linux') {
+    const root = typeof process.getuid === 'function' && process.getuid() === 0;
+    const sudo = root ? '' : 'sudo ';
+    if (!cliOk.ok) {
+      sendLog('[docker] Chưa có Docker — đang tự cài Docker Engine mới nhất qua script chính thức get.docker.com (1–3 phút)...');
+      await run('sh', ['-c', `curl -fsSL https://get.docker.com -o /tmp/get-docker.sh && ${sudo}sh /tmp/get-docker.sh`]);
+      if (!root) await run('sh', ['-c', 'sudo usermod -aG docker "$USER" || true']).catch(() => {});
+    }
+    sendLog('[docker] Bật & khởi động Docker daemon...');
+    await run('sh', ['-c', `${sudo}systemctl enable --now docker`]).catch(() => {});
+    if (!(await waitForDockerDaemon(20000))) {
+      throw httpError(500, 'Đã cài Docker nhưng daemon chưa chạy. Hãy chạy `systemctl start docker` (hoặc đăng nhập lại nếu vừa thêm vào nhóm docker) rồi cài lại.');
+    }
+    sendLog('[docker] Docker đã sẵn sàng.');
+    return;
+  }
+
+  if (process.platform === 'darwin') {
+    if (!cliOk.ok) {
+      const brew = await commandExists('brew', ['--version']);
+      if (!brew.ok) {
+        throw httpError(400, 'macOS: cần Homebrew để tự cài Docker Desktop. Cài Homebrew tại https://brew.sh (hoặc cài Docker Desktop thủ công) rồi cài lại.');
+      }
+      sendLog('[docker] macOS: đang cài Docker Desktop mới nhất qua Homebrew (brew install --cask docker)...');
+      await run('brew', ['install', '--cask', 'docker']);
+    }
+    sendLog('[docker] Mở Docker Desktop và chờ daemon khởi động...');
+    await run('open', ['-a', 'Docker']).catch(() => {});
+    if (!(await waitForDockerDaemon(120000))) {
+      throw httpError(500, 'Đã cài Docker Desktop — hãy mở Docker Desktop, hoàn tất cấp quyền lần đầu, đợi biểu tượng cá voi báo "running" rồi cài lại.');
+    }
+    sendLog('[docker] Docker đã sẵn sàng.');
+    return;
+  }
+
+  if (process.platform === 'win32') {
+    if (!cliOk.ok) {
+      const winget = await commandExists('winget', ['--version']);
+      const choco = await commandExists('choco', ['--version']);
+      if (winget.ok) {
+        sendLog('[docker] Windows: đang cài Docker Desktop mới nhất qua winget...');
+        await run('winget', ['install', '-e', '--id', 'Docker.DockerDesktop', '--accept-source-agreements', '--accept-package-agreements']);
+      } else if (choco.ok) {
+        sendLog('[docker] Windows: đang cài Docker Desktop qua Chocolatey...');
+        await run('choco', ['install', 'docker-desktop', '-y']);
+      } else {
+        throw httpError(400, 'Windows: cần winget hoặc Chocolatey để tự cài Docker Desktop (hoặc cài thủ công tại https://www.docker.com). Cài xong rồi thử lại.');
+      }
+    }
+    sendLog('[docker] Mở Docker Desktop và chờ daemon khởi động...');
+    await run('cmd', ['/c', 'start', '', '%ProgramFiles%\\Docker\\Docker\\Docker Desktop.exe']).catch(() => {});
+    if (!(await waitForDockerDaemon(120000))) {
+      throw httpError(500, 'Đã cài Docker Desktop — Windows có thể cần bật WSL2 và khởi động lại máy. Hãy mở Docker Desktop, đợi "running" (hoặc reboot nếu được yêu cầu) rồi cài lại.');
+    }
+    sendLog('[docker] Docker đã sẵn sàng.');
+    return;
+  }
+
+  throw httpError(400, 'Hệ điều hành không được hỗ trợ tự cài Docker. Hãy cài Docker thủ công rồi thử lại.');
+}
+
 async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, routerPort = 20128 }) {
   state.installing = true;
   state.installed = false;
@@ -2615,6 +2494,9 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
   try {
     sendLog('OpenClaw local installer started');
     sendLog(`Target: OS=${osChoice}, mode=${mode}, project=${projectDir}, gatewayPort=${gatewayPort}, routerPort=${routerPort}`);
+    // Make sure Docker is present (auto-install on Linux/VPS) before doing any work — fail fast
+    // with a clear message rather than deep inside `docker compose up`.
+    await ensureDockerInstalled(osChoice);
     await writeCoreProject({ projectDir, osChoice, mode, gatewayPort, routerPort });
     await run('npm', ['install', '-g', OPENCLAW_NPM_SPEC]);
     await run('npm', ['install', '-g', NINE_ROUTER_NPM_SPEC]);
@@ -2631,63 +2513,6 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
       await run('docker', ['compose', 'up', '-d', '--build'], { cwd: dockerDir });
       await applyResolved9RouterApiKey(projectDir).catch(() => {});
       await recreateDockerBot(projectDir).catch(() => {});
-    } else {
-      const nineRouterDataDir = join(projectDir, '.9router');
-      const nineRouterDbPath = join(nineRouterDataDir, 'db', 'data.sqlite');
-      const runtimeEnv = {
-        OPENCLAW_HOME: join(projectDir, '.openclaw'),
-        OPENCLAW_STATE_DIR: join(projectDir, '.openclaw'),
-        DATA_DIR: nineRouterDataDir,
-        OPENCLAW_GATEWAY_PORT: String(gatewayPort),
-        OPENCLAW_PORT: String(gatewayPort),
-        // Parity with the docker runtime env (docker-gen.js) so the gateway and browser plugin
-        // behave the same natively: allow the private-network control-UI websocket and tell the
-        // browser plugin which host OS it is running on.
-        OPENCLAW_ALLOW_INSECURE_PRIVATE_WS: '1',
-        OPENCLAW_SETUP_OS: osChoice || '',
-        OPENCLAW_BROWSER_HOST_OS: osChoice || '',
-      };
-      await run('openclaw', ['gateway', 'stop'], { cwd: projectDir, env: runtimeEnv }).catch(() => {});
-      // 9router binds loopback in native mode on purpose: openclaw runs on the SAME host and
-      // reaches it via localhost (see get9RouterBaseUrl), so there is no reason to expose the LLM
-      // proxy on 0.0.0.0 — even on a VPS that would be an open relay. Only the gateway is exposed.
-      // Start 9router first (auto-restart supervised), then sync, then the gateway — so the gateway
-      // boots after 9router is reachable and after the API key has been written to its config.
-      const routerMethod = await startNativeService({
-        projectDir, name: '9router', cmd: '9router', desc: `OpenClaw 9router (${nativeServiceId(projectDir)})`,
-        args: ['-n', '-l', '-H', '127.0.0.1', '-p', String(routerPort), '--skip-update'], env: runtimeEnv,
-      });
-      // Smart-route auto-sync: the docker sidecar runs a script that disables 9router's login
-      // requirement and builds the default `smart-route` combo from the active providers. Native
-      // mode skipped this, so the default model had no backing models. Reuse the exact docker
-      // script with the native DB path (passed via env to stay cross-platform / shell-safe).
-      try {
-        const artifacts = buildDockerArtifacts({ is9Router: true, osChoice, openClawNpmSpec: OPENCLAW_NPM_SPEC, gatewayPort, routerPort });
-        if (artifacts.syncScript) {
-          await fsp.mkdir(nineRouterDataDir, { recursive: true });
-          const syncPath = join(nineRouterDataDir, 'sync.js');
-          await fsp.writeFile(syncPath, artifacts.syncScript, 'utf8');
-          // Run the sync under supervision too (managed service) so it is torn down cleanly on
-          // delete instead of leaking an orphaned `node sync.js` process.
-          await startNativeService({
-            projectDir, name: 'sync', cmd: process.execPath, args: [syncPath],
-            desc: `OpenClaw 9router smart-route sync (${nativeServiceId(projectDir)})`,
-            env: { ...runtimeEnv, NINEROUTER_DB_PATH: nineRouterDbPath, PORT: String(routerPort) },
-          });
-          sendLog('[native] 9router smart-route sync started');
-        }
-      } catch (e) {
-        sendLog(`[native] smart-route sync setup skipped: ${e.message}`);
-      }
-      // Give 9router a moment to boot + sync to disable its login gate, then resolve its API key
-      // into openclaw.json BEFORE the gateway starts (so the gateway reads it on first boot).
-      await new Promise((r) => setTimeout(r, 8000));
-      await applyResolved9RouterApiKey(projectDir).catch(() => {});
-      const gatewayMethod = await startNativeService({
-        projectDir, name: 'gateway', cmd: 'openclaw', desc: `OpenClaw gateway (${nativeServiceId(projectDir)})`,
-        args: ['gateway', 'run'], env: runtimeEnv,
-      });
-      sendLog(`Native runtime started — 9router via ${routerMethod}, gateway via ${gatewayMethod}${state.botPid ? ` (pid=${state.botPid})` : ''}`);
     }
     state.installed = true;
     sendLog('✅ Install completed');
@@ -3092,10 +2917,6 @@ async function deleteProjectFolder(projectDir, rootProjectDir) {
     });
     // Sleep 2.5 seconds to let Windows file system release overlays/locks
     await new Promise((resolve) => setTimeout(resolve, 2500));
-  } else {
-    // Native project: stop & remove any launchd/systemd auto-restart services so they don't keep
-    // respawning a deleted bot. No-op when no services were registered.
-    await removeNativeAutostart(resolved);
   }
 
   try {
@@ -3984,6 +3805,9 @@ async function handler(req, res, rootProjectDir) {
       const projectDir = await resolveProjectDir(rootProjectDir, body);
       return json(res, await addBotMount(projectDir, body.hostPath, body.mountName));
     }
+    if (url.pathname === '/api/browser/start-chrome-debug' && req.method === 'POST') {
+      return json(res, await startChromeDebug());
+    }
     if (url.pathname === '/api/setup/update' && req.method === 'POST') {
       const installerDir = resolve(__dirname, '../..');
       const isGit = existsSync(resolve(installerDir, '.git'));
@@ -4318,7 +4142,7 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   printRemoteAccessHint(port).catch(() => {});
 }
 
-export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloUserLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, removeNativeAutostart };
+export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloUserLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder };
 
 
 

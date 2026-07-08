@@ -7,9 +7,9 @@ const OS_OPTIONS = [
   { id: 'linux-desktop', title: 'Linux Desktop', subtitle: 'Ubuntu / Debian / Fedora', icon: `${SVG_CDN}/linux/default.svg`, badge: 'Desktop' },
   { id: 'vps', title: 'Linux VPS', subtitle: 'Server install with public bind', icon: `${SVG_CDN}/ubuntu/default.svg`, badge: 'Server' },
 ];
+// Docker is the only supported deploy mode. (Native mode was removed.)
 const MODE_OPTIONS = [
   { id: 'docker', title: 'Docker', subtitle: 'Isolated containers, safest default', icon: `${SVG_CDN}/docker/default.svg`, badge: 'Recommended' },
-  { id: 'native', title: 'Native', subtitle: 'Direct host install, lighter runtime', icon: `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231b1113'/%3E%3Cpath d='M15 22l9 10-9 10' fill='none' stroke='%23ff3b4d' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M30 42h19' fill='none' stroke='%23f8f7f7' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E`, badge: 'Advanced' },
 ];
 const BOT_CHANNELS = [
   { id: 'telegram', title: 'Telegram', subtitle: 'Bot API', icon: `${SVG_CDN}/telegram/default.svg`, badge: 'Tele' },
@@ -210,7 +210,6 @@ function installModal() {
   const osChoices = OS_OPTIONS.map(o => [o.id, t(o.title, o.title), trChoice(o).subtitle]);
   const modeChoices = [
     ['docker', 'Docker', t('\u0043ontainer c\u00f4 l\u1eadp, an to\u00e0n nh\u1ea5t', 'Isolated containers, safest default')],
-    ['native', 'Native', t('C\u00e0i tr\u1ef1c ti\u1ebfp, runtime nh\u1eb9 h\u01a1n', 'Direct host install, lighter runtime')],
   ];
   return `<div class="modal-backdrop install-backdrop" data-install-modal="close">
     <section class="donate-modal install-modal" role="dialog" aria-modal="true" aria-label="${t('T\u1ea1o Project','Create Project')}" onclick="event.stopPropagation()">
@@ -563,6 +562,18 @@ function wireSkillsHandlers(scope = document) {
       delete state.featureLoading[key];
     }
     renderSkillsPanel();
+  });
+  scope.querySelectorAll('[data-chrome-debug]').forEach(btn => btn.onclick = async () => {
+    btn.disabled = true;
+    try {
+      const r = await api('/api/browser/start-chrome-debug', { method: 'POST', body: {} });
+      showToast(t('Đã mở Chrome debug', 'Chrome debug started'),
+        `${t('Cổng', 'Port')} ${r.port} — ${t('bot sẽ ưu tiên dùng Chrome này', 'the bot will prefer this Chrome')}`, 'success');
+    } catch (err) {
+      showToast(t('Thất bại', 'Failed'), err.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
   });
 }
 
@@ -1002,6 +1013,9 @@ function botSkillsPanel() {
       }
       if (requiresInstall) {
         secs.push(`<button class="secondary icon-btn2 update-plugin-btn" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''} title="${t('Cập nhật lên bản mới nhất','Update to latest version')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#ffb020; border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.05);">${actionIcon('refresh')}<span>${t('Cập nhật','Update')}</span></button>`);
+      }
+      if (item.id === 'browser-automation') {
+        secs.push(`<button class="secondary icon-btn2" type="button" data-chrome-debug title="${t('Mở Chrome (chế độ debug) trên máy này để bot dùng trình duyệt thật (đã đăng nhập)','Open real Chrome in debug mode on this machine so the bot can use it')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#4285F4; border-color: rgba(66,133,244,0.3); background: rgba(66,133,244,0.06);">${actionIcon('link')}<span>${t('Mở Chrome debug','Open Chrome debug')}</span></button>`);
       }
     } else {
       secs.push(`<button class="secondary icon-btn2" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''}>${actionIcon('download')} ${ui('installVerb')}</button>`);

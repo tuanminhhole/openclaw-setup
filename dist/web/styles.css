@@ -419,7 +419,6 @@ html[data-theme="light"] .bot-form-grid input,html[data-theme="light"] .bot-form
 .mini-pill{display:inline-flex;align-items:center;min-height:26px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,36,54,.55);font-size:12px;font-weight:800;letter-spacing:.2px}
 .mini-pill--os{border-color:#64748b;color:#cbd5e1}
 .mini-pill--docker{border-color:#2496ed;color:#9bd5ff}
-.mini-pill--native{border-color:#7c5cff;color:#cfc4ff}
 .channel-tabs{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
 .channel-tabs button{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,36,54,.24);background:rgba(255,255,255,.045);color:var(--body);border-radius:999px;padding:9px 12px;font-weight:900;cursor:pointer}
 .channel-tabs button.active{background:rgba(255,36,54,.16);border-color:var(--primary);color:var(--ink);box-shadow:0 0 0 1px rgba(255,36,54,.18) inset}
