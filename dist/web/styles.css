@@ -1930,6 +1930,12 @@ body:has(.modal-backdrop) .bottom{display:none!important}
 /* Bot / Cài đặt hero buttons sit side-by-side — keep their labels on one line. */
 .dash-actions .icon-btn2{white-space:nowrap}
 
+/* [Confirm modal] Optional body block for step-by-step guides (e.g. Chrome-debug on a VPS):
+   copyable command lines with wrap, compact spacing. */
+.confirm-body{display:grid;gap:8px;margin:14px 0 2px}
+.confirm-body .cmd{margin-top:0;user-select:all;word-break:break-all;white-space:pre-wrap;font-size:11.5px;line-height:1.5}
+.guide-step{margin:4px 0 0;color:var(--body);font-size:13px;font-weight:700}
+
 @media(max-width:760px){
   /* [Topbar] Keep search + theme + language on ONE row; theme becomes icon-only and the
      language globe icon is dropped so the whole bar stays compact. */

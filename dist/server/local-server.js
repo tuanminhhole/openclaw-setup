@@ -2373,11 +2373,57 @@ async function findChromeBinary() {
   return '';
 }
 
+// TCP relay for headless VPS: `ssh -R 9222:...` binds the VPS loopback only (sshd GatewayPorts
+// defaults to "no"), which the bot container cannot reach. This relay listens on the docker
+// bridge IP (host.docker.internal from inside the container) and pipes to the loopback tunnel.
+let _chromeRelayServer = null;
+async function getDockerBridgeIp() {
+  try {
+    const out = await runCapture('sh', ['-c', "ip -4 -o addr show docker0 | awk '{print $4}' | cut -d/ -f1"], { shell: false, timeout: 4000 });
+    const ip = String(out.stdout || '').trim();
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return ip;
+  } catch {}
+  return '172.17.0.1';
+}
+async function ensureChromeRelay() {
+  if (_chromeRelayServer) return true;
+  const bridgeIp = await getDockerBridgeIp();
+  return new Promise((resolveP) => {
+    const relay = net.createServer((client) => {
+      const upstream = net.connect(9222, '127.0.0.1');
+      client.pipe(upstream).pipe(client);
+      client.on('error', () => upstream.destroy());
+      upstream.on('error', () => client.destroy());
+    });
+    relay.once('error', () => resolveP(false)); // EADDRINUSE etc. → likely already relayed
+    relay.listen(9222, bridgeIp, () => {
+      _chromeRelayServer = relay;
+      sendLog(`[chrome] Relay ${bridgeIp}:9222 → 127.0.0.1:9222 sẵn sàng (chờ SSH tunnel từ máy bạn).`);
+      resolveP(true);
+    });
+  });
+}
+
 // Launch real host Chrome in remote-debugging mode (port 9222) so the browser-automation plugin
 // can drive the user's actual Chrome (logged-in profile) instead of headless Chromium. The bot
 // reaches it via CDP (host.docker.internal:9222 from the container). Detached: keeps running after
 // this request. `--remote-allow-origins=*` is required by modern Chrome for cross-origin CDP.
+// On a headless VPS there is no Chrome to open here — instead we start the bridge relay and hand
+// back copy-paste commands so the user runs Chrome on THEIR machine + a reverse SSH tunnel.
 async function startChromeDebug() {
+  if (isHeadlessServer()) {
+    await ensureChromeRelay();
+    const ip = (await getPublicIp().catch(() => '')) || '<IP-VPS>';
+    const user = sshUserName();
+    return {
+      ok: true,
+      headless: true,
+      port: 9222,
+      chromeCmdMac: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir="$HOME/.openclaw-chrome-debug" --remote-allow-origins='*'`,
+      chromeCmdWin: `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=9222 --user-data-dir=%TEMP%\\openclaw-chrome-debug --remote-allow-origins=*`,
+      tunnelCmd: `ssh -N -R 9222:127.0.0.1:9222 ${user}@${ip}`,
+    };
+  }
   const bin = await findChromeBinary();
   if (!bin) {
     throw httpError(400, process.platform === 'linux'

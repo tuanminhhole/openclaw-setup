@@ -169,8 +169,9 @@ function confirmModal() {
   return `<div class="modal-backdrop confirm-backdrop" data-confirm-action="cancel">
     <section class="donate-modal confirm-modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(m.title)}" onclick="event.stopPropagation()">
       <button class="modal-x" data-confirm-action="cancel" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-      <div class="donate-head"><span aria-hidden="true">⚠</span><div><p>${escapeHtml(m.eyebrow || t('Xác nhận','Confirm'))}</p><h2>${escapeHtml(m.title)}</h2><small>${escapeHtml(m.message || '')}</small></div></div>
-      <div class="confirm-actions"><button class="secondary" data-confirm-action="cancel">${t('Hủy','Cancel')}</button><button class="primary danger" data-confirm-action="ok">${escapeHtml(m.okText || t('Xóa','Delete'))}</button></div>
+      <div class="donate-head"><span aria-hidden="true">${escapeHtml(m.icon || '⚠')}</span><div><p>${escapeHtml(m.eyebrow || t('Xác nhận','Confirm'))}</p><h2>${escapeHtml(m.title)}</h2><small>${escapeHtml(m.message || '')}</small></div></div>
+      ${m.bodyHtml ? `<div class="confirm-body">${m.bodyHtml}</div>` : ''}
+      <div class="confirm-actions">${m.hideCancel ? '' : `<button class="secondary" data-confirm-action="cancel">${t('Hủy','Cancel')}</button>`}<button class="primary ${m.okDanger === false ? '' : 'danger'}" data-confirm-action="ok">${escapeHtml(m.okText || t('Xóa','Delete'))}</button></div>
     </section>
   </div>`;
 }
@@ -567,8 +568,24 @@ function wireSkillsHandlers(scope = document) {
     btn.disabled = true;
     try {
       const r = await api('/api/browser/start-chrome-debug', { method: 'POST', body: {} });
-      showToast(t('Đã mở Chrome debug', 'Chrome debug started'),
-        `${t('Cổng', 'Port')} ${r.port} — ${t('bot sẽ ưu tiên dùng Chrome này', 'the bot will prefer this Chrome')}`, 'success');
+      if (r.headless) {
+        // VPS has no display — guide the user to run Chrome on THEIR machine + a reverse tunnel.
+        state.confirmModal = {
+          icon: '🌐',
+          eyebrow: t('Chrome debug', 'Chrome debug'),
+          title: t('Dùng Chrome trên máy của bạn', 'Use Chrome on your computer'),
+          message: t('VPS không có màn hình nên không mở Chrome tại đây. Chạy 2 lệnh dưới trên máy của bạn và GIỮ chúng chạy — bot sẽ tự dùng Chrome đó (cổng 9222). Không làm cũng không sao: bot vẫn có trình duyệt ẩn (headless) sẵn trong container.', 'This VPS has no display. Run the two commands below on YOUR computer and keep them running — the bot will use that Chrome (port 9222). Optional: the bot already has a built-in headless browser.'),
+          bodyHtml: `<p class="guide-step">1. ${t('Mở Chrome debug trên máy bạn — macOS:', 'Start Chrome debug on your machine — macOS:')}</p><code class="cmd">${escapeHtml(r.chromeCmdMac)}</code><p class="guide-step">${t('Hoặc Windows:', 'Or Windows:')}</p><code class="cmd">${escapeHtml(r.chromeCmdWin)}</code><p class="guide-step">2. ${t('Tạo tunnel về VPS (cửa sổ terminal khác):', 'Create the reverse tunnel (another terminal):')}</p><code class="cmd">${escapeHtml(r.tunnelCmd)}</code>`,
+          okText: t('Đã hiểu', 'Got it'),
+          okDanger: false,
+          hideCancel: true,
+          onConfirm: () => { state.confirmModal = null; render(); },
+        };
+        render();
+      } else {
+        showToast(t('Đã mở Chrome debug', 'Chrome debug started'),
+          `${t('Cổng', 'Port')} ${r.port} — ${t('bot sẽ ưu tiên dùng Chrome này', 'the bot will prefer this Chrome')}`, 'success');
+      }
     } catch (err) {
       showToast(t('Thất bại', 'Failed'), err.message, 'error');
     } finally {
