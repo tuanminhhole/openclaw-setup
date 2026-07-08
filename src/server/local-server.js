@@ -2399,6 +2399,11 @@ async function ensureChromeRelay() {
     relay.listen(9222, bridgeIp, () => {
       _chromeRelayServer = relay;
       sendLog(`[chrome] Relay ${bridgeIp}:9222 → 127.0.0.1:9222 sẵn sàng (chờ SSH tunnel từ máy bạn).`);
+      // Ubuntu VPSes usually run ufw with default-deny INPUT, which silently drops container→host
+      // traffic to the relay. Open the port scoped to the PRIVATE bridge IP only (not reachable
+      // from the internet). Best-effort; `ufw allow` skips duplicates on re-runs.
+      run('sh', ['-c', `command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active" && ufw allow in to ${bridgeIp} port 9222 proto tcp comment "openclaw chrome-debug relay (docker bridge only)" || true`])
+        .catch(() => sendLog('[chrome] Không thể tự mở firewall cho relay — nếu bot không thấy Chrome, chạy: ufw allow in to ' + bridgeIp + ' port 9222 proto tcp'));
       resolveP(true);
     });
   });
