@@ -3924,11 +3924,19 @@ async function handler(req, res, rootProjectDir) {
         return json(res, { name, content: await fsp.readFile(file, 'utf8') });
       }
       if (req.method === 'PUT') {
-        if (!name.endsWith('.md')) throw httpError(400, 'Only markdown files (.md) can be modified');
+        // Allow the same text types the file tree marks editable (it exposes .json/.js/.yml/…,
+        // not just .md — the old .md-only guard made "Save" silently fail on those files).
+        const writableExt = new Set(['.md', '.txt', '.json', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.yml', '.yaml', '.env', '.sh', '.bat', '.ps1', '.html', '.css']);
+        if (!writableExt.has(extname(name).toLowerCase())) throw httpError(400, `Loại file này không hỗ trợ sửa từ UI (${extname(name) || 'không có đuôi'})`);
         const body = await readJson(req);
         const projectDir = await resolveProjectDir(rootProjectDir, body);
         const file = safeJoin(projectDir, name);
-        await fsp.writeFile(file, String(body.content || ''), 'utf8');
+        const content = String(body.content || '');
+        // Don't let a typo brick openclaw.json & friends — reject invalid JSON with a clear error.
+        if (extname(name).toLowerCase() === '.json') {
+          try { JSON.parse(content); } catch (e) { throw httpError(400, `JSON không hợp lệ: ${e.message}`); }
+        }
+        await fsp.writeFile(file, content, 'utf8');
         return json(res, { ok: true });
       }
     }

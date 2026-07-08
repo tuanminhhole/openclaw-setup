@@ -518,7 +518,7 @@ function renderFilesPanel() {
   // Re-wire only file-panel-specific handlers
   panel.querySelectorAll('[data-select-file]').forEach(btn => btn.onclick = () => { state.selectedFile = btn.dataset.selectFile; renderFilesPanel(); });
   panel.querySelectorAll('[data-toggle-dir]').forEach(btn => btn.onclick = () => { const p = btn.dataset.toggleDir; state.openDirs[p] = !(state.openDirs[p] ?? true); renderFilesPanel(); });
-  panel.querySelectorAll('.save').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { const name = btn.dataset.file; await api('/api/bot/files/'+encodeURIComponent(name), { method: 'PUT', body: { projectDir: activeProjectDir(), content: document.querySelector(`[data-editor="${CSS.escape(name)}"]`).value } }); showToast(t('Đã lưu', 'Saved'), t('Đã lưu tệp tin: ', 'Saved file: ') + fileBaseName(name), 'success'); btn.innerHTML=`${actionIcon('save')} ${ui('saved')}`; setTimeout(()=>btn.innerHTML=`${actionIcon('save')} ${ui('save')}`,1200); }));
+  panel.querySelectorAll('.save').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { const name = btn.dataset.file; try { await api('/api/bot/files/'+encodeURIComponent(name), { method: 'PUT', body: { projectDir: activeProjectDir(), content: document.querySelector(`[data-editor="${CSS.escape(name)}"]`).value } }); showToast(t('Đã lưu', 'Saved'), t('Đã lưu tệp tin: ', 'Saved file: ') + fileBaseName(name), 'success'); btn.innerHTML=`${actionIcon('save')} ${ui('saved')}`; setTimeout(()=>btn.innerHTML=`${actionIcon('save')} ${ui('save')}`,1200); } catch (err) { showToast(t('Lưu thất bại', 'Save failed'), err.message, 'error'); } }));
 }
 
 function renderSkillsPanel() {
@@ -918,11 +918,17 @@ function joinDisplayPath(root = '', child = '') {
   const r = String(root || '').replace(/[\\/]+$/, '');
   const c = String(child || '').replace(/^[\\/]+/, '');
   if (!r) return c || '-';
-  return c ? `${r}\\${c.replace(/\//g, '\\')}` : r;
+  if (!c) return r;
+  // Match the separator style of the project root: Windows paths (C:\...) join with "\",
+  // POSIX paths join with "/" (the old always-backslash join rendered Linux paths mangled).
+  const win = /^[A-Za-z]:/.test(r) || r.includes('\\');
+  return win ? `${r}\\${c.replace(/\//g, '\\')}` : `${r}/${c.replace(/\\/g, '/')}`;
 }
 function projectPathLine(bot = currentBot(), fileName = '') {
   const s = state.install || {};
-  const workspace = bot?.workspace || '';
+  // Legacy configs stored the container-absolute workspace; show it relative to the project root
+  // (new configs are already relative — see bot-config-gen).
+  const workspace = String(bot?.workspace || '').replace(/^\/home\/node\/project\/?/, '');
   const relFile = fileName ? String(fileName).replace(/^\.openclaw[\\/][^\\/]+[\\/]?/, '') : '';
   const full = workspace ? joinDisplayPath(s.projectDir || '', relFile ? `${workspace}/${relFile}` : workspace) : (s.projectDir || '-');
   const label = workspace ? t('Workspace','Workspace') : ui('project');
@@ -1014,7 +1020,7 @@ function botSkillsPanel() {
       if (requiresInstall) {
         secs.push(`<button class="secondary icon-btn2 update-plugin-btn" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''} title="${t('Cập nhật lên bản mới nhất','Update to latest version')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#ffb020; border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.05);">${actionIcon('refresh')}<span>${t('Cập nhật','Update')}</span></button>`);
       }
-      if (item.id === 'browser-automation') {
+      if (item.id === 'browser-automation' || item.id === 'openclaw-browser-automation') {
         secs.push(`<button class="secondary icon-btn2" type="button" data-chrome-debug title="${t('Mở Chrome (chế độ debug) trên máy này để bot dùng trình duyệt thật (đã đăng nhập)','Open real Chrome in debug mode on this machine so the bot can use it')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#4285F4; border-color: rgba(66,133,244,0.3); background: rgba(66,133,244,0.06);">${actionIcon('link')}<span>${t('Mở Chrome debug','Open Chrome debug')}</span></button>`);
       }
     } else {
@@ -1442,7 +1448,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     }
     });
   });
-  document.querySelectorAll('.save').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { const name = btn.dataset.file; await api('/api/bot/files/'+encodeURIComponent(name), { method: 'PUT', body: { projectDir: activeProjectDir(), content: document.querySelector(`[data-editor="${CSS.escape(name)}"]`).value } }); showToast(t('Đã lưu', 'Saved'), t('Đã lưu tệp tin: ', 'Saved file: ') + fileBaseName(name), 'success'); btn.innerHTML=`${actionIcon('save')} ${ui('saved')}`; setTimeout(()=>btn.innerHTML=`${actionIcon('save')} ${ui('save')}`,1200); }));
+  document.querySelectorAll('.save').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { const name = btn.dataset.file; try { await api('/api/bot/files/'+encodeURIComponent(name), { method: 'PUT', body: { projectDir: activeProjectDir(), content: document.querySelector(`[data-editor="${CSS.escape(name)}"]`).value } }); showToast(t('Đã lưu', 'Saved'), t('Đã lưu tệp tin: ', 'Saved file: ') + fileBaseName(name), 'success'); btn.innerHTML=`${actionIcon('save')} ${ui('saved')}`; setTimeout(()=>btn.innerHTML=`${actionIcon('save')} ${ui('save')}`,1200); } catch (err) { showToast(t('Lưu thất bại', 'Save failed'), err.message, 'error'); } }));
   wireSkillsHandlers(document);
 }
 
