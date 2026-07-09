@@ -155,7 +155,7 @@ function fbPluginModal() {
   return `<div class="modal-backdrop confirm-backdrop" data-fbplugin="close">
     <section class="donate-modal confirm-modal" role="dialog" aria-modal="true" aria-label="fb-messenger plugin" onclick="event.stopPropagation()">
       <button class="modal-x" data-fbplugin="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-      <div class="donate-head"><span aria-hidden="true">🔌</span><div><p>${t('Cần plugin','Plugin required')}</p><h2>fb-messenger</h2><small>${t('Để tạo bot <b>Facebook Messenger</b>, bạn cần plugin <b>fb-messenger</b> do <b>tuanminhhole</b> cung cấp. Plugin hiện chưa public — vui lòng liên hệ để nhận.','To create a <b>Facebook Messenger</b> bot you need the <b>fb-messenger</b> plugin provided by <b>tuanminhhole</b>. It is not public yet — please reach out to get it.')}</small></div></div>
+      <div class="donate-head"><span aria-hidden="true">🔌</span><div><p>${t('Cần plugin','Plugin required')}</p><h2>fb-messenger</h2><small>${t('Bot <b>Facebook Messenger</b> cần plugin <b>fb-messenger</b> (đã public trên ClawHub). Bấm <b>Tạo bot</b>, rồi mở <b>Bot → Plugins</b> và bấm <b>Cài</b> ở thẻ <b>openclaw-fb-messenger</b>.','A <b>Facebook Messenger</b> bot needs the <b>fb-messenger</b> plugin (now public on ClawHub). Click <b>Create bot</b>, then open <b>Bot → Plugins</b> and hit <b>Install</b> on the <b>openclaw-fb-messenger</b> card.')}</small></div></div>
       <div class="socials" style="justify-content:center;display:flex;gap:10px;width:100%;margin:8px 0 4px;">
         ${socials.map(([n,u])=>`<a href="${u}" target="_blank" rel="noopener" aria-label="${n}">${socialIcon(n)}</a>`).join('')}
       </div>
@@ -1006,6 +1006,7 @@ function botSkillsPanel() {
     { id: 'memory-tencentdb', title: 'TencentDB Agent Memory', desc: 'Bộ nhớ phân tầng L0–L3 + nén ngữ cảnh: nhớ tốt session dài, tiết kiệm ~61% token (local SQLite, không cần API)' },
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },
     { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers', channels: ['zalo-personal'], openWebPort: 18790, openWebPath: '/dashboard' },
+    { id: 'openclaw-fb-messenger', title: 'openclaw-fb-messenger', desc: t('Kênh Facebook Messenger — webhook + Graph API (bắt buộc cho bot Messenger)', 'Facebook Messenger channel — webhook + Graph API (required for Messenger bots)'), channels: ['fb-messenger'] },
     { id: 'openclaw-facebook-crawler', title: 'openclaw-facebook-crawler', desc: 'Facebook crawler automation', channels: ['fb-messenger'] },
     { id: 'openclaw-n8n-facebook-poster', title: 'openclaw-n8n-facebook-poster', desc: 'Facebook post automation (n8n)', channels: ['fb-messenger'] },
   ];
@@ -1408,13 +1409,9 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
   });
   $('#bot-create')?.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    // Facebook Messenger needs the private fb-messenger plugin. If it isn't installed,
-    // show a contact modal instead of creating a broken bot.
-    if (state.botChannel === 'fb-messenger' && !state.botEditId && !state.featureInstalled?.['plugin:openclaw-fb-messenger']) {
-      state.fbPluginModalOpen = true;
-      render();
-      return;
-    }
+    // Facebook Messenger needs the fb-messenger plugin (public on ClawHub). We don't block
+    // creation — the heads-up modal on channel-select tells the user to install it from the
+    // bot's Plugins section afterwards (installable via the openclaw-fb-messenger card).
     const submitBtn = ev.currentTarget.querySelector('button[type="submit"]');
     if (submitBtn?.classList.contains('is-loading')) return;
     await withButtonLoading(submitBtn, async () => {

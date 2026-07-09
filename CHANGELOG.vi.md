@@ -1,6 +1,19 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.11.0] — 2026-07-09
+
+### Thêm
+- **Facebook Messenger — cài plugin 1 chạm.** Plugin `fb-messenger` đã public trên ClawHub và cài ngay trên dashboard: tạo bot Messenger, mở **Bot → Plugins**, bấm **Cài** ở thẻ `openclaw-fb-messenger` (webhook + Graph API, tự đổi User→Page token, xác minh chữ ký HMAC). Bỏ luôn thông báo cũ "plugin riêng tư — liên hệ để nhận".
+
+### Thay đổi
+- **Chỉ còn Docker.** Loại bỏ kiểu cài native (không Docker) để tập trung cho luồng Docker chạy hoàn hảo & ổn định trên Windows / macOS / Linux / VPS (kèm tự cài Docker đa hệ điều hành).
+
+### Sửa lỗi
+- **Nút Chrome-debug trên VPS headless.** Relay Chrome-debug của browser-automation giờ chạy được trên VPS headless (giới hạn theo bridge-IP, tự mở ufw).
+- **Trình sửa file bot** lưu được cả file text không phải `.md` (và hiển thị đúng đường dẫn workspace).
+
+
 ## [5.10.1] — 2026-07-04
 
 ### Sửa lỗi

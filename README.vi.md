@@ -4,10 +4,10 @@
 
 ### Một **giao diện Web** để tạo, triển khai & vận hành trợ lý AI đa bot miễn phí — không cần gõ terminal
 
-*Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS, chạy Docker hoặc native.*
+*Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS — chạy trên Docker, tự cài giúp bạn.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.10.1-0EA5E9?style=for-the-badge" alt="Version 5.10.1" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.11.0-0EA5E9?style=for-the-badge" alt="Version 5.11.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,7 +27,14 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.10.1
+## 🆕 Có gì mới trong v5.11.0
+
+- 🚀 **Facebook Messenger, cài 1 chạm**: plugin `fb-messenger` giờ đã **public trên ClawHub** và cài ngay trên dashboard — tạo bot Messenger, mở **Bot → Plugins**, bấm **Cài** ở thẻ `openclaw-fb-messenger`. Webhook + Graph API, tự đổi User→Page token, xác minh HMAC.
+- 🐳 **Chỉ còn Docker, cực ổn định**: loại bỏ kiểu cài native (không Docker) để tập trung cho luồng Docker chạy hoàn hảo & ổn định trên Windows / macOS / Linux / VPS, kèm tự cài Docker đa hệ điều hành.
+- 🖥️ **Chrome-debug trên VPS headless**: relay Chrome-debug của browser-automation giờ chạy được trên VPS headless (giới hạn theo bridge-IP, tự mở ufw); trình sửa file bot cũng lưu được file text không phải `.md`.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.10.1</b></summary>
 
 - 🔧 **Sửa lỗi Docker**: update plugin giữ nguyên port dashboard zalo-mod, và ổ đĩa/thư mục đã cấp quyền (kể cả nguyên ổ Windows như `D:\`) không còn bị mất sau khi rebuild.
 - 🔄 **Tự khởi động lại tiến trình (native)**: cài native giờ đăng ký gateway + 9router thành service hệ điều hành (macOS launchd, Linux systemd, Windows detached), tự chạy lại khi crash/reboot — như `restart: always` của Docker. Best-effort, lỗi thì fallback chạy detached.
@@ -35,6 +42,8 @@
 - 📁 **Đường dẫn workspace native — đã sửa**: `workspace` của agent giờ là tương đối, persona/memory/skills nằm đúng chỗ khi cài native (trước là đường dẫn tuyệt đối kiểu container → trỏ sai trên host).
 - 🧩 **Không ghi đè khối `meta` trong config**: generator ngừng seed `meta` để OpenClaw tự quản — tránh lỗi parse config do `lastTouchedVersion` là dải version.
 - 💅 **UI dashboard gọn hơn**: nút tắt Bot/Cài đặt ở hero, badge version plugin, layout toggle tính năng, responsive/mobile, bỏ tiêu đề trùng ở tab dashboard.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.9.0</b></summary>
@@ -202,7 +211,7 @@ npx github:tuanminhhole/openclaw-setup
 - **Telegram**: Lấy token bot chính thức từ `@BotFather`.
 - **Zalo Bot API**: Lấy thông tin kết nối chính thức từ [developers.zalo.me](https://developers.zalo.me).
 - **Zalo Cá nhân (Zalo Personal)**: Kích hoạt cực nhanh bằng cách quét mã QR hiển thị ngay trên Dashboard OpenClaw.
-- **Facebook Messenger**: Qua plugin riêng `fb-messenger` (liên hệ **tuanminhhole** để nhận) — chỉ cần dùng Page token.
+- **Facebook Messenger**: Qua plugin `fb-messenger` (public trên ClawHub, cài ngay trên giao diện Setup) — chỉ cần dùng Page token.
 - **Discord**: _Sắp ra mắt._
 - **Lark**: _Sắp ra mắt._
 
@@ -287,7 +296,7 @@ Các repo đi kèm để bạn dựng một trợ lý AI "tự vận hành" hoà
 - [vietbrain](https://github.com/tuanminhhole/vietbrain) — Bộ khung "Bộ Não Thứ Hai" tiếng Việt cho Obsidian (sẵn sàng AI)
 
 **🔌 Plugin (runtime)**
-- `openclaw-fb-messenger` — Kênh Facebook Messenger *(riêng tư — liên hệ để nhận)*
+- [openclaw-fb-messenger](https://github.com/tuanminhhole/openclaw-fb-messenger) — Kênh Facebook Messenger (webhook + Graph API), cài ngay trên giao diện Setup
 - [openclaw-telegram-multibot-relay](https://github.com/tuanminhhole/openclaw-telegram-multibot-relay) — Multibot Telegram relay, delegation & cron nhắc lịch native
 - [openclaw-zalo-mod](https://github.com/tuanminhhole/openclaw-zalo-mod) — Quản lý nhóm Zalo zero-token (slash command, anti-spam, warn, memory)
 - [openclaw-browser-automation](https://github.com/tuanminhhole/openclaw-browser-automation) — Smart Search & Browser Automation
@@ -295,7 +304,7 @@ Các repo đi kèm để bạn dựng một trợ lý AI "tự vận hành" hoà
 - [openclaw-n8n-facebook-poster](https://github.com/tuanminhhole/openclaw-n8n-facebook-poster) — Tự động đăng Facebook qua n8n
 
 **🧩 Skill**
-- [openclaw-skill-super-memory](https://github.com/tuanminhhole/openclaw-skill-super-memory) — Bộ nhớ nâng cao cho agent
+- [openclaw-skill-learning-memory](https://github.com/tuanminhhole/openclaw-skill-learning-memory) — Bộ nhớ dài hạn tự tiến hoá cho agent
 - [openclaw-skill-infographic](https://github.com/tuanminhhole/openclaw-skill-infographic) — Tạo infographic
 - [openclaw-skill-zalo-sticker-mention](https://github.com/tuanminhhole/openclaw-skill-zalo-sticker-mention) — Sticker & mention trên Zalo
 

@@ -231,6 +231,16 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     const useExtensionsVolume = osChoice === 'win';
     const extVolMount = useExtensionsVolume ? '\n      - openclaw-extensions:/home/node/project/.openclaw/extensions' : '';
     const extVolDecl = useExtensionsVolume ? '\n  openclaw-extensions:' : '';
+    // SQLite state on Docker Desktop (macOS/Windows): the host bind mount goes through a
+    // virtualized file share (virtiofs/gRPC-FUSE) whose locking/mmap semantics break SQLite WAL —
+    // OpenClaw crashes with `Error: disk I/O error` on write (e.g. when a Zalo message arrives).
+    // Keep `.openclaw/state` on a named volume (the Linux VM's native filesystem) instead; the
+    // rest of `.openclaw` stays bind-mounted so workspaces/config remain visible on the host.
+    // Linux/VPS bind mounts are native ext4 — unchanged there (and state stays host-visible).
+    const useStateVolume = osChoice === 'macos' || osChoice === 'win';
+    const stateVolMount = useStateVolume ? '\n      - openclaw-state:/home/node/project/.openclaw/state' : '';
+    const stateVolDecl = useStateVolume ? '\n  openclaw-state:' : '';
+    const stateVolBlock = useStateVolume ? '\n\nvolumes:\n  openclaw-state:' : '';
     const skillLines = dockerfileSkillInstallMode === 'build' && allSkills.length > 0
       ? `\n# Install skills (ClawHub)\n${allSkills.map((skill) => `RUN openclaw skills install ${skill} || echo "Warning: Failed to install ${skill} due to rate limits."`).join('\n')}\n`
       : '';
@@ -395,7 +405,7 @@ services:
     env_file:
       - ../../.env
 ${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
-      - ${volumeMount}
+      - ${volumeMount}${stateVolMount}
     ports:
       - "127.0.0.1:${gatewayPort}:${gatewayPort}"
 
@@ -420,7 +430,7 @@ ${indentBlock(docker9RouterEntrypointScript, 8)}
       - "127.0.0.1:${routerPort}:${routerPort}"
 
 volumes:
-  9router-data:`;
+  9router-data:${stateVolDecl}`;
       } else if (isLocal) {
         const ollamaModelTag = String(selectedModel || 'ollama/gemma4:e2b').replace('ollama/', '');
         compose = `name: ${multiComposeName}
@@ -432,7 +442,7 @@ services:
     env_file:
       - ../../.env
 ${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
-      - ${volumeMount}
+      - ${volumeMount}${stateVolMount}
     ports:
       - "127.0.0.1:${gatewayPort}:${gatewayPort}"
 
@@ -461,7 +471,7 @@ ${appEnvironmentBlock}${dependsOn}${extraHosts}    volumes:
       start_period: 30s
 
 volumes:
-  ollama-data:`;
+  ollama-data:${stateVolDecl}`;
       } else {
         compose = `name: ${multiComposeName}
 services:
@@ -472,9 +482,9 @@ services:
     env_file:
       - ../../.env
 ${appEnvironmentBlock}${extraHosts}    volumes:
-      - ${volumeMount}
+      - ${volumeMount}${stateVolMount}
     ports:
-      - "127.0.0.1:${gatewayPort}:${gatewayPort}"`;
+      - "127.0.0.1:${gatewayPort}:${gatewayPort}"${stateVolBlock}`;
       }
     } else if (is9Router) {
       compose = `name: ${singleComposeName}
@@ -488,7 +498,7 @@ services:
     depends_on:
       - 9router
 ${appEnvironmentBlock}${extraHostsBlock}\n    volumes:
-      - ${volumeMount}
+      - ${volumeMount}${stateVolMount}
       - openclaw-plugins:/home/node/project/.openclaw/npm${extVolMount}
     ports:
       - "127.0.0.1:${gatewayPort}:${gatewayPort}"
@@ -515,7 +525,7 @@ ${indentBlock(docker9RouterEntrypointScript, 8)}
 
 volumes:
   9router-data:
-  openclaw-plugins:${extVolDecl}`;
+  openclaw-plugins:${extVolDecl}${stateVolDecl}`;
     } else if (isLocal) {
       const ollamaModelTag = String(selectedModel || 'ollama/gemma4:e2b').replace('ollama/', '');
       compose = `name: ${singleComposeName}
@@ -531,7 +541,7 @@ ${appEnvironmentBlock}    depends_on:
 ${extraHostsBlock}\n    ports:
       - "127.0.0.1:${gatewayPort}:${gatewayPort}"
     volumes:
-      - ${volumeMount}
+      - ${volumeMount}${stateVolMount}
 
   ollama:
     image: ollama/ollama:latest
@@ -558,7 +568,7 @@ ${extraHostsBlock}\n    ports:
       start_period: 30s
 
 volumes:
-  ollama-data:`;
+  ollama-data:${stateVolDecl}`;
     } else {
       compose = `name: ${singleComposeName}
 services:
@@ -569,9 +579,9 @@ services:
     env_file:
       - ../../.env
 ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    volumes:
-      - ${volumeMount}
+      - ${volumeMount}${stateVolMount}
     ports:
-      - "127.0.0.1:${gatewayPort}:${gatewayPort}"`;
+      - "127.0.0.1:${gatewayPort}:${gatewayPort}"${stateVolBlock}`;
     }
 
     return {

@@ -4,10 +4,10 @@
 
 ### One **Web UI** to scaffold, deploy & run free multi-bot AI assistants — zero terminal required
 
-*Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS, on Docker or native.*
+*Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS — Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.10.1-0EA5E9?style=for-the-badge" alt="Version 5.10.1" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.11.0-0EA5E9?style=for-the-badge" alt="Version 5.11.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,7 +27,14 @@
 
 ---
 
-## 🆕 What's New in v5.10.1
+## 🆕 What's New in v5.11.0
+
+- 🚀 **Facebook Messenger, 1-click**: the `fb-messenger` plugin is now **public on ClawHub** and installs straight from the dashboard — create a Messenger bot, open **Bot → Plugins**, and hit **Install** on the `openclaw-fb-messenger` card. Webhook + Graph API, auto User→Page token, HMAC verify.
+- 🐳 **Docker-only, rock-solid**: dropped the native (non-Docker) install path to focus on the Docker flow that runs flawlessly and stably across Windows / macOS / Linux / VPS, with cross-OS Docker auto-install.
+- 🖥️ **Chrome-debug on headless VPS**: the browser-automation Chrome-debug relay now works on a headless VPS (bridge-IP-scoped, auto-opens ufw); the bot file editor also saves non-`.md` text files.
+
+<details>
+<summary><b>Previous: What's new in v5.10.1</b></summary>
 
 - 🔧 **Docker fixes**: plugin updates keep the zalo-mod dashboard port, and granted disk/folder mounts (including whole Windows drives like `D:\`) now survive a rebuild instead of being dropped.
 - 🔄 **Native auto-restart (process supervision)**: native installs now register the gateway + 9router as OS services (macOS launchd, Linux systemd, Windows detached) that restart on crash/reboot — mirroring Docker's `restart: always`. Best-effort, falls back to a plain detached process.
@@ -35,6 +42,8 @@
 - 📁 **Native workspace path — fixed**: agent `workspace` is now relative, so persona/memory/skills resolve correctly on native installs (previously a container-absolute path pointing nowhere on the host).
 - 🧩 **Config `meta` no longer clobbered**: the generator stops seeding `meta`, so OpenClaw owns it — prevents config parse failures from a version-range `lastTouchedVersion`.
 - 💅 **Dashboard UI polish**: Bot/Setup hero shortcuts, plugin version badges, cleaner feature-toggle layout, responsive/mobile fixes, and no more duplicate page title on the dashboard tab.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.9.0</b></summary>
@@ -202,7 +211,7 @@ npx github:tuanminhhole/openclaw-setup
 - **Telegram**: Acquire your official Bot Token from `@BotFather`.
 - **Zalo Bot API**: Obtain credentials from [developers.zalo.me](https://developers.zalo.me).
 - **Zalo Personal**: Scan the QR authorization image displayed on the OpenClaw Dashboard.
-- **Facebook Messenger**: Via the private `fb-messenger` plugin (contact **tuanminhhole** to receive it) — just provide a Page token.
+- **Facebook Messenger**: Via the `fb-messenger` plugin (public on ClawHub, installable from the Setup UI) — just provide a Page token.
 - **Discord**: _Coming soon._
 - **Lark**: _Coming soon._
 
@@ -287,7 +296,7 @@ Companion repos to build a complete, self-running AI assistant:
 - [vietbrain](https://github.com/tuanminhhole/vietbrain) — Vietnamese "Second Brain" framework for Obsidian (AI-ready)
 
 **🔌 Plugins (runtime)**
-- `openclaw-fb-messenger` — Facebook Messenger channel *(private — contact to receive)*
+- [openclaw-fb-messenger](https://github.com/tuanminhhole/openclaw-fb-messenger) — Facebook Messenger channel (webhook + Graph API), installable from the Setup UI
 - [openclaw-telegram-multibot-relay](https://github.com/tuanminhhole/openclaw-telegram-multibot-relay) — Multibot Telegram relay, delegation & native cron reminders
 - [openclaw-zalo-mod](https://github.com/tuanminhhole/openclaw-zalo-mod) — Zero-token Zalo group management (slash commands, anti-spam, warn, memory)
 - [openclaw-browser-automation](https://github.com/tuanminhhole/openclaw-browser-automation) — Smart Search & Browser Automation
@@ -295,7 +304,7 @@ Companion repos to build a complete, self-running AI assistant:
 - [openclaw-n8n-facebook-poster](https://github.com/tuanminhhole/openclaw-n8n-facebook-poster) — Auto-post to Facebook via n8n
 
 **🧩 Skills**
-- [openclaw-skill-super-memory](https://github.com/tuanminhhole/openclaw-skill-super-memory) — Advanced long-term memory for agents
+- [openclaw-skill-learning-memory](https://github.com/tuanminhhole/openclaw-skill-learning-memory) — Self-evolving long-term memory for agents
 - [openclaw-skill-infographic](https://github.com/tuanminhhole/openclaw-skill-infographic) — Infographic generation
 - [openclaw-skill-zalo-sticker-mention](https://github.com/tuanminhhole/openclaw-skill-zalo-sticker-mention) — Stickers & mentions on Zalo
 

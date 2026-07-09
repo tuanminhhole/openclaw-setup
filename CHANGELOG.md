@@ -1,6 +1,19 @@
 # Changelog (English)
 
 
+## [5.11.0] — 2026-07-09
+
+### Added
+- **Facebook Messenger — 1-click plugin install.** The `fb-messenger` plugin is now public on ClawHub and installable straight from the dashboard: create a Messenger bot, open **Bot → Plugins**, and hit **Install** on the `openclaw-fb-messenger` card (webhook + Graph API, auto User→Page token, HMAC signature verify). The old "plugin is private — contact to receive" gate is gone.
+
+### Changed
+- **Docker-only.** Dropped the native (non-Docker) install path to concentrate on the Docker flow, which runs flawlessly and stably across Windows / macOS / Linux / VPS (with cross-OS Docker auto-install).
+
+### Fixed
+- **Chrome-debug button on headless VPS.** The browser-automation Chrome-debug relay now works on a headless VPS (bridge-IP-scoped, auto-opens ufw).
+- **Bot file editor** now saves non-`.md` text files (and the workspace path displays correctly).
+
+
 ## [5.10.1] — 2026-07-04
 
 ### Fixed
