@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS — chạy trên Docker, tự cài giúp bạn.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.11.0-0EA5E9?style=for-the-badge" alt="Version 5.11.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.11.1-0EA5E9?style=for-the-badge" alt="Version 5.11.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,11 +27,19 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.11.0
+## 🆕 Có gì mới trong v5.11.1
+
+- 📄 **Workspace mặc định dựng lại theo bộ file chuẩn OpenClaw**: bot tạo mới nhận đủ 7 file workspace gốc (`AGENTS`/`BOOTSTRAP`/`HEARTBEAT`/`IDENTITY`/`SOUL`/`TOOLS`/`USER.md`) làm khung, quy tắc riêng của dự án gắn thành mục bổ sung đánh dấu rõ — đủ VI + EN, mọi kiểu bot.
+- 🗄️ **Hết lỗi SQLite "disk I/O error" trên Docker Desktop**: `.openclaw/state` chuyển sang named volume trên macOS/Windows (khóa WAL không sống nổi qua virtiofs); Linux/VPS vẫn bind mount như cũ.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.11.0</b></summary>
 
 - 🚀 **Facebook Messenger, cài 1 chạm**: plugin `fb-messenger` giờ đã **public trên ClawHub** và cài ngay trên dashboard — tạo bot Messenger, mở **Bot → Plugins**, bấm **Cài** ở thẻ `openclaw-fb-messenger`. Webhook + Graph API, tự đổi User→Page token, xác minh HMAC.
 - 🐳 **Chỉ còn Docker, cực ổn định**: loại bỏ kiểu cài native (không Docker) để tập trung cho luồng Docker chạy hoàn hảo & ổn định trên Windows / macOS / Linux / VPS, kèm tự cài Docker đa hệ điều hành.
 - 🖥️ **Chrome-debug trên VPS headless**: relay Chrome-debug của browser-automation giờ chạy được trên VPS headless (giới hạn theo bridge-IP, tự mở ufw); trình sửa file bot cũng lưu được file text không phải `.md`.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.10.1</b></summary>

@@ -1,6 +1,16 @@
 # Changelog (English)
 
 
+## [5.11.1] — 2026-07-15
+
+### Added
+- **Workspace defaults rebuilt on OpenClaw's canonical files.** New bots now get all 7 upstream OpenClaw default workspace files (`AGENTS` / `BOOTSTRAP` / `HEARTBEAT` / `IDENTITY` / `SOUL` / `TOOLS` / `USER.md`) as the base skeleton, with this project's extra rules (security, file-sending, relay aliases, DM reactions…) appended as clearly-marked add-on sections. Vietnamese + English, all bot variants (single/relay/zalo/telegram). Applies to newly created bots only.
+
+### Fixed
+- **SQLite "disk I/O error" on Docker Desktop (macOS / Windows).** The generated `docker-compose.yml` now stores `.openclaw/state` in a named volume (`openclaw-state`) instead of a bind mount — SQLite WAL locking doesn't survive virtiofs/gRPC-FUSE file sharing. Linux/VPS keeps the plain bind mount.
+- **npm package catch-up.** The `5.11.0` tarball on npm was published before the final GitHub amend, so it missed the workspace defaults, the SQLite fix and the last Chrome-debug/file-editor fixes — `5.11.1` is the complete package.
+
+
 ## [5.11.0] — 2026-07-09
 
 ### Added

@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS — Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.11.0-0EA5E9?style=for-the-badge" alt="Version 5.11.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.11.1-0EA5E9?style=for-the-badge" alt="Version 5.11.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,11 +27,19 @@
 
 ---
 
-## 🆕 What's New in v5.11.0
+## 🆕 What's New in v5.11.1
+
+- 📄 **Workspace defaults, rebuilt on OpenClaw's canonical files**: new bots get all 7 upstream default workspace files (`AGENTS`/`BOOTSTRAP`/`HEARTBEAT`/`IDENTITY`/`SOUL`/`TOOLS`/`USER.md`) as the base, with this project's extra rules appended as clearly-marked add-ons — VI + EN, every bot variant.
+- 🗄️ **SQLite "disk I/O error" on Docker Desktop — fixed**: `.openclaw/state` now lives in a named volume on macOS/Windows (WAL locking doesn't survive virtiofs); Linux/VPS keeps the bind mount.
+
+<details>
+<summary><b>Previous: What's new in v5.11.0</b></summary>
 
 - 🚀 **Facebook Messenger, 1-click**: the `fb-messenger` plugin is now **public on ClawHub** and installs straight from the dashboard — create a Messenger bot, open **Bot → Plugins**, and hit **Install** on the `openclaw-fb-messenger` card. Webhook + Graph API, auto User→Page token, HMAC verify.
 - 🐳 **Docker-only, rock-solid**: dropped the native (non-Docker) install path to focus on the Docker flow that runs flawlessly and stably across Windows / macOS / Linux / VPS, with cross-OS Docker auto-install.
 - 🖥️ **Chrome-debug on headless VPS**: the browser-automation Chrome-debug relay now works on a headless VPS (bridge-IP-scoped, auto-opens ufw); the bot file editor also saves non-`.md` text files.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.10.1</b></summary>

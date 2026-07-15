@@ -1,6 +1,16 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.11.1] — 2026-07-15
+
+### Thêm
+- **Workspace mặc định dựng lại theo bộ file chuẩn của OpenClaw.** Bot tạo mới nhận đủ 7 file workspace gốc của OpenClaw (`AGENTS` / `BOOTSTRAP` / `HEARTBEAT` / `IDENTITY` / `SOUL` / `TOOLS` / `USER.md`) làm khung chuẩn, các quy tắc riêng của dự án (bảo mật, gửi file, alias relay, reaction DM…) được gắn thành mục bổ sung đánh dấu rõ. Đủ tiếng Việt + tiếng Anh, đủ mọi kiểu bot (single/relay/zalo/telegram). Chỉ áp dụng cho bot tạo mới.
+
+### Sửa lỗi
+- **SQLite "disk I/O error" trên Docker Desktop (macOS / Windows).** `docker-compose.yml` sinh ra giờ lưu `.openclaw/state` vào named volume (`openclaw-state`) thay vì bind mount — cơ chế khóa WAL của SQLite không sống nổi qua virtiofs/gRPC-FUSE. Linux/VPS vẫn giữ bind mount như cũ.
+- **Gói npm bắt kịp bản GitHub.** Bản `5.11.0` trên npm được publish trước đợt amend cuối nên thiếu workspace defaults, fix SQLite và các fix Chrome-debug/trình sửa file — `5.11.1` là bản đầy đủ.
+
+
 ## [5.11.0] — 2026-07-09
 
 ### Thêm
