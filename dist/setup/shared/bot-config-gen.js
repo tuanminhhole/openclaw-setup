@@ -248,14 +248,14 @@
     });
     cfg.plugins = pluginsConfig.plugins;
 
-    // ── bindings for zalouser ────────────────────────────────────────────────
+    // ── bindings for zalo-connect ────────────────────────────────────────────────
     if (agentMetas.length > 0 && isZaloPersonal(channelKey)) {
       cfg.bindings = cfg.bindings || [];
       const firstAgentId = agentMetas[0]?.agentId || 'bot';
-      if (!cfg.bindings.some(b => b.match && b.match.channel === 'zalouser')) {
-        // Account-specific from the start so a second Zalo account added later routes
-        // correctly (each zalouser account binds by accountId).
-        cfg.bindings.push({ agentId: firstAgentId, match: { channel: 'zalouser', accountId: 'default' } });
+      if (!cfg.bindings.some(b => b.match && b.match.channel === 'zalo-connect')) {
+        // Account-specific from day one (plan §5.2): each account needs its own
+        // binding + credential namespace even while zalo-connect 2.4.6 is single-account.
+        cfg.bindings.push({ agentId: firstAgentId, match: { channel: 'zalo-connect', accountId: 'default' } });
       }
     }
 
@@ -309,36 +309,40 @@
 
       channels.telegram = telegramConfig;
     } else if (isZaloPersonal(channelKey)) {
-      // Zalo Personal — matches live Mkt/Williams configs
-      channels.zalouser = {
-        enabled: true,
-        defaultAccount: 'default',
-        accounts: {
-          default: {
-            dmPolicy: 'open',
-            allowFrom: ['*'],
-            groupPolicy: 'allowlist',
-            groupAllowFrom: ['*'],
-          },
-        },
-        dmPolicy: 'open',
-        allowFrom: ['*'],
-        groupPolicy: 'allowlist',
-        groupAllowFrom: ['*'],
-        historyLimit: 50,
-        // NOTE: do NOT add `reactionLevel`/`actions` here — the zalouser plugin's config
-        // schema is strict and rejects them ("must not have additional properties"), which
-        // crashes the gateway on boot. zalouser already supports the `react` action by
-        // default; reaction behavior is driven by the prompt (TOOLS.md), not channel config.
-        groups: {
-          '*': { enabled: true, requireMention: false },
-        },
-      };
+      // Zalo Personal → OpenClaw Zalo Connect, the only personal-Zalo backend.
+      // Secure defaults: DM pairing, empty
+      // allowFrom, all groups disabled + requireMention until the owner explicitly
+      // enables them post-QR. Never default to `allowFrom: ["*"]` / open groups.
+      // Every key below is validated against OpenClaw Zalo Connect 3.0.0's schema
+      // (`additionalProperties: false`) — do NOT add keys (e.g. historyLimit,
+      // groupAllowFrom) without re-checking `openclaw.plugin.json` first, an unknown
+      // key crashes the gateway on boot.
+      channels['zalo-connect'] = buildZaloConnectChannelConfig();
     } else if (channelKey === 'zalo-bot') {
       channels.zalo = { enabled: true, provider: 'official_account' };
     }
 
     return channels;
+  }
+
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // buildZaloConnectChannelConfig — secure-default channels['zalo-connect'] block
+  // ═══════════════════════════════════════════════════════════════════════════════
+  function buildZaloConnectChannelConfig() {
+    return {
+      enabled: true,
+      defaultAccount: 'default',
+      accounts: {
+        default: { enabled: true },
+      },
+      dmPolicy: 'pairing',
+      allowFrom: [],
+      groupPolicy: 'allowlist',
+      groups: {
+        '*': { enabled: false, requireMention: true },
+      },
+    };
   }
 
 
@@ -361,9 +365,11 @@
 
     const allow = ['memory-core'];
 
-    // Zalo Personal channel is native; install openclaw-zalo-mod manually via ClawHub when needed.
+    // Zalo Personal → zalo-connect channel plugin (pinned install happens in the
+    // entrypoint / creation flow). openclaw-zalo-mod stays a separate opt-in plugin.
     if (isZaloPersonal(channelKey)) {
-      allow.push('zalouser');
+      entries['zalo-connect'] = { enabled: true };
+      allow.push('zalo-connect');
     }
 
     // DuckDuckGo search plugin for web-search
@@ -518,6 +524,7 @@
     generateToken,
     buildOpenclawJson,
     buildChannelConfig,
+    buildZaloConnectChannelConfig,
     buildPluginsConfig,
     buildSkillsEntries,
     buildExecApprovalsJson,

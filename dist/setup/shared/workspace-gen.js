@@ -73,9 +73,9 @@ Notes:
   function buildZaloSoulSection(isVi, botName) {
     const name = botName || 'Bot';
     if (isVi) {
-      return `\n\n**RULE — Zalo Group: Phản hồi theo chế độ Silent Mode:**\nKhi nhận tin từ \`channel: zalouser\` và \`group_id\` có giá trị:\n\n- Nếu tin nhắn chứa \`@${name}\` → **LUÔN reply** (bất kể silent mode).\n- Nếu tin nhắn bắt đầu bằng \`/\` (slash command) → KHÔNG reply, plugin đã xử lý rồi.\n- Tin thường trong group (không mention, không slash):\n  - Nếu **Silent Mode BẬT** → tin này KHÔNG đến được bot (plugin đã chặn).\n  - Nếu **Silent Mode TẮT** → tin này ĐẾN ĐƯỢC bot → **reply bình thường** như DM.\n- DM (không có group_id) → reply bình thường.`;
+      return `\n\n**RULE — Zalo Group: Phản hồi theo chế độ Silent Mode:**\nKhi nhận tin từ \`channel: zalo-connect\` và \`group_id\` có giá trị:\n\n- Nếu tin nhắn chứa \`@${name}\` → **LUÔN reply** (bất kể silent mode).\n- Nếu tin nhắn bắt đầu bằng \`/\` (slash command) → KHÔNG reply, plugin đã xử lý rồi.\n- Tin thường trong group (không mention, không slash):\n  - Nếu **Silent Mode BẬT** → tin này KHÔNG đến được bot (plugin đã chặn).\n  - Nếu **Silent Mode TẮT** → tin này ĐẾN ĐƯỢC bot → **reply bình thường** như DM.\n- DM (không có group_id) → reply bình thường.`;
     }
-    return `\n\n**RULE — Zalo Group: Reply based on Silent Mode:**\nWhen receiving messages from \`channel: zalouser\` with a \`group_id\`:\n\n- If the message contains \`@${name}\` → **ALWAYS reply** (regardless of silent mode).\n- If the message starts with \`/\` (slash command) → DO NOT reply, the plugin already handled it.\n- Regular group messages (no mention, no slash):\n  - If **Silent Mode is ON** → this message does NOT reach the bot (plugin blocks it).\n  - If **Silent Mode is OFF** → this message DOES reach the bot → **reply normally** like DM.\n- DM (no group_id) → reply normally.`;
+    return `\n\n**RULE — Zalo Group: Reply based on Silent Mode:**\nWhen receiving messages from \`channel: zalo-connect\` with a \`group_id\`:\n\n- If the message contains \`@${name}\` → **ALWAYS reply** (regardless of silent mode).\n- If the message starts with \`/\` (slash command) → DO NOT reply, the plugin already handled it.\n- Regular group messages (no mention, no slash):\n  - If **Silent Mode is ON** → this message does NOT reach the bot (plugin blocks it).\n  - If **Silent Mode is OFF** → this message DOES reach the bot → **reply normally** like DM.\n- DM (no group_id) → reply normally.`;
   }
 
   // Structure mirrors OpenClaw's default SOUL.md (Core Truths / Boundaries / Vibe / Continuity);
@@ -547,7 +547,7 @@ _Good luck out there. Make it count._
 - [Operating Manual](./AGENTS.md)`;
   }
 
-        function buildCronjobSkillMd(isVi = true) {
+  function buildCronjobSkillMd(isVi = true, zaloDeliveryChannel = 'zalo-connect') {
     return `---
 name: cronjob
 description: Lên lịch tác vụ định kỳ sử dụng công cụ cron.
@@ -571,7 +571,7 @@ Truyền tham số \`job\` (object) gồm:
   - \`message\`: Nội dung tin nhắn nhắc nhở.
 - **\`delivery\`**:
   - \`mode\`: \`"announce"\`.
-  - \`channel\`: \`"zalouser"\`.
+  - \`channel\`: \`"${zaloDeliveryChannel}"\`.
   - \`to\`: ID người nhận hoặc ID nhóm.
     - ⚠️ **QUAN TRỌNG:** Nếu gửi tới Group Zalo, ID nhóm bắt buộc phải thêm tiền tố **\`g:\`** ở đầu (Ví dụ: \`g:1925989252066183028\`). Nếu thiếu \`g:\`, tin nhắn sẽ bị gửi nhầm thành tin cá nhân (DM) hoặc lỗi.
 
@@ -591,14 +591,6 @@ Truyền tham số \`job\` (object) gồm:
   }
 
   function buildInfographicGeneratorJs() {
-    return '';
-  }
-
-  function buildStickerMentionSkillMd(botName = 'Williams') {
-    return '';
-  }
-
-  function buildStickerMentionJs() {
     return '';
   }
 
@@ -1065,11 +1057,10 @@ This is a starting point. Add your own conventions, style, and rules as you figu
       hasBrowser = false,
       hasScheduler = false,
       hasZaloMod = false,
-      hasZaloSticker = false,
       browserDocVariant = '',
     } = options;
 
-    const isZalo = !!(hasZaloMod || hasZaloSticker);
+    const isZalo = !!hasZaloMod;
 
     const frontmatter = isVi
       ? `---
@@ -1091,7 +1082,7 @@ description: Guide for utilizing tools and skills
 
     // Reaction guide (DM only). Detailed: lists the emoji palette + concrete examples + the
     // exact tool-call shape, to maximize the model's adherence (it's prompt-driven — there is
-    // no config gate for zalouser reactions).
+    // no separate config gate for Zalo reactions).
     // Zalo reactions = EXACTLY the 6 native codes (Zalo renders them as icons). Telegram uses
     // unicode. `emoji` value sent to the react action MUST be one of these codes on Zalo.
     const reactList = isVi
@@ -1277,7 +1268,6 @@ Add whatever helps you do your job. This is your cheat sheet.
    * @property {boolean} [hasScheduler]
    * @property {boolean} [hasImageGen]
    * @property {boolean} [hasZaloMod]
-   * @property {boolean} [hasZaloSticker]
    */
 
   /**
@@ -1313,7 +1303,7 @@ Add whatever helps you do your job. This is your cheat sheet.
       hasScheduler = false,
       hasImageGen = false,
       hasZaloMod = false,
-      hasZaloSticker = false,
+      zaloBackend = 'zalo-connect',
     } = opts;
 
     const isMultiBot = variant === 'relay';
@@ -1327,7 +1317,7 @@ Add whatever helps you do your job. This is your cheat sheet.
       }),
       'USER.md': buildUserDoc({ isVi, userInfo, variant: userVariant || (isMultiBot ? 'cli-multi' : 'wizard') }),
       'TOOLS.md': buildToolsDoc({
-        isVi, skillListStr, workspacePath, variant, agentWorkspaceDir, hasBrowser, hasScheduler, hasZaloMod, hasZaloSticker, browserDocVariant,
+        isVi, skillListStr, workspacePath, variant, agentWorkspaceDir, hasBrowser, hasScheduler, hasZaloMod, browserDocVariant,
       }),
       'MEMORY.md': buildMemoryDoc({ isVi, variant: memoryVariant }),
       'HEARTBEAT.md': buildHeartbeatDoc({ isVi }),
@@ -1340,17 +1330,12 @@ Add whatever helps you do your job. This is your cheat sheet.
     }
 
     if (hasScheduler) {
-      files['skills/cronjob/SKILL.md'] = buildCronjobSkillMd(isVi);
+      files['skills/cronjob/SKILL.md'] = buildCronjobSkillMd(isVi, 'zalo-connect');
     }
 
     if (hasImageGen) {
       files['skills/infographic-generator/SKILL.md'] = buildInfographicGeneratorSkillMd(botName);
       files['skills/infographic-generator/image-generator.js'] = buildInfographicGeneratorJs();
-    }
-
-    if (hasZaloSticker) {
-      files['skills/sticker-mention/SKILL.md'] = buildStickerMentionSkillMd(botName);
-      files['skills/sticker-mention/mentions.js'] = buildStickerMentionJs();
     }
 
     return files;
@@ -1372,8 +1357,6 @@ Add whatever helps you do your job. This is your cheat sheet.
     buildCronjobSkillMd,
     buildInfographicGeneratorSkillMd,
     buildInfographicGeneratorJs,
-    buildStickerMentionSkillMd,
-    buildStickerMentionJs,
     buildWorkspaceFileMap,
   };
 

@@ -1,6 +1,16 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.12.0] — 2026-07-17
+
+### Thêm
+- **OpenClaw Zalo Connect trở thành trải nghiệm Zalo cá nhân mặc định.** Khi tạo bot Zalo hoặc bấm Đăng nhập Zalo trên dashboard, Setup tự chuẩn bị channel khi cần rồi hiển thị luồng quét QR ngay trong giao diện.
+- **Cài một lần, dùng lại mượt hơn.** Nếu Zalo Connect đã có sẵn, Setup dùng lại bản hiện tại để kết nối lại và khởi động nhanh hơn, không tải trùng.
+
+### Cải tiến
+- **Hệ Zalo gọn và ổn định hơn.** Mention nhóm, reaction và quản trị dùng chung một Zalo runtime được duy trì; các luồng Zalo cũ cùng tiện ích Sticker đã được gỡ khỏi Setup.
+
+
 ## [5.11.1] — 2026-07-15
 
 ### Thêm

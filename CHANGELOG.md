@@ -1,6 +1,16 @@
 # Changelog (English)
 
 
+## [5.12.0] — 2026-07-17
+
+### Added
+- **OpenClaw Zalo Connect is now the default personal-Zalo experience.** Creating a Zalo bot or opening Zalo Login from the dashboard automatically prepares the channel when needed, then shows the QR flow in the same UI.
+- **Smarter one-time setup.** Existing Zalo Connect installations are reused, making reconnects and restarts faster and avoiding duplicate downloads.
+
+### Improved
+- **A cleaner, more reliable Zalo stack.** Native group mentions, reactions and moderation now share one maintained Zalo runtime, while the retired Zalo helper paths and Sticker add-on have been removed from Setup.
+
+
 ## [5.11.1] — 2026-07-15
 
 ### Added

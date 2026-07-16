@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS — Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.11.1-0EA5E9?style=for-the-badge" alt="Version 5.11.1" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.12.0-0EA5E9?style=for-the-badge" alt="Version 5.12.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -27,10 +27,29 @@
 
 ---
 
-## 🆕 What's New in v5.11.1
+<div align="center">
+  <a href="https://www.youtube.com/watch?v=hPusYX-5Pmw">
+    <img src="https://img.youtube.com/vi/hPusYX-5Pmw/maxresdefault.jpg" alt="Watch the OpenClaw setup video" width="820" />
+  </a>
+  <br />
+  <strong>▶ Watch the OpenClaw + Zalo setup video on YouTube</strong>
+</div>
+
+---
+
+## 🆕 What's New in v5.12.0
+
+- 💬 **OpenClaw Zalo Connect, ready in one click**: create a personal Zalo bot or press **Zalo Login** and Setup prepares the channel automatically, then opens the QR flow in the dashboard.
+- ⚡ **Install once, reconnect faster**: an existing Zalo Connect installation is reused instead of being downloaded again on every login or restart.
+- ✨ **Cleaner native Zalo experience**: group mentions, reactions and moderation now run through one maintained Zalo runtime; the retired integration and Sticker add-on are gone from Setup.
+
+<details>
+<summary><b>Previous: What's new in v5.11.1</b></summary>
 
 - 📄 **Workspace defaults, rebuilt on OpenClaw's canonical files**: new bots get all 7 upstream default workspace files (`AGENTS`/`BOOTSTRAP`/`HEARTBEAT`/`IDENTITY`/`SOUL`/`TOOLS`/`USER.md`) as the base, with this project's extra rules appended as clearly-marked add-ons — VI + EN, every bot variant.
 - 🗄️ **SQLite "disk I/O error" on Docker Desktop — fixed**: `.openclaw/state` now lives in a named volume on macOS/Windows (WAL locking doesn't survive virtiofs); Linux/VPS keeps the bind mount.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.11.0</b></summary>
@@ -87,11 +106,6 @@
 <summary><b>Previous: What's new in v5.8.22</b></summary>
 
 - **Infographic Poster Generator Skill**: Integrates automatic infographic and poster generation via 9Router API. Automatically generates the helper script `image-generator.js` (synchronizing API credentials from `openclaw.json`) and a comprehensive `SKILL.md` guiding agents on styling rules, Vietnamese font support, layouts, and image generation syntax.
-- **Zalo Sticker & Auto-Tag Skill**:
-  - Automatically mentions the active sender in group chats (Agent doesn't need to manually prefix with `@Name` anymore, the system handles it).
-  - Enables agents to dynamically send Zalo stickers by appending `[Sticker: <keyword>]` at the end of their text responses.
-  - Automatically maps emotional keywords (such as `love`, `haha`, `ca khia`, `angry`, `thank you`, etc.) to Zalo sticker IDs.
-  - Generates the patch script `mentions.js` and a dedicated `SKILL.md` inside the agent's workspace.
 - **Polish: Simplified TOOLS.md generation**: Streamlined the `TOOLS.md` generator to output a concise, static guide focusing on general principles and referencing the `./skills/` directory.
 - **Polish: Standardized Reference Docs list in AGENTS.md**: Updated the reference docs list in the generated `AGENTS.md` (for both single and relay variants in Vietnamese and English) to match the new structure, removing obsolete files (`TEAMS.md` for single-bot, `BROWSER.md`) and standardizing descriptions to keep exactly 9 core documents.
 
@@ -115,15 +129,25 @@
 
 ### 1️⃣ Method 1 — Quick install (Recommended)
 
-Open your terminal and run this single command (works on macOS, Linux & Windows — needs Node.js ≥ 22):
+Open your terminal and run this single command (works on macOS, Linux & Windows — needs Node.js 24 LTS):
+
+```bash
+npx create-openclaw-bot
+```
+
+It downloads the wizard, starts the local server, and opens the Setup UI in your browser at **http://127.0.0.1:51789**.
+
+### 2️⃣ Method 2 — Run the newest GitHub source
+
+Use this if you specifically want the newest code directly from GitHub:
 
 ```bash
 npx github:tuanminhhole/openclaw-setup
 ```
 
-It downloads the wizard, starts the local server, and opens the Setup UI in your browser at **http://127.0.0.1:51789**.
+> **Git is required for this method.** Install [Git](https://git-scm.com/downloads) and make sure the `git` command works in your terminal first; otherwise npm cannot download the GitHub repository.
 
-### 2️⃣ Method 2 — Manual clone (for developers)
+### 3️⃣ Method 3 — Manual clone (for developers)
 
 For contributors who want the full source. Run each line in order:
 
@@ -136,38 +160,19 @@ npm start
 
 Then open **http://127.0.0.1:51789** if the browser doesn't open by itself.
 
-> ⚠️ `npm install` / `npm start` only work **inside the cloned `openclaw-setup` folder**. If you used Method 1 (npx), you did **not** clone the repo — use the reopen command below instead.
+> ⚠️ `npm install` / `npm start` only work **inside the cloned `openclaw-setup` folder**. If you used either npx method, simply run the same npx command again when you want to reopen Setup.
 
 ### 🔁 Reopen the UI later
 
-The **first launch automatically creates a short `openclaw-ui` command** for your OS (zsh/bash on macOS & Linux, PowerShell on Windows). Next time, just open a **new** terminal and run:
+Run the recommended command again. Setup detects and reopens your existing project:
 
 ```bash
-openclaw-ui
+npx create-openclaw-bot
 ```
-
-<details>
-<summary>Manual command (fallback — also no re-download)</summary>
-
-```bash
-# macOS / Linux
-OPENCLAW_SETUP_WIZARD=true node ~/.openclaw-setup/node_modules/create-openclaw-bot/dist/cli.js
-```
-
-```powershell
-# Windows (PowerShell)
-$env:OPENCLAW_SETUP_WIZARD="true"; node "$env:USERPROFILE\.openclaw-setup\node_modules\create-openclaw-bot\dist\cli.js"
-```
-
-</details>
 
 ### ⬆️ Update to the newest version
 
-Click **Update** in the dashboard — it pulls the latest and **auto-restarts the UI** for you (the tab reconnects on its own). Or from the terminal, just re-run the command — it always fetches the latest from GitHub:
-
-```bash
-npx github:tuanminhhole/openclaw-setup
-```
+Click **Update** in the **top-right corner of the Setup interface**. It downloads the newest version and restarts the UI automatically; the current browser tab reconnects on its own.
 
 ---
 
@@ -269,11 +274,12 @@ Yes. You can edit the config JSON directly via the integrated File Editor in the
 
 ---
 
-## 📈 Star History
+## ⭐ Repository Stars
 
 <div align="center">
 
-[![Star History Chart](https://starchart.cc/tuanminhhole/openclaw-setup.svg?variant=adaptive)](https://starchart.cc/tuanminhhole/openclaw-setup)
+<a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&logo=github&color=eab308" alt="GitHub Stars" /></a>
+<a href="https://github.com/tuanminhhole/openclaw-setup/forks"><img src="https://img.shields.io/github/forks/tuanminhhole/openclaw-setup?style=for-the-badge&logo=github&color=0ea5e9" alt="GitHub Forks" /></a>
 
 </div>
 
@@ -306,6 +312,7 @@ Companion repos to build a complete, self-running AI assistant:
 **🔌 Plugins (runtime)**
 - [openclaw-fb-messenger](https://github.com/tuanminhhole/openclaw-fb-messenger) — Facebook Messenger channel (webhook + Graph API), installable from the Setup UI
 - [openclaw-telegram-multibot-relay](https://github.com/tuanminhhole/openclaw-telegram-multibot-relay) — Multibot Telegram relay, delegation & native cron reminders
+- [openclaw-zalo-connect](https://github.com/tuanminhhole/openclaw-zalo-connect) — Personal Zalo channel/runtime with QR login, native mentions and group actions
 - [openclaw-zalo-mod](https://github.com/tuanminhhole/openclaw-zalo-mod) — Zero-token Zalo group management (slash commands, anti-spam, warn, memory)
 - [openclaw-browser-automation](https://github.com/tuanminhhole/openclaw-browser-automation) — Smart Search & Browser Automation
 - [openclaw-facebook-crawler](https://github.com/tuanminhhole/openclaw-facebook-crawler) — Facebook data crawler
@@ -314,7 +321,6 @@ Companion repos to build a complete, self-running AI assistant:
 **🧩 Skills**
 - [openclaw-skill-learning-memory](https://github.com/tuanminhhole/openclaw-skill-learning-memory) — Self-evolving long-term memory for agents
 - [openclaw-skill-infographic](https://github.com/tuanminhhole/openclaw-skill-infographic) — Infographic generation
-- [openclaw-skill-zalo-sticker-mention](https://github.com/tuanminhhole/openclaw-skill-zalo-sticker-mention) — Stickers & mentions on Zalo
 
 ---
 

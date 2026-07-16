@@ -223,6 +223,8 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       gatewayPort = 18789,
       routerPort = 20128,
       osChoice = '',
+      // Personal-Zalo backend: empty or the single supported `zalo-connect` channel.
+      zaloBackend = '',
     } = options;
     // Windows bind-mounts give ClawHub-installed plugins world-writable perms (which openclaw
     // blocks), so on Windows we isolate extensions in a named volume. On macOS/Linux bind-mounts
@@ -278,21 +280,20 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '    return 0',
       '  fi',
       '  echo "[entrypoint] plugin $id missing; installing $spec"',
-      '  openclaw plugins install "$spec" 2>/dev/null || echo "[entrypoint] warning: failed to install plugin $spec"',
-      '}',
-      'ensure_zalouser() {',
-      '  NPM_DIR="$OPENCLAW_HOME/npm"',
-      '  PKG_DIR="$NPM_DIR/node_modules/@openclaw/zalouser"',
-      '  if [ -d "$PKG_DIR" ] || [ -d "$OPENCLAW_HOME/extensions/zalouser" ]; then',
-      '    echo "[entrypoint] zalouser plugin already installed (npm or extensions) — skipping"',
-      '  else',
-      '    echo "[entrypoint] zalouser plugin missing; installing via npm"',
-      '    mkdir -p "$NPM_DIR"',
-      '    cd "$NPM_DIR"',
-      '    npm init -y 2>/dev/null || true',
-      '    npm install @openclaw/zalouser@latest 2>/dev/null || echo "[entrypoint] warning: failed to install @openclaw/zalouser"',
-      '    cd /home/node/project',
-      '  fi',
+      '  case "$spec" in',
+      '    https://*.git#*)',
+      '      repo="${spec%%#*}"',
+      '      ref="${spec##*#}"',
+      '      tmp="/tmp/openclaw-plugin-$id-$ref"',
+      '      rm -rf "$tmp"',
+      '      if git clone --depth 1 --branch "$ref" "$repo" "$tmp" 2>/dev/null; then',
+      '        openclaw plugins install "$tmp" 2>/dev/null || echo "[entrypoint] warning: failed to install cloned plugin $id"',
+      '      else',
+      '        echo "[entrypoint] warning: failed to clone plugin $spec"',
+      '      fi',
+      '      ;;',
+      '    *) openclaw plugins install "$spec" 2>/dev/null || echo "[entrypoint] warning: failed to install plugin $spec" ;;',
+      '  esac',
       '}',
       'ensure_skill() {',
       '  id="$1"',
@@ -311,52 +312,14 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     // Restore config AFTER plugin installs (which may clobber openclaw.json)
     runtimeParts.push(`node - <<'NODE'\n${restoreConfigScript}\nNODE`);
     runtimeParts.push(`node - <<'NODE'\n${securityCompatScript}\nNODE`);
-    // Zalouser stability: patch watchdog tolerance and add auto-restart monitor
-    runtimeParts.push([
-      '# Patch zalouser watchdog tolerance (35s -> 90s) to survive provider auth pre-warming',
-      'ZALO_JS=$(find "$OPENCLAW_HOME" -path "*/zalouser/dist/zalo-js-*.js" -type f 2>/dev/null | head -1)',
-      'if [ -n "$ZALO_JS" ] && grep -q "35e3" "$ZALO_JS" 2>/dev/null; then',
-      '  sed -i "s/LISTENER_WATCHDOG_MAX_GAP_MS\\\\s*=\\\\s*35e3/LISTENER_WATCHDOG_MAX_GAP_MS = 90e3/" "$ZALO_JS"',
-      '  echo "[entrypoint] patched zalouser watchdog gap: 35s -> 90s"',
-      'fi',
-      '# Automatically run Zalo sticker-mention patch if skill is present',
-      'for MENTIONS_JS in $(find "$OPENCLAW_HOME" -maxdepth 5 -path "*/skills/*/mentions.js" -type f 2>/dev/null); do',
-      '  if [ -f "$MENTIONS_JS" ]; then',
-      '    echo "[entrypoint] Running patch: $MENTIONS_JS"',
-      '    node "$MENTIONS_JS" || echo "[entrypoint] Warning: failed to run patch $MENTIONS_JS"',
-      '  fi',
-      'done',
-    ].join('\n'));
-    // Expose zalouser's ZCA API map (globalThis.__zcaApiByProfile) BEFORE the gateway imports
-    // zalouser, so openclaw-zalo-mod can reach the live Zalo API (dashboard Sync Account, group
-    // admin lookups, …). zalo-mod's own runtime patch lands AFTER zalouser is already imported,
-    // so it never takes effect on the running module — patching here (post sticker-mention restore,
-    // pre gateway-run) is the reliable fix.
-    {
-      const exposeZcaScript = [
-        "const fs=require('fs'),cp=require('child_process');",
-        "let files=[];",
-        "try{ files=cp.execSync('find \"'+(process.env.OPENCLAW_HOME||'')+'/npm\" -path \"*/@openclaw/zalouser/dist/zalo-js-*.js\" -type f 2>/dev/null',{encoding:'utf8'}).split('\\n').filter(Boolean); }catch(e){}",
-        "const reps=[['const apiByProfile = /* @__PURE__ */ new Map();','const apiByProfile = globalThis.__zcaApiByProfile || (globalThis.__zcaApiByProfile = /* @__PURE__ */ new Map());'],['const apiByProfile = new Map();','const apiByProfile = globalThis.__zcaApiByProfile || (globalThis.__zcaApiByProfile = new Map());']];",
-        "for(const f of files){ try{ let s=fs.readFileSync(f,'utf8'); if(s.includes('globalThis.__zcaApiByProfile')) continue; for(const pair of reps){ if(s.includes(pair[0])){ s=s.replace(pair[0],pair[1]); fs.writeFileSync(f,s); console.log('[entrypoint] exposed __zcaApiByProfile for zalo-mod in '+f); break; } } }catch(e){} }",
-      ].join('\n');
-      runtimeParts.push(`# Expose zalouser ZCA API map for openclaw-zalo-mod (before gateway imports zalouser)\nnode - <<'NODE'\n${exposeZcaScript}\nNODE`);
+    if (zaloBackend === 'zalo-connect') {
+      // Pinned ZaloConnect install (never `latest` — plan §4.1). ensure_plugin skips the
+      // install when extensions/zalo-connect already exists, so restarts never re-download
+      // and a reconnect never reinstalls. No dist patching, no mentions.js, no watchdog
+      // hacks: sticker/mention/reaction are native ZaloConnect actions.
+      const zaloConnectSpec = common.ZALO_CONNECT_PLUGIN_SPEC || 'https://github.com/tuanminhhole/openclaw-zalo-connect.git#v3.0.0';
+      runtimeParts.push(`ensure_plugin zalo-connect "${zaloConnectSpec}"`);
     }
-    runtimeParts.push([
-      '# Zalo channel auto-restart monitor (background)',
-      '(',
-      '  sleep 180',
-      '  while true; do',
-      '    sleep 60',
-      '    STATUS=$(openclaw channels status 2>/dev/null | grep -i "Zalo Personal" || true)',
-      '    if echo "$STATUS" | grep -qi "stopped"; then',
-      '      echo "[zalo-monitor] Zalo channel stopped - restarting container in 5s"',
-'      sleep 5',
-      '      kill 1 2>/dev/null || true',
-      '    fi',
-      '  done',
-      ') &',
-    ].join('\n'));
     runtimeParts.push('openclaw gateway run');
     const runtimeScript = ['#!/bin/sh', 'set -e', ...runtimeParts].join('\n');
     let browserInstall = '';
@@ -609,5 +572,3 @@ ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    
 if (typeof exports !== 'undefined' && typeof globalThis !== 'undefined' && globalThis.__openclawDockerGen) {
   Object.assign(exports, globalThis.__openclawDockerGen);
 }
-
-

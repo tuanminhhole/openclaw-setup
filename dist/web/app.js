@@ -1,5 +1,5 @@
 const $ = (sel) => document.querySelector(sel);
-const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'docker', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, openDirs: {} };
+const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'docker', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, zaloBackend: '', zaloHealth: null, openDirs: {} };
 const SVG_CDN = 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons';
 const OS_OPTIONS = [
   { id: 'win', title: 'Windows', subtitle: 'Auto-detected desktop', icon: `${SVG_CDN}/windows/default.svg`, badge: 'Desktop' },
@@ -13,7 +13,7 @@ const MODE_OPTIONS = [
 ];
 const BOT_CHANNELS = [
   { id: 'telegram', title: 'Telegram', subtitle: 'Bot API', icon: `${SVG_CDN}/telegram/default.svg`, badge: 'Tele' },
-  { id: 'zalo-personal', title: 'Zalo User', subtitle: 'Personal account', icon: `${SVG_CDN}/zalo/default.svg`, badge: 'User' },
+  { id: 'zalo-personal', title: 'Zalo cá nhân', subtitle: 'OpenClaw Zalo Connect', icon: `${SVG_CDN}/zalo/default.svg`, badge: 'User' },
   { id: 'zalo-bot', title: 'Zalo API', subtitle: 'Official Account', icon: `${SVG_CDN}/zalo/default.svg`, badge: 'API' },
   { id: 'fb-messenger', title: 'Facebook', subtitle: 'Messenger', icon: `${SVG_CDN}/messenger/default.svg`, badge: 'FB' },
   { id: 'discord', title: 'Discord', subtitle: 'Bot', icon: `${SVG_CDN}/discord/default.svg`, badge: 'Discord', comingSoon: true },
@@ -194,7 +194,7 @@ function zaloLoginModal() {
   return `<div class="modal-backdrop zalo-login-backdrop" data-zalo-login="close">
     <section class="donate-modal zalo-login-modal" role="dialog" aria-modal="true" aria-label="Zalo login" onclick="event.stopPropagation()">
       <button class="modal-x" data-zalo-login="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-      <div class="donate-head"><span aria-hidden="true">Z</span><div><p>Zalo User</p><h2>${t('Quét mã QR đăng nhập','Scan login QR')}</h2><small>${t('Mở Zalo trên điện thoại → quét QR trong khung dưới. Nếu QR chưa hiện, đợi vài giây.', 'Open Zalo on your phone → scan the QR below. If it is not visible yet, wait a few seconds.')}</small></div></div>
+      <div class="donate-head"><span aria-hidden="true">Z</span><div><p>${t('Zalo cá nhân','Zalo personal')}</p><h2>${t('Quét mã QR đăng nhập','Scan login QR')}</h2><small>${t('Mở Zalo trên điện thoại → quét QR trong khung dưới. Nếu QR chưa hiện, đợi vài giây.', 'Open Zalo on your phone → scan the QR below. If it is not visible yet, wait a few seconds.')}</small></div></div>
       ${state.zaloQrDataUrl ? `<div class="zalo-qr-image-wrap"><img class="zalo-qr-image" src="${state.zaloQrDataUrl}" alt="Zalo login QR"/></div>` : ''}
       <pre class="zalo-qr-log" data-zalo-qr-log>${escapeHtml(lines)}</pre>
       <div class="zalo-login-actions"><button class="secondary" data-zalo-login="close" type="button">${t('\u0110óng','Close')}</button></div>
@@ -806,6 +806,7 @@ function botView() {
             : `<button class="${ch===c.id?'active':''}" data-bot-channel="${c.id}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${bots.filter(b=>b.channel===c.id).length}</span></button>`
           ).join('')}</div>
           ${botListPanel(channelBots)}
+          ${ch === 'zalo-personal' ? zaloHealthCard(channelBots) : ''}
         </div>
       </section>
       <div class="bot-side-col">
@@ -999,7 +1000,6 @@ function botSkillsPanel() {
     { id: 'cron', title: 'Cron', desc: 'Native scheduler (SQLite) — cron guide in TOOLS.md' },
     { id: 'image-gen', title: 'Tạo ảnh Infographic', desc: 'Tạo ảnh infographic, poster tự động qua 9Router' },
     { id: 'web-search', title: 'Web Search', desc: 'Tìm kiếm web thời gian thực (DuckDuckGo)' },
-    { id: 'sticker-mention', title: 'Sticker & Auto-Tag (Zalo)', desc: 'Tự động tag người gửi và gửi sticker Zalo theo từ khóa', channels: ['zalo-personal'] },
     { id: 'learning-memory', title: 'Siêu Trí Nhớ Dài Hạn (learning-memory)', desc: 'Tự động ghi nhớ bài học vào MEMORY.md, tự đóng gói và tiến hóa kỹ năng mới vào skills/' },
   ];
   const plugins = [
@@ -1015,12 +1015,14 @@ function botSkillsPanel() {
   // channels (e.g. Zalo helpers won't appear on Telegram/FB bots). Items without a
   // `channels` field are universal.
   const activeChannel = bot?.channel || state.botChannel || 'telegram';
-  const forChannel = (item) => !item.channels || item.channels.includes(activeChannel);
+  const forChannel = (item) => {
+    return !item.channels || item.channels.includes(activeChannel);
+  };
   const scope = `${state.install?.projectDir || '-'} ? ${bot?.id || '-'}`;
   const row = (item, group) => {
     const key = `${group}:${item.id}`;
     const loading = !!state.featureLoading[key];
-    const requiresInstall = group === 'plugin' || (group === 'skill' && (item.id === 'image-gen' || item.id === 'sticker-mention' || item.id === 'learning-memory'));
+    const requiresInstall = group === 'plugin' || (group === 'skill' && (item.id === 'image-gen' || item.id === 'learning-memory'));
     const isInstalled = !requiresInstall || !!state.featureInstalled?.[key];
     
     const version = requiresInstall && isInstalled ? (state.featureVersions?.[key] || '') : '';
@@ -1091,7 +1093,8 @@ function wireTab() {
   document.querySelectorAll('[data-fbplugin]').forEach(el => el.onclick = () => { state.fbPluginModalOpen = false; render(); });
   document.querySelectorAll('[data-bot-modal]').forEach(el => el.onclick = () => { state.botModalOpen = el.dataset.botModal === 'open'; if (el.dataset.botModal === 'open') state.botEditId = ''; state.botMessage = ''; render(); });
   document.querySelectorAll('[data-edit-bot]').forEach(btn => btn.onclick = (ev) => { ev.stopPropagation(); state.botEditId = btn.dataset.editBot; state.botChannel = (state.install?.bots || []).find((b) => b.id === state.botEditId)?.channel || state.botChannel; state.botModalOpen = true; state.botMessage = ''; render(); });
-  document.querySelectorAll('[data-zalo-login]').forEach(el => el.onclick = () => { state.zaloLoginOpen = el.dataset.zaloLogin === 'open'; render(); });
+  document.querySelectorAll('[data-zalo-login]').forEach(el => el.onclick = () => { const opening = el.dataset.zaloLogin === 'open'; if (!opening && state.zaloLoginOpen) api('/api/zalo/login/cancel', { method: 'POST' }).catch(() => {}); state.zaloLoginOpen = opening; render(); });
+  document.querySelectorAll('[data-zalo-health-refresh]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { await loadZaloHealth(); }));
   document.querySelectorAll('[data-zalo-login-trigger]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => {
     state.zaloLoginOpen = true;
     state.zaloQrDataUrl = '';
@@ -1508,6 +1511,39 @@ async function loadFiles(silent=false){
   if (!silent) render();
 }
 async function loadCatalog(silent=false){ state.catalog = await api('/api/catalog'); if (!silent) render(); }
+function zaloHealthCard(channelBots = []) {
+  if (state.zaloBackend !== 'zalo-connect' || !channelBots.length) return '';
+  const h = state.zaloHealth;
+  const chip = (label, tone) => `<span class="runtime-badge ${tone}" style="font-size:11px;">${label}</span>`;
+  let statusChip = chip(t('Chưa rõ','Unknown'), 'warn');
+  if (h) {
+    if (h.channelStatus === 'connected') statusChip = chip(t('Đã kết nối','Connected'), 'ok');
+    else if (h.channelStatus === 'container-stopped') statusChip = chip(t('Container tắt','Container stopped'), 'bad');
+    else if (h.channelStatus === 'disconnected') statusChip = chip(t('Mất kết nối','Disconnected'), 'bad');
+    else if (h.channelStatus === 'starting') statusChip = chip(t('Đang khởi động','Starting'), 'warn');
+  }
+  const ver = h?.installedVersion ? `${h.installedVersion}${h.supportedVersion && h.installedVersion !== h.supportedVersion ? ` → ${h.supportedVersion}` : ''}` : (h ? t('chưa cài','not installed') : '…');
+  return `<div class="card zalo-health-card" style="margin-top:14px; padding:14px;">
+    <div class="card-head" style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0; font-size:14px;">🩺 Zalo (ZaloConnect)</h3>${statusChip}
+    </div>
+    <div class="dash-version-list" style="margin-top:0;">
+      <div><span>ZaloConnect</span><b>${escapeHtml(ver)}</b></div>
+      <div><span>${t('Phiên QR','QR session')}</span><b>${h ? (h.sessionSaved ? t('Đã lưu','Saved') : t('Chưa đăng nhập','Not logged in')) : '…'}</b></div>
+      <div><span>Zalo Mod</span><b>${h ? (h.zaloModInstalled ? t('Đã cài','Installed') : t('Chưa cài','Not installed')) : '…'}</b></div>
+      ${h?.channelStatusLine ? `<div><span>${t('Kênh','Channel')}</span><b style="font-weight:500; font-size:11px; opacity:.8;">${escapeHtml(h.channelStatusLine.slice(0, 60))}</b></div>` : ''}
+    </div>
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <button class="secondary icon-btn2" data-zalo-health-refresh type="button" style="flex:1; justify-content:center; font-size:12px; height:32px; border-width:1px;">🔄 ${t('Làm mới','Refresh')}</button>
+      <button class="secondary icon-btn2" data-zalo-login-trigger type="button" style="flex:1; justify-content:center; font-size:12px; height:32px; border-width:1px;">🔑 ${t('Kết nối lại','Reconnect')}</button>
+    </div>
+  </div>`;
+}
+async function loadZaloHealth(silent=false){
+  if (!activeProjectDir()) { state.zaloHealth = null; return; }
+  try { state.zaloHealth = await api('/api/zalo/health' + projectQuery()); } catch (_) { state.zaloHealth = null; }
+  if (!silent) render();
+}
 async function loadFeatureFlags(silent=false){
   const botId=currentBotId();
   if (!activeProjectDir()) { state.featureFlags = {}; state.featureInstalled = {}; state.featureVersions = {}; if (!silent) render(); return; }
@@ -1516,6 +1552,8 @@ async function loadFeatureFlags(silent=false){
     state.featureFlags = data.flags || {};
     state.featureInstalled = data.installed || {};
     state.featureVersions = data.versions || {};
+    state.zaloBackend = data.zaloBackend || '';
+    if (state.zaloBackend === 'zalo-connect') loadZaloHealth(true).catch(() => {});
   } catch (_) {
     state.featureFlags = {};
     state.featureInstalled = {};
@@ -1547,7 +1585,7 @@ function appendLogLine(line) {
     }, 2000);
   }
 
-  const qrMatch = String(line).match(/^\[zalouser:qr\]\s+(data:image\/[a-zA-Z0-9.+-]+;base64,\S+)/);
+  const qrMatch = String(line).match(/^\[zalo-connect:qr\]\s+(data:image\/[a-zA-Z0-9.+-]+;base64,\S+)/);
   if (qrMatch) {
     state.zaloQrDataUrl = qrMatch[1];
     state.zaloLoginOpen = true;
@@ -1561,11 +1599,11 @@ function appendLogLine(line) {
     return;
   }
   const html = `<p>${escapeHtml(line)}</p>`;
-  if (state.zaloLoginOpen || /\[zalouser\]|zalo|qr|login|scan/i.test(line)) {
+  if (state.zaloLoginOpen || /\[zalo-connect\]|zalo|qr|login|scan/i.test(line)) {
     state.zaloLoginLines.push(cleanTerminalLine(line));
     const qr = document.querySelector('[data-zalo-qr-log]');
     if (qr) { qr.textContent = state.zaloLoginLines.slice(-120).join('\n'); qr.scrollTop = qr.scrollHeight; }
-    if (/\[zalouser\].*scan.*qr/i.test(line) && state.zaloQrDataUrl) {
+    if (/\[zalo-connect\].*scan.*qr/i.test(line) && state.zaloQrDataUrl) {
       render();
       requestAnimationFrame(() => document.querySelector('.zalo-login-modal')?.scrollTo({ top: 0, behavior: 'smooth' }));
     }
@@ -1629,6 +1667,3 @@ render();
 Promise.allSettled([loadSystem(true), loadStatus(true), loadCatalog(true)])
   .then(() => loadFeatureFlags(true).catch(() => {}))
   .finally(() => { render(); connectLogs(); });
-
-
-

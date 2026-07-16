@@ -13,10 +13,10 @@ function loadSharedModule(modulePath, globalName) {
   if (loaded && Object.keys(loaded).length > 0) return loaded;
   return globalThis[globalName] || loaded || {};
 }
-const { buildWorkspaceFileMap, buildCronjobSkillMd, buildInfographicGeneratorSkillMd, buildInfographicGeneratorJs, buildStickerMentionSkillMd, buildStickerMentionJs } = loadSharedModule('../setup/shared/workspace-gen.js', '__openclawWorkspace');
-const { buildOpenclawJson, buildEnvFileContent, buildExecApprovalsJson } = loadSharedModule('../setup/shared/bot-config-gen.js', '__openclawBotConfig');
+const { buildWorkspaceFileMap, buildCronjobSkillMd, buildInfographicGeneratorSkillMd, buildInfographicGeneratorJs } = loadSharedModule('../setup/shared/workspace-gen.js', '__openclawWorkspace');
+const { buildOpenclawJson, buildEnvFileContent, buildExecApprovalsJson, buildZaloConnectChannelConfig } = loadSharedModule('../setup/shared/bot-config-gen.js', '__openclawBotConfig');
 const { buildDockerArtifacts } = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
-const { OPENCLAW_NPM_SPEC, NINE_ROUTER_NPM_SPEC, build9RouterProviderConfig, get9RouterBaseUrl } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
+const { OPENCLAW_NPM_SPEC, NINE_ROUTER_NPM_SPEC, ZALO_CHANNEL_ID, ZALO_PLUGIN_ID, ZALO_CONNECT_VERSION, ZALO_CONNECT_PLUGIN_SPEC, build9RouterProviderConfig, get9RouterBaseUrl } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
 
 async function syncExecApprovals(projectDir, cfg) {
@@ -259,6 +259,7 @@ const STATE_FILE = '.openclaw-setup-state.json';
 const DEFAULT_MODEL = 'smart-route';
 const logClients = new Set();
 let zaloLoginInFlight = false;
+let zaloLoginChild = null; // active `openclaw channels login` process (for cancel)
 let activeServerInstance = null;
 // Captured at startup so a self-restart (update button) re-binds the SAME host/port,
 // letting the browser tab reconnect to the new UI instead of hanging.
@@ -948,7 +949,7 @@ function ensureConfigShape(cfg) {
   cfg.channels = cfg.channels || {};
   cfg.bindings = Array.isArray(cfg.bindings) ? cfg.bindings : [];
   cfg.plugins = cfg.plugins || { entries: { 'memory-core': { config: { dreaming: { enabled: false } } } } };
-  // Preserve plugins.allow — needed for non-bundled plugins like zalouser, zalo-mod
+  // Preserve plugins.allow — needed for external plugins such as Zalo Connect.
   if (!cfg.plugins.allow) cfg.plugins.allow = [];
   cfg.tools = cfg.tools || { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
   return cfg;
@@ -968,30 +969,19 @@ function ensureTelegramChannel(cfg) {
   });
 }
 
-function ensureZaloUserChannel(cfg) {
-  cfg.channels.zalouser = cfg.channels.zalouser || {
-    enabled: true,
-    defaultAccount: 'default',
-    accounts: {
-      default: {
-        enabled: true,
-        profile: 'default',
-      },
-    },
-    dmPolicy: 'open',
-    groupPolicy: 'open',
-    historyLimit: 50,
-    groups: {
-      '*': { enabled: true, requireMention: false },
-    },
-    allowFrom: ['*'],
-    groupAllowFrom: ['*'],
-  };
-  // Ensure zalouser is in plugins.entries (plugins.allow is deprecated)
+function zaloBackendForConfig(cfg) {
+  return cfg?.channels?.['zalo-connect']?.enabled ? 'zalo-connect' : '';
+}
+
+function ensureZaloConnectChannel(cfg) {
+  // Secure defaults — DM pairing, no groups enabled
+  // until the owner picks them. Existing zalo-connect config is preserved as-is.
+  cfg.channels['zalo-connect'] = cfg.channels['zalo-connect'] || buildZaloConnectChannelConfig();
+  cfg.channels['zalo-connect'].enabled = true;
   cfg.plugins.entries = cfg.plugins.entries || {};
-  cfg.plugins.entries.zalouser = cfg.plugins.entries.zalouser || { enabled: true };
+  cfg.plugins.entries['zalo-connect'] = cfg.plugins.entries['zalo-connect'] || { enabled: true };
   cfg.plugins.allow = cfg.plugins.allow || [];
-  if (!cfg.plugins.allow.includes('zalouser')) cfg.plugins.allow.push('zalouser');
+  if (!cfg.plugins.allow.includes('zalo-connect')) cfg.plugins.allow.push('zalo-connect');
 }
 
 function ensureFbMessengerChannel(cfg, pageId, appId) {
@@ -1208,7 +1198,7 @@ function mapAgentChannel(agent, cfg) {
   if (agent && typeof agent === 'object' && ['telegram', 'zalo-personal', 'zalo-bot', 'fb-messenger'].includes(agent.channel)) return agent.channel;
   const binding = (cfg.bindings || []).find((b) => b.agentId === agentId);
   const ch = binding?.match?.channel;
-  if (ch === 'zalouser') return 'zalo-personal';
+  if (ch === 'zalo-connect') return 'zalo-personal';
   if (ch === 'zalo') return 'zalo-bot';
   if (ch === 'telegram') return 'telegram';
   if (ch === 'fb-messenger') return 'fb-messenger';
@@ -1220,12 +1210,12 @@ function mapAgentChannels(agent, cfg) {
   if (agent?.channel && ['telegram', 'zalo-personal', 'zalo-bot', 'fb-messenger'].includes(agent.channel)) return [agent.channel];
   const channels = (cfg.bindings || [])
     .filter((b) => b.agentId === agent?.id)
-    .map((b) => b.match?.channel === 'zalouser' ? 'zalo-personal' : b.match?.channel === 'zalo' ? 'zalo-bot' : b.match?.channel)
+    .map((b) => b.match?.channel === 'zalo-connect' ? 'zalo-personal' : b.match?.channel === 'zalo' ? 'zalo-bot' : b.match?.channel)
     .filter((ch) => ['telegram', 'zalo-personal', 'zalo-bot', 'fb-messenger'].includes(ch));
   if (channels.length) return Array.from(new Set(channels));
   const enabled = [];
   if (cfg.channels?.telegram?.enabled) enabled.push('telegram');
-  if (cfg.channels?.zalouser?.enabled) enabled.push('zalo-personal');
+  if (cfg.channels?.['zalo-connect']?.enabled) enabled.push('zalo-personal');
   if (cfg.channels?.zalo?.enabled) enabled.push('zalo-bot');
   if (cfg.channels?.['fb-messenger']?.enabled) enabled.push('fb-messenger');
   return enabled.length === 1 ? enabled : [mapAgentChannel(agent, cfg)];
@@ -1446,22 +1436,13 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     cfg.bindings.push({ agentId, match: { channel: 'telegram', accountId } });
     await appendEnvValue(projectDir, accountId === 'default' ? 'TELEGRAM_BOT_TOKEN' : `TELEGRAM_BOT_TOKEN_${agentId.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}`, token);
   } else if (channel === 'zalo-personal') {
-    ensureZaloUserChannel(cfg);
-    const zu = cfg.channels.zalouser;
-    zu.accounts = zu.accounts || {};
-    const defAcct = zu.defaultAccount || 'default';
-    // Make legacy catch-all zalouser bindings (no accountId) account-specific so a second
-    // account isn't swallowed by them. The existing single bot owns the default account.
-    for (const b of cfg.bindings) {
-      if (b.match?.channel === 'zalouser' && !b.match.accountId) b.match.accountId = defAcct;
+    const existingZaloConnectBindings = cfg.bindings.filter((b) => b.match?.channel === 'zalo-connect').length;
+    if (existingZaloConnectBindings > 0) {
+      throw httpError(400, 'OpenClaw Zalo Connect hiện hỗ trợ 1 tài khoản Zalo mỗi project. Hãy dùng bot Zalo hiện có hoặc tạo project riêng cho tài khoản thứ hai.');
     }
-    // First Zalo bot → the default account; each subsequent bot gets its own account
-    // (keyed by agentId) with a matching login profile — mirrors the Telegram multi-account flow.
-    const existingZaloBindings = cfg.bindings.filter((b) => b.match?.channel === 'zalouser').length;
-    accountId = existingZaloBindings === 0 ? defAcct : agentId;
-    zu.enabled = true;
-    zu.accounts[accountId] = zu.accounts[accountId] || { enabled: true, profile: accountId };
-    cfg.bindings.push({ agentId, match: { channel: 'zalouser', accountId } });
+    ensureZaloConnectChannel(cfg);
+    accountId = 'default';
+    cfg.bindings.push({ agentId, match: { channel: 'zalo-connect', accountId } });
   } else if (channel === 'fb-messenger') {
     // Token handling (user token → permanent Page token) is done by the fb-messenger
     // plugin itself; here we just persist whatever the user supplied plus the App ID
@@ -1502,7 +1483,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     workspacePath: `/home/node/project/.openclaw/${workspaceDir}`,
     channel,
     hasZaloMod: channel === 'zalo-personal',
-    hasZaloSticker: false,
+    zaloBackend: zaloBackendForConfig(cfg),
     hasScheduler,
     hasImageGen,
   });
@@ -1558,8 +1539,8 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     cfg.channels.telegram.defaultAccount = cfg.channels.telegram.defaultAccount || 'default';
     cfg.bindings.push({ agentId, match: { channel: 'telegram', accountId } });
   } else if (channel === 'zalo-personal') {
-    ensureZaloUserChannel(cfg);
-    cfg.bindings.push({ agentId, match: { channel: 'zalouser' } });
+    ensureZaloConnectChannel(cfg);
+    cfg.bindings.push({ agentId, match: { channel: 'zalo-connect', accountId: 'default' } });
   } else if (channel === 'fb-messenger') {
     ensureFbMessengerChannel(cfg, String(body.pageId || '').trim(), String(body.appId || '').trim());
     cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: 'default' } });
@@ -1624,7 +1605,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     workspacePath: `/home/node/project/.openclaw/${workspaceDir}`,
     channel,
     hasZaloMod: channel === 'zalo-personal',
-    hasZaloSticker: false,
+    zaloBackend: zaloBackendForConfig(cfg),
     hasScheduler,
     hasImageGen,
   });
@@ -1668,7 +1649,7 @@ async function waitForDockerContainer(name, timeoutMs = 30000) {
   return false;
 }
 
-async function waitForGatewayZaloReady(botContainer, projectDir, timeoutMs = 90000) {
+async function waitForGatewayZaloReady(botContainer, projectDir, timeoutMs = 90000, channelKeywords = ['zalo-connect', 'openclaw zalo connect']) {
   const started = Date.now();
   // Use dynamic port from env: OPENCLAW_GATEWAY_PORT → OPENCLAW_PORT → fallback 18789
   const healthScript = 'const http=require("http");const port=process.env.OPENCLAW_GATEWAY_PORT||process.env.OPENCLAW_PORT||18789;const r=http.get("http://127.0.0.1:"+port+"/health",{timeout:2000},(res)=>{let d="";res.on("data",c=>d+=c);res.on("end",()=>{try{const j=JSON.parse(d);process.stdout.write(j.ok?"READY":"WAIT")}catch{process.stdout.write("WAIT")}})});r.on("error",()=>process.stdout.write("WAIT"));r.on("timeout",()=>{r.destroy();process.stdout.write("WAIT")})';
@@ -1682,254 +1663,232 @@ async function waitForGatewayZaloReady(botContainer, projectDir, timeoutMs = 900
       const status = String(out.stdout || '').trim();
       if (status === 'READY') {
         const pluginCheck = await runCapture('docker', ['exec', botContainer, 'sh', '-c', 'openclaw channels status 2>&1 || true'], { cwd: projectDir, shell: false });
-        const output = (pluginCheck.stdout || '') + ' ' + (pluginCheck.stderr || '');
-        if (output.toLowerCase().includes('zalouser') || output.toLowerCase().includes('zalo personal')) {
+        const output = ((pluginCheck.stdout || '') + ' ' + (pluginCheck.stderr || '')).toLowerCase();
+        if (channelKeywords.some((kw) => output.includes(kw))) {
           ready = true;
           break;
         }
-        if (attempts > 2) sendLog('[zalouser] Gateway healthy but zalouser not yet loaded (' + Math.round((Date.now() - started) / 1000) + 's)...');
+        if (attempts > 2) sendLog('[zalo-connect] Gateway healthy but Zalo Connect is not loaded yet (' + Math.round((Date.now() - started) / 1000) + 's)...');
       } else {
-        if (attempts > 2 && attempts % 3 === 0) sendLog('[zalouser] Waiting for gateway... (' + Math.round((Date.now() - started) / 1000) + 's)');
+        if (attempts > 2 && attempts % 3 === 0) sendLog('[zalo-connect] Waiting for gateway... (' + Math.round((Date.now() - started) / 1000) + 's)');
       }
     } catch {}
     await new Promise((r) => setTimeout(r, 5000));
   }
   if (!ready) {
-    sendLog('[zalouser] Gateway readiness timeout after ' + Math.round(timeoutMs / 1000) + 's — proceeding anyway.');
+    sendLog('[zalo-connect] Gateway readiness timeout after ' + Math.round(timeoutMs / 1000) + 's — proceeding anyway.');
   }
   return ready;
 }
 
-async function startZaloUserLogin(projectDir, mode = state.mode, agentId = '') {
-  let profile = 'default';
-  if (agentId) {
-    try {
-      const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
-      if (existsSync(cfgPath)) {
-        const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
-        const binding = (cfg.bindings || []).find(b => b.agentId === agentId && b.match?.channel === 'zalouser');
-        if (binding?.match?.accountId) {
-          profile = binding.match.accountId;
-        }
-      }
-    } catch (e) {
-      sendLog(`[zalouser] Warning: Failed to parse openclaw.json: ${e.message}`);
-    }
-  } else if (state.activeBotId) {
-    try {
-      const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
-      if (existsSync(cfgPath)) {
-        const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
-        const binding = (cfg.bindings || []).find(b => b.agentId === state.activeBotId && b.match?.channel === 'zalouser');
-        if (binding?.match?.accountId) {
-          profile = binding.match.accountId;
-        }
-      }
-    } catch (e) {}
-  }
+async function startZaloLogin(projectDir, agentId = "") {
+  const cfgPath = join(projectDir, ".openclaw", "openclaw.json");
+  if (!existsSync(cfgPath)) throw httpError(404, "openclaw.json not found");
+  const cfg = JSON.parse(await fsp.readFile(cfgPath, "utf8"));
+  const binding = (cfg.bindings || []).find((b) =>
+    (!agentId || b.agentId === agentId) && b.match?.channel === "zalo-connect"
+  );
+  return startZaloConnectLogin(projectDir, binding?.match?.accountId || "default");
+}
 
-  const qrPaths = [
-    `/tmp/openclaw/openclaw-zalouser-qr-${profile}.png`,
-    `/tmp/openclaw-1000/openclaw-zalouser-qr-${profile}.png`
-  ];
-  if (profile === 'default') {
-    qrPaths.push(
-      '/tmp/openclaw/openclaw-zalouser-qr.png',
-      '/tmp/openclaw-1000/openclaw-zalouser-qr.png',
-      '/tmp/openclaw/openclaw-zalouser-qr-default.png'
-    );
-  }
-
+// ── OpenClaw Zalo Connect QR login (new projects) ────────────────────────────────────────────
+// zalo-connect prints the QR two ways: ASCII art on stdout and a PNG written to the
+// container's tmpdir, announced with "QR image saved at: /tmp/zalo-connect-qr-<id>.png".
+// We watch stdout for that line, read the PNG out of the container, and push it to
+// the UI modal as a data URL ([zalo-connect:qr] log tag). Reconnect NEVER reinstalls the
+// plugin — install runs only when extensions/zalo-connect is absent, and always with the
+// pinned spec (never `latest`).
+async function startZaloConnectLogin(projectDir, accountId = 'default') {
   if (zaloLoginInFlight) {
-    setImmediate(async () => {
-      try {
-        const botContainer = getBotContainerName(projectDir);
-        const js = `const fs=require('fs');const ps=${JSON.stringify(qrPaths)};for(const p of ps){try{if(fs.existsSync(p)&&fs.statSync(p).size>100){process.stdout.write(fs.readFileSync(p).toString('base64'));break;}}catch{}}`;
-        const out = await runCapture('docker', ['exec', botContainer, 'node', '-e', js], { cwd: projectDir, shell: false });
-        const b64 = extractCompletePngBase64(out.stdout);
-        if (b64.length > 100) {
-          sendLog(`[zalouser:qr] data:image/png;base64,${b64}`);
-          sendLog('[zalouser] Found running login session. Displaying current QR code.');
-        }
-      } catch {}
-    });
     return { message: 'Zalo login is already running. Keep this modal open...' };
   }
-  zaloLoginInFlight = true;
-  sendLog(`[zalouser] Preparing login for profile [${profile}]. QR will be generated for the UI modal.`);
   const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
-  if ((mode === 'docker' || existsSync(composeFile)) && existsSync(composeFile)) {
-    const botContainer = getBotContainerName(projectDir);
-    // Verify if zalouser is properly registered in installs.json with channels array.
-    // npm install --prefix misses this, which causes error:not configured.
-    const checkRegistryScript = `
-const fs = require('fs');
-try {
-  // zalouser may live under npm/ (docker install) OR extensions/ (migrated/native). Treat
-  // either as present so we never re-download it on top of an existing copy (that creates a
-  // duplicate plugin id and breaks the shared ZCA API map).
-  const distNpm = '/home/node/project/.openclaw/npm/node_modules/@openclaw/zalouser/dist/index.js';
-  const distExt = '/home/node/project/.openclaw/extensions/zalouser/dist/index.js';
-  const inst = '/home/node/project/.openclaw/plugins/installs.json';
-  if (!fs.existsSync(distNpm) && !fs.existsSync(distExt)) { console.log('MISSING'); process.exit(0); }
-  if (!fs.existsSync(inst)) { console.log('MISSING_CHANNELS'); process.exit(0); }
-  const j = JSON.parse(fs.readFileSync(inst, 'utf8'));
-  const z = j.plugins.find(x => x.pluginId === 'zalouser');
-  if (z && z.channels && z.channels.includes('zalouser')) {
-    console.log('OK');
-  } else {
-    console.log('MISSING_CHANNELS');
+  if (!existsSync(composeFile)) {
+    throw httpError(400, 'Zalo login cần project Docker đang chạy (không tìm thấy docker-compose.yml).');
   }
-} catch(e) { console.log('MISSING'); }
-`;
-    const checkInstall = await runCapture('docker', ['exec', botContainer, 'node', '-e', checkRegistryScript], { cwd: projectDir, shell: false }).catch(() => ({ stdout: 'MISSING' }));
-    const status = String(checkInstall.stdout || '').trim();
-    if (status !== 'OK') {
-      sendLog(status === 'MISSING' ? '[zalouser] Plugin not found — installing @openclaw/zalouser...' : '[zalouser] Plugin registry missing channels array — fixing install via CLI...');
-      
-      const fixScript = `
-const fs=require('fs');
-const cp=require('child_process');
-const cfg='/home/node/project/.openclaw/openclaw.json';
-const bk='/home/node/project/.openclaw/openclaw.json.zalo-backup';
-try{if(fs.existsSync(cfg))fs.copyFileSync(cfg,bk);}catch(e){}
-// Detect gateway version and pin zalouser plugin to match, preventing createSetupTranslator mismatch
-let gatewayVer='';
-try{gatewayVer=cp.execSync('openclaw --version 2>/dev/null',{encoding:'utf8'}).trim().replace(/[^0-9.]/g,'');}catch(e){}
-const pluginSpec=gatewayVer ? '@openclaw/zalouser@'+gatewayVer : '@openclaw/zalouser';
-console.log('Installing plugin via CLI: '+pluginSpec+'...');
-try{cp.execSync('cd /home/node/project && openclaw plugins install '+pluginSpec+' --force',{stdio:'inherit'});}catch(e){
-  // Fallback: try without version pin if exact version not found on registry
-  if(gatewayVer){console.log('Pinned version failed, trying latest...');try{cp.execSync('cd /home/node/project && openclaw plugins install @openclaw/zalouser --force',{stdio:'inherit'});}catch(e2){console.error('Install failed');}}
-  else{console.error('Install failed');}
-}
-try{
-  if(fs.existsSync(bk)){
-    const b=JSON.parse(fs.readFileSync(bk,'utf8'));
-    const c=JSON.parse(fs.readFileSync(cfg,'utf8'));
-    const keys=['agents','channels','bindings','gateway','models'];
-    for(const k of keys){if(b[k])c[k]=b[k];}
-    if(b.plugins){
-      if(b.plugins.allow)c.plugins={...c.plugins,allow:b.plugins.allow};
-      if(b.plugins.deny)c.plugins={...c.plugins,deny:b.plugins.deny};
-      if(b.plugins.entries)c.plugins={...c.plugins,entries:b.plugins.entries};
-    }
-    if(!c.plugins)c.plugins={};if(!c.plugins.entries)c.plugins.entries={};
-    if(!c.plugins.entries.zalouser)c.plugins.entries.zalouser={};
-    c.plugins.entries.zalouser.enabled=true;
-    fs.writeFileSync(cfg,JSON.stringify(c,null,2)+'\\n','utf8');
-    fs.unlinkSync(bk);
-    console.log('Config protected and restored.');
-  }
-}catch(e){}
-try{
-  console.log('Patching zalouser stability settings...');
-  cp.execSync('ZALO_JS=$(find "/home/node/project/.openclaw" -path "*/zalouser/dist/zalo-js*.js" -type f 2>/dev/null | head -1); if [ -n "$ZALO_JS" ]; then sed -i "s/LISTENER_WATCHDOG_MAX_GAP_MS = 35e3/LISTENER_WATCHDOG_MAX_GAP_MS = 120e3/g" "$ZALO_JS"; echo "Patched watchdog gap to 120s"; fi', {shell:true,stdio:'inherit'});
-}catch(e){}
-try{
-  const ep = '/home/node/project/docker/openclaw/entrypoint.sh';
-  if (fs.existsSync(ep)) {
-    let content = fs.readFileSync(ep, 'utf8');
-    if (!content.includes('zalo-monitor')) {
-      const monitor = "\\n# Zalo channel auto-restart monitor (background)\\n(\\n  sleep 180\\n  while true; do\\n    sleep 60\\n    STATUS=$(openclaw channels status 2>/dev/null | grep -i \\"Zalo Personal\\" || true)\\n    if echo \\"$STATUS\\" | grep -qi \\"stopped\\"; then\\n      echo \\"[zalo-monitor] Zalo channel stopped - restarting container in 5s\\"\\n      sleep 5\\n      kill 1 2>/dev/null || true\\n    fi\\n  done\\n) &\\n";
-      // Insert before 'openclaw gateway run'
-      const target = 'openclaw gateway run';
-      if (content.includes(target)) {
-        content = content.replace(target, monitor + target);
-        fs.writeFileSync(ep, content, 'utf8');
-        console.log('Added auto-restart monitor to entrypoint.sh');
-      }
-    }
-  }
-}catch(e){}
-`;
-      const install = await runCapture('docker', ['exec', botContainer, 'node', '-e', fixScript], { cwd: projectDir, shell: false });
-      for (const line of `${install.stdout}\n${install.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(line);
-      // Restart the gateway to load the new installs.json channels array so `openclaw channels login` works
-      await restartDockerBotContainer(projectDir).catch((err) => sendLog(`[docker] restart skipped/failed: ${err.message}`));
-      // Wait for gateway to fully reload zalouser plugin after restart (~20s for plugin load + buffer)
-      sendLog('[zalouser] Waiting for gateway to load zalouser plugin...');
-      await waitForGatewayZaloReady(botContainer, projectDir);
-      sendLog('[zalouser] Gateway ready with zalouser plugin.');
-    } else {
-      sendLog('[zalouser] Plugin already properly installed with channels array — skipping install.');
-      // Even when plugin is installed, gateway may still be booting (e.g. after recreateDockerBot)
-      await waitForGatewayZaloReady(botContainer, projectDir);
-    }
-    
-    // Clean old credentials & QR files inside container
-    const credFile = profile === 'default' ? 'credentials.json' : `credentials-${profile}.json`;
-    const credPath = `/home/node/project/.openclaw/credentials/zalouser/${credFile}`;
-    await runCapture('docker', ['exec', botContainer, 'sh', '-lc', `rm -f ${credPath} ${qrPaths.join(' ')}`], { cwd: projectDir, shell: false }).catch(() => {});
-    
-    sendLog('[zalouser] Generating Zalo QR. The image will appear automatically.');
-    const loginCmd = `cd /home/node/project && openclaw channels login --channel zalouser --account ${profile} --verbose`;
-    
-    // Retry-based login: the zalouser plugin may need time to connect to Zalo servers.
-    // The CLI often exits with "Still preparing QR" on the first attempt.
-    const MAX_LOGIN_ATTEMPTS = 4;
-    const RETRY_DELAYS = [0, 8000, 15000, 20000];
-    let restartAfterLogin = false;
-    let loginAttempt = 0;
-    let sent = false;
-
-    // Start QR file polling in parallel (runs across all retry attempts)
-    let tries = 0;
-    const poll = setInterval(async () => {
-      if (sent || tries++ > 120) {
-        clearInterval(poll);
-        if (!sent) sendLog('[zalouser] QR not found yet. Try closing/reopening login or recreate Zalo User bot.');
-        return;
-      }
-      const js = `const fs=require('fs');const ps=${JSON.stringify(qrPaths)};for(const p of ps){try{if(fs.existsSync(p)&&fs.statSync(p).size>100){process.stdout.write(fs.readFileSync(p).toString('base64'));break;}}catch{}}`;
-      const out = await runCapture('docker', ['exec', botContainer, 'node', '-e', js], { cwd: projectDir, shell: false });
-      const b64 = extractCompletePngBase64(out.stdout);
-      if (b64.length > 100) {
-        sent = true;
-        clearInterval(poll);
-        sendLog(`[zalouser:qr] data:image/png;base64,${b64}`);
-        sendLog('[zalouser] Scan this QR with the Zalo app.');
-      }
-    }, 1000);
-
-    const runLoginAttempt = () => {
-      loginAttempt++;
-      if (loginAttempt > 1) sendLog(`[zalouser] Retry attempt ${loginAttempt}/${MAX_LOGIN_ATTEMPTS}...`);
-      const child = spawn('docker', ['exec', botContainer, 'sh', '-lc', loginCmd], { cwd: projectDir, shell: false, windowsHide: true });
-      const handleLoginLine = (line) => {
-        sendLog(line);
-        if (/login successful|saved auth/i.test(line)) restartAfterLogin = true;
-      };
-      child.stdout.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLoginLine));
-      child.stderr.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLoginLine));
-      child.on('error', (err) => sendLog(`[zalouser] Login process failed: ${err.message}`));
-      child.on('close', async (code) => {
-        sendLog(`[zalouser] Login process exited ${code}`);
-        if (code === 0 || restartAfterLogin || sent) {
-          // Success or QR already found by poll
-          if (restartAfterLogin) {
-            sendLog(`[zalouser] Login saved. Restarting ${botContainer} container so Zalo User can receive messages...`);
-            await restartDockerBotContainer(projectDir).catch((err) => sendLog(`[zalouser] Container restart failed: ${err.message}`));
-            sendLog(`[zalouser] ${botContainer} restarted. Try sending a Zalo message now.`);
-          }
-          zaloLoginInFlight = false;
-        } else if (loginAttempt < MAX_LOGIN_ATTEMPTS && !sent) {
-          // Failed with "Still preparing QR" — retry after delay
-          const delay = RETRY_DELAYS[loginAttempt] || 10000;
-          sendLog(`[zalouser] QR not ready yet. Waiting ${delay / 1000}s before retry...`);
-          setTimeout(runLoginAttempt, delay);
+  zaloLoginInFlight = true;
+  const botContainer = getBotContainerName(projectDir);
+  sendLog(`[zalo-connect] Preparing QR login for account [${accountId}]...`);
+  try {
+    // NEVER poke the container while it is still booting: OpenClaw runs first-boot
+    // migrations under a state lease, and a docker exec/restart mid-migration wedges
+    // the lease and crash-loops the gateway. Wait for the container, then for the
+    // gateway to report the zalo-connect channel (the entrypoint installs the pinned
+    // plugin itself on first boot), and only fall back to an exec-install when the
+    // gateway is up but the plugin is genuinely absent (projects created before the
+    // backend-aware entrypoint existed).
+    const containerUp = await waitForDockerContainer(botContainer, 90000);
+    if (!containerUp) sendLog(`[zalo-connect] ${botContainer} chưa chạy sau 90s — vẫn thử tiếp...`);
+    const gatewayReady = await waitForGatewayZaloReady(botContainer, projectDir, 180000, ['zalo-connect']);
+    if (!gatewayReady) {
+      const check = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', '[ -d "${OPENCLAW_HOME:-/home/node/project/.openclaw}/extensions/zalo-connect" ] && echo OK || echo MISSING'], { cwd: projectDir, shell: false }).catch(() => ({ stdout: 'ERR' }));
+      if (String(check.stdout || '').trim() === 'MISSING') {
+        sendLog(`[zalo-connect] Plugin missing — installing pinned ${ZALO_CONNECT_PLUGIN_SPEC}...`);
+        const repo = String(ZALO_CONNECT_PLUGIN_SPEC).split('#')[0];
+        const ref = String(ZALO_CONNECT_PLUGIN_SPEC).split('#')[1] || ZALO_CONNECT_VERSION;
+        const installCmd = `tmp=/tmp/openclaw-plugin-zalo-connect-${ref}; rm -rf "$tmp"; git clone --depth 1 --branch "${ref}" "${repo}" "$tmp" && cd /home/node/project && openclaw plugins install "$tmp" 2>&1`;
+        const inst = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', installCmd], { cwd: projectDir, shell: false });
+        const instOut = `${inst.stdout}\n${inst.stderr}`;
+        for (const line of instOut.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
+        if (/installed plugin/i.test(instOut)) {
+          // Gateway must reload to pick the plugin up — safe here: the gateway is past
+          // its boot (we only reach this branch when it answered the exec above).
+          await restartDockerBotContainer(projectDir).catch((err) => sendLog(`[docker] restart skipped/failed: ${err.message}`));
+          await waitForGatewayZaloReady(botContainer, projectDir, 180000, ['zalo-connect']);
         } else {
-          sendLog('[zalouser] All login attempts exhausted. Try clicking "Đăng nhập Zalo" again.');
-          zaloLoginInFlight = false;
+          sendLog('[zalo-connect] Cài plugin không thành công — thử lại bằng nút "Đăng nhập Zalo" sau khi container ổn định.');
         }
-      });
-    };
-
-    runLoginAttempt();
-    return { message: 'Generating Zalo QR. The image will appear automatically.' };
+      }
+    }
+  } catch (err) {
+    zaloLoginInFlight = false;
+    throw err;
   }
 
-  throw httpError(400, 'Zalo login cần project Docker đang chạy (không tìm thấy docker-compose.yml).');
+  sendLog('[zalo-connect] Generating Zalo QR. The image will appear automatically.');
+  const loginCmd = `cd /home/node/project && openclaw channels login --channel zalo-connect --account ${accountId} --verbose`;
+  let qrSent = false;
+  let loginDone = false;
+
+  const pushQrFromContainer = async (pngPath) => {
+    const js = `const fs=require('fs');const p=${JSON.stringify(pngPath)};try{if(fs.existsSync(p)&&fs.statSync(p).size>100){process.stdout.write(fs.readFileSync(p).toString('base64'));}}catch{}`;
+    const out = await runCapture('docker', ['exec', botContainer, 'node', '-e', js], { cwd: projectDir, shell: false }).catch(() => ({ stdout: '' }));
+    const b64 = extractCompletePngBase64(out.stdout);
+    if (b64.length > 100) {
+      qrSent = true;
+      sendLog(`[zalo-connect:qr] data:image/png;base64,${b64}`);
+      sendLog('[zalo-connect] Scan this QR with the Zalo app.');
+    }
+  };
+
+  const isQrAsciiArt = (line) => /^[\s▀▄█▌▐░▒▓]+$/.test(line);
+  const handleLine = (line) => {
+    const qrFile = line.match(/QR image saved at:\s*(\S+\.png)/i);
+    if (qrFile) {
+      pushQrFromContainer(qrFile[1]).catch(() => {});
+      return;
+    }
+    if (isQrAsciiArt(line)) return; // don't flood the UI modal with terminal QR art
+    sendLog(`[zalo-connect] ${line}`);
+    if (/login successful|login completed|logged in/i.test(line)) loginDone = true;
+  };
+  // Retry loop: right after a boot the gateway may still refuse `channels login`
+  // ("container is restarting", "still preparing"), so give it a few spaced attempts.
+  const MAX_ATTEMPTS = 3;
+  const RETRY_DELAYS = [0, 10000, 20000];
+  let attempt = 0;
+  const runAttempt = () => {
+    attempt++;
+    if (attempt > 1) sendLog(`[zalo-connect] Retry ${attempt}/${MAX_ATTEMPTS}...`);
+    const child = spawn('docker', ['exec', botContainer, 'sh', '-lc', loginCmd], { cwd: projectDir, shell: false, windowsHide: true });
+    zaloLoginChild = child;
+    child.stdout.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLine));
+    child.stderr.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLine));
+    child.on('error', (err) => sendLog(`[zalo-connect] Login process failed: ${err.message}`));
+    child.on('close', async (code) => {
+      const wasCancelled = child.killed && zaloLoginChild === null;
+      if (zaloLoginChild === child) zaloLoginChild = null;
+      sendLog(`[zalo-connect] Login process exited ${code}`);
+      if (loginDone) {
+        sendLog(`[zalo-connect] Login saved. Restarting ${botContainer} so the Zalo channel connects...`);
+        await restartDockerBotContainer(projectDir).catch((err) => sendLog(`[zalo-connect] Container restart failed: ${err.message}`));
+        sendLog(`[zalo-connect] ${botContainer} restarted. Try sending a Zalo message now.`);
+        zaloLoginInFlight = false;
+      } else if (code !== 0 && !qrSent && !wasCancelled && attempt < MAX_ATTEMPTS) {
+        const delay = RETRY_DELAYS[attempt] || 15000;
+        sendLog(`[zalo-connect] QR chưa sẵn sàng — thử lại sau ${delay / 1000}s...`);
+        setTimeout(runAttempt, delay);
+      } else {
+        if (!qrSent && !wasCancelled) sendLog('[zalo-connect] Login ended without a QR. Click "Đăng nhập Zalo" to retry.');
+        zaloLoginInFlight = false;
+      }
+    });
+  };
+  runAttempt();
+
+  return { message: 'Generating Zalo QR. The image will appear automatically.' };
+}
+
+// Cancel an in-flight Zalo QR login (modal closed). Kills the CLI login process so
+// no orphaned login keeps polling Zalo; safe to call when nothing is running.
+function cancelZaloLogin() {
+  const child = zaloLoginChild;
+  if (child) {
+    try { child.kill('SIGTERM'); } catch {}
+    zaloLoginChild = null;
+    zaloLoginInFlight = false;
+    sendLog('[zalo-connect] Login cancelled.');
+    return { ok: true, cancelled: true };
+  }
+  return { ok: true, cancelled: false };
+}
+
+// ── Zalo health snapshot for the dashboard card ─────────────────────────────────
+// One cheap, non-throwing aggregate: backend, pinned vs installed version, channel
+// status (parsed from `openclaw channels status`), QR/session presence, Zalo Mod
+// presence. Everything degrades to null/'unknown' instead of failing the request.
+async function getZaloHealth(projectDir) {
+  const out = {
+    backend: '',
+    supportedVersion: ZALO_CONNECT_VERSION,
+    installedVersion: null,
+    containerRunning: false,
+    channelStatus: 'unknown',
+    channelStatusLine: '',
+    sessionSaved: false,
+    zaloModInstalled: false,
+    accountId: 'default',
+  };
+  if (!projectDir) return out;
+  let cfg = null;
+  try { cfg = JSON.parse(await fsp.readFile(join(projectDir, '.openclaw', 'openclaw.json'), 'utf8')); } catch {}
+  if (!cfg) return out;
+  if (cfg.channels?.['zalo-connect']?.enabled) out.backend = 'zalo-connect';
+  if (!out.backend) return out;
+  const binding = (cfg.bindings || []).find((b) => b.match?.channel === out.backend);
+  if (binding?.match?.accountId) out.accountId = binding.match.accountId;
+  out.zaloModInstalled = !!(cfg.plugins?.entries?.['zalo-mod'] || cfg.plugins?.entries?.['openclaw-zalo-mod'])
+    || existsSync(join(projectDir, '.openclaw', 'extensions', 'zalo-mod'));
+
+  // Installed zalo-connect version — extensions/ is bind-mounted on macOS/Linux; fall back
+  // to reading inside the container (Windows keeps extensions on a named volume).
+  const botContainer = getBotContainerName(projectDir);
+  if (out.backend === 'zalo-connect') {
+    const manifestHost = join(projectDir, '.openclaw', 'extensions', 'zalo-connect', 'openclaw.plugin.json');
+    try {
+      out.installedVersion = JSON.parse(await fsp.readFile(manifestHost, 'utf8')).version || null;
+    } catch {
+      try {
+        const r = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', 'cat "${OPENCLAW_HOME:-/home/node/project/.openclaw}/extensions/zalo-connect/openclaw.plugin.json" 2>/dev/null'], { cwd: projectDir, shell: false, timeout: 8000 });
+        out.installedVersion = JSON.parse(String(r.stdout || '{}')).version || null;
+      } catch {}
+    }
+    // QR session/credentials saved? (zalo-connect stores its credential file under the state dir)
+    try {
+      const credRoot = join(projectDir, '.openclaw', 'credentials');
+      const names = existsSync(credRoot) ? await fsp.readdir(credRoot) : [];
+      out.sessionSaved = names.some((n) => n.toLowerCase().includes('zalo-connect'));
+    } catch {}
+  }
+
+  try {
+    const r = await runCapture('docker', ['inspect', '-f', '{{.State.Running}}', botContainer], { shell: false, timeout: 8000 });
+    out.containerRunning = String(r.stdout || '').trim() === 'true';
+  } catch {}
+  if (out.containerRunning) {
+    try {
+      const r = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', 'openclaw channels status 2>&1 || true'], { cwd: projectDir, shell: false, timeout: 20000 });
+      const needle = out.backend === 'zalo-connect' ? 'zalo-connect' : 'zalo';
+      const line = String(r.stdout || '').split(/\r?\n/).find((l) => l.toLowerCase().includes(needle)) || '';
+      out.channelStatusLine = line.trim();
+      if (/running|connected|ready|ok/i.test(line)) out.channelStatus = 'connected';
+      else if (/stopped|disconnected|error|failed/i.test(line)) out.channelStatus = 'disconnected';
+      else if (line) out.channelStatus = 'starting';
+    } catch {}
+  } else {
+    out.channelStatus = 'container-stopped';
+  }
+  return out;
 }
 
 function getBotServiceName(projectDir) {
@@ -1991,12 +1950,12 @@ async function syncDockerInfra(projectDir, force = false) {
   const routerPort = state.routerPort || 20128;
   const osChoice = await resolveProjectHostOs(projectDir);
 
-  // Detect features from openclaw.json
+  // Detect the single supported personal-Zalo backend from openclaw.json.
   const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
-  let hasZalo = false;
+  let zaloBackend = '';
   try {
     const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
-    hasZalo = !!cfg.channels?.zalouser?.enabled;
+    if (cfg.channels?.['zalo-connect']?.enabled) zaloBackend = 'zalo-connect';
   } catch {}
 
   // Regenerate with detected settings
@@ -2012,8 +1971,8 @@ async function syncDockerInfra(projectDir, force = false) {
     singleComposeName: composeName,
     singleAppContainerName: botContainer,
     singleRouterContainerName: routerContainer,
+    zaloBackend,
     runtimeCommandParts: [
-      hasZalo ? 'ensure_zalouser' : '',
       'while true; do sleep 5; openclaw devices approve --latest 2>/dev/null || true; done >/dev/null 2>&1 &',
     ].filter(Boolean),
     plainSingleExtraHosts: true,
@@ -2088,37 +2047,6 @@ async function recreateDockerBot(projectDir) {
   sendLog(`[docker] Recreating ${serviceName} to reload openclaw.json/.env...`);
   await run('docker', ['compose', '-f', composeFile, 'up', '-d', '--build', '--force-recreate', serviceName], { cwd: projectDir });
   await waitForDockerContainer(containerName);
-
-  // Automatically run Zalo sticker-mention patch if skill is enabled and agent is zalo-personal
-  try {
-    const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
-    if (existsSync(cfgPath)) {
-      const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
-      const stickerMentionOn = !!cfg.skills?.entries?.['sticker-mention']?.enabled;
-      if (stickerMentionOn) {
-        for (const a of cfg.agents?.list || []) {
-          const binding = (cfg.bindings || []).find((b) => b.agentId === a.id);
-          const channel = binding?.match?.channel || 'telegram';
-          if (channel === 'zalo-personal' || channel === 'zalouser') {
-            const workspaceDir = workspaceRelForAgent(a, cfg, projectDir) || `workspace-${a.id}`;
-            let mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/zalo-sticker-mention/mentions.js');
-            let containerJsPath = `/home/node/project/.openclaw/${workspaceDir}/skills/zalo-sticker-mention/mentions.js`;
-            if (!existsSync(mentionsJsPath)) {
-              mentionsJsPath = join(projectDir, '.openclaw', workspaceDir, 'skills/sticker-mention/mentions.js');
-              containerJsPath = `/home/node/project/.openclaw/${workspaceDir}/skills/sticker-mention/mentions.js`;
-            }
-            if (existsSync(mentionsJsPath)) {
-              sendLog(`[zalo-patch] Automatically running mentions.js inside container ${containerName}...`);
-              const patchCmd = await runCapture('docker', ['exec', containerName, 'node', containerJsPath], { cwd: projectDir, shell: false });
-              sendLog(`[zalo-patch] Output: ${patchCmd.stdout || ''} ${patchCmd.stderr || ''}`);
-            }
-          }
-        }
-      }
-    }
-  } catch (err) {
-    sendLog(`[zalo-patch] Failed to auto-run mentions.js: ${err.message}`);
-  }
 
   // Container was rebuilt/recreated: runtime, versions and extension versions may all have changed.
   probeCacheClear();
@@ -3050,7 +2978,7 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
       for (const a of cfg.agents.list) {
         const sf = await readWorkspaceText(projectDir, a, 'skills/cronjob/SKILL.md');
         await fsp.mkdir(dirname(sf.file), { recursive: true });
-        await fsp.writeFile(sf.file, buildCronjobSkillMd(true), 'utf8');
+        await fsp.writeFile(sf.file, buildCronjobSkillMd(true, 'zalo-connect'), 'utf8');
       }
     } else {
       if (cfg.tools?.alsoAllow) cfg.tools.alsoAllow = cfg.tools.alsoAllow.filter((x) => x !== 'group:automation');
@@ -3072,47 +3000,22 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
     }
   }
 
-  // Folder-based per-bot skills (image-gen / sticker-mention / learning-memory). These load
+  // Folder-based per-bot skills (image-gen / learning-memory). These load
   // from <workspace>/skills, so each bot's copy is independent. Toggling here affects ONLY the
   // active bot's workspace folder. The global skills.entries[id].enabled flag is kept true
   // while ANY bot still has the folder (openclaw needs it true to load the skill at all).
-  if (kind === 'skill' && (id === 'image-gen' || id === 'sticker-mention' || id === 'learning-memory')) {
-    const slugMap = { 'image-gen': 'infographic-generator', 'sticker-mention': 'zalo-sticker-mention', 'learning-memory': 'learning-memory' };
+  if (kind === 'skill' && (id === 'image-gen' || id === 'learning-memory')) {
+    const slugMap = { 'image-gen': 'infographic-generator', 'learning-memory': 'learning-memory' };
     const slug = slugMap[id];
     const rel = workspaceRelForAgent(agent, cfg, projectDir) || `workspace-${agent.id}`;
     const folder = join(projectDir, '.openclaw', rel, 'skills', slug);
     const hasDocker = existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'));
 
-    // Sticker skill needs its outbound patch applied on enable / restored on disable (Zalo personal only).
-    const applyStickerPatch = async (restore) => {
-      if (id !== 'sticker-mention') return;
-      const channel = (cfg.bindings || []).find((b) => b.agentId === agent.id)?.match?.channel || '';
-      if (channel !== 'zalo-personal' && channel !== 'zalouser') return;
-      let hostJs = join(projectDir, '.openclaw', rel, 'skills/zalo-sticker-mention/mentions.js');
-      let contJs = `/home/node/project/.openclaw/${rel}/skills/zalo-sticker-mention/mentions.js`;
-      if (!existsSync(hostJs)) {
-        hostJs = join(projectDir, '.openclaw', rel, 'skills/sticker-mention/mentions.js');
-        contJs = `/home/node/project/.openclaw/${rel}/skills/sticker-mention/mentions.js`;
-      }
-      if (!existsSync(hostJs)) return;
-      const extra = restore ? ['--restore'] : [];
-      try {
-        if (hasDocker) {
-          await runCapture('docker', ['exec', getBotContainerName(projectDir), 'node', contJs, ...extra], { cwd: projectDir, shell: false });
-        } else {
-          await run('node', [hostJs, ...extra], { cwd: projectDir });
-        }
-      } catch (e) { sendLog(`[zalo-patch] ${restore ? 'restore' : 'patch'} failed: ${e.message}`); }
-    };
-
     let installedNow = false;
     if (enabled) {
       // Enable for THIS bot only: ensure its workspace has the skill folder.
       if (!existsSync(folder)) { await installFeature(projectDir, agent.id, 'skill', id); installedNow = true; }
-      await applyStickerPatch(false);
     } else {
-      // Disable for THIS bot only: restore any patch, then remove just this bot's folder.
-      await applyStickerPatch(true);
       await fsp.rm(folder, { recursive: true, force: true }).catch(() => {});
     }
 
@@ -3267,7 +3170,6 @@ async function installFeature(projectDir, agentId, kind, id) {
   if (kind === 'skill') {
     const skillSlugMap = {
       'image-gen': 'infographic-generator',
-      'sticker-mention': 'zalo-sticker-mention',
       'learning-memory': 'learning-memory',
     };
     const slug = skillSlugMap[id] || id;
@@ -3614,7 +3516,6 @@ async function getFeatureFlags(projectDir, agentId = '') {
   // THIS agent's workspace (not the global skills.entries flag, which would leak across bots).
   const imageGenOn = isSkillFolderExists(projectDir, aid, 'infographic-generator', cfg);
   const webSearchOn = isEnabled(['duckduckgo']);
-  const stickerMentionOn = isSkillFolderExists(projectDir, aid, 'zalo-sticker-mention', cfg);
   const learningMemoryOn = isSkillFolderExists(projectDir, aid, 'learning-memory', cfg);
   const aliases = {
     browser: ['openclaw-browser-automation', 'browser-automation'],
@@ -3629,7 +3530,6 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'skill:cron': cronOn,
     'skill:image-gen': imageGenOn,
     'skill:web-search': webSearchOn,
-    'skill:sticker-mention': stickerMentionOn,
     'skill:learning-memory': learningMemoryOn,
     'plugin:openclaw-browser-automation': isEnabled(aliases.browser),
     'plugin:openclaw-zalo-mod': isEnabled(aliases.zalo),
@@ -3645,7 +3545,6 @@ async function getFeatureFlags(projectDir, agentId = '') {
     extensionDirExists(aliases) || isInstalledByRecord(aliases);
   const installed = {
     'skill:image-gen': isSkillFolderExists(projectDir, aid, 'infographic-generator', cfg),
-    'skill:sticker-mention': isSkillFolderExists(projectDir, aid, 'zalo-sticker-mention', cfg),
     'skill:learning-memory': isSkillFolderExists(projectDir, aid, 'learning-memory', cfg),
     'plugin:openclaw-browser-automation': isActuallyInstalled(aliases.browser),
     'plugin:openclaw-zalo-mod': isActuallyInstalled(aliases.zalo),
@@ -3659,7 +3558,6 @@ async function getFeatureFlags(projectDir, agentId = '') {
   };
   const versions = {
     'skill:image-gen': await getInstalledSkillVersion(projectDir, aid, 'infographic-generator', cfg),
-    'skill:sticker-mention': await getInstalledSkillVersion(projectDir, aid, 'zalo-sticker-mention', cfg),
     'skill:learning-memory': await getInstalledSkillVersion(projectDir, aid, 'learning-memory', cfg),
     'plugin:openclaw-browser-automation': await getInstalledPluginVersion(projectDir, aliases.browser),
     'plugin:openclaw-zalo-mod': await getInstalledPluginVersion(projectDir, aliases.zalo),
@@ -3680,7 +3578,8 @@ async function getFeatureFlags(projectDir, agentId = '') {
     fillVer('plugin:openclaw-fb-messenger', aliases.fbMessenger);
     fillVer('plugin:memory-tencentdb', aliases.tencentMemory);
   }
-  return { flags, installed, versions };
+  const zaloBackend = fresh.channels?.['zalo-connect']?.enabled ? 'zalo-connect' : '';
+  return { flags, installed, versions, zaloBackend };
 }
 
 async function serveStatic(req, res) {
@@ -3895,6 +3794,14 @@ async function handler(req, res, rootProjectDir) {
       await saveState(rootProjectDir);
       sendLog(`✅ Bot created: ${result.agentId} (${result.channel})`);
       if (result.warning) sendLog(`⚠️ ${result.warning}`);
+      // A first Zalo bot changes the project's docker infra needs (the entrypoint must
+      // install the pinned zalo-connect plugin BEFORE the gateway starts). Force-resync so
+      // the recreate below ships the zaloBackend-aware entrypoint — without this, the
+      // login flow has to install mid-boot and restart the container, which can
+      // interrupt OpenClaw's first-run migrations and wedge its state lease.
+      if (result.channel === 'zalo-personal') {
+        await syncDockerInfra(projectDir, true).catch((err) => sendLog(`[sync] infra resync failed: ${err.message}`));
+      }
       await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] recreate skipped/failed: ${err.message}`));
       
       if (result.channel === 'telegram') {
@@ -3919,11 +3826,11 @@ async function handler(req, res, rootProjectDir) {
         // Delay login start to let the recreated container fully boot gateway + plugins
         setTimeout(async () => {
           try {
-            const login = await startZaloUserLogin(projectDir, state.mode, result.agentId);
-            if (login?.qrDataUrl) sendLog(`[zalouser:qr] ${login.qrDataUrl}`);
-            if (login?.message) sendLog(`[zalouser] ${login.message}`);
+            const login = await startZaloLogin(projectDir, result.agentId);
+            if (login?.qrDataUrl) sendLog(`[zalo-connect:qr] ${login.qrDataUrl}`);
+            if (login?.message) sendLog(`[zalo-connect] ${login.message}`);
           } catch (err) {
-            sendLog(`[zalouser] Login failed: ${err.message}`);
+            sendLog(`[zalo-connect] Login failed: ${err.message}`);
           }
         }, 5000);
       }
@@ -3944,14 +3851,21 @@ async function handler(req, res, rootProjectDir) {
       const projectDir = await resolveProjectDir(rootProjectDir, body);
       setImmediate(async () => {
         try {
-          const login = await startZaloUserLogin(projectDir, state.mode, agentId);
-          if (login?.qrDataUrl) sendLog(`[zalouser:qr] ${login.qrDataUrl}`);
-          if (login?.message) sendLog(`[zalouser] ${login.message}`);
+          const login = await startZaloLogin(projectDir, agentId);
+          if (login?.qrDataUrl) sendLog(`[zalo-connect:qr] ${login.qrDataUrl}`);
+          if (login?.message) sendLog(`[zalo-connect] ${login.message}`);
         } catch (err) {
-          sendLog(`[zalouser] Login failed: ${err.message}`);
+          sendLog(`[zalo-connect] Login failed: ${err.message}`);
         }
       });
       return json(res, { ok: true, message: 'Zalo login initiated. QR will appear in UI.' });
+    }
+    if (url.pathname === '/api/zalo/login/cancel' && req.method === 'POST') {
+      return json(res, cancelZaloLogin());
+    }
+    if (url.pathname === '/api/zalo/health' && req.method === 'GET') {
+      const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
+      return json(res, await getZaloHealth(projectDir));
     }
     if (url.pathname.startsWith('/api/bot/') && req.method === 'DELETE' && !url.pathname.startsWith('/api/bot/files/')) {
       const agentId = decodeURIComponent(url.pathname.replace('/api/bot/', ''));
@@ -4201,7 +4115,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   printRemoteAccessHint(port).catch(() => {});
 }
 
-export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloUserLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder };
-
-
-
+export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder };
