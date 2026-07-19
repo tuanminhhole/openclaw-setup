@@ -1,6 +1,16 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.13.0] — 2026-07-19
+
+### Thêm
+- **Xem nhanh sức khỏe từng bot Zalo.** Mỗi thẻ bot Zalo cá nhân hiển thị riêng trạng thái kết nối, trạng thái đăng nhập và badge sẵn sàng gọn gàng.
+
+### Cải tiến
+- **Hiển thị đa tài khoản chính xác.** Dashboard đọc trạng thái runtime Zalo Connect theo từng tài khoản và đưa phiên bản plugin dùng chung sang cột trạng thái chính.
+- **Điều khiển Zalo gọn hơn.** Làm mới và Đăng nhập lại được gom phía trên danh sách, để mỗi thẻ chỉ tập trung vào trạng thái riêng của bot.
+
+
 ## [5.12.0] — 2026-07-17
 
 ### Thêm

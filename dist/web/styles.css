@@ -1790,6 +1790,9 @@ html[data-theme="light"] .bottom .nav.active {
   text-align: right !important;
 }
 
+/* Compact per-account Zalo health — shared versions stay in the right status column. */
+.zalo-toolbar{display:flex;gap:8px;align-items:center}.zalo-toolbar .btn-inline{min-height:36px;padding:6px 12px;font-size:13px}.zalo-toolbar svg{width:14px;height:14px}.bot-item-title{display:flex;align-items:center;gap:8px;min-width:0;padding-right:58px}.bot-item-title b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.zalo-quick-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;border:1px solid rgba(24,194,156,.35);background:rgba(24,194,156,.12);color:#25d6ad;font-size:10px;font-weight:800;white-space:nowrap}.zalo-bot-health{display:grid;gap:6px;margin-top:4px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)}.zalo-bot-health>div{display:flex;align-items:center;justify-content:space-between;gap:10px}.zalo-bot-health span{color:var(--muted);font-size:11px;font-weight:700}.zalo-bot-health em{font-size:11px;font-style:normal;font-weight:800;text-align:right}.zalo-bot-health em.ok{color:#25d6ad}.zalo-bot-health em.warn{color:#f7bf48}.zalo-bot-health em.bad{color:#ff6574}html[data-theme="light"] .zalo-bot-health{border-top-color:rgba(15,23,42,.08)}@media(max-width:640px){.zalo-toolbar{display:grid;grid-template-columns:1fr 1fr;width:100%}.zalo-toolbar .btn-inline{justify-content:center;padding:6px 8px}.bot-item-title{padding-right:54px}}
+
 /* Ensure bottom navigation bar is visible on tablet and mobile (under 1180px) */
 @media (max-width: 1180px) {
   .bottom {

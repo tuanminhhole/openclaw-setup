@@ -197,7 +197,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
   function buildDockerArtifacts(options) {
     const {
       openClawNpmSpec,
-      openClawRuntimePackages,
+      openClawRuntimePackages = '',
       is9Router,
       isLocal,
       isMultiBot,
@@ -287,6 +287,9 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '      tmp="/tmp/openclaw-plugin-$id-$ref"',
       '      rm -rf "$tmp"',
       '      if git clone --depth 1 --branch "$ref" "$repo" "$tmp" 2>/dev/null; then',
+      '        # Docker Desktop bind mounts can reject chmod on packed .git objects (EACCES).',
+      '        # OpenClaw only needs the plugin payload, never the clone metadata.',
+      '        rm -rf "$tmp/.git"',
       '        openclaw plugins install "$tmp" 2>/dev/null || echo "[entrypoint] warning: failed to install cloned plugin $id"',
       '      else',
       '        echo "[entrypoint] warning: failed to clone plugin $spec"',

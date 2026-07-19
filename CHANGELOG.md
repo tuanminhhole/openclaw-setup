@@ -1,6 +1,16 @@
 # Changelog (English)
 
 
+## [5.13.0] — 2026-07-19
+
+### Added
+- **Per-bot Zalo health at a glance.** Every personal Zalo bot card now shows its own connection and login state, plus a compact ready badge.
+
+### Improved
+- **Reliable multi-account visibility.** The dashboard reads Zalo Connect runtime state per account and presents shared plugin versions in the main status column.
+- **Cleaner Zalo controls.** Refresh and Login Again are grouped above the bot list, leaving each card focused on the status that belongs to that bot.
+
+
 ## [5.12.0] — 2026-07-17
 
 ### Added

@@ -799,14 +799,13 @@ function botView() {
         <div class="bot-main-content" style="margin-top: 14px;">
           <div class="card-head" style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
             <h3 style="margin: 0; font-size: 16px;">${t('Danh sách bot','Bot list')}</h3>
-            ${(ch === 'zalo-personal' && channelBots.length > 0) ? `<button class="secondary btn-inline" data-zalo-login-trigger type="button" style="min-height: 36px; padding: 6px 12px; font-size: 13px;">🔑 ${t('Đăng nhập Zalo','Zalo Login')}</button>` : ''}
+            ${(ch === 'zalo-personal' && channelBots.length > 0) ? zaloToolbar(channelBots) : ''}
           </div>
           <div class="channel-tabs" style="margin-bottom: 16px;">${BOT_CHANNELS.map(c => c.comingSoon
             ? `<button class="is-coming-soon" disabled title="${t('Sắp ra mắt','Coming soon')}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${t('Sắp','Soon')}</span></button>`
             : `<button class="${ch===c.id?'active':''}" data-bot-channel="${c.id}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${bots.filter(b=>b.channel===c.id).length}</span></button>`
           ).join('')}</div>
           ${botListPanel(channelBots)}
-          ${ch === 'zalo-personal' ? zaloHealthCard(channelBots) : ''}
         </div>
       </section>
       <div class="bot-side-col">
@@ -826,6 +825,8 @@ function botView() {
         <div class="dash-version-list" style="margin-top: 18px;">
           <div><span>OpenClaw</span><b>${escapeHtml(openclawVer || '-')}</b></div>
           <div><span>9Router</span><b>${escapeHtml(routerVer || '-')}</b></div>
+          ${ch === 'zalo-personal' ? `<div><span>Zalo Connect</span><b>${escapeHtml(state.zaloHealth?.installedVersion || '-')}</b></div>
+          <div><span>Zalo Mod</span><b>${state.zaloHealth ? escapeHtml(state.zaloHealth.zaloModVersion || (state.zaloHealth.zaloModInstalled ? '-' : t('Chưa cài','Not installed'))) : '…'}</b></div>` : ''}
         </div>
       </section>
       </div>
@@ -896,7 +897,14 @@ function botCreateModal() {
 function botListPanel(bots) {
   const listItems = bots.map(b => {
     const role = (b.role || b.desc || b.description || '').trim() || t('Tr\u1ee3 l\u00fd OpenClaw','OpenClaw assistant');
-    return `<article class="bot-item ${state.activeBotId===b.id?'active':''}" data-bot-id="${escapeHtml(b.id)}"><div class="bot-item-actions"><button class="bot-edit" data-edit-bot="${escapeHtml(b.id)}" title="${t('Sửa bot','Edit bot')}" aria-label="${t('Sửa bot','Edit bot')}">${actionIcon('edit')}</button><button class="bot-delete" data-delete-bot="${escapeHtml(b.id)}" title="${t('X\u00f3a bot','Delete bot')}" aria-label="${t('X\u00f3a bot','Delete bot')}">&times;</button></div><b>${escapeHtml(b.name)}</b><small title="${escapeHtml(role)}">${escapeHtml(role)}</small></article>`;
+    const isZalo = b.channel === 'zalo-personal';
+    const health = isZalo ? zaloAccountHealth(b) : null;
+    const quickBadge = health?.running ? `<span class="zalo-quick-badge">${t('Đã kết nối','Connected')}</span>` : '';
+    const connection = !health ? t('Chưa rõ','Unknown') : health.running ? t('Hoạt động','Active') : health.lastError ? t('Mất kết nối','Disconnected') : t('Đang kết nối','Connecting');
+    const login = !health ? t('Chưa rõ','Unknown') : health.sessionSaved ? t('Đã đăng nhập','Logged in') : t('Chưa đăng nhập','Not logged in');
+    const connectionTone = health?.running ? 'ok' : health?.lastError ? 'bad' : 'warn';
+    const loginTone = health?.sessionSaved ? 'ok' : health ? 'bad' : 'warn';
+    return `<article class="bot-item ${state.activeBotId===b.id?'active':''}" data-bot-id="${escapeHtml(b.id)}"><div class="bot-item-actions"><button class="bot-edit" data-edit-bot="${escapeHtml(b.id)}" title="${t('Sửa bot','Edit bot')}" aria-label="${t('Sửa bot','Edit bot')}">${actionIcon('edit')}</button><button class="bot-delete" data-delete-bot="${escapeHtml(b.id)}" title="${t('X\u00f3a bot','Delete bot')}" aria-label="${t('X\u00f3a bot','Delete bot')}">&times;</button></div><div class="bot-item-title"><b>${escapeHtml(b.name)}</b>${quickBadge}</div><small title="${escapeHtml(role)}">${escapeHtml(role)}</small>${isZalo ? `<div class="zalo-bot-health"><div><span>${t('Kết nối','Connection')}</span><em class="${connectionTone}">${connection}</em></div><div><span>${t('Đăng nhập','Login')}</span><em class="${loginTone}">${login}</em></div></div>` : ''}</article>`;
   });
   listItems.push(`
     <article class="bot-item bot-create-card" data-bot-modal="open">
@@ -1511,33 +1519,17 @@ async function loadFiles(silent=false){
   if (!silent) render();
 }
 async function loadCatalog(silent=false){ state.catalog = await api('/api/catalog'); if (!silent) render(); }
-function zaloHealthCard(channelBots = []) {
-  if (state.zaloBackend !== 'zalo-connect' || !channelBots.length) return '';
-  const h = state.zaloHealth;
-  const chip = (label, tone) => `<span class="runtime-badge ${tone}" style="font-size:11px;">${label}</span>`;
-  let statusChip = chip(t('Chưa rõ','Unknown'), 'warn');
-  if (h) {
-    if (h.channelStatus === 'connected') statusChip = chip(t('Đã kết nối','Connected'), 'ok');
-    else if (h.channelStatus === 'container-stopped') statusChip = chip(t('Container tắt','Container stopped'), 'bad');
-    else if (h.channelStatus === 'disconnected') statusChip = chip(t('Mất kết nối','Disconnected'), 'bad');
-    else if (h.channelStatus === 'starting') statusChip = chip(t('Đang khởi động','Starting'), 'warn');
-  }
-  const ver = h?.installedVersion ? `${h.installedVersion}${h.supportedVersion && h.installedVersion !== h.supportedVersion ? ` → ${h.supportedVersion}` : ''}` : (h ? t('chưa cài','not installed') : '…');
-  return `<div class="card zalo-health-card" style="margin-top:14px; padding:14px;">
-    <div class="card-head" style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-      <h3 style="margin:0; font-size:14px;">🩺 Zalo (ZaloConnect)</h3>${statusChip}
-    </div>
-    <div class="dash-version-list" style="margin-top:0;">
-      <div><span>ZaloConnect</span><b>${escapeHtml(ver)}</b></div>
-      <div><span>${t('Phiên QR','QR session')}</span><b>${h ? (h.sessionSaved ? t('Đã lưu','Saved') : t('Chưa đăng nhập','Not logged in')) : '…'}</b></div>
-      <div><span>Zalo Mod</span><b>${h ? (h.zaloModInstalled ? t('Đã cài','Installed') : t('Chưa cài','Not installed')) : '…'}</b></div>
-      ${h?.channelStatusLine ? `<div><span>${t('Kênh','Channel')}</span><b style="font-weight:500; font-size:11px; opacity:.8;">${escapeHtml(h.channelStatusLine.slice(0, 60))}</b></div>` : ''}
-    </div>
-    <div style="display:flex; gap:8px; margin-top:12px;">
-      <button class="secondary icon-btn2" data-zalo-health-refresh type="button" style="flex:1; justify-content:center; font-size:12px; height:32px; border-width:1px;">🔄 ${t('Làm mới','Refresh')}</button>
-      <button class="secondary icon-btn2" data-zalo-login-trigger type="button" style="flex:1; justify-content:center; font-size:12px; height:32px; border-width:1px;">🔑 ${t('Kết nối lại','Reconnect')}</button>
-    </div>
-  </div>`;
+function zaloAccountHealth(bot) {
+  const accounts = state.zaloHealth?.accounts || [];
+  return accounts.find((account) => account.agentId === bot?.id)
+    || accounts.find((account) => account.accountId === (bot?.accountId || 'default'))
+    || null;
+}
+function zaloToolbar(channelBots = []) {
+  const active = channelBots.find((bot) => bot.id === state.activeBotId) || channelBots[0];
+  const health = zaloAccountHealth(active);
+  const loginLabel = health?.sessionSaved ? t('Đăng nhập lại','Log in again') : t('Đăng nhập Zalo','Zalo Login');
+  return `<div class="zalo-toolbar"><button class="secondary btn-inline" data-zalo-health-refresh type="button">${actionIcon('refresh')}<span>${t('Làm mới','Refresh')}</span></button><button class="secondary btn-inline" data-zalo-login-trigger type="button">🔑 <span>${loginLabel}</span></button></div>`;
 }
 async function loadZaloHealth(silent=false){
   if (!activeProjectDir()) { state.zaloHealth = null; return; }
@@ -1553,7 +1545,7 @@ async function loadFeatureFlags(silent=false){
     state.featureInstalled = data.installed || {};
     state.featureVersions = data.versions || {};
     state.zaloBackend = data.zaloBackend || '';
-    if (state.zaloBackend === 'zalo-connect') loadZaloHealth(true).catch(() => {});
+    if (state.zaloBackend === 'zalo-connect') await loadZaloHealth(true).catch(() => {});
   } catch (_) {
     state.featureFlags = {};
     state.featureInstalled = {};

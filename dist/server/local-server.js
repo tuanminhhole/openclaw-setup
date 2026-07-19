@@ -1221,6 +1221,12 @@ function mapAgentChannels(agent, cfg) {
   return enabled.length === 1 ? enabled : [mapAgentChannel(agent, cfg)];
 }
 
+function bindingChannelId(channel = '') {
+  if (channel === 'zalo-personal') return 'zalo-connect';
+  if (channel === 'zalo-bot') return 'zalo';
+  return channel;
+}
+
 async function listConfiguredBots(projectDir) {
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
   if (!projectDir || !existsSync(cfgPath)) return [];
@@ -1234,11 +1240,14 @@ async function listConfiguredBots(projectDir) {
     const env = await readProjectEnv(projectDir);
     const hasOwnWorkspace = !!agent.workspace;
     const identityName = usableIdentityName(identity.name);
-    return mapAgentChannels(agent, cfg).map((channel) => ({
+    return mapAgentChannels(agent, cfg).map((channel) => {
+      const binding = (cfg.bindings || []).find((b) => b.agentId === agent.id && b.match?.channel === bindingChannelId(channel));
+      return ({
       id: agent.id,
       name: (hasOwnWorkspace ? identityName : agent.name) || agent.name || identityName || agent.id,
       role: identity.role || meta.role || agent.role || agent.desc || agent.description || '',
       channel,
+      accountId: binding?.match?.accountId || 'default',
       workspace: agent.workspace || `.openclaw/${workspaceRelForAgent(agent, cfg, projectDir)}`,
       agentDir: agent.agentDir,
       persona: meta.persona || '',
@@ -1250,7 +1259,8 @@ async function listConfiguredBots(projectDir) {
       pageAccessToken: channel === 'fb-messenger' ? (env.FB_MESSENGER_PAGE_ACCESS_TOKEN || '') : '',
       appSecret: channel === 'fb-messenger' ? (env.FB_MESSENGER_APP_SECRET || '') : '',
       verifyToken: channel === 'fb-messenger' ? (env.FB_MESSENGER_VERIFY_TOKEN || '') : '',
-    }));
+      });
+    });
   }));
   return rows.flat();
 }
@@ -1726,7 +1736,7 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
         sendLog(`[zalo-connect] Plugin missing — installing pinned ${ZALO_CONNECT_PLUGIN_SPEC}...`);
         const repo = String(ZALO_CONNECT_PLUGIN_SPEC).split('#')[0];
         const ref = String(ZALO_CONNECT_PLUGIN_SPEC).split('#')[1] || ZALO_CONNECT_VERSION;
-        const installCmd = `tmp=/tmp/openclaw-plugin-zalo-connect-${ref}; rm -rf "$tmp"; git clone --depth 1 --branch "${ref}" "${repo}" "$tmp" && cd /home/node/project && openclaw plugins install "$tmp" 2>&1`;
+        const installCmd = `tmp=/tmp/openclaw-plugin-zalo-connect-${ref}; rm -rf "$tmp"; git clone --depth 1 --branch "${ref}" "${repo}" "$tmp" && rm -rf "$tmp/.git" && cd /home/node/project && openclaw plugins install "$tmp" 2>&1`;
         const inst = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', installCmd], { cwd: projectDir, shell: false });
         const instOut = `${inst.stdout}\n${inst.stderr}`;
         for (const line of instOut.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
@@ -1823,72 +1833,146 @@ function cancelZaloLogin() {
   return { ok: true, cancelled: false };
 }
 
-// ── Zalo health snapshot for the dashboard card ─────────────────────────────────
-// One cheap, non-throwing aggregate: backend, pinned vs installed version, channel
-// status (parsed from `openclaw channels status`), QR/session presence, Zalo Mod
-// presence. Everything degrades to null/'unknown' instead of failing the request.
+function buildZaloHealthSnapshot(cfg = {}, statusJson = null, credentialNames = null, options = {}) {
+  const containerRunning = options.containerRunning !== false;
+  const textStatus = String(options.textStatus || '');
+  const agents = new Map((cfg.agents?.list || []).map((agent) => [String(agent.id), agent]));
+  const bindings = (cfg.bindings || []).filter((binding) => binding.match?.channel === 'zalo-connect');
+  const runtimeAccounts = Array.isArray(statusJson?.channelAccounts?.['zalo-connect'])
+    ? statusJson.channelAccounts['zalo-connect']
+    : [];
+  const expected = [];
+  const seen = new Set();
+  for (const binding of bindings) {
+    const accountId = String(binding.match?.accountId || 'default');
+    if (seen.has(accountId)) continue;
+    seen.add(accountId);
+    expected.push({ accountId, agentId: String(binding.agentId || '') });
+  }
+  for (const runtime of runtimeAccounts) {
+    const accountId = String(runtime?.accountId || 'default');
+    if (seen.has(accountId)) continue;
+    seen.add(accountId);
+    expected.push({ accountId, agentId: '' });
+  }
+
+  const credentialSet = Array.isArray(credentialNames)
+    ? new Set(credentialNames.map((name) => String(name || '').toLowerCase()))
+    : null;
+  const fallbackLines = textStatus.split(/\r?\n/).filter((line) => /zalo[- ]connect/i.test(line));
+  const accounts = expected.map(({ accountId, agentId }) => {
+    const runtime = runtimeAccounts.find((item) => String(item?.accountId || 'default') === accountId) || null;
+    const line = fallbackLines.find((item) => accountId === 'default'
+      ? /\bdefault\b/i.test(item) || fallbackLines.length === 1
+      : item.toLowerCase().includes(accountId.toLowerCase())) || '';
+    const fallbackRunning = /running|connected|ready|\bok\b/i.test(line);
+    const fallbackFailed = /stopped|disconnected|error|failed/i.test(line);
+    const configured = runtime ? runtime.configured === true : !!line && !fallbackFailed;
+    const running = runtime ? runtime.running === true : fallbackRunning;
+    const lastError = runtime?.lastError || (fallbackFailed ? line.trim() : null);
+    const credentialFile = accountId === 'default'
+      ? 'zalo-connect-credentials.json'
+      : `zalo-connect-credentials-${accountId}.json`;
+    const fileSaved = credentialSet ? credentialSet.has(credentialFile.toLowerCase()) : false;
+    const agent = agents.get(agentId);
+    return {
+      accountId,
+      agentId,
+      name: agent?.name || agentId || accountId,
+      configured,
+      running,
+      lastError,
+      sessionSaved: fileSaved || runtime?.configured === true,
+    };
+  });
+
+  const total = accounts.length;
+  const running = accounts.filter((account) => account.running).length;
+  const configured = accounts.filter((account) => account.configured).length;
+  const failed = accounts.filter((account) => account.lastError || (!account.running && account.configured)).length;
+  let channelStatus = 'unknown';
+  if (!containerRunning) channelStatus = 'container-stopped';
+  else if (total > 0 && running === total) channelStatus = 'connected';
+  else if (running > 0) channelStatus = 'partial';
+  else if (total > 0 && (failed > 0 || configured > 0)) channelStatus = 'disconnected';
+  else if (statusJson || fallbackLines.length) channelStatus = 'starting';
+
+  return {
+    backend: cfg.channels?.['zalo-connect']?.enabled ? 'zalo-connect' : '',
+    containerRunning,
+    channelStatus,
+    channelStatusLine: fallbackLines.join(' | '),
+    summary: { total, running, configured, failed },
+    accounts,
+  };
+}
+
+// ── Zalo health snapshot for the dashboard ──────────────────────────────────────
+// Runtime JSON is authoritative and account-aware. Text parsing remains only as a
+// compatibility fallback for older OpenClaw builds.
 async function getZaloHealth(projectDir) {
-  const out = {
-    backend: '',
+  const meta = {
     supportedVersion: ZALO_CONNECT_VERSION,
     installedVersion: null,
-    containerRunning: false,
-    channelStatus: 'unknown',
-    channelStatusLine: '',
-    sessionSaved: false,
     zaloModInstalled: false,
-    accountId: 'default',
+    zaloModVersion: null,
   };
-  if (!projectDir) return out;
+  if (!projectDir) return { ...buildZaloHealthSnapshot({}, null, null, { containerRunning: false }), ...meta };
   let cfg = null;
   try { cfg = JSON.parse(await fsp.readFile(join(projectDir, '.openclaw', 'openclaw.json'), 'utf8')); } catch {}
-  if (!cfg) return out;
-  if (cfg.channels?.['zalo-connect']?.enabled) out.backend = 'zalo-connect';
-  if (!out.backend) return out;
-  const binding = (cfg.bindings || []).find((b) => b.match?.channel === out.backend);
-  if (binding?.match?.accountId) out.accountId = binding.match.accountId;
-  out.zaloModInstalled = !!(cfg.plugins?.entries?.['zalo-mod'] || cfg.plugins?.entries?.['openclaw-zalo-mod'])
+  if (!cfg) return { ...buildZaloHealthSnapshot({}, null, null, { containerRunning: false }), ...meta };
+  meta.zaloModInstalled = !!(cfg.plugins?.entries?.['zalo-mod'] || cfg.plugins?.entries?.['openclaw-zalo-mod'])
     || existsSync(join(projectDir, '.openclaw', 'extensions', 'zalo-mod'));
+  meta.zaloModVersion = await getInstalledPluginVersion(projectDir, ['zalo-mod', 'openclaw-zalo-mod']) || null;
+  if (meta.zaloModVersion) meta.zaloModInstalled = true;
 
-  // Installed zalo-connect version — extensions/ is bind-mounted on macOS/Linux; fall back
-  // to reading inside the container (Windows keeps extensions on a named volume).
   const botContainer = getBotContainerName(projectDir);
-  if (out.backend === 'zalo-connect') {
+  if (cfg.channels?.['zalo-connect']?.enabled) {
     const manifestHost = join(projectDir, '.openclaw', 'extensions', 'zalo-connect', 'openclaw.plugin.json');
     try {
-      out.installedVersion = JSON.parse(await fsp.readFile(manifestHost, 'utf8')).version || null;
+      meta.installedVersion = JSON.parse(await fsp.readFile(manifestHost, 'utf8')).version || null;
     } catch {
       try {
         const r = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', 'cat "${OPENCLAW_HOME:-/home/node/project/.openclaw}/extensions/zalo-connect/openclaw.plugin.json" 2>/dev/null'], { cwd: projectDir, shell: false, timeout: 8000 });
-        out.installedVersion = JSON.parse(String(r.stdout || '{}')).version || null;
+        meta.installedVersion = JSON.parse(String(r.stdout || '{}')).version || null;
       } catch {}
     }
-    // QR session/credentials saved? (zalo-connect stores its credential file under the state dir)
-    try {
-      const credRoot = join(projectDir, '.openclaw', 'credentials');
-      const names = existsSync(credRoot) ? await fsp.readdir(credRoot) : [];
-      out.sessionSaved = names.some((n) => n.toLowerCase().includes('zalo-connect'));
-    } catch {}
   }
 
+  let containerRunning = false;
   try {
     const r = await runCapture('docker', ['inspect', '-f', '{{.State.Running}}', botContainer], { shell: false, timeout: 8000 });
-    out.containerRunning = String(r.stdout || '').trim() === 'true';
+    containerRunning = String(r.stdout || '').trim() === 'true';
   } catch {}
-  if (out.containerRunning) {
+  let statusJson = null;
+  let textStatus = '';
+  let credentialNames = null;
+  if (containerRunning) {
     try {
-      const r = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', 'openclaw channels status 2>&1 || true'], { cwd: projectDir, shell: false, timeout: 20000 });
-      const needle = out.backend === 'zalo-connect' ? 'zalo-connect' : 'zalo';
-      const line = String(r.stdout || '').split(/\r?\n/).find((l) => l.toLowerCase().includes(needle)) || '';
-      out.channelStatusLine = line.trim();
-      if (/running|connected|ready|ok/i.test(line)) out.channelStatus = 'connected';
-      else if (/stopped|disconnected|error|failed/i.test(line)) out.channelStatus = 'disconnected';
-      else if (line) out.channelStatus = 'starting';
+      const r = await runCapture('docker', ['exec', botContainer, 'openclaw', 'channels', 'status', '--json'], { cwd: projectDir, shell: false, timeout: 20000 });
+      statusJson = parseJsonText(String(r.stdout || '').trim(), null);
     } catch {}
-  } else {
-    out.channelStatus = 'container-stopped';
+    if (!statusJson) {
+      try {
+        const r = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', 'openclaw channels status 2>&1 || true'], { cwd: projectDir, shell: false, timeout: 20000 });
+        textStatus = String(r.stdout || '');
+      } catch {}
+    }
+    try {
+      const script = "const fs=require('fs'),path=require('path'),os=require('os');const d=path.join(os.homedir(),'.openclaw');let a=[];try{a=fs.readdirSync(d).filter(n=>/^zalo-connect-credentials(?:-[^.]+)?\\.json$/i.test(n))}catch{}process.stdout.write(JSON.stringify(a))";
+      const r = await runCapture('docker', ['exec', botContainer, 'node', '-e', script], { cwd: projectDir, shell: false, timeout: 8000 });
+      credentialNames = parseJsonText(String(r.stdout || '[]').trim(), []);
+    } catch {}
+    try {
+      const versions = await getContainerExtensionVersions(projectDir);
+      const zaloModVersion = versions['zalo-mod'] || versions['openclaw-zalo-mod'] || '';
+      if (zaloModVersion) {
+        meta.zaloModInstalled = true;
+        meta.zaloModVersion = zaloModVersion;
+      }
+    } catch {}
   }
-  return out;
+  return { ...buildZaloHealthSnapshot(cfg, statusJson, credentialNames, { containerRunning, textStatus }), ...meta };
 }
 
 function getBotServiceName(projectDir) {
@@ -2239,7 +2323,10 @@ async function writeCoreProject({ projectDir, osChoice, mode, gatewayPort = 1878
   const agentMetas = [];
   const common = { channelKey: 'telegram', providerKey: '9router', model: DEFAULT_MODEL, deployMode: mode, osChoice, selectedSkills, skills: dataExport.SKILLS || [], agentMetas, gatewayPort, routerPort };
   const cfg = buildOpenclawJson(common);
-  const env = buildEnvFileContent({ ...common, apiKey: '', botToken: '' });
+  // A core project has no channel account yet. Keep its environment shared/credential-free;
+  // writing the literal <your_bot_token> placeholder makes OpenClaw auto-detect Telegram and
+  // emit a misleading "plugin not enabled" warning before the user has created any bot.
+  const env = buildEnvFileContent({ ...common, apiKey: '', botToken: '', isSharedEnv: true });
   await fsp.writeFile(join(openclawHome, 'openclaw.json'), JSON.stringify(cfg, null, 2), 'utf8');
   await fsp.writeFile(join(projectDir, '.env'), env, 'utf8');
   await syncExecApprovals(projectDir, cfg);
@@ -2486,12 +2573,16 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
       await fsp.mkdir(dockerDir, { recursive: true });
       const envContent = existsSync(rootEnvPath)
         ? await fsp.readFile(rootEnvPath, 'utf8')
-        : buildEnvFileContent({ channelKey: 'telegram', providerKey: '9router', deployMode: mode, osChoice, selectedSkills: ['memory', 'web-search', 'scheduler'], skills: dataExport.SKILLS || [], agentMetas: [], apiKey: '', botToken: '' });
+        : buildEnvFileContent({ channelKey: 'telegram', providerKey: '9router', deployMode: mode, osChoice, selectedSkills: ['memory', 'web-search', 'scheduler'], skills: dataExport.SKILLS || [], agentMetas: [], apiKey: '', botToken: '', isSharedEnv: true });
       await fsp.writeFile(dockerEnvPath, envContent, 'utf8');
       sendLog(`Docker env ready: ${dockerEnvPath}`);
       await run('docker', ['compose', 'up', '-d', '--build'], { cwd: dockerDir });
       await applyResolved9RouterApiKey(projectDir).catch(() => {});
-      await recreateDockerBot(projectDir).catch(() => {});
+      // The full compose start already created the bot container. Recreating it here used to
+      // interrupt OpenClaw's first-boot state migration and leave its five-minute lease behind,
+      // making a brand-new project appear to crash-loop until the lease expired. The config is
+      // bind-mounted, so the resolved 9Router key does not require an immediate second recreate.
+      probeCacheClear();
     }
     state.installed = true;
     sendLog('✅ Install completed');
@@ -3226,6 +3317,10 @@ async function installFeature(projectDir, agentId, kind, id) {
   }
 
   if (kind === 'plugin') {
+    const installSpec = pluginInstallSpec(id);
+    const installArgs = ['plugins', 'install', installSpec, '--force'];
+    if (installSpec.startsWith('clawhub:')) installArgs.push('--acknowledge-clawhub-risk');
+
     let composeDir = null;
     if (existsSync(join(projectDir, 'docker-compose.yml'))) {
       composeDir = projectDir;
@@ -3235,9 +3330,9 @@ async function installFeature(projectDir, agentId, kind, id) {
 
     if (composeDir) {
       const botContainer = getBotContainerName(projectDir);
-      sendLog(`[plugin] Installing/updating ${pluginInstallSpec(id)} inside container ${botContainer}...`);
+      sendLog(`[plugin] Installing/updating ${installSpec} inside container ${botContainer}...`);
       
-      const cmd = `cd /home/node/project && openclaw plugins install ${pluginInstallSpec(id)} --force`;
+      const cmd = `cd /home/node/project && openclaw ${installArgs.join(' ')}`;
       const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
       
       if (cmdOut) {
@@ -3329,10 +3424,10 @@ async function installFeature(projectDir, agentId, kind, id) {
     } else {
       // Fix any legacy config issues first
       await run('openclaw', ['doctor', '--fix'], { cwd: projectDir, env: openclawProjectEnv(projectDir) }).catch((err) => sendLog(`[plugin] doctor --fix skipped: ${err.message}`));
-      sendLog(`[plugin] Installing ${pluginInstallSpec(id)}...`);
+      sendLog(`[plugin] Installing ${installSpec}...`);
 
       let installSuccess = true;
-      await run('openclaw', ['plugins', 'install', pluginInstallSpec(id), '--force'], {
+      await run('openclaw', installArgs, {
         cwd: projectDir,
         env: openclawProjectEnv(projectDir),
         resolveOnPattern: /Installed plugin:/
@@ -4115,4 +4210,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   printRemoteAccessHint(port).catch(() => {});
 }
 
-export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder };
+export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot };
