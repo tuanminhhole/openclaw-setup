@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS — Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.0-0EA5E9?style=for-the-badge" alt="Version 5.13.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.1-0EA5E9?style=for-the-badge" alt="Version 5.13.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -44,7 +44,7 @@
 - ✨ **A cleaner Zalo control area**: Refresh and Login Again sit together above the bot list, while shared Zalo Connect and Zalo Mod versions move into the main status column.
 
 <details>
-<summary><b>Previous: What's new in v5.13.0</b></summary>
+<summary><b>Previous: What's new in v5.12.0</b></summary>
 
 - 💬 **OpenClaw Zalo Connect, ready in one click**: create a personal Zalo bot or press **Zalo Login** and Setup prepares the channel automatically, then opens the QR flow in the dashboard.
 - ⚡ **Install once, reconnect faster**: an existing Zalo Connect installation is reused instead of being downloaded again on every login or restart.
