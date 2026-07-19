@@ -310,10 +310,9 @@
       channels.telegram = telegramConfig;
     } else if (isZaloPersonal(channelKey)) {
       // Zalo Personal → OpenClaw Zalo Connect, the only personal-Zalo backend.
-      // Secure defaults: DM pairing, empty
-      // allowFrom, all groups disabled + requireMention until the owner explicitly
-      // enables them post-QR. Never default to `allowFrom: ["*"]` / open groups.
-      // Every key below is validated against OpenClaw Zalo Connect 3.0.0's schema
+      // First-run defaults keep owner confirmation reachable immediately after QR:
+      // DMs are open to every sender and groups are enabled without requiring a mention.
+      // Every key below is validated against OpenClaw Zalo Connect 3.0.1's schema
       // (`additionalProperties: false`) — do NOT add keys (e.g. historyLimit,
       // groupAllowFrom) without re-checking `openclaw.plugin.json` first, an unknown
       // key crashes the gateway on boot.
@@ -336,11 +335,11 @@
       accounts: {
         default: { enabled: true },
       },
-      dmPolicy: 'pairing',
-      allowFrom: [],
+      dmPolicy: 'open',
+      allowFrom: ['*'],
       groupPolicy: 'allowlist',
       groups: {
-        '*': { enabled: false, requireMention: true },
+        '*': { enabled: true, requireMention: false },
       },
     };
   }

@@ -44,8 +44,8 @@
   // Pin the maintained fork tag so setup never falls back to upstream/ClawHub.
   const ZALO_CHANNEL_ID = 'zalo-connect';
   const ZALO_PLUGIN_ID = 'zalo-connect';
-  const ZALO_CONNECT_VERSION = '3.0.0';
-  const ZALO_CONNECT_PLUGIN_SPEC = 'https://github.com/tuanminhhole/openclaw-zalo-connect.git#v3.0.0';
+  const ZALO_CONNECT_VERSION = '3.0.1';
+  const ZALO_CONNECT_PLUGIN_SPEC = 'https://github.com/tuanminhhole/openclaw-zalo-connect.git#v3.0.1';
 
   function buildRelayPluginInstallCommand(prefix = 'openclaw') {
     return `if [ ! -d "$OPENCLAW_STATE_DIR/extensions/${TELEGRAM_RELAY_PLUGIN_ID}" ]; then ${prefix} plugins install ${TELEGRAM_RELAY_PLUGIN_SPEC} 2>/dev/null || true; fi`;

@@ -899,12 +899,11 @@ function botListPanel(bots) {
     const role = (b.role || b.desc || b.description || '').trim() || t('Tr\u1ee3 l\u00fd OpenClaw','OpenClaw assistant');
     const isZalo = b.channel === 'zalo-personal';
     const health = isZalo ? zaloAccountHealth(b) : null;
-    const quickBadge = health?.running ? `<span class="zalo-quick-badge">${t('Đã kết nối','Connected')}</span>` : '';
-    const connection = !health ? t('Chưa rõ','Unknown') : health.running ? t('Hoạt động','Active') : health.lastError ? t('Mất kết nối','Disconnected') : t('Đang kết nối','Connecting');
+    const connection = !health ? t('Chưa rõ','Unknown') : health.running ? t('Đã kết nối','Connected') : health.lastError ? t('Mất kết nối','Disconnected') : t('Đang kết nối','Connecting');
     const login = !health ? t('Chưa rõ','Unknown') : health.sessionSaved ? t('Đã đăng nhập','Logged in') : t('Chưa đăng nhập','Not logged in');
     const connectionTone = health?.running ? 'ok' : health?.lastError ? 'bad' : 'warn';
     const loginTone = health?.sessionSaved ? 'ok' : health ? 'bad' : 'warn';
-    return `<article class="bot-item ${state.activeBotId===b.id?'active':''}" data-bot-id="${escapeHtml(b.id)}"><div class="bot-item-actions"><button class="bot-edit" data-edit-bot="${escapeHtml(b.id)}" title="${t('Sửa bot','Edit bot')}" aria-label="${t('Sửa bot','Edit bot')}">${actionIcon('edit')}</button><button class="bot-delete" data-delete-bot="${escapeHtml(b.id)}" title="${t('X\u00f3a bot','Delete bot')}" aria-label="${t('X\u00f3a bot','Delete bot')}">&times;</button></div><div class="bot-item-title"><b>${escapeHtml(b.name)}</b>${quickBadge}</div><small title="${escapeHtml(role)}">${escapeHtml(role)}</small>${isZalo ? `<div class="zalo-bot-health"><div><span>${t('Kết nối','Connection')}</span><em class="${connectionTone}">${connection}</em></div><div><span>${t('Đăng nhập','Login')}</span><em class="${loginTone}">${login}</em></div></div>` : ''}</article>`;
+    return `<article class="bot-item ${state.activeBotId===b.id?'active':''}" data-bot-id="${escapeHtml(b.id)}"><div class="bot-item-actions"><button class="bot-edit" data-edit-bot="${escapeHtml(b.id)}" title="${t('Sửa bot','Edit bot')}" aria-label="${t('Sửa bot','Edit bot')}">${actionIcon('edit')}</button><button class="bot-delete" data-delete-bot="${escapeHtml(b.id)}" title="${t('X\u00f3a bot','Delete bot')}" aria-label="${t('X\u00f3a bot','Delete bot')}">&times;</button></div><div class="bot-item-title"><b>${escapeHtml(b.name)}</b></div><small title="${escapeHtml(role)}">${escapeHtml(role)}</small>${isZalo ? `<div class="zalo-bot-health"><div><span>${t('Kết nối','Connection')}</span><em class="${connectionTone}">${connection}</em></div><div><span>${t('Đăng nhập','Login')}</span><em class="${loginTone}">${login}</em></div></div>` : ''}</article>`;
   });
   listItems.push(`
     <article class="bot-item bot-create-card" data-bot-modal="open">

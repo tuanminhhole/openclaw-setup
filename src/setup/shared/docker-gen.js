@@ -320,7 +320,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       // install when extensions/zalo-connect already exists, so restarts never re-download
       // and a reconnect never reinstalls. No dist patching, no mentions.js, no watchdog
       // hacks: sticker/mention/reaction are native ZaloConnect actions.
-      const zaloConnectSpec = common.ZALO_CONNECT_PLUGIN_SPEC || 'https://github.com/tuanminhhole/openclaw-zalo-connect.git#v3.0.0';
+      const zaloConnectSpec = common.ZALO_CONNECT_PLUGIN_SPEC || 'https://github.com/tuanminhhole/openclaw-zalo-connect.git#v3.0.1';
       runtimeParts.push(`ensure_plugin zalo-connect "${zaloConnectSpec}"`);
     }
     runtimeParts.push('openclaw gateway run');

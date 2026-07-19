@@ -759,6 +759,10 @@ async function detectRuntime(projectDir) {
 const _runtimeSynced = new Set();
 async function syncRuntimeState(projectDir, { full = false } = {}) {
   if (!projectDir || !existsSync(join(projectDir, '.openclaw', 'openclaw.json'))) return;
+  // New OpenClaw builds may create this directory during probing even when no
+  // attestation exists. Remove only the empty directory so it does not clutter
+  // the project tree; never touch a real `.attested` file.
+  await removeEmptyWorkspaceAttestations(projectDir).catch(() => {});
   const firstSync = full || !_runtimeSynced.has(projectDir);
   if (firstSync) {
     // Auto-migrate legacy /root/project paths → /home/node/project in openclaw.json
@@ -784,6 +788,15 @@ async function syncRuntimeState(projectDir, { full = false } = {}) {
     );
   }
   _runtimeSynced.add(projectDir);
+}
+
+async function removeEmptyWorkspaceAttestations(projectDir) {
+  const attestDir = join(projectDir, '.openclaw', 'workspace-attestations');
+  if (!existsSync(attestDir)) return false;
+  const entries = await fsp.readdir(attestDir);
+  if (entries.length > 0) return false;
+  await fsp.rmdir(attestDir);
+  return true;
 }
 
 /**
@@ -4210,4 +4223,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   printRemoteAccessHint(port).catch(() => {});
 }
 
-export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot };
+export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations };

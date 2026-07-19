@@ -62,10 +62,10 @@
       credSteps: [
         { textVi: '⚠️ Zalo cá nhân chạy qua <strong>OpenClaw Zalo Connect (unofficial, zca-js)</strong> — tự động hoá tài khoản cá nhân có thể vi phạm điều khoản Zalo và khiến tài khoản bị hạn chế. <strong>Chỉ nên dùng tài khoản phụ.</strong>', textEn: '⚠️ Personal Zalo runs on <strong>OpenClaw Zalo Connect (unofficial, zca-js)</strong> — automating a personal account may violate Zalo terms and can get the account restricted. <strong>Use a secondary account.</strong>' },
         { textVi: 'Sau khi tạo bot, bấm <strong>Đăng nhập Zalo</strong> để quét QR ngay trong giao diện. Nếu cần chạy thủ công: <code>openclaw channels login --channel zalo-connect --account default</code>.', textEn: 'After creating the bot, click <strong>Zalo Login</strong> to scan the QR right in the UI. Manual fallback: <code>openclaw channels login --channel zalo-connect --account default</code>.' },
-        { textVi: 'Mặc định an toàn: DM theo cơ chế pairing, group tắt hết — sau khi quét QR hãy tự chọn DM/nhóm được phép trong cấu hình.', textEn: 'Secure defaults: DM uses pairing, all groups start disabled — after the QR scan, explicitly choose the allowed DMs/groups in the config.' },
+        { textVi: 'Sau khi quét QR, bot nhận được tin nhắn xác nhận Owner ngay; bạn có thể siết lại DM/nhóm sau trong cấu hình.', textEn: 'After QR login, the bot can receive the initial Owner confirmation immediately; you can tighten DM/group access later in config.' },
       ],
       // Mirrors buildZaloConnectChannelConfig() in bot-config-gen.js — keys validated
-      // against OpenClaw Zalo Connect 3.0.0's strict channel schema.
+      // against OpenClaw Zalo Connect 3.0.1's strict channel schema.
       channelConfig: {
         'zalo-connect': {
           enabled: true,
@@ -73,11 +73,11 @@
           accounts: {
             default: { enabled: true },
           },
-          dmPolicy: 'pairing',
-          allowFrom: [],
+          dmPolicy: 'open',
+          allowFrom: ['*'],
           groupPolicy: 'allowlist',
           groups: {
-            '*': { enabled: false, requireMention: true },
+            '*': { enabled: true, requireMention: false },
           },
         },
       },
