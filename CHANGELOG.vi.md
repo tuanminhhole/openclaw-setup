@@ -1,6 +1,13 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.13.3] — 2026-07-21
+
+### 🔧 Sửa lỗi: Tự động cập nhật phiên bản Launcher
+
+- **Sửa lỗi: Lệch phiên bản cache Launcher**: Tự động phát hiện nếu launcher đang chạy (tải qua `npx`) có phiên bản mới hơn hoặc khác với bản đang cache trong `~/.openclaw-setup` và tự nâng cấp tương ứng.
+
+
 ## [5.13.0] — 2026-07-19
 
 ### Thêm
