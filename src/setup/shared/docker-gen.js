@@ -244,10 +244,10 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     const stateVolDecl = useStateVolume ? '\n  openclaw-state:' : '';
     const stateVolBlock = useStateVolume ? '\n\nvolumes:\n  openclaw-state:' : '';
     const skillLines = dockerfileSkillInstallMode === 'build' && allSkills.length > 0
-      ? `\n# Install skills (ClawHub)\n${allSkills.map((skill) => `RUN openclaw skills install ${skill} || echo "Warning: Failed to install ${skill} due to rate limits."`).join('\n')}\n`
+      ? `\n# Install skills (ClawHub)\n${allSkills.map((skill) => `RUN openclaw skills install ${skill} --acknowledge-clawhub-risk || echo "Warning: Failed to install ${skill} due to rate limits."`).join('\n')}\n`
       : '';
     const pluginLines = dockerfilePlugins.length > 0
-      ? `\n# Install plugins (ClawHub)\n${dockerfilePlugins.map((p) => `RUN openclaw plugins install ${p} || echo "Warning: Failed to install plugin ${p}"`).join('\n')}\n`
+      ? `\n# Install plugins (ClawHub)\n${dockerfilePlugins.map((p) => `RUN openclaw plugins install ${p} --acknowledge-clawhub-risk || echo "Warning: Failed to install plugin ${p}"`).join('\n')}\n`
       : '';
     const patchLine = `RUN node -e "const fs=require('fs');const path=require('path');const dir='/usr/local/lib/node_modules/openclaw/dist';const from='\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const to='\\t\\t\\t\\t\\ttimeoutOverrideSeconds: Math.max(1, Math.ceil(timeoutMs / 1e3)),\\n\\t\\t\\t\\t\\tonAgentRunStart: (runId) => {';const files=fs.readdirSync(dir).filter(n=>/\\.js$/.test(n));let patched=0;for(const file of files){const p=path.join(dir,file);let s='';try{s=fs.readFileSync(p,'utf8');}catch{continue;}if(s.includes(to)||!s.includes(from))continue;s=s.replace(from,to);fs.writeFileSync(p,s);patched++;}if(!patched){process.exit(0);}"`;
     
@@ -295,7 +295,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '        echo "[entrypoint] warning: failed to clone plugin $spec"',
       '      fi',
       '      ;;',
-      '    *) openclaw plugins install "$spec" 2>/dev/null || echo "[entrypoint] warning: failed to install plugin $spec" ;;',
+      '    *) openclaw plugins install "$spec" --acknowledge-clawhub-risk 2>/dev/null || echo "[entrypoint] warning: failed to install plugin $spec" ;;',
       '  esac',
       '}',
       'ensure_skill() {',
@@ -305,7 +305,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '    return 0',
       '  fi',
       '  echo "[entrypoint] skill $id missing; installing"',
-      '  openclaw skills install "$id" 2>/dev/null || echo "[entrypoint] warning: failed to install skill $id"',
+      '  openclaw skills install "$id" --acknowledge-clawhub-risk 2>/dev/null || echo "[entrypoint] warning: failed to install skill $id"',
       '}',
       'echo "[entrypoint] ensuring runtime assets, then starting gateway"',
     ];

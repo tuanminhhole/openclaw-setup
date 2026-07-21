@@ -3289,7 +3289,7 @@ async function installFeature(projectDir, agentId, kind, id) {
       const botContainer = getBotContainerName(projectDir);
       sendLog(`[skill] Installing/updating clawhub:${slug} inside container ${botContainer} for agent ${agentId}...`);
       
-      const cmd = `cd /home/node/project && openclaw skills install ${slug} --agent ${agentId} --force`;
+      const cmd = `cd /home/node/project && openclaw skills install ${slug} --agent ${agentId} --force --acknowledge-clawhub-risk`;
       const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
       
       if (cmdOut) {
@@ -3311,7 +3311,7 @@ async function installFeature(projectDir, agentId, kind, id) {
       await run('openclaw', ['doctor', '--fix'], { cwd: projectDir, env: openclawProjectEnv(projectDir) }).catch((err) => sendLog(`[skill] doctor --fix skipped: ${err.message}`));
       sendLog(`[skill] Installing clawhub:${slug} for agent ${agentId}...`);
       
-      await run('openclaw', ['skills', 'install', slug, '--agent', agentId, '--force'], {
+      await run('openclaw', ['skills', 'install', slug, '--agent', agentId, '--force', '--acknowledge-clawhub-risk'], {
         cwd: projectDir,
         env: openclawProjectEnv(projectDir)
       });
