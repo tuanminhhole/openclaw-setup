@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS — Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.3-0EA5E9?style=for-the-badge" alt="Version 5.13.3" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.4-0EA5E9?style=for-the-badge" alt="Version 5.13.4" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,11 +37,19 @@
 
 ---
 
-## 🆕 What's New in v5.13.0
+## 🆕 What's New in v5.13.4
+
+- ⚙️ **New Settings page**: pick your theme (light/dark toggle), language (VI/EN) and timezone right from the dashboard — available in both the sidebar and the mobile nav bar.
+- 🕒 **Schedules & cron run in the correct local time**: newly created bots carry an explicit timezone, so reminders/cron no longer drift a day off around midnight (a UTC-vs-local bug that could schedule into the past). Scheduling guidance was hardened end-to-end (local time + timezone, explicit delivery target, raw group id).
+
+<details>
+<summary><b>Previous: What's new in v5.13.0</b></summary>
 
 - 🟢 **Live Zalo status on every bot card**: each personal Zalo bot now shows its own connection and login state, with a compact green badge when it is ready.
 - 👥 **Accurate multi-account visibility**: Setup reads the real Zalo Connect runtime per account, so projects with several Zalo bots no longer collapse into an ambiguous shared status.
 - ✨ **A cleaner Zalo control area**: Refresh and Login Again sit together above the bot list, while shared Zalo Connect and Zalo Mod versions move into the main status column.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.12.0</b></summary>

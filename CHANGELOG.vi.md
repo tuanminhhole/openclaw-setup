@@ -1,6 +1,15 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.13.4] — 2026-07-22
+
+### Thêm mới
+- **Trang Cài đặt trong dashboard.** Mục "Cài đặt" mới (ở sidebar và thanh điều hướng mobile) để chọn giao diện (nút gạt Sáng/Tối), ngôn ngữ (VI/EN) và múi giờ. Múi giờ đã chọn được áp cho bot tạo mới.
+
+### Sửa lỗi
+- **Lịch & cron chạy đúng giờ địa phương.** Bot tạo mới nhận `userTimezone` rõ ràng nên agent hiểu "hôm nay / tối nay / ngày mai" theo giờ địa phương thay vì UTC. Trước đây đặt lịch quanh nửa đêm có thể lệch 1 ngày (rơi vào quá khứ) và thất bại âm thầm. Kèm siết lại skill lập lịch: dùng giờ local + múi giờ (không tự quy đổi UTC), phần gửi bắt buộc điền kênh + người nhận, và ID nhóm dùng dạng thô (không thêm tiền tố).
+
+
 ## [5.13.3] — 2026-07-21
 
 ### 🔧 Sửa lỗi: Tự động cập nhật phiên bản Launcher

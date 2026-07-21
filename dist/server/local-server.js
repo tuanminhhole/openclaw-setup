@@ -1409,6 +1409,10 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   const userDesc = String(body.userDescription || body.userDesc || '').trim();
   const userInfo = [userName ? `- **Tên:** ${userName}` : '', userDesc ? `- **Mô tả:** ${userDesc}` : ''].filter(Boolean).join('\n');
 
+  // Múi giờ người dùng chọn ở UI Cài đặt (mặc định VN). Với project đã có sẵn, ưu tiên tz đã lưu
+  // trong config để bot mới đồng bộ với các bot cũ.
+  const bodyTz = String(body.userTimezone || '').trim() || 'Asia/Ho_Chi_Minh';
+
   const openclawHome = join(projectDir, '.openclaw');
   await fsp.mkdir(openclawHome, { recursive: true });
   const cfgPath = join(openclawHome, 'openclaw.json');
@@ -1421,7 +1425,9 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     selectedSkills: ['memory', 'web-search', 'scheduler'],
     skills: dataExport.SKILLS || [],
     agentMetas: [],
+    userTimezone: bodyTz,
   }));
+  const userTimezone = cfg.agents?.defaults?.userTimezone || bodyTz;
 
   const used = new Set(cfg.agents.list.map((a) => a.id));
   const botName = uniqueDisplayName(requestedBotName, new Set(cfg.agents.list.map((a) => a.name || a.id)));
@@ -1509,6 +1515,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     zaloBackend: zaloBackendForConfig(cfg),
     hasScheduler,
     hasImageGen,
+    userTimezone,
   });
   const wsRoot = join(openclawHome, workspaceDir);
   for (const [name, content] of Object.entries(files)) {
@@ -1631,6 +1638,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     zaloBackend: zaloBackendForConfig(cfg),
     hasScheduler,
     hasImageGen,
+    userTimezone: cfg.agents?.defaults?.userTimezone || 'Asia/Ho_Chi_Minh',
   });
   const wsRoot = join(projectDir, '.openclaw', workspaceDir);
   for (const [name, content] of Object.entries(files)) {
@@ -2326,7 +2334,7 @@ function json(res, data, status = 200) {
   res.end(body);
 }
 
-async function writeCoreProject({ projectDir, osChoice, mode, gatewayPort = 18789, routerPort = 20128 }) {
+async function writeCoreProject({ projectDir, osChoice, mode, gatewayPort = 18789, routerPort = 20128, userTimezone = 'Asia/Ho_Chi_Minh' }) {
   await fsp.mkdir(projectDir, { recursive: true });
   const openclawHome = join(projectDir, '.openclaw');
   await fsp.mkdir(openclawHome, { recursive: true });
@@ -2334,7 +2342,7 @@ async function writeCoreProject({ projectDir, osChoice, mode, gatewayPort = 1878
 
   const selectedSkills = ['memory', 'web-search', 'scheduler'];
   const agentMetas = [];
-  const common = { channelKey: 'telegram', providerKey: '9router', model: DEFAULT_MODEL, deployMode: mode, osChoice, selectedSkills, skills: dataExport.SKILLS || [], agentMetas, gatewayPort, routerPort };
+  const common = { channelKey: 'telegram', providerKey: '9router', model: DEFAULT_MODEL, deployMode: mode, osChoice, selectedSkills, skills: dataExport.SKILLS || [], agentMetas, gatewayPort, routerPort, userTimezone };
   const cfg = buildOpenclawJson(common);
   // A core project has no channel account yet. Keep its environment shared/credential-free;
   // writing the literal <your_bot_token> placeholder makes OpenClaw auto-detect Telegram and
@@ -2562,7 +2570,7 @@ async function ensureDockerInstalled(osChoice) {
   throw httpError(400, 'Hệ điều hành không được hỗ trợ tự cài Docker. Hãy cài Docker thủ công rồi thử lại.');
 }
 
-async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, routerPort = 20128 }) {
+async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, routerPort = 20128, userTimezone = 'Asia/Ho_Chi_Minh' }) {
   state.installing = true;
   state.installed = false;
   state.lastError = null;
@@ -2576,7 +2584,7 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
     // Make sure Docker is present (auto-install on Linux/VPS) before doing any work — fail fast
     // with a clear message rather than deep inside `docker compose up`.
     await ensureDockerInstalled(osChoice);
-    await writeCoreProject({ projectDir, osChoice, mode, gatewayPort, routerPort });
+    await writeCoreProject({ projectDir, osChoice, mode, gatewayPort, routerPort, userTimezone });
     await run('npm', ['install', '-g', OPENCLAW_NPM_SPEC]);
     await run('npm', ['install', '-g', NINE_ROUTER_NPM_SPEC]);
     if (mode === 'docker') {
@@ -3781,6 +3789,7 @@ async function handler(req, res, rootProjectDir) {
       const body = await readJson(req);
       const osChoice = body.os || detectOs();
       const mode = body.mode || recommendedMode(osChoice);
+      const userTimezone = String(body.userTimezone || '').trim() || 'Asia/Ho_Chi_Minh';
       const projectDir = body.projectDir ? resolve(String(body.projectDir)) : resolve(rootProjectDir, body.projectName || DEFAULT_PROJECT_NAME);
 
       // Auto-allocate unique, free ports to avoid collision (reserving gatewayPort + 1 for Zalo-mod UI)
@@ -3810,7 +3819,7 @@ async function handler(req, res, rootProjectDir) {
       state.gatewayUrl = `http://127.0.0.1:${gatewayPort}`;
       state.routerUrl = `http://127.0.0.1:${routerPort}`;
 
-      installCore({ osChoice, mode, projectDir, gatewayPort, routerPort }).catch(() => {});
+      installCore({ osChoice, mode, projectDir, gatewayPort, routerPort, userTimezone }).catch(() => {});
       state.projectDir = projectDir;
       state.mode = mode;
       state.os = osChoice;
@@ -4193,18 +4202,39 @@ function sshUserName() { try { return os.userInfo().username || 'root'; } catch 
 function isHeadlessServer() {
   return process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY;
 }
+// Kiểm tra nhanh 1 port có đang listen trên host không (tránh forward port chết).
+function isLocalPortListening(port, host = '127.0.0.1', timeout = 400) {
+  return new Promise((resolve) => {
+    const sock = net.connect({ port, host });
+    let settled = false;
+    const done = (v) => { if (!settled) { settled = true; try { sock.destroy(); } catch {} resolve(v); } };
+    sock.setTimeout(timeout);
+    sock.once('connect', () => done(true));
+    sock.once('timeout', () => done(false));
+    sock.once('error', () => done(false));
+  });
+}
 // On a headless server there's no local browser — print an SSH-tunnel command so the
 // operator can reach the dashboard AND the Open-web UIs from their own machine. This is
 // the discoverable answer for ANY user on a VPS (no manual ssh-config knowledge needed).
+// CHỈ forward những port đang THỰC SỰ listen trên host — gateway (18789) / 9Router (20128)
+// thường nằm trong Docker, không bind ra host, nên nếu forward cứng sẽ đẻ ra hàng loạt
+// "channel: open failed: connect failed: Connection refused" vô nghĩa ở phía client.
 async function printRemoteAccessHint(uiPort) {
   if (!isHeadlessServer()) return;
   const ip = (await getPublicIp()) || '<your-server-ip>';
-  const fwd = [uiPort, 18789, 20128, 18790].map((p) => `-L ${p}:127.0.0.1:${p}`).join(' ');
+  // uiPort vừa bind xong nên chắc chắn mở; các port phụ chỉ thêm nếu đang listen.
+  const extras = [];
+  for (const p of [18789, 20128, 18790]) {
+    if (p !== uiPort && await isLocalPortListening(p)) extras.push(p);
+  }
+  const ports = [uiPort, ...extras];
+  const fwd = ports.map((p) => `-L ${p}:127.0.0.1:${p}`).join(' ');
   console.log('');
   console.log('🌐 No local browser detected (server/VPS). Open the UI from YOUR computer:');
   console.log(`   ssh ${fwd} ${sshUserName()}@${ip}`);
   console.log(`   then open:  http://localhost:${uiPort}`);
-  console.log('   (forwards the dashboard + OpenClaw gateway + 9Router + zalo-mod web UIs)');
+  console.log(`   (forwards ${ports.length} live port${ports.length > 1 ? 's' : ''}: ${ports.join(', ')})`);
   console.log('');
 }
 

@@ -547,7 +547,7 @@ _Good luck out there. Make it count._
 - [Operating Manual](./AGENTS.md)`;
   }
 
-  function buildCronjobSkillMd(isVi = true, zaloDeliveryChannel = 'zalo-connect') {
+  function buildCronjobSkillMd(isVi = true, zaloDeliveryChannel = 'zalo-connect', tz = 'Asia/Ho_Chi_Minh') {
     return `---
 name: cronjob
 description: Lên lịch tác vụ định kỳ sử dụng công cụ cron.
@@ -562,18 +562,29 @@ Truyền tham số \`job\` (object) gồm:
 - **\`agentId\`**: Bỏ qua (không truyền). Hệ thống tự gán.
 - **\`sessionTarget\`**: \`"isolated"\` (cho chạy nền) hoặc \`"main"\`.
 - **\`wakeMode\`**: \`"now"\`.
-- **\`schedule\`**:
-  - \`kind\`: \`"cron"\` (lặp lại) hoặc \`"at"\` (một lần).
-  - \`expr\`: Biểu thức cron (ví dụ: \`"0 7 * * *"\`).
-  - \`tz\`: Bắt buộc điền múi giờ, ví dụ: \`"Asia/Ho_Chi_Minh"\`.
+- **\`schedule\`** — chọn 1 trong 2 loại:
+  - **Lặp lại:** \`kind: "cron"\`, \`expr\`: biểu thức cron 5 trường (ví dụ \`"30 7 * * *"\` = 7h30 mỗi ngày), \`tz\`: múi giờ (BẮT BUỘC, ví dụ \`"${tz}"\`).
+  - **Một lần:** \`kind: "at"\`, \`at\`: giờ địa phương + \`tz\` (khuyên dùng), ví dụ \`"at": "2026-07-22T00:30:00", "tz": "${tz}"\`. Cũng có thể dùng \`+duration\` (vd \`"+30m"\`). **KHÔNG tự quy đổi & ghi \`...Z\` (UTC)** — dễ sai ngày.
+    - 🕒 **XÁC ĐỊNH ĐÚNG NGÀY:** "Current time" trong ngữ cảnh đã theo giờ địa phương (\`${tz}\`). Cứ dùng NGÀY đang thấy để suy "hôm nay / tối nay / sáng mai". (Nếu vô tình thấy giờ dạng \`...Z\` UTC thì phải đổi sang \`${tz}\` trước khi suy ngày.)
+    - ✅ Nếu tool báo \`schedule.at is in the past\` → tính sai ngày (thường thiếu 1 ngày). Cộng thêm 1 ngày rồi thử lại; đừng báo lỗi khi chưa tự sửa.
 - **\`payload\`**:
   - \`kind\`: \`"agentTurn"\`.
-  - \`message\`: Nội dung tin nhắn nhắc nhở.
-- **\`delivery\`**:
+  - \`message\`: **NỘI DUNG Y NGUYÊN bot sẽ nói ra** (câu khẳng định), vd \`"Chúc cả nhà ngủ ngon 🌙"\`. ⚠️ KHÔNG viết kiểu mệnh lệnh ("gửi lời chúc tới group ..."). Khi job chạy, \`delivery.announce\` sẽ TỰ gửi nội dung này tới \`to\`. **TUYỆT ĐỐI KHÔNG để job tự gọi tool gửi tin (message/send) — announce đã lo, tự gọi sẽ gây lỗi \`Unknown target\` và "Cron failed".**
+- **\`delivery\`** — 🚨 **BẮT BUỘC điền ĐỦ cả \`channel\` VÀ \`to\`.** Nếu thiếu (hoặc để \`channel: "last"\`), job vẫn tạo được nhưng khi tới giờ sẽ **FAIL lúc giao** với lỗi \`Refusing implicit isolated cron delivery\` → tin KHÔNG tới nhóm:
   - \`mode\`: \`"announce"\`.
-  - \`channel\`: \`"${zaloDeliveryChannel}"\`.
-  - \`to\`: ID người nhận hoặc ID nhóm.
-    - ⚠️ **QUAN TRỌNG:** Nếu gửi tới Group Zalo, ID nhóm bắt buộc phải thêm tiền tố **\`g:\`** ở đầu (Ví dụ: \`g:1925989252066183028\`). Nếu thiếu \`g:\`, tin nhắn sẽ bị gửi nhầm thành tin cá nhân (DM) hoặc lỗi.
+  - \`channel\`: \`"${zaloDeliveryChannel}"\` (KHÔNG để \`"last"\`).
+  - \`to\`: nơi nhận = **ID THÔ (threadId), KHÔNG thêm tiền tố gì**. Group Zalo → dùng thẳng groupId (vd \`"1925989252066183028"\`). DM cá nhân → dùng userId. ⚠️ **TUYỆT ĐỐI KHÔNG thêm \`g:\`** — nếu thêm, zalo-connect báo \`Unknown target "g:..."\` và tin KHÔNG gửi được.
+
+### 📦 Ví dụ job ĐẦY ĐỦ (một lần, giờ địa phương) — tạo RIÊNG 1 job cho MỖI group:
+\`\`\`json
+{
+  "sessionTarget": "isolated",
+  "wakeMode": "now",
+  "schedule": { "kind": "at", "at": "2026-07-22T00:30:00", "tz": "${tz}" },
+  "payload": { "kind": "agentTurn", "message": "Chúc cả nhà ngủ ngon 🌙" },
+  "delivery": { "mode": "announce", "channel": "${zaloDeliveryChannel}", "to": "1925989252066183028" }
+}
+\`\`\`
 
 ## 2. Tìm kiếm, Tắt, Bật, Xóa Lịch
 - **Xem danh sách:** Gọi \`cron\` với action \`list\` (kèm \`includeDisabled: true\`). Tìm \`id\` phù hợp.
@@ -1304,6 +1315,7 @@ Add whatever helps you do your job. This is your cheat sheet.
       hasImageGen = false,
       hasZaloMod = false,
       zaloBackend = 'zalo-connect',
+      userTimezone = 'Asia/Ho_Chi_Minh',
     } = opts;
 
     const isMultiBot = variant === 'relay';
@@ -1330,7 +1342,7 @@ Add whatever helps you do your job. This is your cheat sheet.
     }
 
     if (hasScheduler) {
-      files['skills/cronjob/SKILL.md'] = buildCronjobSkillMd(isVi, 'zalo-connect');
+      files['skills/cronjob/SKILL.md'] = buildCronjobSkillMd(isVi, 'zalo-connect', userTimezone);
     }
 
     if (hasImageGen) {

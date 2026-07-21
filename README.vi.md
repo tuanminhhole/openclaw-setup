@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS — chạy trên Docker, tự cài giúp bạn.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.3-0EA5E9?style=for-the-badge" alt="Version 5.13.3" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.4-0EA5E9?style=for-the-badge" alt="Version 5.13.4" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,11 +37,19 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.13.0
+## 🆕 Có gì mới trong v5.13.4
+
+- ⚙️ **Trang Cài đặt mới**: chọn giao diện (nút gạt Sáng/Tối), ngôn ngữ (VI/EN) và múi giờ ngay trong dashboard — có ở cả sidebar lẫn thanh điều hướng mobile.
+- 🕒 **Lịch & cron chạy đúng giờ địa phương**: bot tạo mới nhận múi giờ rõ ràng, nên nhắc hẹn/cron không còn lệch 1 ngày quanh nửa đêm (lỗi UTC-vs-local có thể đặt lịch vào quá khứ). Đã siết hướng dẫn lập lịch toàn diện (giờ local + múi giờ, nơi gửi rõ ràng, ID nhóm dạng thô).
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.13.0</b></summary>
 
 - 🟢 **Trạng thái Zalo trực tiếp trên từng thẻ bot**: mỗi bot Zalo cá nhân hiển thị riêng trạng thái kết nối và đăng nhập, kèm badge xanh gọn khi đã sẵn sàng.
 - 👥 **Nhận diện đa tài khoản chính xác**: Setup đọc runtime Zalo Connect theo từng tài khoản thật, nên project có nhiều bot Zalo không còn bị gom thành một trạng thái “chưa rõ”.
 - ✨ **Khu điều khiển Zalo gọn hơn**: Làm mới và Đăng nhập lại nằm cùng hàng phía trên danh sách bot; phiên bản Zalo Connect và Zalo Mod được đưa sang cột trạng thái chung.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.12.0</b></summary>

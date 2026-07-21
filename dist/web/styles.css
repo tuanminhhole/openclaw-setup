@@ -112,6 +112,27 @@ html[data-theme="light"] .install-tab{background:#fff;border-color:#e7d9dd;color
 html[data-theme="light"] .install-tab.is-active{background:linear-gradient(135deg,rgba(255,36,54,.12),rgba(255,90,102,.05));border-color:rgba(255,36,54,.55)}
 html[data-theme="light"] .pill-choice{background:#fff;border-color:#e7d9dd;color:#1f1114}
 html[data-theme="light"] .pill-choice.is-active{background:linear-gradient(135deg,rgba(255,36,54,.12),rgba(255,90,102,.05));border-color:rgba(255,36,54,.55)}
+/* ── Settings panel: rows + toggle switch + pill timezone dropdown ── */
+.settings-panel .set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 18px}
+.set-row__label{display:flex;flex-direction:column;gap:3px;min-width:0}
+.set-row__label b{font-size:14px}
+.set-row__label span{color:var(--muted);font-size:12px}
+.switch{position:relative;display:inline-flex;align-items:center;cursor:pointer;flex:none}
+.switch input{position:absolute;opacity:0;width:0;height:0}
+.switch__track{width:46px;height:26px;border-radius:999px;background:var(--surface2);border:1px solid var(--hair);transition:background .2s,border-color .2s;display:inline-flex;align-items:center;padding:2px}
+.switch__knob{width:20px;height:20px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s;transform:translateX(0)}
+.switch input:checked + .switch__track{background:linear-gradient(135deg,var(--primary),var(--soft));border-color:var(--primary)}
+.switch input:checked + .switch__track .switch__knob{transform:translateX(20px);background:#fff}
+.switch input:focus-visible + .switch__track{box-shadow:0 0 0 3px rgba(255,36,54,.3)}
+.tz-select{position:relative;display:inline-flex;align-items:center;flex:none}
+.tz-select select{appearance:none;-webkit-appearance:none;border:1px solid var(--hair);background:var(--surface2);color:var(--ink);border-radius:999px;padding:9px 38px 9px 16px;font-size:13px;font-weight:600;cursor:pointer;min-width:210px;transition:border-color .2s,box-shadow .2s}
+.tz-select select:hover{border-color:var(--soft)}
+.tz-select select:focus{outline:0;border-color:var(--primary);box-shadow:0 0 0 3px rgba(255,36,54,.18)}
+.tz-select__chevron{position:absolute;right:13px;width:16px;height:16px;pointer-events:none;color:var(--muted)}
+html[data-theme="light"] .tz-select select{background:#fff;border-color:#e7d9dd;color:#1f1114}
+html[data-theme="light"] .switch__track{background:#ece3e5;border-color:#e0d2d5}
+html[data-theme="light"] .switch__knob{background:#b9adb0}
+@media(max-width:760px){.settings-panel .set-row{gap:12px}.tz-select select{min-width:150px}}
 @media(max-width:1180px){.sidebar-extra{display:none}}@media(max-width:720px){.donate-grid{grid-template-columns:1fr}.donate-modal{padding:16px;border-radius:18px}.donate-head h2{font-size:26px}}
 
 
@@ -1913,8 +1934,8 @@ main{transition:margin .2s}
 .channel-tabs button.is-coming-soon{opacity:.5;cursor:not-allowed}
 .channel-tabs::-webkit-scrollbar{height:6px}
 .channel-tabs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:999px}
-/* Bottom "native" nav bar: center the 4 items (overrides an earlier repeat(5,1fr) !important rule) */
-.bottom{grid-template-columns:repeat(4,1fr)!important}
+/* Bottom "native" nav bar: 5 items (Dashboard, Cài đặt, Bot, Nhật ký, Tùy chỉnh) */
+.bottom{grid-template-columns:repeat(5,1fr)!important}
 /* Tablet/mobile bot page: stop horizontal overflow so .channel-tabs scrolls instead of stretching the layout */
 .bot-page,.bot-top-row,.bot-main,.bot-main-content,.bot-projects-and-bots,.bot-side-col,.bot-list{min-width:0}
 @media(max-width:1180px){.bot-top-row{grid-template-columns:minmax(0,1fr)}}

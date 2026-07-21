@@ -1,6 +1,15 @@
 # Changelog (English)
 
 
+## [5.13.4] — 2026-07-22
+
+### Added
+- **Settings page in the dashboard.** A new "Settings" section (sidebar + mobile nav) to pick the theme (light/dark toggle), language (VI/EN) and timezone. The chosen timezone is applied to newly created bots.
+
+### Fixed
+- **Schedules & cron now run in the correct local time.** New bots carry an explicit `userTimezone`, so the agent resolves "today / tonight / tomorrow" in local time instead of UTC. Previously, scheduling around midnight could land a day off (in the past) and silently fail. The scheduling skill was also hardened: local time + timezone (never manual UTC), delivery must set channel + recipient explicitly, and group recipients use the raw thread id (no prefix).
+
+
 ## [5.13.3] — 2026-07-21
 
 ### 🔧 Fixes: Auto-update Launcher Version

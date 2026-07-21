@@ -1,5 +1,5 @@
 const $ = (sel) => document.querySelector(sel);
-const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'docker', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, zaloBackend: '', zaloHealth: null, openDirs: {} };
+const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', tz: localStorage.getItem('openclaw-tz') || 'Asia/Ho_Chi_Minh', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'docker', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, zaloBackend: '', zaloHealth: null, openDirs: {} };
 const SVG_CDN = 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons';
 const OS_OPTIONS = [
   { id: 'win', title: 'Windows', subtitle: 'Auto-detected desktop', icon: `${SVG_CDN}/windows/default.svg`, badge: 'Desktop' },
@@ -86,7 +86,8 @@ function icon(name) {
     bot: 'M7 8h10v8H7z M9 4h6v4H9z M9 11h.01M15 11h.01M10 16h4',
     files: 'M6 3h8l4 4v14H6z M14 3v5h5 M9 13h6 M9 17h6',
     skills: 'M12 2l2.4 6.8H22l-6 4.4 2.3 6.8-6.3-4.2L5.7 20 8 13.2 2 8.8h7.6z',
-    logs: 'M4 6h16M4 12h16M4 18h10'
+    logs: 'M4 6h16M4 12h16M4 18h10',
+    settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.7 7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9.5A1.7 1.7 0 0 0 10.5 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z'
   };
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="${paths[name]}"/></svg>`;
 }
@@ -247,7 +248,10 @@ function ui(key) {
     next:['Ti\u1ebfp theo','Next'], nextDesc:['S\u1eeda file nh\u1eadn di\u1ec7n, sau \u0111\u00f3 c\u00e0i k\u1ef9 n\u0103ng/plugin.','Edit identity files, then install skills/plugins.'], openFiles:['M\u1edf t\u1ec7p','Open files'],
     save:['L\u01b0u','Save'], saved:['\u0110\u00e3 l\u01b0u','Saved'], noFiles:['Ch\u01b0a c\u00f3 file markdown. H\u00e3y ch\u1ea1y c\u00e0i \u0111\u1eb7t tr\u01b0\u1edbc.','No markdown files yet. Run install first.'],
     nativeCap:['N\u0103ng l\u1ef1c native','native capability'], plugins:['Plugins','Plugins'], installVerb:['C\u00e0i \u0111\u1eb7t','Install'],
-    desktop:['M\u00e1y b\u00e0n','Desktop'], server:['M\u00e1y ch\u1ee7','Server'], recommended:['Khuy\u00ean d\u00f9ng','Recommended'], advanced:['N\u00e2ng cao','Advanced']
+    desktop:['M\u00e1y b\u00e0n','Desktop'], server:['M\u00e1y ch\u1ee7','Server'], recommended:['Khuy\u00ean d\u00f9ng','Recommended'], advanced:['N\u00e2ng cao','Advanced'],
+    settings:['T\u00f9y ch\u1ec9nh','Settings'], appearance:['Giao di\u1ec7n','Appearance'], darkMode:['Ch\u1ebf \u0111\u1ed9 t\u1ed1i','Dark mode'], language:['Ng\u00f4n ng\u1eef','Language'], timezone:['M\u00fai gi\u1edd','Timezone'],
+    settingsDesc:['T\u00f9y ch\u1ec9nh giao di\u1ec7n, ng\u00f4n ng\u1eef v\u00e0 m\u00fai gi\u1edd. M\u00fai gi\u1edd \u0111\u01b0\u1ee3c d\u00f9ng cho bot t\u1ea1o m\u1edbi (l\u1ecbch/cron ch\u1ea1y \u0111\u00fang gi\u1edd \u0111\u1ecba ph\u01b0\u01a1ng).','Customize appearance, language and timezone. The timezone is applied to newly created bots (so schedules/cron run in local time).'],
+    tzHint:['\u00c1p d\u1ee5ng cho bot t\u1ea1o m\u1edbi','Applied to newly created bots']
   }[key] || [key,key];
   return t(m[0], m[1]);
 }
@@ -408,7 +412,7 @@ function render() {
   // Expose the active tab on <body> so CSS can drop the redundant page-title header on the
   // dashboard (the dashboard hero already carries its own title).
   document.body.dataset.activeTab = state.tab;
-  const tabs = [['dashboard',t('Dashboard','Dashboard')],['setup',ui('setup')],['bot',ui('bot')],['logs',ui('logs')]];
+  const tabs = [['dashboard',t('Dashboard','Dashboard')],['setup',ui('setup')],['bot',ui('bot')],['logs',ui('logs')],['settings',ui('settings')]];
   
   let mainContainer = $('#app-main-content');
   if (!mainContainer) {
@@ -595,14 +599,64 @@ function wireSkillsHandlers(scope = document) {
 }
 
 function title() {
-  return { dashboard: t('Dashboard vận hành','Operations dashboard'), setup: t('C\u00e0i OpenClaw trong v\u00e0i ph\u00fat', 'Install OpenClaw in minutes'), bot: t('B\u1ea3ng \u0111i\u1ec1u khi\u1ec3n bot','Bot dashboard'), skills: t('K\u1ef9 n\u0103ng & plugins','Skills & plugins'), logs: t('Nh\u1eadt k\u00fd c\u00e0i \u0111\u1eb7t','Install logs') }[state.tab];
+  return { dashboard: t('Dashboard vận hành','Operations dashboard'), setup: t('C\u00e0i OpenClaw trong v\u00e0i ph\u00fat', 'Install OpenClaw in minutes'), bot: t('B\u1ea3ng \u0111i\u1ec1u khi\u1ec3n bot','Bot dashboard'), skills: t('K\u1ef9 n\u0103ng & plugins','Skills & plugins'), logs: t('Nh\u1eadt k\u00fd c\u00e0i \u0111\u1eb7t','Install logs'), settings: ui('settings') }[state.tab] || '';
 }
 
 function content() {
   if (state.tab === 'dashboard') return dashboardView();
   if (state.tab === 'setup') return setupView();
   if (state.tab === 'bot') return botView();
+  if (state.tab === 'settings') return settingsView();
     return `<div class="log-toolbar"><button class="copy-log" data-copy-log type="button" aria-label="Copy logs">${copyIcon()} ${t('Copy log','Copy log')}</button></div><div class="terminal big">${state.logs.map(l=>`<p>${escapeHtml(l)}</p>`).join('')}</div>`;
+}
+
+// Danh sách múi giờ phổ biến (IANA) cho dropdown pill. Gọn — đủ dùng cho khu vực chính.
+const TZ_OPTIONS = [
+  ['Asia/Ho_Chi_Minh', 'Việt Nam (UTC+7)'],
+  ['Asia/Bangkok', 'Bangkok (UTC+7)'],
+  ['Asia/Jakarta', 'Jakarta (UTC+7)'],
+  ['Asia/Singapore', 'Singapore (UTC+8)'],
+  ['Asia/Kuala_Lumpur', 'Kuala Lumpur (UTC+8)'],
+  ['Asia/Manila', 'Manila (UTC+8)'],
+  ['Asia/Shanghai', 'Trung Quốc (UTC+8)'],
+  ['Asia/Tokyo', 'Tokyo (UTC+9)'],
+  ['Asia/Seoul', 'Seoul (UTC+9)'],
+  ['Asia/Kolkata', 'Ấn Độ (UTC+5:30)'],
+  ['Asia/Dubai', 'Dubai (UTC+4)'],
+  ['Australia/Sydney', 'Sydney (UTC+10/+11)'],
+  ['Europe/London', 'London (UTC+0/+1)'],
+  ['Europe/Paris', 'Paris (UTC+1/+2)'],
+  ['America/New_York', 'New York (UTC-5/-4)'],
+  ['America/Los_Angeles', 'Los Angeles (UTC-8/-7)'],
+  ['UTC', 'UTC'],
+];
+
+function settingsView() {
+  const tzKnown = TZ_OPTIONS.some(([id]) => id === state.tz);
+  const tzOpts = (tzKnown ? TZ_OPTIONS : [[state.tz, state.tz], ...TZ_OPTIONS])
+    .map(([id, label]) => `<option value="${id}" ${state.tz === id ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('');
+  return `<div class="panel settings-panel">
+    <p class="lead" style="margin-bottom:22px">${ui('settingsDesc')}</p>
+    <div class="grid" style="max-width:640px">
+      <div class="card set-row">
+        <div class="set-row__label"><b>${ui('appearance')}</b><span>${t('Bật để dùng nền tối','Toggle for dark background')}</span></div>
+        <label class="switch" title="${ui('darkMode')}">
+          <input type="checkbox" data-pref-switch="theme" ${state.theme === 'dark' ? 'checked' : ''} aria-label="${ui('darkMode')}">
+          <span class="switch__track"><span class="switch__knob"></span></span>
+        </label>
+      </div>
+      <div class="card set-row">
+        <div class="set-row__label"><b>${ui('language')}</b><span>${t('Ngôn ngữ hiển thị của trình cài đặt','Installer display language')}</span></div>
+        ${toggleGroup('lang', state.lang, [['vi','VI'],['en','EN']])}
+      </div>
+      <div class="card set-row">
+        <div class="set-row__label"><b>${ui('timezone')}</b><span>${ui('tzHint')}</span></div>
+        <div class="tz-select"><select id="tz-select" aria-label="${ui('timezone')}">${tzOpts}</select>
+          <svg class="tz-select__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>`;
 }
 
 function dashboardView() {
@@ -1126,8 +1180,16 @@ function wireTab() {
     localStorage.setItem('openclaw-'+btn.dataset.pref, btn.dataset.value); 
     const main = $('#app-main-content');
     if (main) main.remove();
-    render(); 
+    render();
   });
+  document.querySelectorAll('[data-pref-switch]').forEach(sw => sw.onchange = () => {
+    const pref = sw.dataset.prefSwitch;
+    const val = pref === 'theme' ? (sw.checked ? 'dark' : 'light') : (sw.checked ? 'on' : 'off');
+    state[pref] = val;
+    localStorage.setItem('openclaw-' + pref, val);
+    applyPrefs();
+  });
+  { const tzSel = $('#tz-select'); if (tzSel) tzSel.onchange = () => { state.tz = tzSel.value; localStorage.setItem('openclaw-tz', tzSel.value); }; }
   document.querySelectorAll('[data-tab-jump]').forEach(btn => btn.onclick = () => { state.tab = btn.dataset.tabJump; render(); });
   document.querySelectorAll('input[name=os]').forEach(i => i.onchange = () => { state.os = i.value; document.querySelectorAll('input[name=os]').forEach(x => x.closest('.choice-card')?.classList.toggle('is-selected', x.checked)); });
   document.querySelectorAll('input[name=mode]').forEach(i => i.onchange = () => { state.mode = i.value; document.querySelectorAll('input[name=mode]').forEach(x => x.closest('.choice-card')?.classList.toggle('is-selected', x.checked)); });
@@ -1393,6 +1455,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
         os: form.querySelector('[name="os"]')?.value || state.installDraft?.os || state.os,
         mode: form.querySelector('[name="mode"]')?.value || state.installTab || state.installDraft?.mode || state.mode,
         projectDir: form.querySelector('[name=\"projectDir\"]')?.value || '',
+        userTimezone: state.tz,
       };
       if (!body.projectDir) throw new Error(t('Chưa có đường dẫn project','Missing project path'));
       await api('/api/install', { method: 'POST', body });
@@ -1429,6 +1492,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     const body = Object.fromEntries(fd.entries());
     body.projectDir = activeProjectDir();
     body.channel = state.botChannel || 'telegram';
+    body.userTimezone = state.tz;
     if (body.channel === 'zalo-personal') {
       state.botModalOpen = false;
       state.zaloLoginOpen = true;

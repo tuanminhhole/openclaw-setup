@@ -75,6 +75,7 @@
       osChoice = '',
       selectedModel = '',
       routerPort,
+      userTimezone = 'Asia/Ho_Chi_Minh',
     } = opts;
 
     const common = _common;
@@ -108,6 +109,10 @@
       agents: {
         defaults: {
           model: { primary: model, fallbacks: [] },
+          // Giờ địa phương agent nhìn thấy trong prompt ("Current time: … (tz)"). Nếu để trống,
+          // OpenClaw fallback UTC → agent hiểu "hôm nay/tối nay" theo ngày UTC, lệch 1 ngày quanh
+          // nửa đêm và đặt cron/lịch vào quá khứ. Lấy tz người dùng chọn ở UI Cài đặt (mặc định VN).
+          userTimezone,
           compaction: { mode: 'safeguard' },
           // Trim stale tool results before Anthropic's prompt-cache TTL expires so the
           // re-cache write stays small → lower token cost on long sessions, zero downside.
