@@ -1,6 +1,13 @@
 # Changelog (English)
 
 
+## [5.13.8] — 2026-07-22
+
+### 🔧 Fixes: Auto-update Launcher Version
+
+- **Fix: Cached Launcher Out-of-Sync**: Automatically detects if the running launcher (e.g. downloaded via `npx`) has a newer/different version than the cached installation inside `~/.openclaw-setup`, and automatically triggers an upgrade to match.
+
+
 ## [5.13.4] — 2026-07-22
 
 ### Added

@@ -1465,12 +1465,19 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     cfg.bindings.push({ agentId, match: { channel: 'telegram', accountId } });
     await appendEnvValue(projectDir, accountId === 'default' ? 'TELEGRAM_BOT_TOKEN' : `TELEGRAM_BOT_TOKEN_${agentId.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}`, token);
   } else if (channel === 'zalo-personal') {
-    const existingZaloConnectBindings = cfg.bindings.filter((b) => b.match?.channel === 'zalo-connect').length;
-    if (existingZaloConnectBindings > 0) {
-      throw httpError(400, 'OpenClaw Zalo Connect hiện hỗ trợ 1 tài khoản Zalo mỗi project. Hãy dùng bot Zalo hiện có hoặc tạo project riêng cho tài khoản thứ hai.');
-    }
     ensureZaloConnectChannel(cfg);
-    accountId = 'default';
+    // zalo-connect (fork ≥3.0) is genuinely multi-account: API clients, stored
+    // credentials and QR login are all keyed by accountId. So multiple Zalo
+    // numbers can coexist in one project (mirrors Telegram): the first Zalo bot
+    // uses 'default', each additional one gets its own account keyed by agentId.
+    // Each new account still needs its own QR login (startZaloLogin reads the
+    // accountId from this binding).
+    const existingZaloConnectBindings = cfg.bindings.filter((b) => b.match?.channel === 'zalo-connect').length;
+    accountId = existingZaloConnectBindings === 0 ? 'default' : agentId;
+    const zc = cfg.channels['zalo-connect'];
+    zc.accounts = zc.accounts || {};
+    zc.accounts[accountId] = zc.accounts[accountId] || { enabled: true };
+    zc.defaultAccount = zc.defaultAccount || 'default';
     cfg.bindings.push({ agentId, match: { channel: 'zalo-connect', accountId } });
   } else if (channel === 'fb-messenger') {
     // Token handling (user token → permanent Page token) is done by the fb-messenger
