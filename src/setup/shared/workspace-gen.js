@@ -567,15 +567,26 @@ Truyền tham số \`job\` (object) gồm:
   - **Một lần:** \`kind: "at"\`, \`at\`: giờ địa phương + \`tz\` (khuyên dùng), ví dụ \`"at": "2026-07-22T00:30:00", "tz": "${tz}"\`. Cũng có thể dùng \`+duration\` (vd \`"+30m"\`). **KHÔNG tự quy đổi & ghi \`...Z\` (UTC)** — dễ sai ngày.
     - 🕒 **XÁC ĐỊNH ĐÚNG NGÀY:** "Current time" trong ngữ cảnh đã theo giờ địa phương (\`${tz}\`). Cứ dùng NGÀY đang thấy để suy "hôm nay / tối nay / sáng mai". (Nếu vô tình thấy giờ dạng \`...Z\` UTC thì phải đổi sang \`${tz}\` trước khi suy ngày.)
     - ✅ Nếu tool báo \`schedule.at is in the past\` → tính sai ngày (thường thiếu 1 ngày). Cộng thêm 1 ngày rồi thử lại; đừng báo lỗi khi chưa tự sửa.
-- **\`payload\`**:
-  - \`kind\`: \`"agentTurn"\`.
-  - \`message\`: **NỘI DUNG Y NGUYÊN bot sẽ nói ra** (câu khẳng định), vd \`"Chúc cả nhà ngủ ngon 🌙"\`. ⚠️ KHÔNG viết kiểu mệnh lệnh ("gửi lời chúc tới group ..."). Khi job chạy, \`delivery.announce\` sẽ TỰ gửi nội dung này tới \`to\`. **TUYỆT ĐỐI KHÔNG để job tự gọi tool gửi tin (message/send) — announce đã lo, tự gọi sẽ gây lỗi \`Unknown target\` và "Cron failed".**
-- **\`delivery\`** — 🚨 **BẮT BUỘC điền ĐỦ cả \`channel\` VÀ \`to\`.** Nếu thiếu (hoặc để \`channel: "last"\`), job vẫn tạo được nhưng khi tới giờ sẽ **FAIL lúc giao** với lỗi \`Refusing implicit isolated cron delivery\` → tin KHÔNG tới nhóm:
-  - \`mode\`: \`"announce"\`.
+- **\`payload\`**: \`{ "kind": "agentTurn", "message": "<chỉ dẫn/nội dung>" }\`.
+  - \`message\` là chỉ dẫn để agent **SINH RA nội dung sẽ gửi** — có thể là câu cố định (\`"Chúc cả nhà ngủ ngon 🌙"\`) hoặc yêu cầu tạo mới mỗi lần (\`"Viết một lời chúc buổi sáng mới, tích cực, không lặp lại"\`). **Phần trả lời của agent CHÍNH LÀ tin được gửi.**
+  - ⛔ **KHÔNG** viết kiểu mệnh lệnh gửi ("dùng tool ... gửi tới group ...", "gửi tin tới groupId ..."). ⛔ **KHÔNG** để job tự gọi tool gửi tin (message/send/zalo-connect). Việc gửi là do \`delivery.announce\` lo — tự gọi sẽ lỗi \`Unknown target\` / "Cron failed".
+- **\`delivery\`** — 🚨 **BẮT BUỘC** cho tin gửi tới người/nhóm. Isolated job reset routing mỗi lần chạy, nên phải ghi rõ \`channel\` + \`to\`; thiếu → lỗi \`Refusing implicit isolated cron delivery\` (không gửi được):
+  - \`mode\`: \`"announce"\`. ⛔ **KHÔNG dùng \`"none"\`** — job vẫn chạy "ok" nhưng KHÔNG gửi gì (đây là bẫy thường gặp).
   - \`channel\`: \`"${zaloDeliveryChannel}"\` (KHÔNG để \`"last"\`).
-  - \`to\`: nơi nhận = **ID THÔ (threadId), KHÔNG thêm tiền tố gì**. Group Zalo → dùng thẳng groupId (vd \`"1925989252066183028"\`). DM cá nhân → dùng userId. ⚠️ **TUYỆT ĐỐI KHÔNG thêm \`g:\`** — nếu thêm, zalo-connect báo \`Unknown target "g:..."\` và tin KHÔNG gửi được.
+  - \`to\`: **ID THÔ, KHÔNG tiền tố**. Group Zalo → groupId thẳng (vd \`"1925989252066183028"\`); DM → userId. ⚠️ **KHÔNG thêm \`g:\`** (sẽ lỗi \`Unknown target "g:..."\`).
 
-### 📦 Ví dụ job ĐẦY ĐỦ (một lần, giờ địa phương) — tạo RIÊNG 1 job cho MỖI group:
+### 📦 Ví dụ A — LẶP LẠI (chúc buổi sáng 9:05 mỗi ngày cho 1 nhóm):
+\`\`\`json
+{
+  "sessionTarget": "isolated",
+  "wakeMode": "now",
+  "schedule": { "kind": "cron", "expr": "5 9 * * *", "tz": "${tz}" },
+  "payload": { "kind": "agentTurn", "message": "Viết MỘT lời chúc buổi sáng MỚI mỗi ngày, tích cực, ấm áp, lịch sự, không lặp lại. Chỉ trả về đúng nội dung lời chúc." },
+  "delivery": { "mode": "announce", "channel": "${zaloDeliveryChannel}", "to": "1228185345777623323" }
+}
+\`\`\`
+
+### 📦 Ví dụ B — MỘT LẦN (giờ địa phương) — mỗi group 1 job riêng:
 \`\`\`json
 {
   "sessionTarget": "isolated",
