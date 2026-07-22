@@ -608,6 +608,51 @@ Truyền tham số \`job\` (object) gồm:
   \`openclaw cron run <job_id> --wait\` (hoặc gọi tool \`cron\` với action \`run\` kèm \`id\`).`;
   }
 
+  function buildZaloActionsSkillMd(isVi = true, zaloDeliveryChannel = 'zalo-connect') {
+    return `---
+name: zalo-actions
+description: Hành động Zalo phong phú qua tool ${zaloDeliveryChannel} — sticker, thả cảm xúc, bình chọn, ghi chú, nhắc hẹn, media, quản trị nhóm.
+---
+
+# 💬 Hành động Zalo (tool: \`${zaloDeliveryChannel}\`)
+
+Ngoài gửi text, tool \`${zaloDeliveryChannel}\` có ~149 action. Gọi bằng: tool \`${zaloDeliveryChannel}\` với \`{ "action": "<tên>", ... }\`. Cứ chủ động dùng khi phù hợp (user xin sticker, cần bình chọn, nhắc hẹn, ghim ghi chú...).
+
+## Quy tắc chung
+- **\`threadId\`** = nơi gửi. Trong GROUP hiện tại → dùng **groupId THÔ** (KHÔNG tiền tố \`g:\`) kèm **\`isGroup: true\`**. DM cá nhân → \`threadId\` = userId, \`isGroup: false\`.
+- Làm xong thì trả lời ngắn gọn cho user, KHÔNG dán JSON/kết quả thô.
+
+## 🎨 Sticker — \`send-sticker\`
+- Dễ nhất (theo từ khoá, tool tự tìm & gửi): \`{ "action": "send-sticker", "threadId": "<groupId>", "isGroup": true, "keyword": "chào buổi sáng" }\`.
+- Chỉ định cụ thể: thêm \`"stickerId"\` + \`"stickerCateId"\` (thay cho \`keyword\`).
+
+## 😀 Thả cảm xúc — \`add-reaction\`
+- \`{ "action": "add-reaction", "msgId": "<id tin nhắn>", "icon": "heart" }\` — \`icon\`: heart / like / haha / wow / cry / angry.
+
+## 📊 Bình chọn — \`create-poll\`
+- \`{ "action": "create-poll", "threadId": "<groupId>", "isGroup": true, "title": "Câu hỏi?", "options": ["A","B"], "allowMultiChoices": false }\`.
+
+## 📌 Ghi chú ghim — \`create-note\`
+- \`{ "action": "create-note", "threadId": "<groupId>", "isGroup": true, "title": "Nội dung ghi chú" }\`.
+
+## ⏰ Nhắc hẹn nhóm — \`create-reminder\`
+- \`{ "action": "create-reminder", "threadId": "<groupId>", "isGroup": true, "title": "...", "startTime": <epoch ms>, "repeat": 0 }\` (repeat: 0 không lặp / 1 ngày / 2 tuần / 3 tháng). Lịch định kỳ kiểu cron → dùng skill \`cronjob\`.
+
+## 🖼️ Media
+- Ảnh: \`send-image\` \`{threadId,isGroup,url}\` · Video: \`send-video\` \`{threadId,isGroup,url,thumbnailUrl?}\` · Voice: \`send-voice\` \`{threadId,isGroup,voiceUrl}\` · File: \`send-file\` \`{threadId,isGroup,filePath}\` · Link preview: \`send-link\` \`{threadId,isGroup,url}\`.
+
+## ↪️ Chuyển tiếp / thu hồi / xoá
+- \`forward-message\` \`{msgId, threadIds:["<đích>"]}\` · \`undo-message\` (thu hồi tin của bot) · \`delete-message\` \`{msgId, threadId, onlyMe?}\`.
+
+## 🛠️ Quản trị nhóm (bot phải là admin)
+- \`add-group-admin\` / \`remove-group-admin\` \`{groupId,userId}\` · \`rename-group\` \`{groupId,groupName}\` · \`change-group-owner\` \`{groupId,userId}\` · \`invite-to-groups\` \`{userId, groupIds:[...]}\` · \`update-group-settings\` \`{groupId, groupSettings:{...}}\` · link nhóm: \`enable-group-link\`/\`disable-group-link\`/\`get-group-link\` \`{groupId}\`.
+
+## 📎 Hội thoại
+- Ghim: \`pin-conversation\` \`{threadId}\` · Tắt báo: \`mute-conversation\` \`{threadId, duration:-1}\` (giây, -1 = mãi) · Đang gõ "…": \`send-typing\` \`{threadId,isGroup}\`.
+
+> Còn nhiều action khác (tìm bạn, QR, catalog/sản phẩm, auto-reply, quick message, poll nâng cao, mã hoá tin tự huỷ...). Xem mô tả từng \`action\` + tham số ngay trong schema của tool \`${zaloDeliveryChannel}\`.`;
+  }
+
   function buildInfographicGeneratorSkillMd(botName = 'Williams') {
     return '';
   }
@@ -1354,6 +1399,10 @@ Add whatever helps you do your job. This is your cheat sheet.
 
     if (hasScheduler) {
       files['skills/cronjob/SKILL.md'] = buildCronjobSkillMd(isVi, 'zalo-connect', userTimezone);
+    }
+
+    if (hasZaloMod) {
+      files['skills/zalo-actions/SKILL.md'] = buildZaloActionsSkillMd(isVi, 'zalo-connect');
     }
 
     if (hasImageGen) {
