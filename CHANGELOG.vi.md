@@ -3,9 +3,11 @@
 
 ## [5.13.8] — 2026-07-22
 
-### 🔧 Sửa lỗi: Tự động cập nhật phiên bản Launcher
+### Sửa lỗi
 
-- **Sửa lỗi: Lệch phiên bản cache Launcher**: Tự động phát hiện nếu launcher đang chạy (tải qua `npx`) có phiên bản mới hơn hoặc khác với bản đang cache trong `~/.openclaw-setup` và tự nâng cấp tương ứng.
+- **Trả lời bị double trong group Zalo.** Agent có thể gửi câu trả lời hai lần — một qua tool `message` (send) và một qua native reply, kèm lộ câu trạng thái nội bộ ("đã xử lý xong…", `NO_REPLY`). AGENTS.md nay yêu cầu agent chỉ trả lời bằng text thường (gửi đúng 1 lần, kèm mention/quote), KHÔNG tự gọi send để trả lời và KHÔNG viết câu trạng thái/`NO_REPLY`.
+- **Nhiều tài khoản Zalo mỗi project.** Tạo bot Zalo thứ 2 trở lên trong cùng project nay hoạt động — mỗi bot Zalo thêm có account riêng (theo agent id) với QR login riêng, thay vì bị chặn. zalo-connect (fork ≥3.0) hỗ trợ đa tài khoản thật.
+- **Lệch phiên bản cache Launcher**: tự phát hiện khi launcher đang chạy (qua `npx`) khác bản cache trong `~/.openclaw-setup` và tự nâng cấp cho khớp.
 
 
 ## [5.13.4] — 2026-07-22

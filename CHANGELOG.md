@@ -3,9 +3,11 @@
 
 ## [5.13.8] — 2026-07-22
 
-### 🔧 Fixes: Auto-update Launcher Version
+### Fixed
 
-- **Fix: Cached Launcher Out-of-Sync**: Automatically detects if the running launcher (e.g. downloaded via `npx`) has a newer/different version than the cached installation inside `~/.openclaw-setup`, and automatically triggers an upgrade to match.
+- **Duplicate/double replies in Zalo groups.** The agent could send its answer twice — once via the `message` send tool and again via the native reply, leaking an internal "done" status line (`NO_REPLY`). AGENTS.md now tells the agent to reply with plain text only (delivered exactly once, with mention/quote) and never to self-send to reply or emit status/`NO_REPLY` lines.
+- **Multiple Zalo accounts per project.** Adding a second (or more) Zalo bot to a project now works — each extra Zalo bot gets its own account (keyed by agent id) with its own QR login, instead of being blocked. zalo-connect (fork ≥3.0) is genuinely multi-account.
+- **Cached launcher out-of-sync**: auto-detects when the running launcher (e.g. via `npx`) differs from the cached install in `~/.openclaw-setup` and upgrades to match.
 
 
 ## [5.13.4] — 2026-07-22
