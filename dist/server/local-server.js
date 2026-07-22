@@ -1754,10 +1754,8 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
     if (!gatewayReady) {
       const check = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', '[ -d "${OPENCLAW_HOME:-/home/node/project/.openclaw}/extensions/zalo-connect" ] && echo OK || echo MISSING'], { cwd: projectDir, shell: false }).catch(() => ({ stdout: 'ERR' }));
       if (String(check.stdout || '').trim() === 'MISSING') {
-        sendLog(`[zalo-connect] Plugin missing — installing pinned ${ZALO_CONNECT_PLUGIN_SPEC}...`);
-        const repo = String(ZALO_CONNECT_PLUGIN_SPEC).split('#')[0];
-        const ref = String(ZALO_CONNECT_PLUGIN_SPEC).split('#')[1] || ZALO_CONNECT_VERSION;
-        const installCmd = `tmp=/tmp/openclaw-plugin-zalo-connect-${ref}; rm -rf "$tmp"; git clone --depth 1 --branch "${ref}" "${repo}" "$tmp" && rm -rf "$tmp/.git" && cd /home/node/project && openclaw plugins install "$tmp" 2>&1`;
+        sendLog(`[zalo-connect] Plugin missing — installing ${ZALO_CONNECT_PLUGIN_SPEC}...`);
+        const installCmd = `cd /home/node/project && openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force --acknowledge-clawhub-risk 2>&1`;
         const inst = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', installCmd], { cwd: projectDir, shell: false });
         const instOut = `${inst.stdout}\n${inst.stderr}`;
         for (const line of instOut.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
@@ -3343,19 +3341,17 @@ async function installFeature(projectDir, agentId, kind, id) {
   }
 
   if (kind === 'plugin') {
-    // zalo-connect is a GIT-pinned fork (not a ClawHub package) — install/update it by cloning the
-    // pinned tag inside the container (same as first-boot/login). Powers the dashboard "Update"
-    // button so existing Zalo bots can upgrade to the pinned version (bump the pin in common-gen.js).
+    // zalo-connect ships on ClawHub (package `openclaw-zalo-connect`) — install/update via
+    // clawhub:latest like other plugins, so the dashboard "Update" button always fetches the newest
+    // published version (no tag pin to bump each release).
     if (id === 'zalo-connect' || id === 'openclaw-zalo-connect') {
       let composeDir = null;
       if (existsSync(join(projectDir, 'docker-compose.yml'))) composeDir = projectDir;
       else if (existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'))) composeDir = join(projectDir, 'docker', 'openclaw');
-      const repo = String(ZALO_CONNECT_PLUGIN_SPEC).split('#')[0];
-      const ref = String(ZALO_CONNECT_PLUGIN_SPEC).split('#')[1] || ZALO_CONNECT_VERSION;
       if (composeDir) {
         const botContainer = getBotContainerName(projectDir);
-        sendLog(`[zalo-connect] Installing/updating pinned ${ref} inside ${botContainer}...`);
-        const cmd = `tmp=/tmp/openclaw-plugin-zalo-connect-${ref}; rm -rf "$tmp"; git clone --depth 1 --branch "${ref}" "${repo}" "$tmp" && rm -rf "$tmp/.git" && cd /home/node/project && openclaw plugins install "$tmp" --force 2>&1`;
+        sendLog(`[zalo-connect] Installing/updating ${ZALO_CONNECT_PLUGIN_SPEC} inside ${botContainer}...`);
+        const cmd = `cd /home/node/project && openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force --acknowledge-clawhub-risk 2>&1`;
         const out = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
         if (out) for (const line of `${out.stdout}\n${out.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
         const okDir = existsSync(join(projectDir, '.openclaw', 'extensions', 'zalo-connect'));

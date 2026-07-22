@@ -1096,7 +1096,7 @@ function botSkillsPanel() {
     let toggleHtml = '';
     const secs = [];
     if (isInstalled) {
-      toggleHtml = `<label class="feature-switch" title="${locked ? t('Bắt buộc cho bot Zalo — không thể tắt','Required for Zalo bots — cannot be disabled') : ''}"><input type="checkbox" data-feature-toggle="${key}" ${(flags[key] || locked) ? 'checked' : ''} ${(loading || locked) ? 'disabled' : ''}/><span></span></label>${locked ? `<span title="${t('Đã khoá','Locked')}" style="margin-left:6px;opacity:.55;font-size:12px;">🔒</span>` : ''}`;
+      toggleHtml = `<label class="feature-switch" title="${locked ? t('Bắt buộc cho bot Zalo — không thể tắt','Required for Zalo bots — cannot be disabled') : ''}"${locked ? ' style="opacity:.4;pointer-events:none;cursor:not-allowed;"' : ''}><input type="checkbox" data-feature-toggle="${key}" ${(flags[key] || locked) ? 'checked' : ''} ${(loading || locked) ? 'disabled' : ''}/><span></span></label>`;
       if (item.openWebPort) {
         secs.push(`<a class="secondary icon-btn2" href="${sameHostUrl('', item.openWebPort)}${item.openWebPath || ''}" target="_blank" rel="noopener" title="${t('Mở dashboard của plugin','Open the plugin dashboard')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px;">${actionIcon('link')}<span>${t('Mở web','Open')}</span></a>`);
       }

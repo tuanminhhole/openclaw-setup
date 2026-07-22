@@ -316,11 +316,11 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     runtimeParts.push(`node - <<'NODE'\n${restoreConfigScript}\nNODE`);
     runtimeParts.push(`node - <<'NODE'\n${securityCompatScript}\nNODE`);
     if (zaloBackend === 'zalo-connect') {
-      // Pinned ZaloConnect install (never `latest` — plan §4.1). ensure_plugin skips the
-      // install when extensions/zalo-connect already exists, so restarts never re-download
-      // and a reconnect never reinstalls. No dist patching, no mentions.js, no watchdog
-      // hacks: sticker/mention/reaction are native ZaloConnect actions.
-      const zaloConnectSpec = common.ZALO_CONNECT_PLUGIN_SPEC || 'https://github.com/tuanminhhole/openclaw-zalo-connect.git#v3.0.1';
+      // ZaloConnect install from ClawHub (latest). ensure_plugin skips when extensions/zalo-connect
+      // already exists, so restarts never re-download; the "Update" button in the dashboard fetches
+      // newer versions. No dist patching, no mentions.js, no watchdog: sticker/mention/reaction are
+      // native ZaloConnect actions.
+      const zaloConnectSpec = common.ZALO_CONNECT_PLUGIN_SPEC || 'clawhub:openclaw-zalo-connect';
       runtimeParts.push(`ensure_plugin zalo-connect "${zaloConnectSpec}"`);
     }
     runtimeParts.push('openclaw gateway run');
