@@ -3073,7 +3073,12 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
 
   const k = `${kind}:${id}`;
 
-
+  // zalo-connect is required by any Zalo bot — refuse to disable it while a Zalo binding exists
+  // (the UI also locks the toggle; this is the backend guard).
+  if (kind === 'plugin' && (id === 'zalo-connect' || id === 'openclaw-zalo-connect') && !enabled) {
+    const hasZaloBot = (cfg.bindings || []).some((b) => b?.match?.channel === 'zalo-connect');
+    if (hasZaloBot) throw httpError(400, 'Không thể tắt Zalo Connect khi vẫn còn bot Zalo.');
+  }
 
   if (kind === 'skill' && id === 'cron') {
     cfg.skills = cfg.skills || { entries: {} };
@@ -3338,6 +3343,41 @@ async function installFeature(projectDir, agentId, kind, id) {
   }
 
   if (kind === 'plugin') {
+    // zalo-connect is a GIT-pinned fork (not a ClawHub package) — install/update it by cloning the
+    // pinned tag inside the container (same as first-boot/login). Powers the dashboard "Update"
+    // button so existing Zalo bots can upgrade to the pinned version (bump the pin in common-gen.js).
+    if (id === 'zalo-connect' || id === 'openclaw-zalo-connect') {
+      let composeDir = null;
+      if (existsSync(join(projectDir, 'docker-compose.yml'))) composeDir = projectDir;
+      else if (existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'))) composeDir = join(projectDir, 'docker', 'openclaw');
+      const repo = String(ZALO_CONNECT_PLUGIN_SPEC).split('#')[0];
+      const ref = String(ZALO_CONNECT_PLUGIN_SPEC).split('#')[1] || ZALO_CONNECT_VERSION;
+      if (composeDir) {
+        const botContainer = getBotContainerName(projectDir);
+        sendLog(`[zalo-connect] Installing/updating pinned ${ref} inside ${botContainer}...`);
+        const cmd = `tmp=/tmp/openclaw-plugin-zalo-connect-${ref}; rm -rf "$tmp"; git clone --depth 1 --branch "${ref}" "${repo}" "$tmp" && rm -rf "$tmp/.git" && cd /home/node/project && openclaw plugins install "$tmp" --force 2>&1`;
+        const out = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
+        if (out) for (const line of `${out.stdout}\n${out.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
+        const okDir = existsSync(join(projectDir, '.openclaw', 'extensions', 'zalo-connect'));
+        if (out.code !== 0 && !okDir) throw new Error(out.stderr || out.stdout || 'Failed to install zalo-connect.');
+      }
+      const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+      if (existsSync(cfgPath)) {
+        const cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8')));
+        cfg.plugins = cfg.plugins || { entries: {}, allow: [] };
+        cfg.plugins.entries = cfg.plugins.entries || {};
+        cfg.plugins.entries['zalo-connect'] = cfg.plugins.entries['zalo-connect'] || {};
+        cfg.plugins.entries['zalo-connect'].enabled = true;
+        cfg.plugins.allow = cfg.plugins.allow || [];
+        if (!cfg.plugins.allow.includes('zalo-connect')) cfg.plugins.allow.push('zalo-connect');
+        await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+      }
+      if (composeDir) {
+        sendLog('[zalo-connect] Restarting container to apply...');
+        await run('docker', ['restart', getBotContainerName(projectDir)], { shell: false }).catch(() => {});
+      }
+      return { ok: true, id: 'zalo-connect' };
+    }
     const installSpec = pluginInstallSpec(id);
     const installArgs = ['plugins', 'install', installSpec, '--force'];
     if (installSpec.startsWith('clawhub:')) installArgs.push('--acknowledge-clawhub-risk');
@@ -3640,6 +3680,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     poster: ['openclaw-n8n-facebook-poster', 'openclaw-facebook-poster', 'facebook-poster'],
     fbMessenger: ['openclaw-fb-messenger', 'fb-messenger'],
     tencentMemory: ['memory-tencentdb'],
+    zaloConnect: ['zalo-connect', 'openclaw-zalo-connect'],
   };
   const flags = {
     'skill:browser': browserOn,
@@ -3653,6 +3694,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'plugin:openclaw-n8n-facebook-poster': isEnabled(aliases.poster),
     'plugin:openclaw-fb-messenger': isEnabled(aliases.fbMessenger),
     'plugin:memory-tencentdb': isEnabled(aliases.tencentMemory),
+    'plugin:zalo-connect': isEnabled(aliases.zaloConnect),
   };
   const extensionsDir = join(projectDir || '', '.openclaw', 'extensions');
   const extensionDirExists = (aliases = []) =>
@@ -3671,6 +3713,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'plugin:openclaw-fb-messenger': extensionDirExists(aliases.fbMessenger)
       || aliases.fbMessenger.some((a) => installedKeys.has(a) || Array.from(installedSpecs).some((spec) => spec.includes(a))),
     'plugin:memory-tencentdb': isActuallyInstalled(aliases.tencentMemory),
+    'plugin:zalo-connect': isActuallyInstalled(aliases.zaloConnect),
   };
   const versions = {
     'skill:image-gen': await getInstalledSkillVersion(projectDir, aid, 'infographic-generator', cfg),
@@ -3681,6 +3724,7 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'plugin:openclaw-n8n-facebook-poster': await getInstalledPluginVersion(projectDir, aliases.poster),
     'plugin:openclaw-fb-messenger': await getInstalledPluginVersion(projectDir, aliases.fbMessenger),
     'plugin:memory-tencentdb': await getInstalledPluginVersion(projectDir, aliases.tencentMemory),
+    'plugin:zalo-connect': await getInstalledPluginVersion(projectDir, aliases.zaloConnect),
   };
   // Docker: fill any plugin version still empty from the container's extensions volume
   // (e.g. bundled/clawhub plugins like zalo-mod that aren't on the host). One docker exec.
@@ -3693,9 +3737,14 @@ async function getFeatureFlags(projectDir, agentId = '') {
     fillVer('plugin:openclaw-n8n-facebook-poster', aliases.poster);
     fillVer('plugin:openclaw-fb-messenger', aliases.fbMessenger);
     fillVer('plugin:memory-tencentdb', aliases.tencentMemory);
+    fillVer('plugin:zalo-connect', aliases.zaloConnect);
   }
   const zaloBackend = fresh.channels?.['zalo-connect']?.enabled ? 'zalo-connect' : '';
-  return { flags, installed, versions, zaloBackend };
+  // zalo-connect is REQUIRED by any Zalo bot → lock its toggle (checked, can't disable)
+  // whenever a Zalo binding exists.
+  const hasZaloBot = (fresh.bindings || []).some((b) => b?.match?.channel === 'zalo-connect');
+  const locked = { 'plugin:zalo-connect': hasZaloBot };
+  return { flags, installed, versions, zaloBackend, locked };
 }
 
 async function serveStatic(req, res) {

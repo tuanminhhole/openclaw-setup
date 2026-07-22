@@ -1,5 +1,5 @@
 const $ = (sel) => document.querySelector(sel);
-const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', tz: localStorage.getItem('openclaw-tz') || 'Asia/Ho_Chi_Minh', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'docker', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, zaloBackend: '', zaloHealth: null, openDirs: {} };
+const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', tz: localStorage.getItem('openclaw-tz') || 'Asia/Ho_Chi_Minh', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'docker', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, featureLocked: {}, zaloBackend: '', zaloHealth: null, openDirs: {} };
 const SVG_CDN = 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons';
 const OS_OPTIONS = [
   { id: 'win', title: 'Windows', subtitle: 'Auto-detected desktop', icon: `${SVG_CDN}/windows/default.svg`, badge: 'Desktop' },
@@ -1064,6 +1064,7 @@ function botSkillsPanel() {
     { id: 'learning-memory', title: 'Siêu Trí Nhớ Dài Hạn (learning-memory)', desc: 'Tự động ghi nhớ bài học vào MEMORY.md, tự đóng gói và tiến hóa kỹ năng mới vào skills/' },
   ];
   const plugins = [
+    { id: 'zalo-connect', title: 'OpenClaw Zalo Connect', desc: t('Kênh Zalo cá nhân (zca-js) — BẮT BUỘC cho bot Zalo. Tự cài khi tạo bot Zalo đầu tiên; bấm Cập nhật để lên bản mới nhất.', 'Personal Zalo channel (zca-js) — REQUIRED for Zalo bots. Auto-installed with your first Zalo bot; click Update for the latest version.'), channels: ['zalo-personal'] },
     { id: 'memory-tencentdb', title: 'TencentDB Agent Memory', desc: 'Bộ nhớ phân tầng L0–L3 + nén ngữ cảnh: nhớ tốt session dài, tiết kiệm ~61% token (local SQLite, không cần API)' },
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },
     { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers', channels: ['zalo-personal'], openWebPort: 18790, openWebPath: '/dashboard' },
@@ -1083,8 +1084,9 @@ function botSkillsPanel() {
   const row = (item, group) => {
     const key = `${group}:${item.id}`;
     const loading = !!state.featureLoading[key];
+    const locked = !!state.featureLocked?.[key];
     const requiresInstall = group === 'plugin' || (group === 'skill' && (item.id === 'image-gen' || item.id === 'learning-memory'));
-    const isInstalled = !requiresInstall || !!state.featureInstalled?.[key];
+    const isInstalled = !requiresInstall || !!state.featureInstalled?.[key] || locked;
     
     const version = requiresInstall && isInstalled ? (state.featureVersions?.[key] || '') : '';
     const versionBadge = version ? `<span class="plugin-version-badge" style="display:inline-block; font-size: 11px; background: rgba(66, 133, 244, 0.15); color: #4285F4; padding: 2px 6px; border-radius: 4px; font-weight: 600; border: 1px solid rgba(66,133,244,0.25); flex:0 0 auto;">v${escapeHtml(version)}</span>` : '';
@@ -1094,7 +1096,7 @@ function botSkillsPanel() {
     let toggleHtml = '';
     const secs = [];
     if (isInstalled) {
-      toggleHtml = `<label class="feature-switch"><input type="checkbox" data-feature-toggle="${key}" ${flags[key] ? 'checked' : ''} ${loading ? 'disabled' : ''}/><span></span></label>`;
+      toggleHtml = `<label class="feature-switch" title="${locked ? t('Bắt buộc cho bot Zalo — không thể tắt','Required for Zalo bots — cannot be disabled') : ''}"><input type="checkbox" data-feature-toggle="${key}" ${(flags[key] || locked) ? 'checked' : ''} ${(loading || locked) ? 'disabled' : ''}/><span></span></label>${locked ? `<span title="${t('Đã khoá','Locked')}" style="margin-left:6px;opacity:.55;font-size:12px;">🔒</span>` : ''}`;
       if (item.openWebPort) {
         secs.push(`<a class="secondary icon-btn2" href="${sameHostUrl('', item.openWebPort)}${item.openWebPath || ''}" target="_blank" rel="noopener" title="${t('Mở dashboard của plugin','Open the plugin dashboard')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px;">${actionIcon('link')}<span>${t('Mở web','Open')}</span></a>`);
       }
@@ -1607,6 +1609,7 @@ async function loadFeatureFlags(silent=false){
     state.featureFlags = data.flags || {};
     state.featureInstalled = data.installed || {};
     state.featureVersions = data.versions || {};
+    state.featureLocked = data.locked || {};
     state.zaloBackend = data.zaloBackend || '';
     if (state.zaloBackend === 'zalo-connect') await loadZaloHealth(true).catch(() => {});
   } catch (_) {

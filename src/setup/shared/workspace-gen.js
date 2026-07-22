@@ -608,6 +608,8 @@ Truyền tham số \`job\` (object) gồm:
   \`openclaw cron run <job_id> --wait\` (hoặc gọi tool \`cron\` với action \`run\` kèm \`id\`).`;
   }
 
+  // DEPRECATED (unused): guidance moved into the `zalo-connect` tool description (fork ≥ v3.0.2).
+  // Kept only for reference; no longer wired into buildWorkspaceFileMap.
   function buildZaloActionsSkillMd(isVi = true, zaloDeliveryChannel = 'zalo-connect') {
     return `---
 name: zalo-actions
@@ -642,7 +644,8 @@ Ngoài gửi text, tool \`${zaloDeliveryChannel}\` có ~149 action. Gọi bằng
 - Ảnh: \`send-image\` \`{threadId,isGroup,url}\` · Video: \`send-video\` \`{threadId,isGroup,url,thumbnailUrl?}\` · Voice: \`send-voice\` \`{threadId,isGroup,voiceUrl}\` · File: \`send-file\` \`{threadId,isGroup,filePath}\` · Link preview: \`send-link\` \`{threadId,isGroup,url}\`.
 
 ## ↪️ Chuyển tiếp / thu hồi / xoá
-- \`forward-message\` \`{msgId, threadIds:["<đích>"]}\` · \`undo-message\` (thu hồi tin của bot) · \`delete-message\` \`{msgId, threadId, onlyMe?}\`.
+- \`forward-message\` \`{msgId, threadIds:["<đích>"]}\` · \`delete-message\` \`{msgId, threadId, onlyMe?}\`.
+- **Thu hồi tin của CHÍNH bot** (\`undo-message\`): khi user bảo "thu hồi/gỡ tin vừa nãy", gọi \`undo-message\` \`{threadId:"<groupId/userId hiện tại>"}\` — **KHÔNG cần msgId**, hệ thống tự lấy tin gần nhất bot đã gửi trong luồng đó. ⏳ Chỉ thu hồi được tin bot gửi **trong 5 phút** gần nhất; tin cũ hơn (hoặc tin của người khác) thì báo lại là không gỡ được. Muốn nhắm tin cụ thể thì truyền thêm \`{msgId}\`.
 
 ## 🛠️ Quản trị nhóm (bot phải là admin)
 - \`add-group-admin\` / \`remove-group-admin\` \`{groupId,userId}\` · \`rename-group\` \`{groupId,groupName}\` · \`change-group-owner\` \`{groupId,userId}\` · \`invite-to-groups\` \`{userId, groupIds:[...]}\` · \`update-group-settings\` \`{groupId, groupSettings:{...}}\` · link nhóm: \`enable-group-link\`/\`disable-group-link\`/\`get-group-link\` \`{groupId}\`.
@@ -1401,9 +1404,9 @@ Add whatever helps you do your job. This is your cheat sheet.
       files['skills/cronjob/SKILL.md'] = buildCronjobSkillMd(isVi, 'zalo-connect', userTimezone);
     }
 
-    if (hasZaloMod) {
-      files['skills/zalo-actions/SKILL.md'] = buildZaloActionsSkillMd(isVi, 'zalo-connect');
-    }
+    // NOTE: the old `zalo-actions` agent skill was removed — its guidance (Zalo conventions +
+    // action recipes) now lives directly in the `zalo-connect` tool description (fork ≥ v3.0.2),
+    // so every zalo-connect bot gets it automatically without a generated per-bot skill.
 
     if (hasImageGen) {
       files['skills/infographic-generator/SKILL.md'] = buildInfographicGeneratorSkillMd(botName);

@@ -238,12 +238,8 @@
 
     // ── skills ───────────────────────────────────────────────────────────────
     const skillEntries = buildSkillsEntries(skills, selectedSkills);
-    // Bot Zalo cá nhân: bật skill "zalo-actions" (cookbook hướng dẫn agent dùng các
-    // action phong phú của tool zalo-connect: sticker, reaction, poll, nhắc hẹn, media…).
-    // Skill này do workspace-gen sinh ra khi hasZaloMod nên không nằm trong catalog.
-    if (isZaloPersonal(channelKey)) {
-      skillEntries['zalo-actions'] = { enabled: true };
-    }
+    // NOTE: the "zalo-actions" skill was removed — its guidance now lives in the `zalo-connect`
+    // tool description itself (fork ≥ v3.0.2), so no per-bot skill entry is needed anymore.
     if (Object.keys(skillEntries).length > 0) {
       cfg.skills = { entries: skillEntries };
     }
