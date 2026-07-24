@@ -1061,11 +1061,10 @@ function botSkillsPanel() {
     { id: 'cron', title: 'Cron', desc: 'Native scheduler (SQLite) — cron guide in TOOLS.md' },
     { id: 'image-gen', title: 'Tạo ảnh Infographic', desc: 'Tạo ảnh infographic, poster tự động qua 9Router' },
     { id: 'web-search', title: 'Web Search', desc: 'Tìm kiếm web thời gian thực (DuckDuckGo)' },
-    { id: 'learning-memory', title: 'Siêu Trí Nhớ Dài Hạn (learning-memory)', desc: 'Tự động ghi nhớ bài học vào MEMORY.md, tự đóng gói và tiến hóa kỹ năng mới vào skills/' },
   ];
   const plugins = [
     { id: 'zalo-connect', title: 'OpenClaw Zalo Connect', desc: t('Kênh Zalo cá nhân (zca-js) — BẮT BUỘC cho bot Zalo. Tự cài khi tạo bot Zalo đầu tiên; bấm Cập nhật để lên bản mới nhất.', 'Personal Zalo channel (zca-js) — REQUIRED for Zalo bots. Auto-installed with your first Zalo bot; click Update for the latest version.'), channels: ['zalo-personal'] },
-    { id: 'memory-tencentdb', title: 'TencentDB Agent Memory', desc: 'Bộ nhớ phân tầng L0–L3 + nén ngữ cảnh: nhớ tốt session dài, tiết kiệm ~61% token (local SQLite, không cần API)' },
+    { id: 'learning-memory', title: 'Siêu Trí Nhớ Dài Hạn (learning-memory)', desc: t('Bộ nhớ always-on: nạp MEMORY.md + USER.md đã chắt lọc vào MỌI lượt — kể cả trong nhóm — nên bot không quên ngữ cảnh/quy tắc. Tự cài khi tạo bot.', 'Always-on memory: injects a curated MEMORY.md + USER.md into every turn — including group chats — so the bot stops forgetting context and rules. Auto-installed on bot creation.') },
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },
     { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers', channels: ['zalo-personal'], openWebPort: 18790, openWebPath: '/dashboard' },
     { id: 'openclaw-fb-messenger', title: 'openclaw-fb-messenger', desc: t('Kênh Facebook Messenger — webhook + Graph API (bắt buộc cho bot Messenger)', 'Facebook Messenger channel — webhook + Graph API (required for Messenger bots)'), channels: ['fb-messenger'] },
@@ -1085,7 +1084,7 @@ function botSkillsPanel() {
     const key = `${group}:${item.id}`;
     const loading = !!state.featureLoading[key];
     const locked = !!state.featureLocked?.[key];
-    const requiresInstall = group === 'plugin' || (group === 'skill' && (item.id === 'image-gen' || item.id === 'learning-memory'));
+    const requiresInstall = group === 'plugin' || (group === 'skill' && item.id === 'image-gen');
     const isInstalled = !requiresInstall || !!state.featureInstalled?.[key] || locked;
     
     const version = requiresInstall && isInstalled ? (state.featureVersions?.[key] || '') : '';

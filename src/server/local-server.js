@@ -1032,14 +1032,16 @@ function ensureZaloModPluginConfig(entry, cfg) {
     const gwPort = Number(cfg.gateway?.port) || state.gatewayPort || 18789;
     entry.config.dashboardPort = gwPort + 1;
   }
-  // Auto-assign botName from first agent name
-  if (!entry.config.botName) {
-    const agentName = cfg.agents?.list?.[0]?.name;
-    if (agentName) entry.config.botName = agentName;
-  }
-  // Auto-assign zaloDisplayNames from botName
-  if ((!entry.config.zaloDisplayNames || entry.config.zaloDisplayNames.length === 0) && entry.config.botName) {
-    entry.config.zaloDisplayNames = [entry.config.botName];
+  // Seed the default bot's identity under bots.default (per-bot shape). zalo-mod
+  // treats bots.<profile> as the canonical source — do NOT write legacy top-level
+  // botName/zaloDisplayNames (they get stripped by the plugin's normalizer anyway).
+  const firstAgentName = cfg.agents?.list?.[0]?.name;
+  if (firstAgentName) {
+    entry.config.bots = entry.config.bots || {};
+    const def = entry.config.bots.default = entry.config.bots.default || {};
+    if (!def.botName) def.botName = firstAgentName;
+    if (!Array.isArray(def.zaloDisplayNames) || def.zaloDisplayNames.length === 0) def.zaloDisplayNames = [firstAgentName];
+    if (!def.slashPrefix) def.slashPrefix = String(firstAgentName).toLowerCase().replace(/[^a-z0-9-]/g, '') || 'bot';
   }
 }
 
@@ -3126,8 +3128,8 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
   // from <workspace>/skills, so each bot's copy is independent. Toggling here affects ONLY the
   // active bot's workspace folder. The global skills.entries[id].enabled flag is kept true
   // while ANY bot still has the folder (openclaw needs it true to load the skill at all).
-  if (kind === 'skill' && (id === 'image-gen' || id === 'learning-memory')) {
-    const slugMap = { 'image-gen': 'infographic-generator', 'learning-memory': 'learning-memory' };
+  if (kind === 'skill' && id === 'image-gen') {
+    const slugMap = { 'image-gen': 'infographic-generator' };
     const slug = slugMap[id];
     const rel = workspaceRelForAgent(agent, cfg, projectDir) || `workspace-${agent.id}`;
     const folder = join(projectDir, '.openclaw', rel, 'skills', slug);
@@ -3284,7 +3286,9 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
 // Most plugins are ClawHub packages (installed as `clawhub:<id>`). A few ship as plain npm
 // packages and need their real package spec instead. Map id → install spec here.
 const PLUGIN_NPM_SPEC = {
-  'memory-tencentdb': '@tencentdb-agent-memory/memory-tencentdb',
+  // learning-memory ships on ClawHub as `openclaw-learning-memory` (manifest id is
+  // `learning-memory`, used as the config key). Install by the full package spec.
+  'learning-memory': 'clawhub:openclaw-learning-memory',
 };
 const pluginInstallSpec = (id) => PLUGIN_NPM_SPEC[id] || `clawhub:${id}`;
 
@@ -3292,7 +3296,6 @@ async function installFeature(projectDir, agentId, kind, id) {
   if (kind === 'skill') {
     const skillSlugMap = {
       'image-gen': 'infographic-generator',
-      'learning-memory': 'learning-memory',
     };
     const slug = skillSlugMap[id] || id;
 
@@ -3379,6 +3382,11 @@ async function installFeature(projectDir, agentId, kind, id) {
         sendLog('[zalo-connect] Restarting container to apply...');
         await run('docker', ['restart', getBotContainerName(projectDir)], { shell: false }).catch(() => {});
       }
+      // Drop cached container extension versions so the card reflects the just-installed
+      // version immediately (extver cache lives until explicitly cleared, like the
+      // general install path below does).
+      probeCacheClear(`extver:${projectDir}`);
+      probeCacheClear(`runtime:${projectDir}`);
       return { ok: true, id: 'zalo-connect' };
     }
     const installSpec = pluginInstallSpec(id);
@@ -3675,14 +3683,13 @@ async function getFeatureFlags(projectDir, agentId = '') {
   // THIS agent's workspace (not the global skills.entries flag, which would leak across bots).
   const imageGenOn = isSkillFolderExists(projectDir, aid, 'infographic-generator', cfg);
   const webSearchOn = isEnabled(['duckduckgo']);
-  const learningMemoryOn = isSkillFolderExists(projectDir, aid, 'learning-memory', cfg);
   const aliases = {
     browser: ['openclaw-browser-automation', 'browser-automation'],
     zalo: ['openclaw-zalo-mod', 'zalo-mod'],
     crawler: ['openclaw-facebook-crawler', 'openclaw-n8n-facebook-crawler', 'n8n-facebook-crawler'],
     poster: ['openclaw-n8n-facebook-poster', 'openclaw-facebook-poster', 'facebook-poster'],
     fbMessenger: ['openclaw-fb-messenger', 'fb-messenger'],
-    tencentMemory: ['memory-tencentdb'],
+    learningMemory: ['learning-memory', 'openclaw-learning-memory'],
     zaloConnect: ['zalo-connect', 'openclaw-zalo-connect'],
   };
   const flags = {
@@ -3690,13 +3697,12 @@ async function getFeatureFlags(projectDir, agentId = '') {
     'skill:cron': cronOn,
     'skill:image-gen': imageGenOn,
     'skill:web-search': webSearchOn,
-    'skill:learning-memory': learningMemoryOn,
     'plugin:openclaw-browser-automation': isEnabled(aliases.browser),
     'plugin:openclaw-zalo-mod': isEnabled(aliases.zalo),
     'plugin:openclaw-facebook-crawler': isEnabled(aliases.crawler),
     'plugin:openclaw-n8n-facebook-poster': isEnabled(aliases.poster),
     'plugin:openclaw-fb-messenger': isEnabled(aliases.fbMessenger),
-    'plugin:memory-tencentdb': isEnabled(aliases.tencentMemory),
+    'plugin:learning-memory': isEnabled(aliases.learningMemory),
     'plugin:zalo-connect': isEnabled(aliases.zaloConnect),
   };
   const extensionsDir = join(projectDir || '', '.openclaw', 'extensions');
@@ -3706,7 +3712,6 @@ async function getFeatureFlags(projectDir, agentId = '') {
     extensionDirExists(aliases) || isInstalledByRecord(aliases);
   const installed = {
     'skill:image-gen': isSkillFolderExists(projectDir, aid, 'infographic-generator', cfg),
-    'skill:learning-memory': isSkillFolderExists(projectDir, aid, 'learning-memory', cfg),
     'plugin:openclaw-browser-automation': isActuallyInstalled(aliases.browser),
     'plugin:openclaw-zalo-mod': isActuallyInstalled(aliases.zalo),
     'plugin:openclaw-facebook-crawler': isActuallyInstalled(aliases.crawler),
@@ -3715,31 +3720,34 @@ async function getFeatureFlags(projectDir, agentId = '') {
     // proof of install — require a real extension dir or an install record instead.
     'plugin:openclaw-fb-messenger': extensionDirExists(aliases.fbMessenger)
       || aliases.fbMessenger.some((a) => installedKeys.has(a) || Array.from(installedSpecs).some((spec) => spec.includes(a))),
-    'plugin:memory-tencentdb': isActuallyInstalled(aliases.tencentMemory),
+    'plugin:learning-memory': isActuallyInstalled(aliases.learningMemory),
     'plugin:zalo-connect': isActuallyInstalled(aliases.zaloConnect),
   };
   const versions = {
     'skill:image-gen': await getInstalledSkillVersion(projectDir, aid, 'infographic-generator', cfg),
-    'skill:learning-memory': await getInstalledSkillVersion(projectDir, aid, 'learning-memory', cfg),
     'plugin:openclaw-browser-automation': await getInstalledPluginVersion(projectDir, aliases.browser),
     'plugin:openclaw-zalo-mod': await getInstalledPluginVersion(projectDir, aliases.zalo),
     'plugin:openclaw-facebook-crawler': await getInstalledPluginVersion(projectDir, aliases.crawler),
     'plugin:openclaw-n8n-facebook-poster': await getInstalledPluginVersion(projectDir, aliases.poster),
     'plugin:openclaw-fb-messenger': await getInstalledPluginVersion(projectDir, aliases.fbMessenger),
-    'plugin:memory-tencentdb': await getInstalledPluginVersion(projectDir, aliases.tencentMemory),
+    'plugin:learning-memory': await getInstalledPluginVersion(projectDir, aliases.learningMemory),
     'plugin:zalo-connect': await getInstalledPluginVersion(projectDir, aliases.zaloConnect),
   };
-  // Docker: fill any plugin version still empty from the container's extensions volume
-  // (e.g. bundled/clawhub plugins like zalo-mod that aren't on the host). One docker exec.
+  // Docker: the container's extensions volume is the SOURCE OF TRUTH for installed
+  // plugin versions — clawhub/plugin installs run inside the container, so a host copy
+  // (bind-mounted .openclaw or a stale installs.json) can lag behind after an update.
+  // When the container reports a version, it OVERRIDES the host value (not just fills
+  // empties) so the card shows the actually-installed version, not a stale one. Native
+  // installs return {} here, so host values are kept.
   const containerExtVersions = await getContainerExtensionVersions(projectDir);
   if (Object.keys(containerExtVersions).length) {
-    const fillVer = (key, names) => { if (!versions[key]) { for (const n of names) { if (containerExtVersions[n]) { versions[key] = containerExtVersions[n]; break; } } } };
+    const fillVer = (key, names) => { for (const n of names) { if (containerExtVersions[n]) { versions[key] = containerExtVersions[n]; break; } } };
     fillVer('plugin:openclaw-browser-automation', aliases.browser);
     fillVer('plugin:openclaw-zalo-mod', aliases.zalo);
     fillVer('plugin:openclaw-facebook-crawler', aliases.crawler);
     fillVer('plugin:openclaw-n8n-facebook-poster', aliases.poster);
     fillVer('plugin:openclaw-fb-messenger', aliases.fbMessenger);
-    fillVer('plugin:memory-tencentdb', aliases.tencentMemory);
+    fillVer('plugin:learning-memory', aliases.learningMemory);
     fillVer('plugin:zalo-connect', aliases.zaloConnect);
   }
   const zaloBackend = fresh.channels?.['zalo-connect']?.enabled ? 'zalo-connect' : '';

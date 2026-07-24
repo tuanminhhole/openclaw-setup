@@ -371,6 +371,12 @@
 
     const allow = ['memory-core'];
 
+    // Always-on memory: the learning-memory context engine injects the curated
+    // MEMORY.md + USER.md into every turn (including group sessions, which the default
+    // recall excludes). Enabled for every bot; the plugin is installed at creation time.
+    entries['learning-memory'] = { enabled: true };
+    allow.push('learning-memory');
+
     // Zalo Personal → zalo-connect channel plugin (pinned install happens in the
     // entrypoint / creation flow). openclaw-zalo-mod stays a separate opt-in plugin.
     if (isZaloPersonal(channelKey)) {
@@ -395,6 +401,8 @@
 
     const plugins = { entries };
     plugins.allow = allow;
+    // Select learning-memory as the active context engine (always-on memory).
+    plugins.slots = { contextEngine: 'learning-memory' };
     if (allow.length) plugins.bundledDiscovery = 'compat';
 
     return { plugins };

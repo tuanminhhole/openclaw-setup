@@ -1,6 +1,17 @@
 # Changelog (English)
 
 
+## [5.13.9] — 2026-07-24
+
+### Added
+
+- **Always-on memory for every bot (learning-memory).** A new context-engine plugin injects a curated `MEMORY.md` + `USER.md` into **every** turn — including group chats, which OpenClaw's default recall skips. Bots stop forgetting context and rules over time: no more chiming in unprompted or re-asking things you already told them. Installed and enabled automatically for new bots, and shown as a 1-click card in the dashboard.
+
+### Changed
+
+- **Retired the TencentDB Agent Memory plugin**, superseded by the always-on learning-memory engine above (no external service or SQLite tier needed). Existing bots are **auto-migrated on update**: the deprecated learning-memory *skill* and the TencentDB plugin are removed automatically.
+
+
 ## [5.13.8] — 2026-07-22
 
 ### Fixed

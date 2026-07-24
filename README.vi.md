@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS — chạy trên Docker, tự cài giúp bạn.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.8-0EA5E9?style=for-the-badge" alt="Version 5.13.8" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.9-0EA5E9?style=for-the-badge" alt="Version 5.13.9" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,10 +37,18 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.13.8
+## 🆕 Có gì mới trong v5.13.9
+
+- 🧠 **Trí nhớ always-on cho mọi bot (learning-memory)**: plugin context-engine mới nạp `MEMORY.md` + `USER.md` đã chắt lọc vào **MỌI lượt** — kể cả trong nhóm (điều recall mặc định bỏ qua). Bot hết quên ngữ cảnh/quy tắc theo thời gian: không còn "nói leo" khi không ai gọi, không hỏi lại điều bạn đã dặn. Tự cài cho bot mới + có card 1-chạm trên dashboard.
+- 🧹 **Bỏ TencentDB Agent Memory**, thay bằng engine always-on ở trên (không cần dịch vụ ngoài). Bot cũ tự migrate khi cập nhật — *skill* learning-memory cũ và plugin TencentDB được gỡ tự động.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.13.4</b></summary>
 
 - ⚙️ **Trang Cài đặt mới**: chọn giao diện (nút gạt Sáng/Tối), ngôn ngữ (VI/EN) và múi giờ ngay trong dashboard — có ở cả sidebar lẫn thanh điều hướng mobile.
 - 🕒 **Lịch & cron chạy đúng giờ địa phương**: bot tạo mới nhận múi giờ rõ ràng, nên nhắc hẹn/cron không còn lệch 1 ngày quanh nửa đêm (lỗi UTC-vs-local có thể đặt lịch vào quá khứ). Đã siết hướng dẫn lập lịch toàn diện (giờ local + múi giờ, nơi gửi rõ ràng, ID nhóm dạng thô).
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.13.0</b></summary>
@@ -336,7 +344,7 @@ Các repo đi kèm để bạn dựng một trợ lý AI "tự vận hành" hoà
 - [openclaw-n8n-facebook-poster](https://github.com/tuanminhhole/openclaw-n8n-facebook-poster) — Tự động đăng Facebook qua n8n
 
 **🧩 Skill**
-- [openclaw-skill-learning-memory](https://github.com/tuanminhhole/openclaw-skill-learning-memory) — Bộ nhớ dài hạn tự tiến hoá cho agent
+- [openclaw-learning-memory](https://github.com/tuanminhhole/openclaw-learning-memory) — Context engine trí nhớ always-on (nạp MEMORY.md + USER.md vào mọi lượt, kể cả nhóm)
 - [openclaw-skill-infographic](https://github.com/tuanminhhole/openclaw-skill-infographic) — Tạo infographic
 
 ---

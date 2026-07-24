@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS — Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.8-0EA5E9?style=for-the-badge" alt="Version 5.13.8" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.9-0EA5E9?style=for-the-badge" alt="Version 5.13.9" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,10 +37,18 @@
 
 ---
 
-## 🆕 What's New in v5.13.8
+## 🆕 What's New in v5.13.9
+
+- 🧠 **Always-on memory for every bot (learning-memory)**: a new context-engine plugin injects your curated `MEMORY.md` + `USER.md` into **every** turn — including group chats, which the default recall skips. Bots stop forgetting context and rules over time: no more chiming in when nobody called them, or re-asking things you already told them. Auto-installed for new bots + a 1-click card in the dashboard.
+- 🧹 **Retired TencentDB Agent Memory** in favor of the always-on engine above (no external service needed). Existing bots are auto-migrated on update — the old learning-memory *skill* and the TencentDB plugin are removed automatically.
+
+<details>
+<summary><b>Previous: What's new in v5.13.4</b></summary>
 
 - ⚙️ **New Settings page**: pick your theme (light/dark toggle), language (VI/EN) and timezone right from the dashboard — available in both the sidebar and the mobile nav bar.
 - 🕒 **Schedules & cron run in the correct local time**: newly created bots carry an explicit timezone, so reminders/cron no longer drift a day off around midnight (a UTC-vs-local bug that could schedule into the past). Scheduling guidance was hardened end-to-end (local time + timezone, explicit delivery target, raw group id).
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.13.0</b></summary>
@@ -336,7 +344,7 @@ Companion repos to build a complete, self-running AI assistant:
 - [openclaw-n8n-facebook-poster](https://github.com/tuanminhhole/openclaw-n8n-facebook-poster) — Auto-post to Facebook via n8n
 
 **🧩 Skills**
-- [openclaw-skill-learning-memory](https://github.com/tuanminhhole/openclaw-skill-learning-memory) — Self-evolving long-term memory for agents
+- [openclaw-learning-memory](https://github.com/tuanminhhole/openclaw-learning-memory) — Always-on memory context engine (injects curated MEMORY.md + USER.md into every turn, incl. groups)
 - [openclaw-skill-infographic](https://github.com/tuanminhhole/openclaw-skill-infographic) — Infographic generation
 
 ---

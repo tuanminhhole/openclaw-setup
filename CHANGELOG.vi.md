@@ -1,6 +1,17 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.13.9] — 2026-07-24
+
+### Thêm mới
+
+- **Trí nhớ always-on cho mọi bot (learning-memory).** Plugin context-engine mới nạp `MEMORY.md` + `USER.md` đã chắt lọc vào **MỌI lượt** — kể cả trong nhóm (điều mà recall mặc định của OpenClaw bỏ qua). Bot không còn quên ngữ cảnh/quy tắc theo thời gian: hết "nói leo" khi không được gọi, hết hỏi lại điều bạn đã dặn. Tự cài + bật cho bot mới, và có card 1-chạm trên dashboard.
+
+### Thay đổi
+
+- **Bỏ plugin TencentDB Agent Memory**, thay bằng engine learning-memory always-on ở trên (không cần dịch vụ ngoài hay tầng SQLite). Bot cũ được **tự migrate khi cập nhật**: *skill* learning-memory cũ và plugin TencentDB được gỡ tự động.
+
+
 ## [5.13.8] — 2026-07-22
 
 ### Sửa lỗi
