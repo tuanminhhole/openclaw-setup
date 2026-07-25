@@ -1180,9 +1180,15 @@ description: Guide for utilizing tools and skills
       : (isVi
           ? `Reaction phải nhắm vào **tin nhắn mới nhất của user** (inbound hiện tại), KHÔNG phải tin cũ hơn hay tin của chính mình.\n- Cách đúng: tool \`message\` với \`action: "react"\`, ${reactValue}, **KHÔNG truyền \`messageId\`** — tool sẽ tự reaction vào inbound message mới nhất. Chỉ truyền \`messageId\` khi cần reaction vào một tin CỤ THỂ không phải tin mới nhất.`
           : `The reaction MUST target the **user's latest (current inbound) message**, not an older one or your own message.\n- Correct: \`message\` tool with \`action: "react"\`, ${reactValue}, **do NOT pass \`messageId\`** — the tool auto-reacts to the latest inbound message. Only pass \`messageId\` to react to a specific OLDER message.`);
-    const dmOverride = isVi
-      ? `\n\n## ⚡ Reaction khi nhắn riêng (DM) — BẮT BUỘC\n- Khi DM với user, PHẢI luôn dùng tool/action reaction native để thả reaction CÙNG LÚC khi trả lời.\n- KHÔNG thả reaction trong group chat.\n- Chọn theo cảm xúc/ngữ cảnh tin của user. ${reactList}\n- ${reactHow}\n- ${reactExamples}`
-      : `\n\n## ⚡ Reactions in DMs — MANDATORY\n- In DMs with the user, you MUST always use the native reaction tool/action to react WHILE replying.\n- Do NOT react in group chats.\n- Pick by the user's emotion/context. ${reactList}\n- ${reactHow}\n- ${reactExamples}`;
+    // Zalo bots no longer carry this: the channel now drops an ack reaction on every
+    // inbound message by itself (messages.ackReaction), so telling the model to react
+    // as well only spends tokens and risks a second reaction on the same message.
+    // Channels without that automatic ack keep the instruction.
+    const dmOverride = isZalo
+      ? ''
+      : isVi
+        ? `\n\n## ⚡ Reaction khi nhắn riêng (DM) — BẮT BUỘC\n- Khi DM với user, PHẢI luôn dùng tool/action reaction native để thả reaction CÙNG LÚC khi trả lời.\n- KHÔNG thả reaction trong group chat.\n- Chọn theo cảm xúc/ngữ cảnh tin của user. ${reactList}\n- ${reactHow}\n- ${reactExamples}`
+        : `\n\n## ⚡ Reactions in DMs — MANDATORY\n- In DMs with the user, you MUST always use the native reaction tool/action to react WHILE replying.\n- Do NOT react in group chats.\n- Pick by the user's emotion/context. ${reactList}\n- ${reactHow}\n- ${reactExamples}`;
 
     // Doc structure mirrors OpenClaw's default TOOLS.md (local environment notes + why it is a
     // separate file), followed by the repo's tool-usage rules and the mandatory DM reaction guide.

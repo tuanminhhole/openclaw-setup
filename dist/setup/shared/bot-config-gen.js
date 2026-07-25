@@ -183,6 +183,26 @@
       };
     }
 
+    // ── messages (ack reaction) ───────────────────────────────────────────────
+    // Drop a reaction on inbound messages so people can see the bot registered theirs
+    // before the reply lands. This happens in the channel transport — the model is never
+    // involved, so it costs no tokens.
+    //
+    // Zalo-only, and deliberately so: zalo-connect reads this GLOBAL key (it has no
+    // per-channel ackReaction of its own), but the same key also feeds Telegram, Discord,
+    // Slack and WhatsApp, which each accept only their own fixed reaction set. Seeding an
+    // arbitrary emoji globally would make those channels reject every ack, so other
+    // channels keep their existing behaviour until someone picks a value valid there.
+    //
+    // 🦞 is sent as a Zalo *custom* reaction (emoji as rIcon + a hash as rType), which
+    // needs zalo-connect ≥3.0.15 — earlier versions only knew the 55 built-ins and would
+    // drop it silently. Scope "all" covers DMs and groups; in a mention-gated group the
+    // plugin still only reacts to messages that address the bot, since non-addressed ones
+    // are buffered as passive context before the reaction step.
+    if (isZaloPersonal(channelKey)) {
+      cfg.messages = { ackReaction: '🦞', ackReactionScope: 'all', removeAckAfterReply: false };
+    }
+
     // ── commands ──────────────────────────────────────────────────────────────
     cfg.commands = { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' };
     if (selectedSkills.includes('scheduler')) {

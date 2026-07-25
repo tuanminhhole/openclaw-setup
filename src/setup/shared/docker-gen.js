@@ -266,6 +266,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     // created/regenerated — so a plain rebuild would never pick them up):
     //   • skills.workshop.approvalPolicy:'auto' → the assistant can author a workspace
     //     skill end-to-end on request instead of stopping at "proposal awaiting approval".
+    // (messages.ackReaction is handled separately, below, because it is Zalo-only.)
     //   • imageMaxDimensionPx / imageQuality / contextLimits.toolResultMaxChars → keep one
     //     heavy turn (deep research, 4K chart read-back) from overflowing the context
     //     window mid tool-loop, which cannot be compacted and poisons the session.
@@ -344,6 +345,13 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       // native ZaloConnect actions.
       const zaloConnectSpec = common.ZALO_CONNECT_PLUGIN_SPEC || 'clawhub:openclaw-zalo-connect';
       runtimeParts.push(`ensure_plugin zalo-connect "${zaloConnectSpec}"`);
+      // Backfill the inbound-message ack reaction for projects created before it was
+      // seeded. Kept out of the shared migration because zalo-connect reads the GLOBAL
+      // messages.ackReaction, and that same key also feeds Telegram/Discord/Slack/
+      // WhatsApp — which accept only their own fixed reaction sets and would reject an
+      // arbitrary emoji. Absent-only, so an operator's own choice is never overwritten.
+      const ackReactionScript = `const fs=require('fs'),path=require('path');const p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));let ch=false;c.messages=c.messages||{};if(c.messages.ackReaction===undefined){c.messages.ackReaction='🦞';ch=true;}if(c.messages.ackReactionScope===undefined){c.messages.ackReactionScope='all';ch=true;}if(ch)fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+      runtimeParts.push(`node - <<'NODE'\n${ackReactionScript}\nNODE`);
     }
     // Always-on memory context engine for every bot (see bot-config-gen: plugins.slots
     // .contextEngine = "learning-memory"). ensure_plugin skips if already installed.

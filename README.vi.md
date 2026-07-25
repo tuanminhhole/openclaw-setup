@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS — chạy trên Docker, tự cài giúp bạn.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.14.0-0EA5E9?style=for-the-badge" alt="Version 5.14.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.14.1-0EA5E9?style=for-the-badge" alt="Version 5.14.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,9 +37,16 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.14.0
+## 🆕 Có gì mới trong v5.14.1
+
+- 🦞 **Bot Zalo thả reaction báo đã nhận tin**: một icon xuất hiện ngay trên tin bạn vừa gửi, nên bạn biết bot đã nhận trong khi nó còn đang viết trả lời. Chạy ở tầng kênh chat nên **không tốn token**. Bật mặc định cho bot Zalo mới, **bot cũ tự nhận khi cập nhật**; đổi icon hay tắt thì sửa `messages.ackReaction` trong `openclaw.json`. Cần Zalo Connect 3.0.15+.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.14.0</b></summary>
 
 - 🛠️ **Bot tự tạo skill cho chính nó**: nhờ bot làm một kỹ năng dùng lại ("tạo cho anh skill X") là nó viết xong và dùng được ngay trong cùng câu trả lời — không còn bước chờ duyệt, không phải sửa cấu hình. Skill lưu vào `skills/<tên>/SKILL.md` trong workspace của bot và tự nạp. **Bot cũ tự nhận khi cập nhật.**
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.13.9</b></summary>

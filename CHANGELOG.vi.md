@@ -1,6 +1,17 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.14.1] — 2026-07-25
+
+### Thêm mới
+
+- **Bot Zalo thả reaction báo đã nhận tin.** Một icon 🦞 xuất hiện ngay trên tin bạn vừa gửi, nên bạn biết bot đã nhận trong khi nó còn đang viết câu trả lời. Việc này chạy ở tầng kênh chat — không hỏi AI nên **không tốn token**. Bật mặc định cho bot Zalo mới, bot cũ tự nhận khi cập nhật; muốn đổi icon hay tắt thì sửa `messages.ackReaction` trong `openclaw.json` (để trống là tắt). Cần Zalo Connect 3.0.15 trở lên.
+
+### Thay đổi
+
+- **Bot Zalo không còn tự thả reaction trong DM.** Đã có reaction tự động ở trên, nên phần dặn bot tự thả reaction được bỏ khỏi `TOOLS.md` — nó tốn token cho việc mà kênh chat giờ làm miễn phí. Các kênh khác không đổi.
+
+
 ## [5.14.0] — 2026-07-25
 
 ### Thêm mới

@@ -1,6 +1,17 @@
 # Changelog (English)
 
 
+## [5.14.1] — 2026-07-25
+
+### Added
+
+- **Zalo bots acknowledge your message with a reaction.** A 🦞 lands on an incoming message right away, so you can see the bot picked it up while the answer is still being written. It happens in the channel layer — the AI is never asked, so it costs nothing. On by default for new Zalo bots, and existing ones pick it up on update; change or turn it off with `messages.ackReaction` in `openclaw.json` (empty disables). Needs Zalo Connect 3.0.15 or newer.
+
+### Changed
+
+- **Zalo bots no longer react by hand in DMs.** With the automatic acknowledgment above, the instruction telling the bot to add its own reaction is gone from `TOOLS.md` — it spent tokens on something the channel now does for free. Other channels are unchanged.
+
+
 ## [5.14.0] — 2026-07-25
 
 ### Added
