@@ -114,10 +114,34 @@
           // nửa đêm và đặt cron/lịch vào quá khứ. Lấy tz người dùng chọn ở UI Cài đặt (mặc định VN).
           userTimezone,
           compaction: { mode: 'safeguard' },
-          // Trim stale tool results before Anthropic's prompt-cache TTL expires so the
-          // re-cache write stays small → lower token cost on long sessions, zero downside.
-          // The stable system prompt (AGENTS.md/SOUL.md…) stays cached above the boundary.
-          contextPruning: { mode: 'cache-ttl', ttl: '5m' },
+          // Trim stale tool results from context before each LLM call. Lowers token
+          // cost on long sessions AND keeps a heavy multi-step turn (deep research +
+          // file/PDF gen) from piling up tool output that overflows the model window
+          // mid tool-loop. These bots run on 9router (no Anthropic prompt cache), so a
+          // short 2m TTL lets pruning engage sooner inside a long turn — no cache
+          // downside. The stable system prompt (AGENTS.md/SOUL.md…) is never pruned.
+          contextPruning: { mode: 'cache-ttl', ttl: '2m' },
+          // Compress vision inputs — these bots are image-heavy (infographics, PDF
+          // charts, screenshots). "efficient" keeps vision-token cost down so an
+          // image-rich turn is far less likely to blow past the context window.
+          imageQuality: 'efficient',
+          // Downscale image payloads when sanitizing transcript/tool-result content
+          // (OpenClaw default is 1200px). Verified failure mode: the bot generated 4K
+          // infographics for a PDF and then read them back with the image tool — each
+          // read landed a ~100KB base64 blob in the transcript, and the overflow
+          // precheck counts that base64 as plain text (~14k tokens per image). Eight of
+          // them in one turn = 214k estimated tokens against a 180k budget → abort with
+          // "nothing to compact". 1024px keeps charts/screenshots legible to vision
+          // while roughly halving the payload.
+          imageMaxDimensionPx: 1024,
+          // Cap each persisted tool result. The model-context auto default is huge
+          // (64k chars/result at 200k tokens), so one heavy turn (e.g. deep research
+          // with 40+ web fetches) can pile up 200k+ tokens of tool output in a SINGLE
+          // unsplittable turn — which then can't be compacted ("nothing to compact")
+          // and poisons the session until a manual reset. 12k chars (~3k tokens) per
+          // result keeps per-source content substantial while making that runaway
+          // impossible. Applies to persisted results + overflow recovery.
+          contextLimits: { toolResultMaxChars: 12000 },
           // Agent-TURN budget (seconds). 120 was too short for multi-step cloud turns (OCR +
           // file gen + tool calls). 900 = OpenClaw's own native default and the practical max
           // we use. This is the turn budget — a DIFFERENT layer from 9router's per-request
@@ -240,8 +264,17 @@
     const skillEntries = buildSkillsEntries(skills, selectedSkills);
     // NOTE: the "zalo-actions" skill was removed — its guidance now lives in the `zalo-connect`
     // tool description itself (fork ≥ v3.0.2), so no per-bot skill entry is needed anymore.
+    //
+    // Skill Workshop `approvalPolicy: "auto"` lets the assistant author its own
+    // workspace skills end-to-end when the user asks ("tạo skill X"): create the
+    // proposal AND apply it in one turn, without a separate operator approval.
+    // Apply is still scanner-gated + workspace-scoped + rollback-tracked, so this
+    // stays safe. Workspace SKILL.md files auto-load via the skills watcher — no
+    // per-skill openclaw.json entry is needed. `autonomous.enabled` stays false so
+    // the bot only creates skills on explicit request, never spontaneously.
+    cfg.skills = { workshop: { approvalPolicy: 'auto' } };
     if (Object.keys(skillEntries).length > 0) {
-      cfg.skills = { entries: skillEntries };
+      cfg.skills.entries = skillEntries;
     }
 
     // ── plugins (memory-core dreaming + openclaw-zalo-mod) ────────────────────────────

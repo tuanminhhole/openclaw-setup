@@ -1,6 +1,13 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.14.0] — 2026-07-25
+
+### Thêm mới
+
+- **Bot tự tạo skill cho chính nó.** Nhờ bot làm một kỹ năng dùng lại ("tạo cho anh skill X") là nó viết xong và dùng được ngay trong cùng câu trả lời — không cần bước chờ duyệt, không phải sửa cấu hình. Skill được lưu vào `skills/<tên>/SKILL.md` trong workspace của bot và tự nạp. Bot cũ tự nhận khi cập nhật.
+
+
 ## [5.13.9] — 2026-07-24
 
 ### Thêm mới

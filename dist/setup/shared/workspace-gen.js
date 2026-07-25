@@ -1231,6 +1231,14 @@ Skills dùng chung. Setup là của riêng bạn. Tách ra nghĩa là cập nh�
 
 - Xem chi tiết hướng dẫn các kỹ năng được cài đặt tại thư mục [skills](./skills/).
 
+**🛠️ Tự tạo skill:** Khi user nhờ tạo một kỹ năng/quy trình dùng lại (vd _"tạo skill X"_), bạn TỰ làm được từ đầu đến cuối — dùng tool \`skill_workshop\`: tạo proposal RỒI **apply luôn trong cùng lượt** (môi trường này đã bật \`approvalPolicy: auto\` nên không cần chờ ai duyệt). Skill sẽ được ghi vào \`skills/<tên>/SKILL.md\` trong workspace và **tự nạp** qua watcher — KHÔNG cần sửa \`openclaw.json\`. Đừng dừng ở bước _"đã tạo proposal, chờ sếp duyệt rồi áp dụng"_: user bảo tạo nghĩa là tạo xong dùng được ngay. Tuyệt đối KHÔNG nhúng bí mật (mật khẩu/token/tài khoản) vào nội dung skill — đọc chúng từ biến môi trường lúc chạy.
+
+**🧠 Việc dài, nhiều bước (research sâu, dựng báo cáo/PDF):** cửa sổ ngữ cảnh là tài nguyên — một lượt nhồi quá nhiều sẽ vỡ giữa đường và KHÔNG nén lại được. Ba quy tắc:
+
+- **Ảnh/chart bạn vừa tạo thì đừng đọc lại** bằng tool ảnh để "xem cho chắc". Chèn thẳng file vào tài liệu; muốn kiểm thì xem file có tồn tại / build thành công. Đọc lại một ảnh lớn tốn ngữ cảnh gấp nhiều lần bạn tưởng.
+- **Tạo hình ở cỡ vừa đủ** (cạnh dài ~1280px là đẹp cho báo cáo). Đừng làm 4K trừ khi user yêu cầu rõ.
+- **Research nhiều nguồn thì chia việc:** \`sessions_spawn\` mỗi nhánh một subagent (mỗi con có cửa sổ riêng), bảo chúng **ghi dữ liệu thô ra file** trong workspace và **chỉ trả về tóm tắt ngắn kèm đường dẫn file**. Bạn tổng hợp từ file. Đừng tự mình kéo hàng chục trang web vào một lượt.
+
 ## 📁 File & Workspace
 
 - Bot có thể đọc/ghi file trong thư mục workspace: \`${workspacePath}\`
@@ -1281,6 +1289,14 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 ## 📁 Skills
 
 - See detailed guidelines of installed skills in the [skills](./skills/) directory.
+
+**🛠️ Authoring skills:** When the user asks you to build a reusable capability (e.g. _"make a skill for X"_), you can do it end-to-end — use the \`skill_workshop\` tool: create the proposal AND **apply it in the same turn** (this environment sets \`approvalPolicy: auto\`, so no separate approval is needed). The skill lands in \`skills/<name>/SKILL.md\` in the workspace and **auto-loads** via the watcher — no \`openclaw.json\` edit required. Don't stop at _"proposal created, awaiting approval"_: if they asked you to build it, finish it so it works right away. Never hardcode secrets (passwords/tokens/accounts) into a skill's contents — read them from environment variables at runtime.
+
+**🧠 Long multi-step work (deep research, building reports/PDFs):** the context window is a budget — cram too much into one turn and it blows up mid-flight, with nothing left to compact. Three rules:
+
+- **Don't read back an image or chart you just made** to "double-check" it. Drop the file straight into the document; verify by checking the file exists or that the build succeeded. Re-reading a large image costs far more context than it looks.
+- **Render images at a sane size** (~1280px on the long edge looks great in a report). Skip 4K unless the user explicitly asks.
+- **Split multi-source research:** \`sessions_spawn\` one subagent per branch (each gets its own window), have them **write raw findings to files** in the workspace and **return only a short summary plus the file paths**. You synthesize from the files. Don't pull dozens of web pages into a single turn yourself.
 
 ## 📁 File & Workspace
 

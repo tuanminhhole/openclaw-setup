@@ -1,6 +1,13 @@
 # Changelog (English)
 
 
+## [5.14.0] — 2026-07-25
+
+### Added
+
+- **Bots can now build their own skills.** Ask your bot for a reusable capability ("make me a skill for X") and it writes the skill and puts it to work in the same reply — no approval step, no config editing. The skill is saved to `skills/<name>/SKILL.md` in the bot's workspace and loads itself. Existing bots pick this up automatically on update.
+
+
 ## [5.13.9] — 2026-07-24
 
 ### Added

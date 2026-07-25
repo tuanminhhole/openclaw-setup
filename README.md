@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS — Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.13.9-0EA5E9?style=for-the-badge" alt="Version 5.13.9" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.14.0-0EA5E9?style=for-the-badge" alt="Version 5.14.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,10 +37,17 @@
 
 ---
 
-## 🆕 What's New in v5.13.9
+## 🆕 What's New in v5.14.0
+
+- 🛠️ **Bots build their own skills**: ask your bot for a reusable capability ("make me a skill for X") and it writes the skill and puts it to work in the same reply — no approval step, no config editing. The skill is saved to `skills/<name>/SKILL.md` in the bot's workspace and loads itself. **Existing bots pick this up automatically on update.**
+
+<details>
+<summary><b>Previous: What's new in v5.13.9</b></summary>
 
 - 🧠 **Always-on memory for every bot (learning-memory)**: a new context-engine plugin injects your curated `MEMORY.md` + `USER.md` into **every** turn — including group chats, which the default recall skips. Bots stop forgetting context and rules over time: no more chiming in when nobody called them, or re-asking things you already told them. Auto-installed for new bots + a 1-click card in the dashboard.
 - 🧹 **Retired TencentDB Agent Memory** in favor of the always-on engine above (no external service needed). Existing bots are auto-migrated on update — the old learning-memory *skill* and the TencentDB plugin are removed automatically.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.13.4</b></summary>
