@@ -248,6 +248,18 @@
     if (alsoAllow.length > 0) {
       cfg.tools.alsoAllow = alsoAllow;
     }
+    // Hide OpenClaw's native `browser` tool: browsing goes through the browser-automation
+    // plugin's own CLI (skills/browser-automation/browser-tool.js), which adds the page-
+    // reading commands the native tool lacks (get_text, get_links) — that is the whole
+    // point of shipping the plugin. Left visible, the model reaches for the native tool
+    // instead and asks it for the container-local "openclaw" profile, which has no browser
+    // behind it, then reports "no browser available" while the real one sits unused.
+    // The bundled `browser` plugin stays allowed (it provides the browser-control service);
+    // only the tool is denied, and browser-tool.js drives Chrome directly over CDP.
+    if (hasBrowserDesktop || hasBrowserServer
+      || selectedSkills.includes('browser') || selectedSkills.includes('browser-automation')) {
+      cfg.tools.deny = ['browser'];
+    }
     // DuckDuckGo is the bundled, credential-free web_search provider. Auto-detect only
     // picks providers that have credentials, so a free provider must be selected
     // explicitly, otherwise web_search reports "no provider is available".

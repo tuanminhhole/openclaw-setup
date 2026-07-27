@@ -3,7 +3,7 @@ import fs, { createReadStream, existsSync, promises as fsp } from 'fs';
 import { createRequire } from 'module';
 import { basename, dirname, extname, join, normalize, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { spawn, execFile } from 'child_process';
+import { spawn, execFile, execFileSync } from 'child_process';
 import os from 'os';
 import net from 'net';
 import { DatabaseSync } from 'node:sqlite';
@@ -18,6 +18,23 @@ const { buildOpenclawJson, buildEnvFileContent, buildExecApprovalsJson, buildZal
 const { buildDockerArtifacts } = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
 const { OPENCLAW_NPM_SPEC, NINE_ROUTER_NPM_SPEC, ZALO_CHANNEL_ID, ZALO_PLUGIN_ID, ZALO_CONNECT_VERSION, ZALO_CONNECT_PLUGIN_SPEC, build9RouterProviderConfig, get9RouterBaseUrl } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
+
+// Chrome 136+ ignores --remote-debugging-port when --user-data-dir is the default profile
+// directory, so every launch path here (the dashboard button and the generated start-chrome
+// scripts) runs a dedicated profile seeded from the operator's real one. Kept outside Chrome's
+// own folders: the block is an exact match on the default directory, and a sibling of it is a
+// needless bet on that staying true.
+const CHROME_SCRIPT_MARKER = 'OPENCLAW_CHROME_PROFILE_V2';
+const CHROME_DEBUG_PROFILE_LEAF_WIN = 'OpenClaw\\chrome-profile';
+const CHROME_DEBUG_PROFILE_LEAF_MAC = 'Library/Application Support/OpenClaw/chrome-profile';
+const CHROME_DEBUG_PROFILE_LEAF_LINUX = '.config/openclaw/chrome-profile';
+// Bulk that a fresh profile rebuilds on its own; skipping it turns a multi-GB copy into a
+// few hundred MB.
+const CHROME_PROFILE_CACHE_DIRS = [
+  'Cache', 'Code Cache', 'GPUCache', 'GrShaderCache', 'ShaderCache', 'DawnCache',
+  'DawnGraphiteCache', 'DawnWebGPUCache', 'Service Worker', 'component_crx_cache',
+  'extensions_crx_cache', 'optimization_guide_model_store', 'blob_storage',
+];
 
 async function syncExecApprovals(projectDir, cfg) {
   const openclawHome = join(projectDir, '.openclaw');
@@ -95,6 +112,150 @@ async function connectPreferredChrome() {
     return next;
   };
 
+  // The shipped script is replaced outright rather than tweaked: it launches Chrome against a
+  // throwaway profile under %TEMP%, which is the single clearest bot signal a site can read —
+  // no cookies, no logins, no history, no extensions, brand new on every run.
+  //
+  // The obvious fix, pointing --user-data-dir at the operator's real profile, is what earlier
+  // versions did and it stopped working: since Chrome 136 the browser silently refuses
+  // --remote-debugging-port when --user-data-dir IS the default profile directory. Chrome
+  // still opens, port 9222 never comes up, and the bot reports "Chrome debug not connected"
+  // no matter how many times the operator restarts it.
+  //
+  // So: a dedicated profile directory, seeded once from the real one. Cookies, logins,
+  // history and extensions come along (that was the point of using the real profile), the
+  // debug port is allowed because the directory is not the default one, and the operator's
+  // own Chrome can keep running next to it. Set OPENCLAW_CHROME_PROFILE_DIR to override —
+  // anything except the default profile directory works.
+  const chromeProfileCacheJunk = CHROME_PROFILE_CACHE_DIRS;
+
+  const startChromeBat = [
+    '@echo off',
+    `REM ${CHROME_SCRIPT_MARKER}`,
+    'echo ====== OpenClaw - Chrome ======',
+    'echo.',
+    '',
+    'set "REAL_PROFILE=%LOCALAPPDATA%\\Google\\Chrome\\User Data"',
+    'REM Chrome 136+ tu choi --remote-debugging-port khi user-data-dir la profile mac dinh,',
+    'REM nen dung mot thu muc rieng (chep tu profile that o lan chay dau).',
+    `if "%OPENCLAW_CHROME_PROFILE_DIR%"=="" set "OPENCLAW_CHROME_PROFILE_DIR=%LOCALAPPDATA%\\${CHROME_DEBUG_PROFILE_LEAF_WIN}"`,
+    '',
+    'set "CHROME_BIN=C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"',
+    'if not exist "%CHROME_BIN%" set "CHROME_BIN=C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"',
+    'if not exist "%CHROME_BIN%" set "CHROME_BIN=%LOCALAPPDATA%\\Google\\Chrome\\Application\\chrome.exe"',
+    'if not exist "%CHROME_BIN%" (',
+    '  echo LOI: Khong tim thay Google Chrome. Hay cai Chrome roi chay lai.',
+    '  pause',
+    '  exit /b 1',
+    ')',
+    '',
+    'REM Chi dong ban Chrome dieu khien cu neu co - Chrome thuong cua ban van chay binh thuong,',
+    'REM vi ban dieu khien dung profile rieng.',
+    'powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq \'chrome.exe\' -and $_.CommandLine -like \'*--remote-debugging-port=9222*\' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" >nul 2>&1',
+    // `timeout` dies with "Input redirection is not supported" whenever stdin is not a
+    // console — which is every run from the dashboard, a scheduled task or SSH. ping waits
+    // the same way and does not care.
+    'ping -n 3 127.0.0.1 >nul',
+    '',
+    'if not exist "%OPENCLAW_CHROME_PROFILE_DIR%\\Default" (',
+    // No parentheses in text inside an if-block: cmd closes the block on the first ")".
+    '  echo Lan dau: dang dong Chrome de chep profile - cookie, dang nhap...',
+    '  taskkill /F /IM chrome.exe >nul 2>&1',
+    '  ping -n 4 127.0.0.1 >nul',
+    '  echo Dang chep profile Chrome that sang "%OPENCLAW_CHROME_PROFILE_DIR%" ...',
+    '  robocopy "%REAL_PROFILE%\\Default" "%OPENCLAW_CHROME_PROFILE_DIR%\\Default" /E /R:0 /W:0 /NFL /NDL /NJH /NJS /NP ^',
+    `    /XD ${chromeProfileCacheJunk.map((n) => (n.includes(' ') ? `"${n}"` : n)).join(' ')} >nul`,
+    '  copy /Y "%REAL_PROFILE%\\Local State" "%OPENCLAW_CHROME_PROFILE_DIR%\\Local State" >nul',
+    ')',
+    '',
+    'echo Dang mo Chrome - profile: %OPENCLAW_CHROME_PROFILE_DIR%',
+    'start "" "%CHROME_BIN%" ^',
+    '  --remote-debugging-port=9222 ^',
+    '  --remote-allow-origins=* ^',
+    '  --user-data-dir="%OPENCLAW_CHROME_PROFILE_DIR%" ^',
+    '  --profile-directory=Default ^',
+    '  --no-first-run ^',
+    '  --no-default-browser-check',
+    'ping -n 6 127.0.0.1 >nul',
+    'powershell -NoProfile -Command "try { Invoke-WebRequest -Uri \'http://localhost:9222/json/version\' -UseBasicParsing -TimeoutSec 5 | Out-Null; Write-Host \'OK! Chrome dang mo cong dieu khien 9222 - bot dung duoc.\' -ForegroundColor Green } catch { Write-Host \'LOI: Cong 9222 chua mo. Dong het cua so Chrome roi chay lai file nay.\' -ForegroundColor Red }"',
+    'echo.',
+    'pause',
+    '',
+  ].join('\r\n');
+
+  const startChromeSh = [
+    '#!/usr/bin/env bash',
+    `# ${CHROME_SCRIPT_MARKER}`,
+    '# ====== OpenClaw - Chrome (Mac/Linux) ======',
+    'set -e',
+    'echo "====== OpenClaw - Chrome ======"',
+    'echo ""',
+    '',
+    'if [[ "$OSTYPE" == "darwin"* ]]; then',
+    '  CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"',
+    '  [ ! -f "$CHROME_BIN" ] && CHROME_BIN="/Applications/Chromium.app/Contents/MacOS/Chromium"',
+    '  [ ! -f "$CHROME_BIN" ] && CHROME_BIN="/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary"',
+    '  REAL_PROFILE="$HOME/Library/Application Support/Google/Chrome"',
+    `  DEFAULT_DEBUG_PROFILE="$HOME/${CHROME_DEBUG_PROFILE_LEAF_MAC}"`,
+    'else',
+    "  CHROME_BIN=\"$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || echo '')\"",
+    '  REAL_PROFILE="$HOME/.config/google-chrome"',
+    `  DEFAULT_DEBUG_PROFILE="$HOME/${CHROME_DEBUG_PROFILE_LEAF_LINUX}"`,
+    'fi',
+    '[ -n "$CHROME_DEBUG_BIN" ] && CHROME_BIN="$CHROME_DEBUG_BIN"',
+    '',
+    'if [ -z "$CHROME_BIN" ] || { [ ! -f "$CHROME_BIN" ] && [ ! -x "$CHROME_BIN" ]; }; then',
+    '  echo -e "\\033[31mERROR: Chrome/Chromium not found.\\033[0m"',
+    '  echo "Install Chrome or: export CHROME_DEBUG_BIN=/path/to/chrome"',
+    '  exit 1',
+    'fi',
+    '',
+    '# Chrome 136+ refuses --remote-debugging-port on the default profile directory, so run a',
+    '# dedicated one seeded from the real profile (keeps cookies, logins, history, extensions).',
+    ': "${OPENCLAW_CHROME_PROFILE_DIR:=$DEFAULT_DEBUG_PROFILE}"',
+    '',
+    'echo "Using: $CHROME_BIN"',
+    'echo "Killing existing Chrome debug instances..."',
+    'pkill -f -- "--remote-debugging-port=9222" 2>/dev/null || true',
+    'sleep 2',
+    '',
+    'if [ ! -d "$OPENCLAW_CHROME_PROFILE_DIR/Default" ] && [ -d "$REAL_PROFILE/Default" ]; then',
+    '  echo "First run: copying the real Chrome profile into $OPENCLAW_CHROME_PROFILE_DIR ..."',
+    '  mkdir -p "$OPENCLAW_CHROME_PROFILE_DIR/Default"',
+    '  cp -R "$REAL_PROFILE/Default/." "$OPENCLAW_CHROME_PROFILE_DIR/Default/" 2>/dev/null || true',
+    '  cp -f "$REAL_PROFILE/Local State" "$OPENCLAW_CHROME_PROFILE_DIR/Local State" 2>/dev/null || true',
+    `  for junk in ${chromeProfileCacheJunk.map((n) => `"${n}"`).join(' ')}; do`,
+    '    rm -rf "$OPENCLAW_CHROME_PROFILE_DIR/Default/$junk"',
+    '  done',
+    'fi',
+    'mkdir -p "$OPENCLAW_CHROME_PROFILE_DIR"',
+    '',
+    'echo "Starting Chrome (profile: $OPENCLAW_CHROME_PROFILE_DIR)..."',
+    '"$CHROME_BIN" \\',
+    '  --remote-debugging-port=9222 \\',
+    '  --remote-allow-origins=* \\',
+    '  --user-data-dir="$OPENCLAW_CHROME_PROFILE_DIR" \\',
+    '  --profile-directory=Default \\',
+    '  --no-first-run \\',
+    '  --no-default-browser-check &',
+    '',
+    'sleep 4',
+    'if curl -s http://localhost:9222/json/version > /dev/null 2>&1; then',
+    '  echo -e "\\033[32mOK! Chrome is listening on port 9222.\\033[0m"',
+    'else',
+    '  echo -e "\\033[31mERROR: Port 9222 not responding. Quit every Chrome window and run this again.\\033[0m"',
+    '  exit 1',
+    'fi',
+    '',
+  ].join('\n');
+
+  // Scripts from before the dedicated-profile fix carry OPENCLAW_CHROME_PROFILE_DIR but point
+  // it at the default profile, so they are dead on Chrome 136+. The marker — not the variable
+  // name — decides whether a script is current; anything older is replaced.
+  const patchChromeDebugScript = (content, isBat) => (
+    content.includes(CHROME_SCRIPT_MARKER) ? content : (isBat ? startChromeBat : startChromeSh)
+  );
+
   const browserToolCandidates = new Set();
   const extensionDirs = [];
   for (const alias of aliases) {
@@ -111,7 +272,9 @@ async function connectPreferredChrome() {
       for (const a of cfg.agents?.list || []) {
         const workspaceRel = a.workspace || cfg.agents?.defaults?.workspace;
         if (!workspaceRel) continue;
-        const workspacePath = workspaceRel.startsWith('/') ? join(projectDir, workspaceRel.replace(/^\/home\/node\/project\/?/, '')) : join(projectDir, workspaceRel);
+        const workspacePath = workspaceRel.startsWith('/')
+          ? (resolve(workspaceRel).startsWith(resolve(projectDir)) ? workspaceRel : join(projectDir, workspaceRel.replace(/^\/home\/node\/project\/?/, '').replace(/^\/root\/project\/?/, '')))
+          : join(projectDir, workspaceRel);
         workspaceDirs.add(workspacePath);
         browserToolCandidates.add(join(workspacePath, 'plugin-skills', 'browser-automation', 'browser-tool.js'));
       }
@@ -135,6 +298,25 @@ async function connectPreferredChrome() {
     sendLog(`[browser] Patched ${patched} browser-tool.js file(s) to prefer host Chrome debug before headless Chromium.`);
   }
 
+  // Patch the plugin's own copies too: the plugin re-syncs its skill folder into every
+  // workspace on startup, so an unpatched source would undo the profile change below.
+  let scriptsPatched = 0;
+  for (const dir of extensionDirs) {
+    for (const name of ['start-chrome-debug.bat', 'start-chrome-debug.sh']) {
+      const file = join(dir, name);
+      if (!existsSync(file)) continue;
+      const content = await fsp.readFile(file, 'utf8');
+      const next = patchChromeDebugScript(content, name.endsWith('.bat'));
+      if (next !== content) {
+        await fsp.writeFile(file, next, 'utf8');
+        scriptsPatched += 1;
+      }
+    }
+  }
+  if (scriptsPatched > 0) {
+    sendLog(`[browser] Patched ${scriptsPatched} start-chrome script(s) to use the real Chrome profile (set OPENCLAW_CHROME_PROFILE_DIR to override).`);
+  }
+
   const browserMd = `# Browser Automation
 
 This plugin skill owns browser automation only. For normal web search, use OpenClaw's built-in \`web_search\` capability.
@@ -148,10 +330,14 @@ Run commands from this folder or pass the full path from the workspace root:
 
 On a desktop machine, start real Chrome in debug mode before asking the bot to browse:
 
-- Windows: run \`start-chrome-debug.bat\`
-- macOS/Linux: run \`./start-chrome-debug.sh\`
+- Windows: run \`start-chrome.bat\`
+- macOS/Linux: run \`./start-chrome.sh\`
 
-The tool will try real host Chrome first. If Chrome debug is not available, it falls back to local headless Chromium, which is suitable for VPS/server use.
+Chrome launches with a profile copied from the operator's own on first run, so pages see a normal browser with its usual cookies, logins and history. (Chrome 136+ refuses the debug port on the default profile directory itself, hence the copy.) Set \`OPENCLAW_CHROME_PROFILE_DIR\` before running the script to use a different profile.
+
+The tool connects to whichever Chrome answers first: the operator's Chrome on the host, then a local one on \`127.0.0.1:9222\`. On a server with no desktop Chrome, the container starts its own headless Chromium there at boot, so the same commands work everywhere.
+
+**Use these commands, not OpenClaw's built-in \`browser\` tool** — that tool is switched off here because it cannot read page text or links, which is the whole reason this skill exists. If a command reports it cannot connect, the operator's Chrome is not running: ask them to run the debug script above. Do not conclude that the environment has no browser.
 
 ## Browser Commands
 
@@ -179,9 +365,13 @@ Do not call \`search-tool.js\`; browser-automation does not own search. Use \`we
 
   const hostOs = normalizeHostOs(await resolveProjectHostOs(projectDir));
   const shouldKeepBat = hostOs === 'win';
-  const scriptToKeep = shouldKeepBat ? 'start-chrome-debug.bat' : 'start-chrome-debug.sh';
-  const scriptToRemove = shouldKeepBat ? 'start-chrome-debug.sh' : 'start-chrome-debug.bat';
-  const sourceScript = extensionDirs.map((dir) => join(dir, scriptToKeep)).find((file) => existsSync(file));
+  // Shipped as start-chrome-debug.* by the plugin; delivered to the workspace as
+  // start-chrome.* — it launches the operator's normal Chrome (with the debug port open),
+  // so "debug" in the name only ever made people think it was a developer-only thing.
+  const sourceName = shouldKeepBat ? 'start-chrome-debug.bat' : 'start-chrome-debug.sh';
+  const scriptToKeep = shouldKeepBat ? 'start-chrome.bat' : 'start-chrome.sh';
+  const legacyScripts = ['start-chrome-debug.bat', 'start-chrome-debug.sh', shouldKeepBat ? 'start-chrome.sh' : 'start-chrome.bat'];
+  const sourceScript = extensionDirs.map((dir) => join(dir, sourceName)).find((file) => existsSync(file));
   const sourceBrowserTool = extensionDirs.map((dir) => join(dir, 'browser-tool.js')).find((file) => existsSync(file));
 
   let sanitized = 0;
@@ -192,9 +382,11 @@ Do not call \`search-tool.js\`; browser-automation does not own search. Use \`we
     await fsp.rm(join(workspacePath, 'search-tool.js'), { force: true }).catch(() => {});
     await fsp.rm(join(workspacePath, 'browser-tool.js'), { force: true }).catch(() => {});
     await fsp.rm(join(workspacePath, 'BROWSER.md'), { force: true }).catch(() => {});
-    await fsp.rm(join(workspacePath, scriptToRemove), { force: true }).catch(() => {});
+    for (const legacy of legacyScripts) {
+      await fsp.rm(join(workspacePath, legacy), { force: true }).catch(() => {});
+      await fsp.rm(join(pluginSkillPath, legacy), { force: true }).catch(() => {});
+    }
     await fsp.rm(join(workspacePath, scriptToKeep), { force: true }).catch(() => {});
-    await fsp.rm(join(pluginSkillPath, scriptToRemove), { force: true }).catch(() => {});
     if (sourceBrowserTool) {
       const targetBrowserTool = join(pluginSkillPath, 'browser-tool.js');
       await fsp.copyFile(sourceBrowserTool, targetBrowserTool).catch(() => {});
@@ -205,8 +397,14 @@ Do not call \`search-tool.js\`; browser-automation does not own search. Use \`we
       }
     }
     if (sourceScript) {
-      await fsp.copyFile(sourceScript, join(pluginSkillPath, scriptToKeep)).catch(() => {});
-      if (scriptToKeep.endsWith('.sh')) await fsp.chmod(join(pluginSkillPath, scriptToKeep), 0o755).catch(() => {});
+      const targetScript = join(pluginSkillPath, scriptToKeep);
+      await fsp.copyFile(sourceScript, targetScript).catch(() => {});
+      if (existsSync(targetScript)) {
+        const scriptContent = await fsp.readFile(targetScript, 'utf8');
+        const nextScript = patchChromeDebugScript(scriptContent, scriptToKeep.endsWith('.bat'));
+        if (nextScript !== scriptContent) await fsp.writeFile(targetScript, nextScript, 'utf8');
+      }
+      if (scriptToKeep.endsWith('.sh')) await fsp.chmod(targetScript, 0o755).catch(() => {});
     }
     await fsp.writeFile(join(pluginSkillPath, 'BROWSER.md'), browserMd, 'utf8');
     for (const dirName of ['cl-stealth-search', 'openclaw-smart-search']) {
@@ -765,8 +963,15 @@ async function syncRuntimeState(projectDir, { full = false } = {}) {
   await removeEmptyWorkspaceAttestations(projectDir).catch(() => {});
   const firstSync = full || !_runtimeSynced.has(projectDir);
   if (firstSync) {
-    // Auto-migrate legacy /root/project paths → /home/node/project in openclaw.json
-    await migrateContainerPaths(projectDir).catch(() => {});
+    if (isNativeProject(projectDir)) {
+      // Native has no container: rewrite any Docker/legacy container path
+      // (/home/node/project, /root/project) to project-relative, or the gateway tries to
+      // mkdir '/home/node' on the host and fails every turn (bot never replies).
+      await migrateNativePaths(projectDir).catch(() => {});
+    } else {
+      // Auto-migrate legacy /root/project paths → /home/node/project in openclaw.json
+      await migrateContainerPaths(projectDir).catch(() => {});
+    }
     await applyResolved9RouterApiKey(projectDir).catch(() => {});
   }
   const rt = await detectRuntime(projectDir).catch(() => null);
@@ -797,6 +1002,43 @@ async function removeEmptyWorkspaceAttestations(projectDir) {
   if (entries.length > 0) return false;
   await fsp.rmdir(attestDir);
   return true;
+}
+
+/**
+ * Native counterpart of migrateContainerPaths. A native bot runs on the host with cwd = the
+ * project dir, so any Docker/legacy container path baked into openclaw.json (e.g. an agent
+ * `workspace` of "/home/node/project/.openclaw/workspace-x", left over from a bot created by an
+ * older build or carried over from Docker) points at a directory that does not exist on the host —
+ * the gateway then fails every turn with `ENOENT: mkdir '/home/node'` and the bot never replies.
+ * Strip the container prefix so the path becomes project-relative (what bot-config-gen now emits).
+ */
+async function migrateNativePaths(projectDir) {
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  if (!existsSync(cfgPath)) return;
+  let cfg;
+  try { cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8')); } catch { return; }
+  // The native gateway runs with cwd = OPENCLAW_HOME (projectDir/.openclaw), while the setup
+  // writes the workspace under projectDir/.openclaw/<name>. A relative value can't satisfy both:
+  //   ".openclaw/workspace-x"  → runtime doubles it to .openclaw/.openclaw/workspace-x (blank persona)
+  //   "workspace-x"            → setup's own resolver looks in projectDir/workspace-x
+  // Only an ABSOLUTE host path is correct for both — the direct parallel of Docker's absolute
+  // "/home/node/project/.openclaw/workspace-x". Normalise every agent's workspace to it.
+  const wsRoot = join(projectDir, '.openclaw');
+  let changed = false;
+  const fix = (obj) => {
+    if (!obj || typeof obj.workspace !== 'string' || !obj.workspace) return;
+    const base = basename(obj.workspace.replace(/[\\/]+$/, ''));
+    if (!base || base === '.' || base === '.openclaw') return;
+    const abs = join(wsRoot, base);
+    if (obj.workspace !== abs) { obj.workspace = abs; changed = true; }
+  };
+  for (const a of (cfg.agents?.list || [])) fix(a);
+  fix(cfg.agents?.defaults);
+  if (changed) {
+    await fsp.copyFile(cfgPath, `${cfgPath}.bak`).catch(() => {});
+    await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+    sendLog('[migrate] Native: normalized agent workspace paths → absolute project paths (fixes doubled/container paths).');
+  }
 }
 
 /**
@@ -1314,6 +1556,17 @@ async function deleteBotInProject(projectDir, agentId) {
   }
   if (cfg.channels?.telegram?.accounts?.[agentId]) delete cfg.channels.telegram.accounts[agentId];
 
+  // Drop any channel orphaned by this deletion — no binding references it and it has no accounts
+  // (e.g. a Telegram channel whose only bot was just removed). An enabled channel with no account
+  // keeps erroring in `channels status` ("not configured") and shows a broken card.
+  const stillReferenced = new Set((cfg.bindings || []).map((b) => b.match?.channel).filter(Boolean));
+  for (const ch of new Set(removedBindings.map((b) => b.match?.channel).filter(Boolean))) {
+    const chCfg = cfg.channels?.[ch];
+    if (chCfg && !stillReferenced.has(ch) && Object.keys(chCfg.accounts || {}).length === 0) {
+      delete cfg.channels[ch];
+    }
+  }
+
   if (existsSync(cfgPath)) await fsp.copyFile(cfgPath, `${cfgPath}.bak`);
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
   await syncExecApprovals(projectDir, cfg);
@@ -1385,7 +1638,10 @@ async function buildBotStatus() {
   const cap = (s) => String(s).toLowerCase() === 'openai' ? 'OpenAI' : String(s).toLowerCase() === '9router' ? '9Router' : s;
   activeProvider = cap(activeProvider);
 
-  return { ...state, gatewayStatus, routerStatus, bots, credentials, runtimeVersions, activeModel, activeProvider };
+  // Resolved per project, not from the installer-wide state.mode: the operator can switch between
+  // a docker project and a native one, and the UI hides/shows container-only actions on this.
+  const deployMode = projectDeployMode(state.projectDir);
+  return { ...state, deployMode, gatewayStatus, routerStatus, bots, credentials, runtimeVersions, activeModel, activeProvider };
 }
 
 async function createBotInProject(projectDir, body = {}, runtime = {}) {
@@ -1506,6 +1762,10 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   validateOpenclawConfig(cfg);
   if (existsSync(cfgPath)) await fsp.copyFile(cfgPath, `${cfgPath}.bak`);
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+  // Native gateway resolves a relative workspace against OPENCLAW_HOME (=projectDir/.openclaw),
+  // so the generator's ".openclaw/workspace-x" would double. Rewrite to an absolute path now so
+  // the bot reads its persona on the very first turn (not only after the next runtime sync).
+  if (isNativeProject(projectDir)) await migrateNativePaths(projectDir).catch(() => {});
   await syncExecApprovals(projectDir, cfg);
 
   const hasScheduler = !!(cfg.tools?.alsoAllow || []).includes('group:automation');
@@ -1536,6 +1796,10 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   // the token); don't pollute other channels' bot-meta.json with an empty appId.
   if (channel === 'fb-messenger') botMeta.appId = fbAppId;
   await writeBotMeta(projectDir, workspaceDir, botMeta);
+  // PC control is granted per PROJECT, so a bot added afterwards must get the same instructions —
+  // its TOOLS.md was just written fresh and would otherwise have no host-control block at all.
+  const hostCfg = await readHostControlConfig(projectDir).catch(() => null);
+  if (hostCfg?.enabled) await writeHostControlAccess(projectDir, hostCfg).catch(() => {});
 
   return { ok: true, agentId, accountId, channel, workspace: `.openclaw/${workspaceDir}`, warning };
 }
@@ -1721,6 +1985,30 @@ async function waitForGatewayZaloReady(botContainer, projectDir, timeoutMs = 900
   return ready;
 }
 
+// Native equivalent of waitForGatewayZaloReady: no container to exec into, so probe the
+// gateway's /health over loopback and read `channels status` through the host CLI (ocCapture).
+async function waitForNativeGatewayZaloReady(projectDir, timeoutMs = 90000, channelKeywords = ['zalo-connect', 'openclaw zalo connect']) {
+  const started = Date.now();
+  const meta = readNativeMeta(projectDir) || {};
+  const port = String(meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT);
+  let ready = false;
+  let attempts = 0;
+  while (Date.now() - started < timeoutMs) {
+    attempts++;
+    if (await probeHttpOk(`http://127.0.0.1:${port}/health`, 2500)) {
+      const st = await ocCapture(projectDir, ['channels', 'status']).catch(() => ({ stdout: '', stderr: '' }));
+      const output = ((st.stdout || '') + ' ' + (st.stderr || '')).toLowerCase();
+      if (channelKeywords.some((kw) => output.includes(kw))) { ready = true; break; }
+      if (attempts > 2) sendLog('[zalo-connect] Gateway healthy but Zalo Connect is not loaded yet (' + Math.round((Date.now() - started) / 1000) + 's)...');
+    } else if (attempts > 2 && attempts % 3 === 0) {
+      sendLog('[zalo-connect] Waiting for native gateway... (' + Math.round((Date.now() - started) / 1000) + 's)');
+    }
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+  if (!ready) sendLog('[zalo-connect] Native gateway readiness timeout after ' + Math.round(timeoutMs / 1000) + 's — proceeding anyway.');
+  return ready;
+}
+
 async function startZaloLogin(projectDir, agentId = "") {
   const cfgPath = join(projectDir, ".openclaw", "openclaw.json");
   if (!existsSync(cfgPath)) throw httpError(404, "openclaw.json not found");
@@ -1742,39 +2030,64 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
   if (zaloLoginInFlight) {
     return { message: 'Zalo login is already running. Keep this modal open...' };
   }
-  const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
-  if (!existsSync(composeFile)) {
-    throw httpError(400, 'Zalo login cần project Docker đang chạy (không tìm thấy docker-compose.yml).');
+  const native = isNativeProject(projectDir);
+  if (!native) {
+    const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
+    if (!existsSync(composeFile)) {
+      throw httpError(400, 'Zalo login cần project Docker đang chạy (không tìm thấy docker-compose.yml).');
+    }
   }
   zaloLoginInFlight = true;
-  const botContainer = getBotContainerName(projectDir);
+  const botContainer = native ? '' : getBotContainerName(projectDir);
   sendLog(`[zalo-connect] Preparing QR login for account [${accountId}]...`);
   try {
-    // NEVER poke the container while it is still booting: OpenClaw runs first-boot
-    // migrations under a state lease, and a docker exec/restart mid-migration wedges
-    // the lease and crash-loops the gateway. Wait for the container, then for the
-    // gateway to report the zalo-connect channel (the entrypoint installs the pinned
-    // plugin itself on first boot), and only fall back to an exec-install when the
-    // gateway is up but the plugin is genuinely absent (projects created before the
-    // backend-aware entrypoint existed).
-    const containerUp = await waitForDockerContainer(botContainer, 90000);
-    if (!containerUp) sendLog(`[zalo-connect] ${botContainer} chưa chạy sau 90s — vẫn thử tiếp...`);
-    const gatewayReady = await waitForGatewayZaloReady(botContainer, projectDir, 180000, ['zalo-connect']);
-    if (!gatewayReady) {
-      const check = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', '[ -d "${OPENCLAW_HOME:-/home/node/project/.openclaw}/extensions/zalo-connect" ] && echo OK || echo MISSING'], { cwd: projectDir, shell: false }).catch(() => ({ stdout: 'ERR' }));
-      if (String(check.stdout || '').trim() === 'MISSING') {
-        sendLog(`[zalo-connect] Plugin missing — installing ${ZALO_CONNECT_PLUGIN_SPEC}...`);
-        const installCmd = `cd /home/node/project && openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force --acknowledge-clawhub-risk 2>&1`;
-        const inst = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', installCmd], { cwd: projectDir, shell: false });
-        const instOut = `${inst.stdout}\n${inst.stderr}`;
-        for (const line of instOut.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
-        if (/installed plugin/i.test(instOut)) {
-          // Gateway must reload to pick the plugin up — safe here: the gateway is past
-          // its boot (we only reach this branch when it answered the exec above).
-          await restartDockerBotContainer(projectDir).catch((err) => sendLog(`[docker] restart skipped/failed: ${err.message}`));
-          await waitForGatewayZaloReady(botContainer, projectDir, 180000, ['zalo-connect']);
-        } else {
-          sendLog('[zalo-connect] Cài plugin không thành công — thử lại bằng nút "Đăng nhập Zalo" sau khi container ổn định.');
+    if (native) {
+      // No container: the gateway runs as a managed service on the host. Wait for it to
+      // report the zalo-connect channel; if it never does and the plugin folder is absent,
+      // install it on the host (into this project's .openclaw/extensions) and reload.
+      const gatewayReady = await waitForNativeGatewayZaloReady(projectDir, 180000, ['zalo-connect']);
+      if (!gatewayReady) {
+        const extDir = join(projectDir, '.openclaw', 'extensions', 'zalo-connect');
+        if (!existsSync(extDir)) {
+          sendLog(`[zalo-connect] Plugin missing — installing ${ZALO_CONNECT_PLUGIN_SPEC} natively...`);
+          const inst = await ocCapture(projectDir, ['plugins', 'install', ZALO_CONNECT_PLUGIN_SPEC, '--force', '--acknowledge-clawhub-risk']);
+          const instOut = `${inst.stdout}\n${inst.stderr}`;
+          for (const line of instOut.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
+          if (/installed plugin/i.test(instOut) || existsSync(extDir)) {
+            await restartNativeRuntime(projectDir).catch((err) => sendLog(`[native] restart skipped/failed: ${err.message}`));
+            await waitForNativeGatewayZaloReady(projectDir, 180000, ['zalo-connect']);
+          } else {
+            sendLog('[zalo-connect] Cài plugin không thành công — thử lại bằng nút "Đăng nhập Zalo".');
+          }
+        }
+      }
+    } else {
+      // NEVER poke the container while it is still booting: OpenClaw runs first-boot
+      // migrations under a state lease, and a docker exec/restart mid-migration wedges
+      // the lease and crash-loops the gateway. Wait for the container, then for the
+      // gateway to report the zalo-connect channel (the entrypoint installs the pinned
+      // plugin itself on first boot), and only fall back to an exec-install when the
+      // gateway is up but the plugin is genuinely absent (projects created before the
+      // backend-aware entrypoint existed).
+      const containerUp = await waitForDockerContainer(botContainer, 90000);
+      if (!containerUp) sendLog(`[zalo-connect] ${botContainer} chưa chạy sau 90s — vẫn thử tiếp...`);
+      const gatewayReady = await waitForGatewayZaloReady(botContainer, projectDir, 180000, ['zalo-connect']);
+      if (!gatewayReady) {
+        const check = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', '[ -d "${OPENCLAW_HOME:-/home/node/project/.openclaw}/extensions/zalo-connect" ] && echo OK || echo MISSING'], { cwd: projectDir, shell: false }).catch(() => ({ stdout: 'ERR' }));
+        if (String(check.stdout || '').trim() === 'MISSING') {
+          sendLog(`[zalo-connect] Plugin missing — installing ${ZALO_CONNECT_PLUGIN_SPEC}...`);
+          const installCmd = `cd /home/node/project && openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force --acknowledge-clawhub-risk 2>&1`;
+          const inst = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', installCmd], { cwd: projectDir, shell: false });
+          const instOut = `${inst.stdout}\n${inst.stderr}`;
+          for (const line of instOut.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
+          if (/installed plugin/i.test(instOut)) {
+            // Gateway must reload to pick the plugin up — safe here: the gateway is past
+            // its boot (we only reach this branch when it answered the exec above).
+            await restartDockerBotContainer(projectDir).catch((err) => sendLog(`[docker] restart skipped/failed: ${err.message}`));
+            await waitForGatewayZaloReady(botContainer, projectDir, 180000, ['zalo-connect']);
+          } else {
+            sendLog('[zalo-connect] Cài plugin không thành công — thử lại bằng nút "Đăng nhập Zalo" sau khi container ổn định.');
+          }
         }
       }
     }
@@ -1788,10 +2101,19 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
   let qrSent = false;
   let loginDone = false;
 
-  const pushQrFromContainer = async (pngPath) => {
-    const js = `const fs=require('fs');const p=${JSON.stringify(pngPath)};try{if(fs.existsSync(p)&&fs.statSync(p).size>100){process.stdout.write(fs.readFileSync(p).toString('base64'));}}catch{}`;
-    const out = await runCapture('docker', ['exec', botContainer, 'node', '-e', js], { cwd: projectDir, shell: false }).catch(() => ({ stdout: '' }));
-    const b64 = extractCompletePngBase64(out.stdout);
+  const pushQr = async (pngPath) => {
+    let b64 = '';
+    if (native) {
+      // The CLI ran on the host, so the QR PNG is a real host path — read it directly.
+      try {
+        const st = await fsp.stat(pngPath);
+        if (st.size > 100) b64 = (await fsp.readFile(pngPath)).toString('base64');
+      } catch {}
+    } else {
+      const js = `const fs=require('fs');const p=${JSON.stringify(pngPath)};try{if(fs.existsSync(p)&&fs.statSync(p).size>100){process.stdout.write(fs.readFileSync(p).toString('base64'));}}catch{}`;
+      const out = await runCapture('docker', ['exec', botContainer, 'node', '-e', js], { cwd: projectDir, shell: false }).catch(() => ({ stdout: '' }));
+      b64 = extractCompletePngBase64(out.stdout);
+    }
     if (b64.length > 100) {
       qrSent = true;
       sendLog(`[zalo-connect:qr] data:image/png;base64,${b64}`);
@@ -1803,7 +2125,7 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
   const handleLine = (line) => {
     const qrFile = line.match(/QR image saved at:\s*(\S+\.png)/i);
     if (qrFile) {
-      pushQrFromContainer(qrFile[1]).catch(() => {});
+      pushQr(qrFile[1]).catch(() => {});
       return;
     }
     if (isQrAsciiArt(line)) return; // don't flood the UI modal with terminal QR art
@@ -1818,7 +2140,9 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
   const runAttempt = () => {
     attempt++;
     if (attempt > 1) sendLog(`[zalo-connect] Retry ${attempt}/${MAX_ATTEMPTS}...`);
-    const child = spawn('docker', ['exec', botContainer, 'sh', '-lc', loginCmd], { cwd: projectDir, shell: false, windowsHide: true });
+    const child = native
+      ? spawn(resolveBinPath('openclaw'), ['channels', 'login', '--channel', 'zalo-connect', '--account', accountId, '--verbose'], { cwd: projectDir, shell: false, windowsHide: true, env: { ...process.env, ...nativeEnv(projectDir) } })
+      : spawn('docker', ['exec', botContainer, 'sh', '-lc', loginCmd], { cwd: projectDir, shell: false, windowsHide: true });
     zaloLoginChild = child;
     child.stdout.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLine));
     child.stderr.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLine));
@@ -1828,9 +2152,15 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
       if (zaloLoginChild === child) zaloLoginChild = null;
       sendLog(`[zalo-connect] Login process exited ${code}`);
       if (loginDone) {
-        sendLog(`[zalo-connect] Login saved. Restarting ${botContainer} so the Zalo channel connects...`);
-        await restartDockerBotContainer(projectDir).catch((err) => sendLog(`[zalo-connect] Container restart failed: ${err.message}`));
-        sendLog(`[zalo-connect] ${botContainer} restarted. Try sending a Zalo message now.`);
+        if (native) {
+          sendLog('[zalo-connect] Login saved. Restarting native gateway so the Zalo channel connects...');
+          await restartNativeRuntime(projectDir).catch((err) => sendLog(`[zalo-connect] Gateway restart failed: ${err.message}`));
+          sendLog('[zalo-connect] Gateway restarted. Try sending a Zalo message now.');
+        } else {
+          sendLog(`[zalo-connect] Login saved. Restarting ${botContainer} so the Zalo channel connects...`);
+          await restartDockerBotContainer(projectDir).catch((err) => sendLog(`[zalo-connect] Container restart failed: ${err.message}`));
+          sendLog(`[zalo-connect] ${botContainer} restarted. Try sending a Zalo message now.`);
+        }
         zaloLoginInFlight = false;
       } else if (code !== 0 && !qrSent && !wasCancelled && attempt < MAX_ATTEMPTS) {
         const delay = RETRY_DELAYS[attempt] || 15000;
@@ -1967,38 +2297,68 @@ async function getZaloHealth(projectDir) {
     }
   }
 
+  const native = isNativeProject(projectDir);
   let containerRunning = false;
-  try {
-    const r = await runCapture('docker', ['inspect', '-f', '{{.State.Running}}', botContainer], { shell: false, timeout: 8000 });
-    containerRunning = String(r.stdout || '').trim() === 'true';
-  } catch {}
   let statusJson = null;
   let textStatus = '';
   let credentialNames = null;
-  if (containerRunning) {
-    try {
-      const r = await runCapture('docker', ['exec', botContainer, 'openclaw', 'channels', 'status', '--json'], { cwd: projectDir, shell: false, timeout: 20000 });
-      statusJson = parseJsonText(String(r.stdout || '').trim(), null);
-    } catch {}
-    if (!statusJson) {
+  if (native) {
+    // "containerRunning" here means "runtime up": for native, probe the managed gateway's
+    // /health over loopback, then read channel status + credentials directly on the host.
+    const nmeta = readNativeMeta(projectDir) || {};
+    const port = String(nmeta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT);
+    containerRunning = await probeHttpOk(`http://127.0.0.1:${port}/health`, 2500);
+    if (containerRunning) {
       try {
-        const r = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', 'openclaw channels status 2>&1 || true'], { cwd: projectDir, shell: false, timeout: 20000 });
-        textStatus = String(r.stdout || '');
+        const r = await ocCapture(projectDir, ['channels', 'status', '--json'], { timeout: 20000 });
+        statusJson = parseJsonText(String(r.stdout || '').trim(), null);
+      } catch {}
+      if (!statusJson) {
+        try {
+          const r = await ocCapture(projectDir, ['channels', 'status'], { timeout: 20000 });
+          textStatus = `${r.stdout || ''}\n${r.stderr || ''}`;
+        } catch {}
+      }
+      // zalo-connect writes credentials under the project's .openclaw (OPENCLAW_HOME); fall
+      // back to the real home dir in case the plugin used os.homedir() instead.
+      const credRe = /^zalo-connect-credentials(?:-[^.]+)?\.json$/i;
+      for (const dir of [join(projectDir, '.openclaw'), join(os.homedir(), '.openclaw')]) {
+        try {
+          const names = (await fsp.readdir(dir)).filter((n) => credRe.test(n));
+          if (names.length) { credentialNames = names; break; }
+        } catch {}
+      }
+    }
+  } else {
+    try {
+      const r = await runCapture('docker', ['inspect', '-f', '{{.State.Running}}', botContainer], { shell: false, timeout: 8000 });
+      containerRunning = String(r.stdout || '').trim() === 'true';
+    } catch {}
+    if (containerRunning) {
+      try {
+        const r = await runCapture('docker', ['exec', botContainer, 'openclaw', 'channels', 'status', '--json'], { cwd: projectDir, shell: false, timeout: 20000 });
+        statusJson = parseJsonText(String(r.stdout || '').trim(), null);
+      } catch {}
+      if (!statusJson) {
+        try {
+          const r = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', 'openclaw channels status 2>&1 || true'], { cwd: projectDir, shell: false, timeout: 20000 });
+          textStatus = String(r.stdout || '');
+        } catch {}
+      }
+      try {
+        const script = "const fs=require('fs'),path=require('path'),os=require('os');const d=path.join(os.homedir(),'.openclaw');let a=[];try{a=fs.readdirSync(d).filter(n=>/^zalo-connect-credentials(?:-[^.]+)?\\.json$/i.test(n))}catch{}process.stdout.write(JSON.stringify(a))";
+        const r = await runCapture('docker', ['exec', botContainer, 'node', '-e', script], { cwd: projectDir, shell: false, timeout: 8000 });
+        credentialNames = parseJsonText(String(r.stdout || '[]').trim(), []);
+      } catch {}
+      try {
+        const versions = await getContainerExtensionVersions(projectDir);
+        const zaloModVersion = versions['zalo-mod'] || versions['openclaw-zalo-mod'] || '';
+        if (zaloModVersion) {
+          meta.zaloModInstalled = true;
+          meta.zaloModVersion = zaloModVersion;
+        }
       } catch {}
     }
-    try {
-      const script = "const fs=require('fs'),path=require('path'),os=require('os');const d=path.join(os.homedir(),'.openclaw');let a=[];try{a=fs.readdirSync(d).filter(n=>/^zalo-connect-credentials(?:-[^.]+)?\\.json$/i.test(n))}catch{}process.stdout.write(JSON.stringify(a))";
-      const r = await runCapture('docker', ['exec', botContainer, 'node', '-e', script], { cwd: projectDir, shell: false, timeout: 8000 });
-      credentialNames = parseJsonText(String(r.stdout || '[]').trim(), []);
-    } catch {}
-    try {
-      const versions = await getContainerExtensionVersions(projectDir);
-      const zaloModVersion = versions['zalo-mod'] || versions['openclaw-zalo-mod'] || '';
-      if (zaloModVersion) {
-        meta.zaloModInstalled = true;
-        meta.zaloModVersion = zaloModVersion;
-      }
-    } catch {}
   }
   return { ...buildZaloHealthSnapshot(cfg, statusJson, credentialNames, { containerRunning, textStatus }), ...meta };
 }
@@ -2017,6 +2377,239 @@ function getBotServiceName(projectDir) {
     }
   } catch (e) {}
   return 'ai-bot';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Native runtime — openclaw + 9router straight on the host, no Docker
+// ═══════════════════════════════════════════════════════════════════════════════
+// Two things replace the container:
+//   1. `docker exec <container> openclaw …`  →  `openclaw …` carrying the project env.
+//      Without that env the CLI silently reads ~/.openclaw instead of the project, so every
+//      native invocation MUST go through ocRun/ocCapture rather than calling openclaw directly.
+//   2. container lifecycle  →  `openclaw daemon …` (launchd on macOS, systemd on Linux,
+//      schtasks on Windows). The generated service keeps the project env via its own
+//      env-wrapper and sets KeepAlive, which is the native equivalent of `restart: always`.
+// Service identity is per project (OPENCLAW_LAUNCHD_LABEL/…): the CLI's default label is a
+// single fixed one, so without this a second native project would take over the first's service.
+
+const NATIVE_MARKER = 'native.json';
+// Native ports sit one hundred above the docker ones (18789/20128) so a native project can run
+// next to a docker project — or next to an SSH tunnel forwarding a remote bot's ports — untouched.
+const NATIVE_DEFAULT_GATEWAY_PORT = 18889;
+const NATIVE_DEFAULT_ROUTER_PORT = 20228;
+
+function nativeMarkerPath(projectDir) {
+  return join(projectDir || state.projectDir || '', '.openclaw', NATIVE_MARKER);
+}
+
+function readNativeMeta(projectDir) {
+  try { return JSON.parse(fs.readFileSync(nativeMarkerPath(projectDir), 'utf8')); } catch (e) { return null; }
+}
+
+/** Per-project deploy mode. The marker file wins; a compose file means docker; else fall back. */
+function projectDeployMode(projectDir) {
+  const dir = projectDir || state.projectDir || '';
+  if (!dir) return state.mode || 'docker';
+  if (existsSync(nativeMarkerPath(dir))) return 'native';
+  if (existsSync(join(dir, 'docker', 'openclaw', 'docker-compose.yml'))) return 'docker';
+  return state.mode || 'docker';
+}
+
+function isNativeProject(projectDir) {
+  return projectDeployMode(projectDir) === 'native';
+}
+
+/** launchd label / systemd unit / scheduled-task name — unique per project so installs coexist. */
+function nativeServiceLabel(projectDir) {
+  const meta = readNativeMeta(projectDir);
+  if (meta && meta.label) return meta.label;
+  const id = slugify(basename(projectDir || 'openclaw'), 'bot');
+  return `ai.openclaw.gateway.${id}`;
+}
+
+/** The env every native CLI call needs (mirrors the docker runtime env in docker-gen.js). */
+function nativeEnv(projectDir, extra = {}) {
+  const dir = projectDir || state.projectDir || '';
+  const home = join(dir, '.openclaw');
+  const meta = readNativeMeta(dir) || {};
+  const gatewayPort = String(meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT);
+  const label = nativeServiceLabel(dir);
+  return {
+    OPENCLAW_HOME: home,
+    OPENCLAW_STATE_DIR: home,
+    DATA_DIR: join(dir, '.9router'),
+    OPENCLAW_GATEWAY_PORT: gatewayPort,
+    OPENCLAW_PORT: gatewayPort,
+    OPENCLAW_ALLOW_INSECURE_PRIVATE_WS: '1',
+    OPENCLAW_SETUP_OS: meta.osChoice || state.os || '',
+    OPENCLAW_BROWSER_HOST_OS: meta.osChoice || state.os || '',
+    OPENCLAW_LAUNCHD_LABEL: label,
+    OPENCLAW_SYSTEMD_UNIT: `${label}.service`,
+    OPENCLAW_WINDOWS_TASK_NAME: label,
+    ...extra,
+  };
+}
+
+/** Resolve `openclaw <args>` for whichever runtime this project uses. */
+function ocArgv(projectDir, args) {
+  if (isNativeProject(projectDir)) {
+    return { cmd: 'openclaw', args, opts: { cwd: projectDir, env: nativeEnv(projectDir) } };
+  }
+  return { cmd: 'docker', args: ['exec', getBotContainerName(projectDir), 'openclaw', ...args], opts: { cwd: projectDir } };
+}
+
+function ocRun(projectDir, args, opts = {}) {
+  const a = ocArgv(projectDir, args);
+  return run(a.cmd, a.args, { ...a.opts, ...opts });
+}
+
+function ocCapture(projectDir, args, opts = {}) {
+  const a = ocArgv(projectDir, args);
+  return runCapture(a.cmd, a.args, { shell: false, ...a.opts, ...opts, env: { ...(a.opts.env || {}), ...(opts.env || {}) } });
+}
+
+/**
+ * Restart the native gateway service.
+ *
+ * `daemon restart` is the obvious call, but on Windows it dies with
+ * `ERR_UNKNOWN_SIGNAL: Unknown signal: SIGUSR1` (verified on a real box: the old pid survives and
+ * newly installed plugins never load, silently). stop+start is what actually works there, and it
+ * works everywhere else too, so Windows takes that path and other systems keep `restart` with
+ * stop+start as a fallback.
+ */
+async function restartNativeRuntime(projectDir) {
+  const env = nativeEnv(projectDir);
+  const stopStart = async () => {
+    await run('openclaw', ['daemon', 'stop'], { cwd: projectDir, env }).catch(() => {});
+    await run('openclaw', ['daemon', 'start'], { cwd: projectDir, env });
+  };
+  if (process.platform === 'win32') return stopStart();
+  try {
+    await run('openclaw', ['daemon', 'restart'], { cwd: projectDir, env });
+  } catch (e) {
+    sendLog(`[native] daemon restart failed (${e.message}); falling back to stop+start`);
+    await stopStart();
+  }
+}
+
+/** Fire-and-forget background process (9router has no service wrapper of its own). */
+function startDetached(cmd, args, opts = {}) {
+  sendLog(`$ ${cmd} ${args.join(' ')} &`);
+  const shell = process.platform === 'win32';
+  const rawBin = resolveBinPath(cmd);
+  const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+  const child = spawn(bin, args, {
+    cwd: opts.cwd,
+    shell,
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: opts.windowsHide ?? true,
+    env: { ...process.env, ...(opts.env || {}) },
+  });
+  child.on('error', (err) => sendLog(`[native] Failed to start "${cmd}": ${err.message}`));
+  child.unref();
+  return child.pid;
+}
+
+/** Kill whatever is listening on a port. `pkill` does not exist on Windows, so resolve pid → kill. */
+async function killListenerOnPort(port) {
+  if (process.platform === 'win32') {
+    const out = await runCapture('powershell', ['-NoProfile', '-Command', `(Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess`], { shell: false, timeout: 15000 });
+    const pid = String(out.stdout || '').trim();
+    if (/^\d+$/.test(pid)) await run('taskkill', ['/F', '/PID', pid], { shell: false }).catch(() => {});
+    return;
+  }
+  const out = await runCapture('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], { shell: false, timeout: 10000 });
+  const pid = String(out.stdout || '').trim().split(/\s+/)[0];
+  if (/^\d+$/.test(pid)) await run('kill', [pid], { shell: false }).catch(() => {});
+}
+
+async function probeHttpOk(url, timeoutMs = 2000) {
+  const r = await runCapture('curl', ['-s', '-m', String(Math.ceil(timeoutMs / 1000)), '-o', '/dev/null', '-w', '%{http_code}', url], { shell: false, timeout: timeoutMs + 2000 });
+  return /^[23]/.test((r.stdout || '').trim());
+}
+
+/**
+ * Start 9router for a native project. Bound to loopback on purpose: openclaw talks to it over
+ * localhost (see get9RouterBaseUrl), so exposing the LLM proxy on 0.0.0.0 would only create an
+ * open relay — on a VPS that is a real risk. Data lives in the project so projects stay separate.
+ */
+async function startNative9Router(projectDir, { restart = false } = {}) {
+  const meta = readNativeMeta(projectDir) || {};
+  const routerPort = meta.routerPort || state.routerPort || NATIVE_DEFAULT_ROUTER_PORT;
+  const dataDir = join(projectDir, '.9router');
+  await fsp.mkdir(dataDir, { recursive: true }).catch(() => {});
+  if (restart) {
+    // No service wrapper for 9router: stop the old listener before rebinding the same port.
+    await killListenerOnPort(routerPort);
+  } else if (await probeHttpOk(`http://127.0.0.1:${routerPort}/`)) {
+    sendLog(`[native] 9router already listening on ${routerPort}`);
+    return routerPort;
+  }
+  startDetached('9router', ['-n', '-l', '-H', '127.0.0.1', '-p', String(routerPort), '--skip-update'], {
+    cwd: projectDir,
+    env: nativeEnv(projectDir, { DATA_DIR: dataDir }),
+  });
+  return routerPort;
+}
+
+/**
+ * Bring a native project up end to end: 9router → smart-route sync → resolve its API key into
+ * openclaw.json → install the gateway as a managed service. Order matters: the gateway must boot
+ * after 9router is reachable and after the key is on disk, or its first turn has no model.
+ */
+async function startNativeRuntime({ projectDir, osChoice = '', gatewayPort, routerPort }) {
+  const gwPort = gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT;
+  const rtPort = routerPort || NATIVE_DEFAULT_ROUTER_PORT;
+  const label = nativeServiceLabel(projectDir);
+  // Marker first: nativeEnv()/isNativeProject() read it, and everything below depends on them.
+  await fsp.mkdir(join(projectDir, '.openclaw'), { recursive: true });
+  await fsp.writeFile(
+    nativeMarkerPath(projectDir),
+    JSON.stringify({ mode: 'native', gatewayPort: gwPort, routerPort: rtPort, osChoice, label }, null, 2),
+    'utf8',
+  );
+
+  await startNative9Router(projectDir);
+
+  // Same smart-route sync the docker sidecar runs, pointed at the native DB path. Without it
+  // 9router keeps its login gate and the default `smart-route` combo has no backing models.
+  try {
+    const artifacts = buildDockerArtifacts({ is9Router: true, osChoice, openClawNpmSpec: OPENCLAW_NPM_SPEC, gatewayPort: gwPort, routerPort: rtPort });
+    if (artifacts && artifacts.syncScript) {
+      const dataDir = join(projectDir, '.9router');
+      const syncPath = join(dataDir, 'sync.js');
+      await fsp.writeFile(syncPath, artifacts.syncScript, 'utf8');
+      startDetached(process.execPath, [syncPath], {
+        cwd: dataDir,
+        env: nativeEnv(projectDir, { NINEROUTER_DB_PATH: join(dataDir, 'db', 'data.sqlite'), PORT: String(rtPort) }),
+      });
+      sendLog('[native] 9router smart-route sync started');
+    }
+  } catch (e) {
+    sendLog(`[native] smart-route sync skipped: ${e.message}`);
+  }
+
+  await new Promise((r) => setTimeout(r, 8000));
+  await applyResolved9RouterApiKey(projectDir).catch(() => {});
+
+  // Managed service = auto-restart (KeepAlive/Restart=always) and start-at-login, the native
+  // equivalent of docker's `restart: always`. --force so re-running install updates the port.
+  const env = nativeEnv(projectDir);
+  await run('openclaw', ['daemon', 'install', '--force', '--port', String(gwPort)], { cwd: projectDir, env });
+  await run('openclaw', ['daemon', 'start'], { cwd: projectDir, env });
+  sendLog(`[native] gateway service "${label}" running on 127.0.0.1:${gwPort}, 9router on 127.0.0.1:${rtPort}`);
+  return { gatewayPort: gwPort, routerPort: rtPort, label };
+}
+
+/** Tear down a native project's service (used when deleting the project). */
+async function removeNativeRuntime(projectDir) {
+  if (!isNativeProject(projectDir)) return false;
+  const env = nativeEnv(projectDir);
+  await run('openclaw', ['daemon', 'uninstall'], { cwd: projectDir, env }).catch((e) => sendLog(`[native] daemon uninstall: ${e.message}`));
+  const routerPort = (readNativeMeta(projectDir) || {}).routerPort || NATIVE_DEFAULT_ROUTER_PORT;
+  await killListenerOnPort(routerPort);
+  return true;
 }
 
 function getBotContainerName(projectDir) {
@@ -2150,6 +2743,14 @@ async function syncDockerInfra(projectDir, force = false) {
 }
 
 async function recreateDockerBot(projectDir) {
+  // Native: there is no image to rebuild — the gateway reads openclaw.json from disk on boot, so
+  // reloading config after a bot/plugin change is just a service restart. Callers stay unchanged.
+  if (isNativeProject(projectDir)) {
+    sendLog('[native] Reloading gateway to pick up openclaw.json changes...');
+    await restartNativeRuntime(projectDir).catch((e) => sendLog(`[native] restart failed: ${e.message}`));
+    probeCacheClear();
+    return true;
+  }
   const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
   if (!existsSync(composeFile)) return false;
   const depDir = join(projectDir, '.openclaw', 'plugin-runtime-deps');
@@ -2168,6 +2769,17 @@ async function recreateDockerBot(projectDir) {
 async function updateRuntime(target, projectDir) {
   const isRouter = target === '9router';
   const spec = isRouter ? NINE_ROUTER_NPM_SPEC : OPENCLAW_NPM_SPEC;
+  // Native: the runtime is a global npm package, not an image. Reinstall it, then restart the
+  // service so the new binary is the one actually serving. This is what replaces "Rebuild".
+  if (isNativeProject(projectDir)) {
+    sendLog(`[native] Updating ${target} → ${spec}`);
+    await run('npm', ['install', '-g', spec]);
+    if (isRouter) await startNative9Router(projectDir, { restart: true }).catch((e) => sendLog(`[native] 9router restart: ${e.message}`));
+    else await restartNativeRuntime(projectDir);
+    await syncRuntimeState(projectDir, { full: true }).catch(() => {});
+    probeCacheClear();
+    return { ok: true, target, spec, mode: 'native' };
+  }
   if (state.mode === 'docker' && projectDir) {
     const dockerDir = join(projectDir, 'docker', 'openclaw');
     if (isRouter) {
@@ -2189,6 +2801,14 @@ async function updateRuntime(target, projectDir) {
 }
 
 async function restartDockerBotContainer(projectDir = state.projectDir) {
+  // Native projects have no container: the gateway runs as a managed service, so restarting it
+  // is `openclaw daemon restart` (which also clears any stale gateway process holding the port).
+  if (isNativeProject(projectDir)) {
+    sendLog('[native] Restarting gateway service...');
+    await restartNativeRuntime(projectDir);
+    probeCacheClear(`runtime:${projectDir}`);
+    return true;
+  }
   const containerName = getBotContainerName(projectDir);
   sendLog(`[docker] Restarting ${containerName} container...`);
   await run('docker', ['restart', containerName], { shell: false });
@@ -2428,6 +3048,695 @@ async function getDockerBridgeIp() {
   } catch {}
   return '172.17.0.1';
 }
+// ── Host control ────────────────────────────────────────────────────────────────
+// The bot runs inside a container: it has no view of the host desktop and cannot start a
+// program there, which is why asking it to open TeamViewer gets a refusal. The installer,
+// though, already runs ON the host and already spawns processes (it launches Chrome). This
+// exposes that ability to the bot over a small HTTP service.
+//
+// Reachability: the dashboard itself binds to 127.0.0.1, which a container cannot reach, so
+// this listens on the Docker bridge address as well — the same approach the Chrome relay
+// uses, private to this machine and not routable from outside.
+//
+// Everything is gated: the service only starts when hostControl.enabled is true, every
+// request needs the per-project token, and `open` accepts a key from the operator's own app
+// list rather than an arbitrary command line. Opening apps on the host is a real capability,
+// so it stays opt-in and enumerable instead of a general shell.
+const HOST_CONTROL_PORT = 18795;
+let _hostControlServer = null;
+// The project the running host-control service serves. Tracked separately from the server
+// singleton so enabling from a different (connected) project re-points the service without a
+// restart — the request handler reads config from THIS dir, not a value captured at first-start.
+let _hostControlProjectDir = null;
+
+function hostControlConfigPath(projectDir) {
+  return join(projectDir, '.openclaw', 'host-control.json');
+}
+
+/** Common install locations, so the app list is useful before anyone edits it. */
+function detectHostApps() {
+  const apps = {};
+  const add = (key, candidates) => {
+    for (const candidate of candidates) {
+      if (candidate && existsSync(candidate)) {
+        apps[key] = candidate;
+        return;
+      }
+    }
+  };
+  if (process.platform === 'win32') {
+    const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
+    const pf86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    const local = process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local');
+    add('teamviewer', [join(pf, 'TeamViewer', 'TeamViewer.exe'), join(pf86, 'TeamViewer', 'TeamViewer.exe')]);
+    add('chrome', [join(pf, 'Google', 'Chrome', 'Application', 'chrome.exe'), join(pf86, 'Google', 'Chrome', 'Application', 'chrome.exe')]);
+    add('zalo', [join(local, 'Programs', 'Zalo', 'Zalo.exe'), join(local, 'Zalo', 'Zalo.exe')]);
+    add('explorer', ['C:\\Windows\\explorer.exe']);
+    add('notepad', ['C:\\Windows\\System32\\notepad.exe']);
+  } else if (process.platform === 'darwin') {
+    add('teamviewer', ['/Applications/TeamViewer.app']);
+    add('chrome', ['/Applications/Google Chrome.app']);
+    add('zalo', ['/Applications/Zalo.app']);
+    add('finder', ['/System/Library/CoreServices/Finder.app']);
+  }
+  return apps;
+}
+
+/** Resolve an executable on PATH synchronously (returns absolute path or ''). */
+function whichSync(name) {
+  try {
+    const finder = process.platform === 'win32' ? 'where' : 'which';
+    const out = execFileSync(finder, [name], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const first = String(out).split(/\r?\n/).map((s) => s.trim()).find(Boolean);
+    return first || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+/**
+ * CLI tools the bot may RUN (not just open) via /api/host/exec — output is captured and
+ * returned. Kept as a name→path allow-list, mirroring detectHostApps: the executable is fixed,
+ * only allow-listed names run. Auto-detects Claude Code CLI; add more by editing
+ * `.openclaw/host-control.json` → `commands`.
+ */
+function detectHostCommands() {
+  const commands = {};
+  const claude = whichSync('claude');
+  if (claude) commands.claude = claude;
+  return commands;
+}
+
+/**
+ * Extra capabilities the operator grants together with PC control: seeing the screen
+ * (screenshot / screen recording) and running scripts through node or the Codex CLI.
+ *
+ * Kept out of detectHostCommands() on purpose. That one is the default list every project gets
+ * as soon as the dashboard reads host-control state; these are only merged in when the operator
+ * actually flips PC control on, so nothing is granted before they ask for it. `node` in
+ * particular runs arbitrary code, which is why it takes an explicit act.
+ */
+function detectHostCapabilityCommands() {
+  const commands = {};
+  // The installer is itself node, so this path is guaranteed to exist and to be the same
+  // interpreter the native bot runs under (the one macOS will attach the screen permission to).
+  commands.node = process.execPath;
+  for (const name of ['npx', 'codex', 'claude', 'ffmpeg']) {
+    const bin = whichSync(name);
+    if (bin) commands[name] = bin; // ffmpeg = screen recording on Linux/macOS
+  }
+  // The Codex CLI usually is not on PATH — it ships inside the desktop app. With it allow-listed
+  // the bot can hand a job to Codex headlessly (`codex exec "…"`) and read the answer back.
+  if (!commands.codex) {
+    const bundledCodex = resolveCodexCli(detectCodexApp());
+    if (bundledCodex) commands.codex = bundledCodex;
+  }
+  if (process.platform === 'darwin') {
+    // Both a screenshot (`-x`) and a screen recording (`-v -V <secs>`) tool.
+    if (existsSync('/usr/sbin/screencapture')) commands.screencapture = '/usr/sbin/screencapture';
+  } else if (process.platform === 'linux') {
+    for (const name of ['gnome-screenshot', 'spectacle', 'scrot', 'import']) {
+      const bin = whichSync(name);
+      if (bin) { commands.screenshot = bin; break; }
+    }
+  }
+  return commands;
+}
+
+/**
+ * Merge the capability commands into the project's allow-list, and report what was added so the
+ * dashboard can name it. Existing entries are left alone: an operator who pointed `node` at a
+ * specific interpreter keeps that path.
+ */
+function grantHostCapabilities(cfg) {
+  const detected = detectHostCapabilityCommands();
+  const added = [];
+  cfg.commands = cfg.commands || {};
+  for (const [name, bin] of Object.entries(detected)) {
+    if (!cfg.commands[name]) {
+      cfg.commands[name] = bin;
+      added.push(name);
+    }
+  }
+  return added;
+}
+
+// Mouse/keyboard/screen control comes from the Codex desktop app's own `computer-use` plugin.
+// The bot reaches it by running `codex exec "<task>"`, which is a normal allow-listed command —
+// no OpenClaw-side harness, no second agent, no gateway restart. All this code has to do is make
+// sure the desktop app itself has computer-use installed and wired.
+//
+/** Where the desktop app that ships the Codex CLI + computer-use bundle lives. */
+function detectCodexApp() {
+  const candidates = process.platform === 'darwin'
+    ? [
+      { app: '/Applications/Codex.app', bundle: '/Applications/Codex.app/Contents/Resources/plugins/openai-bundled' },
+      { app: '/Applications/ChatGPT.app', bundle: '/Applications/ChatGPT.app/Contents/Resources/plugins/openai-bundled' },
+    ]
+    : process.platform === 'win32'
+      ? [
+        { app: join(process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local'), 'Programs', 'Codex'), bundle: '' },
+        { app: join(process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local'), 'Programs', 'ChatGPT'), bundle: '' },
+      ]
+      : [];
+  for (const candidate of candidates) {
+    if (existsSync(candidate.app)) {
+      return { present: true, app: candidate.app, bundle: candidate.bundle && existsSync(candidate.bundle) ? candidate.bundle : '' };
+    }
+  }
+  return { present: false, app: '', bundle: '' };
+}
+
+/**
+ * Find a marketplace the Codex app-server has ALREADY registered that carries the computer-use
+ * plugin, by reading its own `~/.codex/config.toml`.
+ *
+ * This matters because auto-install refuses to add new sources: pointing the plugin at a
+ * marketplace directory it has not discovered fails with "auto-install only uses marketplaces
+ * Codex app-server has already discovered … run /codex computer-use install". Naming a discovered
+ * marketplace instead keeps provisioning fully automatic.
+ */
+function detectCodexMarketplace() {
+  const codexHome = process.env.CODEX_HOME || join(getRealHomedir(), '.codex');
+  const configPath = join(codexHome, 'config.toml');
+  if (!existsSync(configPath)) return null;
+  let toml = '';
+  try {
+    toml = fs.readFileSync(configPath, 'utf8');
+  } catch (_) {
+    return null;
+  }
+  // Minimal line-based TOML read: [marketplaces.<name>] headers and their `source = "..."`. A full
+  // TOML parser is not worth pulling in for two fields of someone else's config.
+  let name = '';
+  for (const rawLine of toml.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    const header = line.match(/^\[([^\]]+)\]$/);
+    if (header) {
+      const section = header[1];
+      name = section.startsWith('marketplaces.') ? section.slice('marketplaces.'.length).replace(/^["']|["']$/g, '') : '';
+      continue;
+    }
+    if (!name) continue;
+    const source = (line.match(/^source\s*=\s*"([^"]+)"$/) || [])[1];
+    if (source && existsSync(join(source, 'plugins', 'computer-use'))) return { name, source };
+  }
+  return null;
+}
+
+/** The Codex CLI that ships inside the desktop app (or one on PATH). */
+function resolveCodexCli(app) {
+  const bundled = app && app.app ? join(app.app, 'Contents', 'Resources', 'codex') : '';
+  if (bundled && existsSync(bundled)) return bundled;
+  return whichSync('codex');
+}
+
+/**
+ * Last mile on the Codex side: the OpenClaw plugin can only USE computer-use, it cannot install it
+ * into the desktop app. Two things have to be true there, and both are fixable with the app's own
+ * CLI (verified on a real machine):
+ *  - the `computer-use` plugin is installed from a discovered marketplace, and
+ *  - the `computer-use` MCP server points at that installed plugin. A stale global entry (left by
+ *    an earlier manual attempt) shadows the plugin's own and exposes zero tools, which surfaces as
+ *    the confusing "Computer Use is ready" with nothing behind it.
+ */
+async function ensureCodexComputerUsePlugin(app, marketplace) {
+  const result = { cli: resolveCodexCli(app), pluginInstalled: false, installedNow: false, mcpRepaired: false };
+  if (!result.cli || !marketplace) return result;
+  const list = await runCapture(result.cli, ['plugin', 'list'], { shell: false }).catch(() => null);
+  if (!list) return result;
+  const ref = `computer-use@${marketplace.name}`;
+  const row = `${list.stdout || ''}\n${list.stderr || ''}`.split(/\r?\n/).find((line) => line.trim().startsWith(ref));
+  if (!row) return result;
+  result.pluginInstalled = /\binstalled\b/.test(row) && !/not installed/.test(row);
+  if (!result.pluginInstalled) {
+    sendLog(`[computer-use] Cài plugin ${ref} vào app Codex…`);
+    const add = await runCapture(result.cli, ['plugin', 'add', ref], { shell: false }).catch((err) => ({ code: 1, stderr: err.message }));
+    result.installedNow = add.code === 0;
+    if (!result.installedNow) result.error = (add.stderr || add.stdout || '').trim().split(/\r?\n/).slice(-2).join(' ');
+    else result.pluginInstalled = true;
+  }
+  // Repair the MCP registration only when it clearly is NOT the plugin's own (its cwd lives under
+  // the plugin cache). Removing the global entry lets the plugin-provided server take over.
+  const mcp = await runCapture(result.cli, ['mcp', 'get', 'computer-use'], { shell: false }).catch(() => null);
+  const mcpText = mcp ? `${mcp.stdout || ''}${mcp.stderr || ''}` : '';
+  if (mcpText && !/plugins\/cache\//.test(mcpText)) {
+    sendLog('[computer-use] Gỡ khai báo MCP computer-use cũ (trỏ sai chỗ) để dùng bản của plugin…');
+    const removed = await runCapture(result.cli, ['mcp', 'remove', 'computer-use'], { shell: false }).catch(() => ({ code: 1 }));
+    result.mcpRepaired = removed.code === 0;
+  }
+  return result;
+}
+
+/**
+ * Drop a tiny wrapper next to each workspace so GUI hand-off is one fixed command.
+ *
+ * Relying on the model to remember `--sandbox danger-full-access` does not work: a running session
+ * still holds the TOOLS.md it loaded at session start, so a bot mid-conversation keeps calling
+ * plain `codex exec`, gets "Computer Use was not approved to use <app>", and then invents a reason
+ * (observed twice: it told the operator to grant Screen Recording, which was already granted).
+ * With the wrapper the flags live on disk instead of in the prompt.
+ */
+async function writeCodexTaskScript(projectDir, cliPath) {
+  const openclawDir = join(projectDir, '.openclaw');
+  if (!existsSync(openclawDir) || !cliPath) return '';
+  const body = [
+    '#!/bin/sh',
+    '# Managed by create-openclaw-bot — hand a desktop/GUI job to Codex and print its answer.',
+    '# Usage: pc-task.sh "mở TeamViewer và đọc ID trên màn hình"',
+    '# The sandbox flag is REQUIRED: the default read-only sandbox makes Codex refuse computer-use',
+    '# with "Computer Use was not approved to use <app>".',
+    'if [ $# -eq 0 ]; then echo "usage: pc-task.sh \\"việc cần làm\\"" >&2; exit 2; fi',
+    `exec ${JSON.stringify(cliPath)} exec --skip-git-repo-check --sandbox danger-full-access "$@"`,
+    '',
+  ].join('\n');
+  let written = '';
+  for (const entry of await fsp.readdir(openclawDir).catch(() => [])) {
+    if (!entry.startsWith('workspace')) continue;
+    const binDir = join(openclawDir, entry, 'bin');
+    await fsp.mkdir(binDir, { recursive: true }).catch(() => {});
+    const path = join(binDir, 'pc-task.sh');
+    await fsp.writeFile(path, body, 'utf8').catch(() => {});
+    await fsp.chmod(path, 0o755).catch(() => {});
+    written = path;
+  }
+  return written;
+}
+
+/**
+ * macOS/Windows privacy panes for the permissions PC control needs. The OS never lets an app
+ * grant these for you (that is the point of TCC), so the best we can do is take the operator
+ * straight to the right pane and — for screen capture — poke the API so the system prompt appears.
+ */
+function openPrivacyPane(kind) {
+  const macPanes = {
+    screen: 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture',
+    accessibility: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
+    automation: 'x-apple.systempreferences:com.apple.preference.security?Privacy_Automation',
+    files: 'x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles',
+  };
+  const winPanes = {
+    screen: 'ms-settings:privacy-general',
+    accessibility: 'ms-settings:easeofaccess',
+    automation: 'ms-settings:privacy-general',
+    files: 'ms-settings:privacy-broadfilesystemaccess',
+  };
+  if (process.platform === 'darwin') {
+    const url = macPanes[kind] || macPanes.screen;
+    spawnDetached('open', [url]);
+    return { opened: true, pane: url };
+  }
+  if (process.platform === 'win32') {
+    const url = winPanes[kind] || winPanes.screen;
+    spawnDetached('cmd', ['/c', 'start', '', url]);
+    return { opened: true, pane: url };
+  }
+  return { opened: false, pane: '', reason: 'unsupported-platform' };
+}
+
+/**
+ * Ask macOS for a screenshot. First call raises the Screen Recording prompt for THIS node binary
+ * (the same one the native bot runs under); afterwards a non-empty file means the permission is
+ * granted, and a failure/empty file means it is not.
+ */
+async function probeScreenPermission() {
+  if (process.platform !== 'darwin') return { supported: false, granted: null };
+  const shot = join(os.tmpdir(), `openclaw-screen-probe-${Date.now()}.png`);
+  try {
+    await run('/usr/sbin/screencapture', ['-x', '-t', 'png', shot], { shell: false });
+  } catch (_) {
+    // non-zero exit → denied (screencapture exits with an error when TCC blocks it)
+  }
+  let granted = false;
+  try {
+    granted = existsSync(shot) && (await fsp.stat(shot)).size > 1024;
+  } catch (_) {
+    granted = false;
+  }
+  await fsp.unlink(shot).catch(() => {});
+  return { supported: true, granted };
+}
+
+async function readHostControlConfig(projectDir) {
+  const path = hostControlConfigPath(projectDir);
+  let cfg = {};
+  try {
+    if (existsSync(path)) cfg = JSON.parse(await fsp.readFile(path, 'utf8'));
+  } catch (_) {
+    cfg = {};
+  }
+  let changed = false;
+  if (typeof cfg.enabled !== 'boolean') {
+    cfg.enabled = false;
+    changed = true;
+  }
+  if (!cfg.token) {
+    cfg.token = _require('crypto').randomBytes(24).toString('hex');
+    changed = true;
+  }
+  if (!cfg.apps || typeof cfg.apps !== 'object') {
+    cfg.apps = detectHostApps();
+    changed = true;
+  }
+  if (!cfg.commands || typeof cfg.commands !== 'object') {
+    cfg.commands = detectHostCommands();
+    changed = true;
+  }
+  if (changed) {
+    await fsp.mkdir(dirname(path), { recursive: true }).catch(() => {});
+    await fsp.writeFile(path, JSON.stringify(cfg, null, 2), 'utf8').catch(() => {});
+  }
+  return cfg;
+}
+
+/** Launch a host program detached, so it outlives this request. */
+function spawnDetached(command, args) {
+  const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: false });
+  child.on('error', (err) => sendLog(`[host-control] Không chạy được "${command}": ${err.message}`));
+  child.unref();
+}
+
+function openHostApp(target) {
+  if (process.platform === 'win32') {
+    // `start` needs a shell; the empty "" is the window title cmd expects before the path.
+    spawnDetached('cmd', ['/c', 'start', '', target]);
+    return;
+  }
+  if (process.platform === 'darwin') {
+    spawnDetached('open', [target]);
+    return;
+  }
+  spawnDetached('xdg-open', [target]);
+}
+
+/**
+ * Run an allow-listed CLI (e.g. Claude Code) and return its output. Unlike openHostApp this is
+ * NOT detached: we wait for it, capture stdout/stderr (capped), and enforce a timeout. No shell
+ * (shell:false) so args are literal — no injection; the executable is fixed by the allow-list.
+ */
+function runHostCommand(res, name, bin, args, input, timeoutMs) {
+  const MAX_OUT = 200_000; // ~200 KB cap per stream, so a runaway process can't flood the reply
+  return new Promise((resolveP) => {
+    let out = '';
+    let err = '';
+    let settled = false;
+    const finish = (payload, status) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      json(res, payload, status);
+      resolveP();
+    };
+    let child;
+    try {
+      child = spawn(bin, args, { shell: false, windowsHide: true });
+    } catch (e) {
+      return finish({ ok: false, error: e.message }, 500);
+    }
+    const timer = setTimeout(() => {
+      try { child.kill('SIGKILL'); } catch (_) {}
+      finish({ ok: false, error: `timeout after ${timeoutMs}ms`, timedOut: true, stdout: out.slice(0, MAX_OUT), stderr: err.slice(0, MAX_OUT) }, 504);
+    }, timeoutMs);
+    child.stdout?.on('data', (d) => { if (out.length < MAX_OUT) out += d.toString(); });
+    child.stderr?.on('data', (d) => { if (err.length < MAX_OUT) err += d.toString(); });
+    child.on('error', (e) => finish({ ok: false, error: e.message }, 500));
+    child.on('close', (code) => {
+      sendLog(`[host-control] Đã chạy "${name}" (exit ${code}).`);
+      finish({ ok: code === 0, command: name, code, stdout: out.slice(0, MAX_OUT), stderr: err.slice(0, MAX_OUT) }, 200);
+    });
+    if (input != null) { try { child.stdin.write(input); } catch (_) {} }
+    try { child.stdin.end(); } catch (_) {}
+  });
+}
+
+async function handleHostControl(req, res, projectDir) {
+  const cfg = await readHostControlConfig(projectDir);
+  const url = new URL(req.url, 'http://localhost');
+  const presented = req.headers['x-openclaw-token'] || url.searchParams.get('token') || '';
+  if (!cfg.enabled) return json(res, { ok: false, error: 'host control is disabled' }, 403);
+  if (presented !== cfg.token) return json(res, { ok: false, error: 'invalid token' }, 401);
+
+  if (url.pathname === '/api/browser/start-chrome' && req.method === 'POST') {
+    try {
+      return json(res, await startChromeDebug());
+    } catch (err) {
+      return json(res, { ok: false, error: err.message }, err.status || 500);
+    }
+  }
+  if (url.pathname === '/api/host/apps' && req.method === 'GET') {
+    return json(res, { ok: true, apps: Object.keys(cfg.apps || {}), commands: Object.keys(cfg.commands || {}), platform: process.platform });
+  }
+  if (url.pathname === '/api/host/exec' && req.method === 'POST') {
+    const body = await readJson(req).catch(() => ({}));
+    const name = String(body.command || '').trim().toLowerCase();
+    if (!name) return json(res, { ok: false, error: 'missing "command"' }, 400);
+    const bin = (cfg.commands || {})[name];
+    if (!bin) {
+      return json(res, {
+        ok: false,
+        error: `"${name}" is not in this machine's command list`,
+        commands: Object.keys(cfg.commands || {}),
+      }, 404);
+    }
+    // Args are passed literally (spawn with shell:false) so nothing in them is re-interpreted
+    // by a shell — the executable is fixed to the allow-listed path, callers cannot pick a
+    // different binary or inject a second command.
+    const args = Array.isArray(body.args) ? body.args.map((a) => String(a)) : [];
+    const input = body.input != null ? String(body.input) : null;
+    const timeoutMs = Math.min(Math.max(Number(body.timeoutMs) || 180000, 1000), 600000);
+    return runHostCommand(res, name, bin, args, input, timeoutMs);
+  }
+  if (url.pathname === '/api/host/open' && req.method === 'POST') {
+    const body = await readJson(req).catch(() => ({}));
+    const key = String(body.app || body.target || '').trim();
+    if (!key) return json(res, { ok: false, error: 'missing "app"' }, 400);
+    const path = (cfg.apps || {})[key.toLowerCase()];
+    if (!path) {
+      return json(res, {
+        ok: false,
+        error: `"${key}" is not in this machine's app list`,
+        apps: Object.keys(cfg.apps || {}),
+      }, 404);
+    }
+    openHostApp(path);
+    sendLog(`[host-control] Đã mở "${key}" trên máy (${path}).`);
+    return json(res, { ok: true, app: key, path });
+  }
+  return json(res, { ok: false, error: 'unknown endpoint' }, 404);
+}
+
+/**
+ * Teach every bot in the project how to reach the host-control service, and hand it the
+ * token. Written into TOOLS.md as a managed block so flipping the switch off removes it
+ * again — a bot that still had the instructions would keep trying an endpoint that now
+ * refuses. `host.docker.internal` resolves in the container on every OS because the
+ * generated compose maps it to host-gateway.
+ */
+async function writeHostControlAccess(projectDir, cfg) {
+  const openclawDir = join(projectDir, '.openclaw');
+  if (!existsSync(openclawDir)) return;
+  const native = isNativeProject(projectDir);
+  // Native bots run on the host itself; host.docker.internal only resolves from inside a container,
+  // so a native bot curling it fails ("could not connect"). Use loopback there instead.
+  const base = native ? `http://127.0.0.1:${HOST_CONTROL_PORT}` : `http://host.docker.internal:${HOST_CONTROL_PORT}`;
+  const apps = Object.keys(cfg.apps || {});
+  const commands = Object.keys(cfg.commands || {});
+  const execBlock = commands.length ? [
+    '',
+    'Chạy một CLI trên máy chủ và LẤY KẾT QUẢ về (chỉ lệnh trong danh sách; trả `{ok,code,stdout,stderr}`).',
+    'Dùng để giao việc cho công cụ dòng lệnh, ví dụ Claude Code:',
+    '',
+    '```sh',
+    `curl -s -X POST ${base}/api/host/exec -H "x-openclaw-token: ${cfg.token}" \\`,
+    '  -H "content-type: application/json" -d \'{"command":"claude","args":["-p","tóm tắt repo hiện tại"]}\'',
+    '```',
+    '',
+    `Lệnh khả dụng: ${commands.map((c) => `\`${c}\``).join(', ')}. Lệnh mặc định timeout 180s, output tối đa ~200KB/luồng.`,
+  ] : [];
+  // Screen capture / recording — only advertised when the operator granted the matching tool, so
+  // the bot never tries a binary that is not on this machine's allow-list.
+  // Windows has no capture binary to allow-list (PowerShell does it inline), so the section shows
+  // up there too — a native bot runs the command itself, the allow-list only gates the bridge.
+  const hasCapture = commands.includes('screencapture') || commands.includes('screenshot') || commands.includes('ffmpeg') || (native && process.platform === 'win32');
+  const captureBlock = hasCapture ? [
+    '',
+    '### Chụp / quay màn hình',
+    '',
+    ...(commands.includes('screencapture') ? [
+      '- Chụp: `screencapture -x /tmp/shot.png` (thêm `-R x,y,w,h` để chụp một vùng, `-l <windowid>` chụp 1 cửa sổ).',
+      '- Quay: `screencapture -v -V 10 /tmp/rec.mov` (quay 10 giây rồi tự dừng).',
+    ] : []),
+    ...(commands.includes('screenshot') ? ['- Chụp: dùng lệnh `screenshot` (công cụ chụp của desktop này) với đường dẫn file đầu ra.'] : []),
+    ...(native && process.platform === 'win32' ? [
+      '- Chụp (Windows): `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bm=New-Object Drawing.Bitmap $b.Width,$b.Height; [Drawing.Graphics]::FromImage($bm).CopyFromScreen($b.Location,[Drawing.Point]::Empty,$b.Size); $bm.Save(\'C:\\Temp\\shot.png\')"` (tạo sẵn thư mục đích).',
+    ] : []),
+    ...(commands.includes('ffmpeg') ? ['- Quay bằng `ffmpeg` khi cần định dạng khác (macOS: `-f avfoundation`, Linux: `-f x11grab`, Windows: `-f gdigrab -i desktop`).'] : []),
+    '',
+    'Chụp xong thì ĐỌC file ảnh bằng tool đọc ảnh để phân tích, rồi xoá file tạm. Lần đầu macOS sẽ hỏi quyền **Screen Recording** cho `node`: nếu ảnh ra đen/rỗng hoặc lệnh lỗi quyền thì nhờ chủ bấm "Cấp quyền chụp/quay màn hình" trong dashboard, đừng thử vòng khác.',
+  ] : [];
+  const scriptCommands = commands.filter((c) => c === 'node' || c === 'npx' || c === 'codex' || c === 'claude');
+  const scriptBlock = scriptCommands.length ? [
+    '',
+    '### Chạy script & giao việc cho CLI khác',
+    '',
+    `Chủ đã cho phép: ${scriptCommands.map((c) => `\`${c}\``).join(', ')} — dùng cho việc tự động hoá nhỏ (ví dụ \`node -e "..."\`, \`node script.js\`).`,
+    ...(commands.includes('codex') ? [
+      '- Giao việc cho **Codex** (chạy ngầm, lấy kết quả text): `codex exec --skip-git-repo-check "việc cần làm"`. Việc cần nhìn/điều khiển màn hình thì thêm `--sandbox danger-full-access` (xem mục dưới). Lượt này tiêu quota gói ChatGPT của chủ, nên chỉ dùng khi chủ yêu cầu và mô tả việc gọn.',
+    ] : []),
+    ...(commands.includes('claude') ? [
+      '- Giao việc cho **Claude Code**: `claude -p "việc cần làm"` (một lượt, trả stdout).',
+    ] : []),
+    'Đây là quyền chạy mã tuỳ ý trên máy chủ: chỉ chạy khi chủ yêu cầu rõ, không cài thêm gì, không sửa file ngoài phạm vi được yêu cầu.',
+  ] : [];
+  const startTag = '<!-- OPENCLAW:HOST_CONTROL:START -->';
+  const endTag = '<!-- OPENCLAW:HOST_CONTROL:END -->';
+  // NATIVE: the bot runs directly on the host with `exec`, so it opens apps with the OS command —
+  // no bridge, no host.docker.internal (which doesn't resolve off-container anyway). DOCKER: the
+  // bot is in a container and can't see the desktop, so it must call the installer's host service.
+  const nativeBlock = [
+    startTag,
+    '',
+    '## 🖥️ Điều khiển máy của chủ (host control — chế độ native)',
+    '',
+    'Bạn chạy TRỰC TIẾP trên máy của chủ và có quyền `exec`, nên mở ứng dụng bằng lệnh hệ điều hành — KHÔNG cần service/bridge nào (đừng dùng host.docker.internal hay curl cổng 18795):',
+    '',
+    '- macOS: `open -a "<Tên app>"` — ví dụ `open -a "TeamViewer"`',
+    '- Linux: `xdg-open <app|url>` hoặc chạy binary trực tiếp',
+    '- Windows: `cmd /c start "" "<app>"`',
+    '',
+    apps.length ? `App chủ gợi ý: ${apps.map((a) => `\`${a}\``).join(', ')}.` : 'Chủ chưa liệt kê app — mở theo tên app có trên máy.',
+    ...captureBlock,
+    ...scriptBlock,
+    '',
+    ...(commands.includes('codex') ? [
+      '### Điều khiển chuột/bàn phím & nhìn màn hình',
+      '',
+      'Bạn KHÔNG có tool điều khiển GUI. Việc đó giao cho **Codex** — nó có sẵn Computer Use. Dùng ĐÚNG script này (đã cài sẵn cờ cần thiết):',
+      '',
+      '```sh',
+      'bin/pc-task.sh "mở TeamViewer, đọc mật khẩu đang hiện trên màn hình rồi in ra"',
+      '```',
+      '',
+      '⚠️ **Đừng gọi `codex exec` trần.** Mặc định nó chạy sandbox read-only và tự từ chối computer-use với lỗi `Computer Use was not approved to use <app>` — KHÔNG phải do thiếu quyền Screen Recording, đừng bảo chủ đi cấp lại quyền. Script trên đã kèm `--sandbox danger-full-access` (mức `workspace-write` không đủ).',
+      '',
+      'Codex tự nhìn màn hình, click, gõ phím rồi trả kết quả text về cho bạn; bạn thuật lại cho chủ. Lưu ý:',
+      '',
+      '- Mô tả việc gọn nhưng đủ (mục tiêu + kết quả cần trả). Mỗi lượt tiêu quota gói ChatGPT của chủ, đừng gọi lung tung.',
+      '- Việc GUI có thể chạy lâu: đặt timeout rộng, đừng kết luận thất bại sớm.',
+      '- Computer Use từ chối vài app vì an toàn (Terminal, chính app ChatGPT/Codex): lỗi ghi rõ `not allowed to use the app ... for safety reasons` — báo chủ tự làm, đừng lách.',
+      '- Điều khiển chuột/bàn phím hiện chỉ chạy trên macOS. Trên Windows/Linux bạn vẫn mở app, chụp màn hình và chạy script được.',
+      '- Lỗi thật sự do thiếu quyền hệ điều hành sẽ nói về Screen Recording/Accessibility; chỉ khi đó mới nhờ chủ bấm nút cấp quyền trong dashboard. Luôn trích **nguyên văn** lỗi cho chủ thay vì đoán nguyên nhân.',
+      '',
+    ] : []),
+    'Chỉ mở app, chụp/quay màn hình hoặc điều khiển máy khi chủ yêu cầu rõ. Không tự ý chụp màn hình để "xem thử".',
+    '',
+    endTag,
+    '',
+  ].join('\n');
+  const dockerBlock = [
+    startTag,
+    '',
+    '## 🖥️ Điều khiển máy của chủ (host control)',
+    '',
+    'Bạn chạy trong container nên không thấy desktop của chủ. Muốn mở Chrome hay một ứng dụng trên máy thật thì gọi service của installer (chạy trên máy chủ) bằng `exec`:',
+    '',
+    '```sh',
+    `curl -s -X POST ${base}/api/browser/start-chrome -H "x-openclaw-token: ${cfg.token}"`,
+    '```',
+    '',
+    'Mở ứng dụng (chỉ những app có trong danh sách của máy):',
+    '',
+    '```sh',
+    `curl -s -X POST ${base}/api/host/open -H "x-openclaw-token: ${cfg.token}" \\`,
+    '  -H "content-type: application/json" -d \'{"app":"teamviewer"}\'',
+    '```',
+    '',
+    'Xem danh sách app đang được phép:',
+    '',
+    '```sh',
+    `curl -s ${base}/api/host/apps -H "x-openclaw-token: ${cfg.token}"`,
+    '```',
+    '',
+    apps.length ? `App khả dụng trên máy này: ${apps.map((a) => `\`${a}\``).join(', ')}.` : 'Máy này chưa khai báo app nào — nhờ chủ thêm vào `.openclaw/host-control.json`.',
+    ...execBlock,
+    // Docker only: a screenshot taken on the host lands on the HOST filesystem, which this
+    // container cannot read — say so instead of letting the bot hunt for a missing file.
+    ...(hasCapture ? [
+      '',
+      'Chụp/quay màn hình chạy trên MÁY CHỦ nên file ảnh nằm ở ổ đĩa của chủ, container này KHÔNG đọc được. Chụp vào một thư mục đã mount cho bot (nếu có) hoặc nhờ chủ gửi ảnh; đừng đoán nội dung màn hình.',
+    ] : []),
+    '',
+    'Nếu trả về `host control is disabled` thì chủ chưa bật quyền này — nói chủ bật trong dashboard,',
+    'đừng cố tìm đường khác. Chỉ mở app hoặc chạy lệnh khi chủ yêu cầu rõ.',
+    '',
+    endTag,
+    '',
+  ].join('\n');
+  const block = native ? nativeBlock : dockerBlock;
+  for (const entry of await fsp.readdir(openclawDir).catch(() => [])) {
+    if (!entry.startsWith('workspace')) continue;
+    const toolsMd = join(openclawDir, entry, 'TOOLS.md');
+    if (!existsSync(toolsMd)) continue;
+    const current = await fsp.readFile(toolsMd, 'utf8');
+    const withoutBlock = removeManagedBlockFrom(current, 'HOST_CONTROL');
+    const next = cfg.enabled
+      ? `${withoutBlock.trimEnd()}\n\n${block}`
+      : withoutBlock;
+    if (next !== current) await fsp.writeFile(toolsMd, next, 'utf8');
+  }
+}
+
+/** Strip a managed block by id; shared with the browser-guide cleanup. */
+function removeManagedBlockFrom(content, blockId) {
+  const startTag = `<!-- OPENCLAW:${blockId}:START -->`;
+  const endTag = `<!-- OPENCLAW:${blockId}:END -->`;
+  const startIdx = content.indexOf(startTag);
+  const endIdx = content.indexOf(endTag);
+  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) return content;
+  return `${content.substring(0, startIdx).trimEnd()}\n${content.substring(endIdx + endTag.length).trimStart()}`.trim() + '\n';
+}
+
+async function ensureHostControl(projectDir) {
+  // Point the service at the project being enabled (re-points a service already running for
+  // another project — the handler reads _hostControlProjectDir per request).
+  _hostControlProjectDir = projectDir;
+  const cfg = await readHostControlConfig(projectDir);
+  if (!cfg.enabled) return { ok: false, reason: 'disabled' };
+  // Desktop only. Opening TeamViewer or an app needs a GUI, so a headless server has nothing
+  // to control — and, more importantly, it is where 0.0.0.0 would be a real exposure (a VPS
+  // has a public IP). Refusing here means the service never binds on a headless box, so the
+  // public-exposure question does not arise. A rare VPS-with-desktop can override with
+  // OPENCLAW_HOST_CONTROL_ALLOW_HEADLESS=1.
+  if (isHeadlessServer() && process.env.OPENCLAW_HOST_CONTROL_ALLOW_HEADLESS !== '1') {
+    return { ok: false, reason: 'headless server — no desktop to control' };
+  }
+  if (_hostControlServer) return { ok: true, port: HOST_CONTROL_PORT };
+  const bridgeIp = await getDockerBridgeIp().catch(() => null);
+  const server = http.createServer((req, res) => {
+    // Read the CURRENTLY active project each request, so re-pointing takes effect live.
+    handleHostControl(req, res, _hostControlProjectDir || projectDir).catch((err) => json(res, { ok: false, error: err.message }, 500));
+  });
+  // Bind all interfaces: the container reaches the host by different addresses per platform —
+  // docker0 (172.17.0.1) on native Linux, the Docker Desktop gateway (host.docker.internal,
+  // e.g. 192.168.65.254) on macOS/Windows — and binding one misses the others. The token is
+  // the guard here, not the interface: every request needs it, and the service only exists
+  // while the operator has host control switched on.
+  const bindOk = await new Promise((resolveP) => {
+    server.once('error', () => resolveP(false));
+    server.listen(HOST_CONTROL_PORT, '0.0.0.0', () => resolveP(true));
+  });
+  if (!bindOk) return { ok: false, reason: `port ${HOST_CONTROL_PORT} in use` };
+  _hostControlServer = server;
+  sendLog(`[host-control] Nghe ở 0.0.0.0:${HOST_CONTROL_PORT} (cần token) — bot có thể mở Chrome/app trên máy này.`);
+  if (bridgeIp && process.platform === 'linux') {
+    // ufw's default-deny drops container→host traffic silently. Scope the allow rule to the
+    // private bridge address only, so opening the port here does not expose it to the LAN.
+    run('sh', ['-c', `command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active" && ufw allow in to ${bridgeIp} port ${HOST_CONTROL_PORT} proto tcp comment "openclaw host-control (docker bridge only)" || true`])
+      .catch(() => {});
+  }
+  return { ok: true, port: HOST_CONTROL_PORT, host: '0.0.0.0' };
+}
+
 async function ensureChromeRelay() {
   if (_chromeRelayServer) return true;
   const bridgeIp = await getDockerBridgeIp();
@@ -2458,6 +3767,77 @@ async function ensureChromeRelay() {
 // this request. `--remote-allow-origins=*` is required by modern Chrome for cross-origin CDP.
 // On a headless VPS there is no Chrome to open here — instead we start the bridge relay and hand
 // back copy-paste commands so the user runs Chrome on THEIR machine + a reverse SSH tunnel.
+// Where Chrome keeps the operator's own profile, per OS. Chrome must not already be running
+// on it when we attach the debug port, which is why the callers close Chrome first.
+function defaultChromeProfileDir() {
+  if (process.platform === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local');
+    return join(localAppData, 'Google', 'Chrome', 'User Data');
+  }
+  if (process.platform === 'darwin') {
+    return join(os.homedir(), 'Library', 'Application Support', 'Google', 'Chrome');
+  }
+  return join(os.homedir(), '.config', 'google-chrome');
+}
+
+// The profile Chrome is actually launched with. Never the directory above: Chrome 136+ drops
+// --remote-debugging-port when it IS the default profile, so pointing there means Chrome opens
+// and port 9222 never answers — the failure the bot reports as "Chrome debug not connected".
+function debugChromeProfileDir() {
+  if (process.platform === 'win32') {
+    const localAppData = process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local');
+    return join(localAppData, ...CHROME_DEBUG_PROFILE_LEAF_WIN.split('\\'));
+  }
+  if (process.platform === 'darwin') return join(os.homedir(), ...CHROME_DEBUG_PROFILE_LEAF_MAC.split('/'));
+  return join(os.homedir(), ...CHROME_DEBUG_PROFILE_LEAF_LINUX.split('/'));
+}
+
+// Seed it from the real profile once, so the bot inherits the operator's cookies, logins,
+// history and extensions instead of browsing as a brand-new profile (the clearest bot signal
+// a site can read). Caches are skipped — Chrome rebuilds those, and copying them turns a few
+// hundred MB into several GB. Best-effort: a profile that fails to copy still opens, just
+// signed out.
+async function copyChromeProfileTree(src, dst) {
+  await fsp.mkdir(dst, { recursive: true });
+  const entries = await fsp.readdir(src, { withFileTypes: true });
+  for (const entry of entries) {
+    if (CHROME_PROFILE_CACHE_DIRS.includes(entry.name)) continue;
+    const from = join(src, entry.name);
+    const to = join(dst, entry.name);
+    // Per entry, because Chrome holds Windows locks on the profile it is using: one
+    // unreadable file must not cost the operator the whole profile.
+    try {
+      if (entry.isDirectory()) await copyChromeProfileTree(from, to);
+      else if (entry.isFile()) await fsp.copyFile(from, to);
+    } catch {}
+  }
+}
+
+async function seedDebugChromeProfile(realDir, debugDir, log = () => {}) {
+  // The marker, not the folder: a copy that ran while Chrome had the cookie database locked
+  // leaves a signed-out profile behind, and that must be retried rather than kept forever.
+  const marker = join(debugDir, '.openclaw-seeded');
+  if (existsSync(marker)) return false;
+  if (!existsSync(join(realDir, 'Default'))) return false;
+  log(`[chrome] Lần đầu: đang chép profile Chrome sang ${debugDir} (bỏ cache)...`);
+  try {
+    await copyChromeProfileTree(join(realDir, 'Default'), join(debugDir, 'Default'));
+    await fsp.copyFile(join(realDir, 'Local State'), join(debugDir, 'Local State')).catch(() => {});
+    const cookiesCopied = ['Network/Cookies', 'Cookies']
+      .some((rel) => existsSync(join(debugDir, 'Default', ...rel.split('/'))));
+    if (!cookiesCopied) {
+      log('[chrome] Chrome đang mở nên chưa chép được cookie/đăng nhập. Đóng hết Chrome rồi bấm lại để chép đủ.');
+      return false;
+    }
+    await fsp.writeFile(marker, new Date().toISOString(), 'utf8').catch(() => {});
+    return true;
+  } catch (e) {
+    log(`[chrome] Không chép được profile (${e.message}); Chrome vẫn mở nhưng chưa đăng nhập sẵn.`);
+    await fsp.mkdir(join(debugDir, 'Default'), { recursive: true }).catch(() => {});
+    return false;
+  }
+}
+
 async function startChromeDebug() {
   if (isHeadlessServer()) {
     await ensureChromeRelay();
@@ -2479,10 +3859,19 @@ async function startChromeDebug() {
       : 'Không tìm thấy Google Chrome. Hãy cài Chrome rồi thử lại.');
   }
   const port = 9222;
-  const userDataDir = join(os.tmpdir(), 'openclaw-chrome-debug');
+  // Launch against a dedicated profile seeded from the operator's real one. A throwaway
+  // profile is the clearest bot signal a site can read — no cookies, no logins, no history,
+  // new on every run — and it also means the bot cannot use pages the operator is already
+  // signed in to; the real profile itself cannot be used because Chrome 136+ drops the debug
+  // port on it. The port is not what gets flagged: Chrome started this way carries no
+  // --enable-automation, so navigator.webdriver stays false and there is no banner.
+  // Set OPENCLAW_CHROME_PROFILE_DIR to point somewhere else (anything but the default profile).
+  const userDataDir = process.env.OPENCLAW_CHROME_PROFILE_DIR || debugChromeProfileDir();
+  await seedDebugChromeProfile(defaultChromeProfileDir(), userDataDir, sendLog);
   const args = [
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${userDataDir}`,
+    '--profile-directory=Default',
     '--remote-allow-origins=*',
     '--no-first-run',
     '--no-default-browser-check',
@@ -2586,11 +3975,20 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
   state.os = osChoice;
   state.startedAt = new Date().toISOString();
   try {
+    // Native runs on the host's own ports, so it must not land on the docker defaults: a machine
+    // often has a docker project (or an SSH tunnel to a remote bot) already holding 18789/20128.
+    if (mode === 'native') {
+      if (gatewayPort === 18789) gatewayPort = NATIVE_DEFAULT_GATEWAY_PORT;
+      if (routerPort === 20128) routerPort = NATIVE_DEFAULT_ROUTER_PORT;
+      state.gatewayPort = gatewayPort;
+      state.routerPort = routerPort;
+    }
     sendLog('OpenClaw local installer started');
     sendLog(`Target: OS=${osChoice}, mode=${mode}, project=${projectDir}, gatewayPort=${gatewayPort}, routerPort=${routerPort}`);
     // Make sure Docker is present (auto-install on Linux/VPS) before doing any work — fail fast
-    // with a clear message rather than deep inside `docker compose up`.
-    await ensureDockerInstalled(osChoice);
+    // with a clear message rather than deep inside `docker compose up`. Native mode has no
+    // container, so it skips this entirely (that is much of the point of choosing it).
+    if (mode !== 'native') await ensureDockerInstalled(osChoice);
     await writeCoreProject({ projectDir, osChoice, mode, gatewayPort, routerPort, userTimezone });
     await run('npm', ['install', '-g', OPENCLAW_NPM_SPEC]);
     await run('npm', ['install', '-g', NINE_ROUTER_NPM_SPEC]);
@@ -2610,6 +4008,9 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
       // interrupt OpenClaw's first-boot state migration and leave its five-minute lease behind,
       // making a brand-new project appear to crash-loop until the lease expired. The config is
       // bind-mounted, so the resolved 9Router key does not require an immediate second recreate.
+      probeCacheClear();
+    } else if (mode === 'native') {
+      await startNativeRuntime({ projectDir, osChoice, gatewayPort, routerPort });
       probeCacheClear();
     }
     state.installed = true;
@@ -2791,6 +4192,33 @@ async function discoverDockerBotProjectRoots() {
   return [...new Set(roots)];
 }
 
+// Native installs have no container to inspect, so we can't detect them the way Docker bots are
+// found. Instead scan for the `.openclaw/native.json` marker one level under the home dir and the
+// launcher's parent — that covers the folders users actually pick (e.g. ~/openclaw-native, D:\bot)
+// without a full filesystem walk. Mirrors discoverDockerBotProjectRoots so discoverProjects can
+// surface native projects even when this install has no saved state for them.
+async function discoverNativeProjectRoots(rootProjectDir) {
+  const roots = new Set();
+  const bases = new Set();
+  try { bases.add(os.homedir()); } catch {}
+  if (rootProjectDir) bases.add(resolve(rootProjectDir, '..'));
+  for (const base of bases) {
+    let entries = [];
+    try { entries = await fsp.readdir(base, { withFileTypes: true }); } catch { continue; }
+    for (const ent of entries) {
+      if (!ent.isDirectory() || ent.name.startsWith('.')) continue;
+      const dir = join(base, ent.name);
+      if (existsSync(nativeMarkerPath(dir)) && existsSync(join(dir, '.openclaw', 'openclaw.json'))) {
+        roots.add(resolve(dir));
+      }
+    }
+  }
+  if (rootProjectDir && existsSync(nativeMarkerPath(rootProjectDir)) && existsSync(join(rootProjectDir, '.openclaw', 'openclaw.json'))) {
+    roots.add(resolve(rootProjectDir));
+  }
+  return [...roots];
+}
+
 async function findLatestProject(rootProjectDir) {
   const realHome = getRealHomedir();
   const roots = [
@@ -2866,6 +4294,14 @@ async function discoverProjects(rootProjectDir) {
   // Surface projects whose bot is running in Docker even if this install has no saved
   // state for them (e.g. first `npx github:…` run on a server with bots already up).
   for (const dr of await discoverDockerBotProjectRoots()) {
+    if (!state.projects.some(p => resolve(p.projectDir) === resolve(dr))) {
+      const meta = await buildProjectMeta(dr).catch(() => null);
+      if (meta) state.projects.push(meta);
+    }
+  }
+
+  // Same idea for native installs — detect by marker since there is no container to inspect.
+  for (const dr of await discoverNativeProjectRoots(rootProjectDir)) {
     if (!state.projects.some(p => resolve(p.projectDir) === resolve(dr))) {
       const meta = await buildProjectMeta(dr).catch(() => null);
       if (meta) state.projects.push(meta);
@@ -3006,6 +4442,13 @@ async function deleteProjectFolder(projectDir, rootProjectDir) {
   const rootHome = resolve(os.homedir());
   if (!existsSync(join(resolved, '.openclaw', 'openclaw.json'))) throw httpError(404, 'openclaw.json not found in selected project');
   if (resolved === home || resolved === rootHome || /^[A-Za-z]:\\?$/.test(resolved)) throw httpError(403, 'Refusing to delete home/root folder');
+  // Native: uninstall the managed service before the folder goes, otherwise launchd/systemd keeps
+  // relaunching a gateway whose config and workspace no longer exist.
+  if (isNativeProject(resolved)) {
+    sendLog(`[native] Removing gateway service for ${resolved}...`);
+    await removeNativeRuntime(resolved).catch((err) => sendLog(`[native] Warning: ${err.message}`));
+    await new Promise((r) => setTimeout(r, 1500));
+  }
   // Stop and remove Docker containers first to release host folder locks
   const dockerComposeDir = join(resolved, 'docker', 'openclaw');
   if (existsSync(join(dockerComposeDir, 'docker-compose.yml'))) {
@@ -3306,10 +4749,21 @@ async function installFeature(projectDir, agentId, kind, id) {
       composeDir = join(projectDir, 'docker', 'openclaw');
     }
 
-    if (composeDir) {
+    if (isNativeProject(projectDir)) {
+      // Native: no container — install on the host with the project env (ocCapture) so the
+      // skill lands in this project's workspace, then reload the managed gateway service.
+      sendLog(`[skill] Installing/updating clawhub:${slug} natively for agent ${agentId}...`);
+      const out = await ocCapture(projectDir, ['skills', 'install', slug, '--agent', agentId, '--force', '--acknowledge-clawhub-risk']);
+      for (const line of `${out.stdout}\n${out.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(line);
+      if (out.code !== 0 && !isSkillFolderExists(projectDir, agentId, slug)) {
+        throw new Error(out.stderr || out.stdout || `Failed to install skill ${slug}.`);
+      }
+      sendLog('[skill] Restarting native gateway to apply skill...');
+      await restartNativeRuntime(projectDir).catch((err) => sendLog(`[skill] restart skipped: ${err.message}`));
+    } else if (composeDir) {
       const botContainer = getBotContainerName(projectDir);
       sendLog(`[skill] Installing/updating clawhub:${slug} inside container ${botContainer} for agent ${agentId}...`);
-      
+
       const cmd = `cd /home/node/project && openclaw skills install ${slug} --agent ${agentId} --force --acknowledge-clawhub-risk`;
       const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
       
@@ -3355,10 +4809,19 @@ async function installFeature(projectDir, agentId, kind, id) {
     // clawhub:latest like other plugins, so the dashboard "Update" button always fetches the newest
     // published version (no tag pin to bump each release).
     if (id === 'zalo-connect' || id === 'openclaw-zalo-connect') {
+      const native = isNativeProject(projectDir);
       let composeDir = null;
-      if (existsSync(join(projectDir, 'docker-compose.yml'))) composeDir = projectDir;
-      else if (existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'))) composeDir = join(projectDir, 'docker', 'openclaw');
-      if (composeDir) {
+      if (!native) {
+        if (existsSync(join(projectDir, 'docker-compose.yml'))) composeDir = projectDir;
+        else if (existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'))) composeDir = join(projectDir, 'docker', 'openclaw');
+      }
+      if (native) {
+        sendLog(`[zalo-connect] Installing/updating ${ZALO_CONNECT_PLUGIN_SPEC} natively...`);
+        const out = await ocCapture(projectDir, ['plugins', 'install', ZALO_CONNECT_PLUGIN_SPEC, '--force', '--acknowledge-clawhub-risk']);
+        if (out) for (const line of `${out.stdout}\n${out.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
+        const okDir = existsSync(join(projectDir, '.openclaw', 'extensions', 'zalo-connect'));
+        if (out.code !== 0 && !okDir) throw new Error(out.stderr || out.stdout || 'Failed to install zalo-connect.');
+      } else if (composeDir) {
         const botContainer = getBotContainerName(projectDir);
         sendLog(`[zalo-connect] Installing/updating ${ZALO_CONNECT_PLUGIN_SPEC} inside ${botContainer}...`);
         const cmd = `cd /home/node/project && openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force --acknowledge-clawhub-risk 2>&1`;
@@ -3378,7 +4841,10 @@ async function installFeature(projectDir, agentId, kind, id) {
         if (!cfg.plugins.allow.includes('zalo-connect')) cfg.plugins.allow.push('zalo-connect');
         await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
       }
-      if (composeDir) {
+      if (native) {
+        sendLog('[zalo-connect] Restarting native gateway to apply...');
+        await restartNativeRuntime(projectDir).catch((err) => sendLog(`[zalo-connect] restart failed: ${err.message}`));
+      } else if (composeDir) {
         sendLog('[zalo-connect] Restarting container to apply...');
         await run('docker', ['restart', getBotContainerName(projectDir)], { shell: false }).catch(() => {});
       }
@@ -3394,19 +4860,28 @@ async function installFeature(projectDir, agentId, kind, id) {
     if (installSpec.startsWith('clawhub:')) installArgs.push('--acknowledge-clawhub-risk');
 
     let composeDir = null;
-    if (existsSync(join(projectDir, 'docker-compose.yml'))) {
+    if (isNativeProject(projectDir)) {
+      // Native: no container to exec into — same CLI, run on the host with the project env so it
+      // installs into this project's .openclaw/extensions instead of the default ~/.openclaw.
+      composeDir = null;
+    } else if (existsSync(join(projectDir, 'docker-compose.yml'))) {
       composeDir = projectDir;
     } else if (existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'))) {
       composeDir = join(projectDir, 'docker', 'openclaw');
     }
 
-    if (composeDir) {
-      const botContainer = getBotContainerName(projectDir);
-      sendLog(`[plugin] Installing/updating ${installSpec} inside container ${botContainer}...`);
-      
-      const cmd = `cd /home/node/project && openclaw ${installArgs.join(' ')}`;
-      const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
-      
+    if (composeDir || isNativeProject(projectDir)) {
+      let cmdOut;
+      if (isNativeProject(projectDir)) {
+        sendLog(`[plugin] Installing/updating ${installSpec} natively...`);
+        cmdOut = await ocCapture(projectDir, installArgs);
+      } else {
+        const botContainer = getBotContainerName(projectDir);
+        sendLog(`[plugin] Installing/updating ${installSpec} inside container ${botContainer}...`);
+        const cmd = `cd /home/node/project && openclaw ${installArgs.join(' ')}`;
+        cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
+      }
+
       if (cmdOut) {
          for (const line of `${cmdOut.stdout}\n${cmdOut.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(line);
       }
@@ -3453,7 +4928,7 @@ async function installFeature(projectDir, agentId, kind, id) {
 
       // Auto-expose zalo-mod dashboard port in docker-compose.yml
       const isZaloMod = id === 'openclaw-zalo-mod' || id === 'zalo-mod';
-      if (isZaloMod) {
+      if (isZaloMod && composeDir) {
         const composeFile = join(composeDir, 'docker-compose.yml');
         if (existsSync(composeFile)) {
           let composeContent = await fsp.readFile(composeFile, 'utf8');
@@ -3475,7 +4950,11 @@ async function installFeature(projectDir, agentId, kind, id) {
 
       // Browser-automation plugin needs Docker rebuild for Playwright/Chromium deps
       const isBrowserPlugin = id === 'openclaw-browser-automation' || id === 'browser-automation';
-      if (isBrowserPlugin && composeDir) {
+      if (isNativeProject(projectDir)) {
+        // Native: no container — reload the managed gateway service so the plugin loads.
+        sendLog('[plugin] Restarting native gateway to apply plugin...');
+        await restartNativeRuntime(projectDir).catch((err) => sendLog(`[plugin] restart failed: ${err.message}`));
+      } else if (isBrowserPlugin && composeDir) {
         await patchBrowserAutomationHostPreference(projectDir, aliases, sendLog);
         sendLog(`[plugin] Browser plugin requires Docker rebuild for Playwright/Chromium...`);
         const svcName = getBotServiceName(projectDir);
@@ -3932,8 +5411,83 @@ async function handler(req, res, rootProjectDir) {
       const projectDir = await resolveProjectDir(rootProjectDir, body);
       return json(res, await addBotMount(projectDir, body.hostPath, body.mountName));
     }
-    if (url.pathname === '/api/browser/start-chrome-debug' && req.method === 'POST') {
+    if ((url.pathname === '/api/browser/start-chrome' || url.pathname === '/api/browser/start-chrome-debug')
+      && req.method === 'POST') {
+      // start-chrome-debug is the old path; kept so an already-open dashboard keeps working.
       return json(res, await startChromeDebug());
+    }
+    // Host control: read/flip the switch and see which apps this machine offers. The bot does
+    // not come through here (the dashboard is loopback-only) — it calls the bridge-bound
+    // service from ensureHostControl.
+    if (url.pathname === '/api/host/control' && req.method === 'GET') {
+      // Target the SELECTED project (not the launch root), so host-control provisions the bot
+      // the operator is actually looking at — a connected project can differ from rootProjectDir.
+      const projectDir = await resolveProjectDir(rootProjectDir, {});
+      const cfg = await readHostControlConfig(projectDir);
+      return json(res, {
+        ok: true,
+        enabled: cfg.enabled,
+        port: HOST_CONTROL_PORT,
+        apps: Object.keys(cfg.apps || {}),
+        commands: Object.keys(cfg.commands || {}),
+        running: Boolean(_hostControlServer),
+        native: isNativeProject(projectDir),
+        // What enabling will additionally grant, so the confirm dialog can spell it out.
+        grants: Object.keys(detectHostCapabilityCommands()),
+        codexApp: detectCodexApp(),
+      });
+    }
+    if (url.pathname === '/api/host/control' && req.method === 'POST') {
+      const body = await readJson(req).catch(() => ({}));
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
+      const cfg = await readHostControlConfig(projectDir);
+      if (typeof body.enabled === 'boolean') cfg.enabled = body.enabled;
+      if (body.apps && typeof body.apps === 'object') cfg.apps = body.apps;
+      if (body.commands && typeof body.commands === 'object') cfg.commands = body.commands;
+      // Turning PC control ON is the operator's explicit ask, so it is also where the screen
+      // capture / recording and node-script permissions get granted (opt out with grants:false).
+      const granted = cfg.enabled && body.grants !== false ? grantHostCapabilities(cfg) : [];
+      if (granted.length) sendLog(`[host-control] Đã cấp thêm quyền chạy: ${granted.join(', ')}.`);
+      await fsp.writeFile(hostControlConfigPath(projectDir), JSON.stringify(cfg, null, 2), 'utf8');
+      let started = { ok: false, reason: 'disabled' };
+      if (cfg.enabled) started = await ensureHostControl(projectDir);
+      // Always rewrite the workspace guidance: enabling adds the block (with the token),
+      // disabling strips it so a bot never keeps instructions for an endpoint now refusing.
+      await writeHostControlAccess(projectDir, cfg).catch(() => {});
+      sendLog(`[host-control] ${cfg.enabled ? 'Đã BẬT' : 'Đã TẮT'} quyền điều khiển máy cho bot.`);
+      // Make sure the Codex desktop app can actually do GUI work, so `codex exec` is enough for
+      // the bot: install computer-use into the app and repair its MCP registration. Nothing is
+      // installed into the OpenClaw project and the gateway never restarts.
+      let codex = null;
+      if (cfg.enabled && body.codex !== false && (cfg.commands || {}).codex) {
+        const app = detectCodexApp();
+        codex = await ensureCodexComputerUsePlugin(app, detectCodexMarketplace())
+          .then((r) => ({ ...r, app }))
+          .catch((err) => ({ error: err.message, app }));
+        // The wrapper carries the sandbox flag, so a bot cannot get the invocation wrong.
+        codex.taskScript = await writeCodexTaskScript(projectDir, (cfg.commands || {}).codex).catch(() => '');
+      }
+      return json(res, {
+        ok: true,
+        enabled: cfg.enabled,
+        started,
+        apps: Object.keys(cfg.apps || {}),
+        commands: Object.keys(cfg.commands || {}),
+        granted,
+        native: isNativeProject(projectDir),
+        codex,
+      });
+    }
+    // Take the operator to the OS privacy pane PC control needs (screen recording, accessibility).
+    // The OS alone can grant these; `probe` additionally triggers the macOS screen-capture prompt
+    // for this node binary — the same interpreter the native bot runs under.
+    if (url.pathname === '/api/host/permissions' && req.method === 'POST') {
+      const body = await readJson(req).catch(() => ({}));
+      const kind = String(body.kind || 'screen').toLowerCase();
+      const probe = kind === 'screen' && body.probe !== false ? await probeScreenPermission() : { supported: false, granted: null };
+      const opened = openPrivacyPane(kind);
+      sendLog(`[host-control] Mở cài đặt quyền "${kind}"${probe.supported ? ` (screen recording: ${probe.granted ? 'đã cấp' : 'chưa cấp'})` : ''}.`);
+      return json(res, { ok: true, kind, ...opened, screen: probe, platform: process.platform });
     }
     if (url.pathname === '/api/setup/update' && req.method === 'POST') {
       const installerDir = resolve(__dirname, '../..');
@@ -4311,6 +5865,9 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ensureReopenShortcut();
   if (openBrowser) openUrl(url);
   printRemoteAccessHint(port).catch(() => {});
+  // Bring the host-control service back up when the operator left it enabled, so the bot's
+  // saved instructions keep working across installer restarts.
+  ensureHostControl(projectDir).catch(() => {});
 }
 
-export { createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations };
+export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots };

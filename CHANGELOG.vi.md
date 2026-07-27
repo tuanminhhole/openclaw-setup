@@ -1,6 +1,32 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.15.0] — 2026-07-27
+
+### Thêm mới
+
+- **Chế độ cài "Native" — chạy bot thẳng trên máy này, không cần Docker.** Chọn Native khi tạo project thì OpenClaw + 9Router chạy trực tiếp trên máy bạn dưới dạng dịch vụ được quản lý (launchd trên macOS, systemd trên Linux, Scheduled Task trên Windows): tự khởi động cùng máy và tự bật lại nếu chết. Không phải cài Docker, bot thấy sẵn file trên máy, và đây là chế độ **duy nhất** bot điều khiển được ứng dụng trên desktop. Project native dùng cổng riêng (gateway 18889, 9Router 20228) nên chạy song song với project Docker — hoặc với SSH tunnel tới bot ở xa — mà không đụng nhau; mỗi project có dịch vụ riêng nên chạy được nhiều project cùng lúc. Docker vẫn là mặc định và không đổi gì.
+- **"Điều khiển máy" — cho bot mở Chrome & ứng dụng trên máy của bạn.** Nút trên thẻ mỗi bot (cạnh "Cấp quyền ổ đĩa"): bật lên là bot mở được Chrome hoặc app trong danh sách cho phép (TeamViewer, Zalo, …) trên máy đang chạy bot. **Mặc định TẮT**, cần token, và chỉ giới hạn trong danh sách bạn khai. Chỉ dùng trên máy có màn hình — VPS headless không có gì để mở nên tự vô hiệu.
+- **Bot chạy được công cụ CLI trong danh sách cho phép trên máy bạn (vd Claude Code) và lấy kết quả về.** Endpoint host-control cho phép bot chạy một lệnh bạn đã cho phép — như `claude -p "..."` — trên máy đang chạy bot rồi đọc lại output, để giao việc cho Claude Code ngay từ chat. Có token, chỉ chạy lệnh trong danh sách (executable cố định), không qua shell (args không chèn lệnh được), timeout 180s và giới hạn output. Thêm công cụ ở mục `commands` trong `.openclaw/host-control.json`; tự dò Claude Code khi có `claude` trên PATH. Chỉ máy có màn hình. (Antigravity và app GUI khác vẫn chỉ "mở" — không có CLI headless để giao việc.)
+- **Tự phát hiện project native.** Launcher nay tự dò bản cài native qua marker `.openclaw/native.json` và liệt kê cạnh các project Docker — giống như cách nó tự hiện bot Docker đang chạy — nên bạn không cần trỏ launcher vào thư mục trước mới thấy.
+
+### Thay đổi
+
+- **Duyệt web chạy được ngay trên mọi hệ điều hành.** Trên máy để bàn, bot dùng **Chrome thật** của bạn (profile đã đăng nhập, không phải profile tạm nên web ít nghi là bot); trên server, bot tự mở Chromium headless. Hết cảnh "không có trình duyệt" chỉ vì chưa mở Chrome — và bot dùng đúng công cụ browser đọc được nội dung/link của trang.
+- **Nút bấm khớp với chế độ đang chạy.** Project native sẽ ẩn các nút chỉ dành cho container: "Rebuild" (không có image — dùng Update để cài lại gói và khởi động lại dịch vụ) và "Cấp quyền ổ đĩa" (bot vốn đã thấy toàn bộ file trên máy).
+
+### Sửa lỗi
+
+- **"Điều khiển máy" giờ cấp quyền đúng bot đang chọn.** Trước đây bật host-control luôn ghi token + hướng dẫn vào project gốc lúc khởi động installer, nên bot ở project (kết nối) khác không nhận được — nút hiện "bật" mà bot không làm gì được. Nay nó ghi đúng project đang chọn và re-point service đang chạy mà không cần restart.
+- **Khởi động lại gateway native trên Windows.** Windows không gửi được tín hiệu mà lệnh restart thường dùng, nên tiến trình cũ vẫn sống và plugin vừa cài không bao giờ được nạp, lại không báo lỗi gì. Nay trên Windows, restart native sẽ dừng rồi chạy lại dịch vụ.
+- **Đăng nhập Zalo QR chạy trong chế độ Native.** Đăng nhập tài khoản Zalo không còn đòi phải có container Docker đang chạy ("Zalo login cần project Docker"). Trên project native, mã QR do gateway trên máy sinh ra, đọc thẳng từ ổ đĩa lên modal, và dịch vụ tự nạp lại sau khi đăng nhập thành công — cùng luồng như Docker mà không cần container.
+- **Cài plugin và skill chạy trong chế độ Native.** Cài skill, cài plugin Zalo Connect, và bước nạp lại sau khi cài nay chạy trên dịch vụ trên máy thay vì mặc định phải có container, nên thêm plugin/skill cho bot native áp dụng gọn thay vì lỗi vì thiếu container.
+- **Bot native nạp đúng persona thay vì bản mặc định trắng.** Đường workspace của agent native bị lưu thành đường container (`/home/node/project/…`) nên trên máy thật bot lỗi mỗi lượt (`mkdir /home/node`); khi để tương đối thì lại trỏ vào thư mục rỗng bị gấp đôi — bot trả lời như trợ lý vừa online chưa có tên. Nay đường workspace được chuẩn hoá thành đường tuyệt đối của project, bot đọc IDENTITY/SOUL/AGENTS ngay từ tin đầu.
+- **Thẻ bot Zalo hiển thị đúng trạng thái kết nối ở chế độ Native.** Trước đây trạng thái chỉ đọc qua Docker nên bot native khoẻ vẫn hiện "Đang kết nối / Chưa đăng nhập". Nay đọc thẳng gateway trên máy.
+- **Nút "Mở web" bám theo project đang chọn.** Nút dashboard của Zalo Mod trước mở cổng mặc định cố định thay vì cổng gateway của project + 1 (nên hụt cổng 18890 của project native). Nay tính cổng theo đúng project đang chọn.
+- **"Điều khiển máy" chạy được cho bot native.** Bot native chạy thẳng trên máy với quyền `exec` nên nay mở ứng dụng trực tiếp (macOS `open -a`, Linux `xdg-open`, Windows `start`) thay vì bị bảo gọi cầu host-control kiểu Docker (`host.docker.internal:18795`) mà nó không với tới được. Điều khiển chuột/bàn phím/màn hình đầy đủ vẫn có qua Computer Use (Codex) của OpenClaw — cần cài Codex.app + bật `computerUse.autoInstall`.
+- **Xoá bot cuối cùng của một kênh sẽ gỡ luôn kênh đó.** Trước đây kênh đang bật (vd Telegram) có thể còn sót lại không tài khoản, hiện dòng "chưa cấu hình" lỗi trong trạng thái.
+
 ## [5.14.1] — 2026-07-25
 
 ### Thêm mới

@@ -266,12 +266,14 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     // created/regenerated — so a plain rebuild would never pick them up):
     //   • skills.workshop.approvalPolicy:'auto' → the assistant can author a workspace
     //     skill end-to-end on request instead of stopping at "proposal awaiting approval".
+    //   • tools.deny gains `browser` on projects that have browsing enabled, so the model
+    //     stops reaching for the native tool instead of the plugin's browser-tool.js.
     // (messages.ackReaction is handled separately, below, because it is Zalo-only.)
     //   • imageMaxDimensionPx / imageQuality / contextLimits.toolResultMaxChars → keep one
     //     heavy turn (deep research, 4K chart read-back) from overflowing the context
     //     window mid tool-loop, which cannot be compacted and poisons the session.
     // Each key is only filled in when absent, so an operator's own tuning is never clobbered.
-    const contextDefaultsScript = `const fs=require('fs'),path=require('path');const p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));let ch=false;c.skills=c.skills||{};c.skills.workshop=c.skills.workshop||{};if(!c.skills.workshop.approvalPolicy){c.skills.workshop.approvalPolicy='auto';ch=true;}const d=(c.agents&&c.agents.defaults)?c.agents.defaults:null;if(d){if(d.imageMaxDimensionPx===undefined){d.imageMaxDimensionPx=1024;ch=true;}if(d.imageQuality===undefined){d.imageQuality='efficient';ch=true;}d.contextLimits=d.contextLimits||{};if(d.contextLimits.toolResultMaxChars===undefined){d.contextLimits.toolResultMaxChars=12000;ch=true;}}if(ch)fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+    const contextDefaultsScript = `const fs=require('fs'),path=require('path');const p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));let ch=false;c.skills=c.skills||{};c.skills.workshop=c.skills.workshop||{};if(!c.skills.workshop.approvalPolicy){c.skills.workshop.approvalPolicy='auto';ch=true;}if(c.browser&&c.browser.enabled!==false){c.tools=c.tools||{};const dn=Array.isArray(c.tools.deny)?c.tools.deny:[];if(!dn.includes('browser')){dn.push('browser');c.tools.deny=dn;ch=true;}}const d=(c.agents&&c.agents.defaults)?c.agents.defaults:null;if(d){if(d.imageMaxDimensionPx===undefined){d.imageMaxDimensionPx=1024;ch=true;}if(d.imageQuality===undefined){d.imageQuality='efficient';ch=true;}d.contextLimits=d.contextLimits||{};if(d.contextLimits.toolResultMaxChars===undefined){d.contextLimits.toolResultMaxChars=12000;ch=true;}}if(ch)fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
     // Companion backfill for the same older projects: their TOOLS.md was generated before the
     // skill-authoring / long-turn guidance existed, and workspace files are only written when a
     // bot is created — so a rebuild alone leaves the assistant stopping at "proposal awaiting
@@ -363,6 +365,77 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     // Backfill skill-authoring + context defaults for configs from an older setup (see above).
     runtimeParts.push(`node - <<'NODE'\n${contextDefaultsScript}\nNODE`);
     runtimeParts.push(`node - <<'NODE'\n${agentsGuidanceScript}\nNODE`);
+    // browser-tool.js is a CDP client only — it has no code to launch a browser, so it
+    // needs something listening on a debug port. On a desktop that is the operator's own
+    // Chrome (started by start-chrome), reached through the host gateway. On a server there
+    // is no such Chrome, and browsing simply failed. Start a headless Chromium on loopback
+    // 9222 — the second entry in browser-tool.js's candidate list — so the same tool works
+    // on every OS.
+    //
+    // Emitted unconditionally and gated at RUNTIME on the plugin being installed, not on
+    // hasBrowser: the dashboard creates projects without that flag, so an operator who turns
+    // browser-automation on later (the common path) would otherwise never get this block.
+    //
+    // Chromium is baked into the image only when hasBrowser was known at build time. When it
+    // is missing — every project whose image predates the plugin — download it once instead
+    // of telling the bot to give up; that message is what makes it answer "there is no
+    // browser in my environment". The download goes to a path under $OPENCLAW_HOME, which is
+    // a bind mount, so recreating the container does not pay for it again. It runs in the
+    // background: the gateway must not wait ~150MB before answering messages.
+    //
+    // Skipped when a host Chrome is already reachable (it is tried first anyway) or when
+    // something already holds 9222, so a desktop does not pay for an idle browser.
+    runtimeParts.push([
+      // Not exported: the plugin (and anything else in the image) resolves Playwright's own
+      // cache, and pointing that at an empty directory would break a Chromium that IS baked in.
+      'openclaw_browsers_dir="$OPENCLAW_HOME/browsers"',
+      // The installed plugin folder, not the config: browsing needs browser-tool.js, which
+      // ships with the plugin, so "enabled in config but never installed" has nothing to serve.
+      'browser_automation_enabled() {',
+      '  [ -d "$OPENCLAW_HOME/extensions/browser-automation" ]',
+      '}',
+      'find_chrome_bin() {',
+      '  for candidate in /usr/bin/google-chrome /usr/bin/chromium /usr/bin/chromium-browser; do',
+      '    [ -x "$candidate" ] && echo "$candidate" && return 0',
+      '  done',
+      '  ls -d "$openclaw_browsers_dir"/chromium-*/chrome-linux*/chrome "$HOME"/.cache/ms-playwright/chromium-*/chrome-linux*/chrome /root/.cache/ms-playwright/chromium-*/chrome-linux*/chrome 2>/dev/null | head -n 1',
+      '}',
+      'launch_headless_chrome() {',
+      '  echo "[entrypoint] starting local headless Chromium on 127.0.0.1:9222"',
+      '  "$1" --headless=new --remote-debugging-port=9222 --remote-debugging-address=127.0.0.1 \\',
+      '    --no-sandbox --disable-dev-shm-usage --disable-gpu --no-first-run --no-default-browser-check \\',
+      '    --user-data-dir=/tmp/openclaw-headless-chrome >/tmp/openclaw-headless-chrome.log 2>&1 &',
+      '}',
+      'start_local_headless_chrome() {',
+      '  browser_automation_enabled || return 0',
+      '  if curl -s -m 2 http://127.0.0.1:9222/json/version >/dev/null 2>&1; then return 0; fi',
+      '  host_ip="$(getent hosts host.docker.internal 2>/dev/null | awk \'{print $1}\' | head -n 1)"',
+      '  if [ -n "$host_ip" ] && curl -s -m 2 "http://$host_ip:9222/json/version" >/dev/null 2>&1; then',
+      '    echo "[entrypoint] host Chrome reachable at $host_ip:9222; not starting a local one"',
+      '    return 0',
+      '  fi',
+      '  chrome_bin="$(find_chrome_bin || true)"',
+      '  if [ -n "$chrome_bin" ] && [ -x "$chrome_bin" ]; then',
+      '    launch_headless_chrome "$chrome_bin"',
+      '    return 0',
+      '  fi',
+      '  echo "[entrypoint] browser-automation is on but this image has no Chromium; downloading it once (~150MB) in the background"',
+      '  (',
+      '    mkdir -p "$openclaw_browsers_dir"',
+      '    PLAYWRIGHT_BROWSERS_PATH="$openclaw_browsers_dir" npx --yes playwright install --with-deps chromium >/tmp/openclaw-chromium-install.log 2>&1 \\',
+      '      || PLAYWRIGHT_BROWSERS_PATH="$openclaw_browsers_dir" npx --yes playwright install chromium >>/tmp/openclaw-chromium-install.log 2>&1',
+      '    installed_bin="$(find_chrome_bin || true)"',
+      '    if [ -n "$installed_bin" ] && [ -x "$installed_bin" ]; then',
+      '      echo "[entrypoint] Chromium ready at $installed_bin"',
+      '      launch_headless_chrome "$installed_bin"',
+      '    else',
+      '      echo "[entrypoint] Chromium download failed; see /tmp/openclaw-chromium-install.log — browsing still works if the operator runs start-chrome on the host"',
+      '    fi',
+      '  ) &',
+      '}',
+      // `set -e` is on: a non-zero return here must never stop the gateway from starting.
+      'start_local_headless_chrome || true',
+    ].join('\n'));
     runtimeParts.push('openclaw gateway run');
     const runtimeScript = ['#!/bin/sh', 'set -e', ...runtimeParts].join('\n');
     let browserInstall = '';

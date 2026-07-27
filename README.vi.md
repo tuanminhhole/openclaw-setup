@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS — chạy trên Docker, tự cài giúp bạn.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.14.1-0EA5E9?style=for-the-badge" alt="Version 5.14.1" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.15.0-0EA5E9?style=for-the-badge" alt="Version 5.15.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,9 +37,17 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.14.1
+## 🆕 Có gì mới trong v5.15.0
 
-- 🦞 **Bot Zalo thả reaction báo đã nhận tin**: một icon xuất hiện ngay trên tin bạn vừa gửi, nên bạn biết bot đã nhận trong khi nó còn đang viết trả lời. Chạy ở tầng kênh chat nên **không tốn token**. Bật mặc định cho bot Zalo mới, **bot cũ tự nhận khi cập nhật**; đổi icon hay tắt thì sửa `messages.ackReaction` trong `openclaw.json`. Cần Zalo Connect 3.0.15+.
+- 🖥️ **"Điều khiển máy" — cho bot mở Chrome & ứng dụng trên máy bạn**: nút mới trên thẻ mỗi bot, bật lên là bot mở được Chrome hoặc app trong danh sách cho phép (TeamViewer, Zalo, …) trên máy đang chạy bot. **Mặc định TẮT**, cần token, chỉ giới hạn danh sách bạn khai, chỉ dùng trên máy có màn hình.
+- 🌐 **Duyệt web chạy ngay trên mọi hệ điều hành**: máy để bàn thì bot dùng **Chrome thật** (profile đã đăng nhập, web ít nghi là bot), server thì tự mở Chromium headless — hết cảnh "không có trình duyệt" chỉ vì chưa mở Chrome.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.14.1</b></summary>
+
+- 🦞 **Bot Zalo thả reaction báo đã nhận tin**: một icon xuất hiện ngay trên tin bạn vừa gửi, nên bạn biết bot đã nhận trong khi nó còn đang viết trả lời. Chạy ở tầng kênh chat nên **không tốn token**. Bật mặc định cho bot Zalo mới; đổi icon hay tắt thì sửa `messages.ackReaction` trong `openclaw.json`. Cần Zalo Connect 3.0.15+.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.14.0</b></summary>

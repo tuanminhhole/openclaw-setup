@@ -7,9 +7,13 @@ const OS_OPTIONS = [
   { id: 'linux-desktop', title: 'Linux Desktop', subtitle: 'Ubuntu / Debian / Fedora', icon: `${SVG_CDN}/linux/default.svg`, badge: 'Desktop' },
   { id: 'vps', title: 'Linux VPS', subtitle: 'Server install with public bind', icon: `${SVG_CDN}/ubuntu/default.svg`, badge: 'Server' },
 ];
-// Docker is the only supported deploy mode. (Native mode was removed.)
+// Two deploy modes. Docker isolates the bot in a container; native runs openclaw + 9router
+// straight on this machine as a managed service (launchd/systemd/schtasks). Native needs no
+// Docker install, sees the host filesystem directly, and is the only mode where the bot can
+// drive apps on the desktop — at the cost of the container's isolation.
 const MODE_OPTIONS = [
   { id: 'docker', title: 'Docker', subtitle: 'Isolated containers, safest default', icon: `${SVG_CDN}/docker/default.svg`, badge: 'Recommended' },
+  { id: 'native', title: 'Native', subtitle: 'Runs on this machine, controls apps', icon: `${SVG_CDN}/gnubash/default.svg`, badge: 'Desktop' },
 ];
 const BOT_CHANNELS = [
   { id: 'telegram', title: 'Telegram', subtitle: 'Bot API', icon: `${SVG_CDN}/telegram/default.svg`, badge: 'Tele' },
@@ -105,7 +109,8 @@ function actionIcon(name) {
     download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
     save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
     edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
-    spark: '<path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8Z"/>'
+    spark: '<path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8Z"/>',
+    key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>'
   }[name];
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 }
@@ -212,6 +217,7 @@ function installModal() {
   const osChoices = OS_OPTIONS.map(o => [o.id, t(o.title, o.title), trChoice(o).subtitle]);
   const modeChoices = [
     ['docker', 'Docker', t('\u0043ontainer c\u00f4 l\u1eadp, an to\u00e0n nh\u1ea5t', 'Isolated containers, safest default')],
+    ['native', 'Native', t('Ch\u1ea1y th\u1eb3ng tr\u00ean m\u00e1y n\u00e0y \u2014 kh\u00f4ng c\u1ea7n Docker, \u0111i\u1ec1u khi\u1ec3n \u0111\u01b0\u1ee3c app', 'Runs on this machine \u2014 no Docker, can drive desktop apps')],
   ];
   return `<div class="modal-backdrop install-backdrop" data-install-modal="close">
     <section class="donate-modal install-modal" role="dialog" aria-modal="true" aria-label="${t('T\u1ea1o Project','Create Project')}" onclick="event.stopPropagation()">
@@ -307,6 +313,52 @@ function openPathModal({ title, message, value = '', placeholder = '', field2 = 
   state.pathModal = { title, message, value, placeholder, field2, onConfirm };
   render();
   setTimeout(() => document.getElementById('path-modal-input')?.focus(), 0);
+}
+/**
+ * Shown right after PC control is granted on a native install: what the bot can now do, and the
+ * one thing only the operator can do — grant the OS screen permissions from the system settings.
+ */
+function openComputerUseModal(r = {}) {
+  const codex = r.codex || {};
+  const appOk = codex.app && codex.app.present;
+  const cli = (r.commands || []).includes('codex');
+  const line = (icon, text) => `<li><span aria-hidden="true">${icon}</span><div>${text}</div></li>`;
+  const statusItems = [
+    cli
+      ? line('✅', t('Bot giao được việc cho <code>codex</code> — Codex tự nhìn màn hình, click, gõ phím rồi trả kết quả về.', 'The bot can hand jobs to <code>codex</code> — Codex looks at the screen, clicks and types, then reports back.'))
+      : line('⚠️', t('Không tìm thấy CLI <code>codex</code> — cài app ChatGPT/Codex rồi bật lại quyền này.', 'No <code>codex</code> CLI found — install the ChatGPT/Codex app, then re-enable this.')),
+    codex.pluginInstalled
+      ? line('✅', t(`Computer Use trong app Codex đã ${codex.installedNow ? 'được cài' : 'sẵn sàng'}${codex.mcpRepaired ? ' (đã sửa khai báo MCP cũ)' : ''}.`, `Computer Use in the Codex app is ${codex.installedNow ? 'installed' : 'ready'}${codex.mcpRepaired ? ' (stale MCP entry repaired)' : ''}.`))
+      : line('⚠️', t(`Chưa bật được Computer Use trong app Codex: ${escapeHtml(codex.error || 'không rõ lý do')}`, `Could not enable Computer Use in the Codex app: ${escapeHtml(codex.error || 'unknown reason')}`)),
+    appOk
+      ? line('✅', t('Đã thấy ứng dụng ChatGPT/Codex — <b>nhớ để app đang chạy</b>.', 'Found the ChatGPT/Codex desktop app — <b>keep it running</b>.'))
+      : line('⚠️', t('CHƯA thấy ứng dụng ChatGPT/Codex — cài rồi mở lên, không có nó thì không điều khiển GUI được.', 'No ChatGPT/Codex desktop app found — install and open it, GUI control needs it.')),
+    (r.granted && r.granted.length)
+      ? line('✅', t(`Đã cấp quyền chạy: ${escapeHtml(r.granted.join(', '))}.`, `Granted: ${escapeHtml(r.granted.join(', '))}.`))
+      : '',
+  ].filter(Boolean).join('');
+  state.confirmModal = {
+    icon: '🖥️',
+    eyebrow: t('Điều khiển máy','PC control'),
+    title: t('Xong — còn 1 bước bạn tự làm','Done — one step left for you'),
+    message: t('Model chính của bot vẫn là smart-route, không đổi.','Your bot keeps smart-route as its primary model.'),
+    bodyHtml: `
+      <ul class="cu-status">${statusItems}</ul>
+      <h4>${t('Cấp quyền màn hình cho máy','Grant the OS screen permissions')}</h4>
+      <p>${t('macOS chỉ cấp <b>Screen Recording</b> / <b>Accessibility</b> từ System Settings — bấm nút dưới, rồi bật cho <code>node</code> và app Codex.','macOS only grants <b>Screen Recording</b> / <b>Accessibility</b> from System Settings — click below, then tick <code>node</code> and the Codex app.')}</p>
+      <p class="cu-perm-row">
+        <button class="secondary cu-btn" type="button" data-host-perm="screen">${t('Chụp/quay màn hình','Screen recording')}</button>
+        <button class="secondary cu-btn" type="button" data-host-perm="accessibility">${t('Accessibility (chuột/bàn phím)','Accessibility (mouse/keys)')}</button>
+      </p>
+      <p class="cu-note">${t('Cách dùng: nhắn bot bình thường, ví dụ “mở TeamViewer và đọc giúp mật khẩu trên màn hình” — bot tự giao cho Codex rồi báo kết quả về.','How to use it: just ask your bot normally, e.g. “open TeamViewer and read the password on screen” — it hands the job to Codex and reports back.')}</p>
+      <p class="cu-note">${t('Việc giao cho Codex chạy bằng gói ChatGPT đã đăng nhập (tốn quota gói đó); chat thường vẫn đi qua các model free của <code>smart-route</code>. Điều khiển chuột/bàn phím hiện chỉ có trên macOS.','Jobs handed to Codex run on the signed-in ChatGPT plan (they spend that quota); ordinary chat still uses the free <code>smart-route</code> models. Mouse/keyboard control is macOS-only for now.')}</p>
+    `,
+    okText: t('Đã hiểu','Got it'),
+    okDanger: false,
+    hideCancel: true,
+    onConfirm: () => { state.confirmModal = null; render(); },
+  };
+  render();
 }
 async function pickFolderPathShared() {
   try {
@@ -816,6 +868,9 @@ function setupView() {
 function botView() {
   const s = state.install || {};
   const sys = state.system || {};
+  // Native projects have no container: Rebuild (no image) and Grant disk (host FS is already
+  // reachable) do not apply, so those buttons are hidden rather than failing when pressed.
+  const isNativeMode = s.deployMode === 'native';
   const bots = s.bots || [];
   const ch = state.botChannel || 'telegram';
   const channelBots = bots.filter(b => b.channel === ch);
@@ -870,10 +925,12 @@ function botView() {
           <div class="runtime-status-card"><div class="runtime-status-head"><span>9Router</span>${statusBadge(s.routerStatus)}</div><div class="runtime-card-actions"><a class="runtime-open-btn secondary icon-btn2" href="${sameHostUrl(s.routerUrl, 20128)}" target="_blank" rel="noopener" style="justify-content:center; flex:1; font-size:12px; height:36px; border-width:1px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>${t('Mở web','Open')}</a><button class="runtime-open-btn icon-btn2" data-update-router type="button" style="justify-content:center; flex:1; font-size:12px; height:36px; border:none; background:rgba(255,36,54,.15); color:#ff4b5d;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>${t('Update','Update')}</button></div></div>
         </div>
         
+        ${''/* native: no container → no image to rebuild, and the host FS is already visible */}
         <div class="bot-docker-actions" style="display:flex; gap:8px; margin-top:14px;">
           <button class="secondary icon-btn2" data-bot-restart type="button" style="flex:1; justify-content:center; font-size:12px; height:34px; border-width:1px;" title="${t('Khởi động lại container bot','Restart bot container')}">🔄 ${t('Restart','Restart')}</button>
-          <button class="secondary icon-btn2" data-bot-rebuild type="button" style="flex:1; justify-content:center; font-size:12px; height:34px; border-width:1px;" title="docker compose up -d --build">🔨 ${t('Rebuild','Rebuild')}</button>
-          <button class="secondary icon-btn2" data-bot-add-mount type="button" style="flex:1; justify-content:center; font-size:12px; height:34px; border-width:1px;" title="${t('Cấp quyền ổ đĩa/thư mục cho bot','Grant the bot a disk/folder')}">💽 ${t('Cấp quyền ổ đĩa','Grant disk')}</button>
+          ${isNativeMode ? '' : `<button class="secondary icon-btn2" data-bot-rebuild type="button" style="flex:1; justify-content:center; font-size:12px; height:34px; border-width:1px;" title="docker compose up -d --build">🔨 ${t('Rebuild','Rebuild')}</button>`}
+          ${isNativeMode ? '' : `<button class="secondary icon-btn2" data-bot-add-mount type="button" style="flex:1; justify-content:center; font-size:12px; height:34px; border-width:1px;" title="${t('Cấp quyền ổ đĩa/thư mục cho bot','Grant the bot a disk/folder')}">💽 ${t('Cấp quyền ổ đĩa','Grant disk')}</button>`}
+          <button class="secondary icon-btn2" data-bot-host-control type="button" style="flex:1; justify-content:center; font-size:12px; height:34px; border-width:1px;" title="${t('Cho bot mở Chrome/ứng dụng trên máy này','Let the bot open Chrome/apps on this machine')}">🖥️ ${t('Điều khiển máy','Control PC')}</button>
         </div>
 
         <div class="dash-version-list" style="margin-top: 18px;">
@@ -1097,7 +1154,13 @@ function botSkillsPanel() {
     if (isInstalled) {
       toggleHtml = `<label class="feature-switch" title="${locked ? t('Bắt buộc cho bot Zalo — không thể tắt','Required for Zalo bots — cannot be disabled') : ''}"${locked ? ' style="opacity:.4;pointer-events:none;cursor:not-allowed;"' : ''}><input type="checkbox" data-feature-toggle="${key}" ${(flags[key] || locked) ? 'checked' : ''} ${(loading || locked) ? 'disabled' : ''}/><span></span></label>`;
       if (item.openWebPort) {
-        secs.push(`<a class="secondary icon-btn2" href="${sameHostUrl('', item.openWebPort)}${item.openWebPath || ''}" target="_blank" rel="noopener" title="${t('Mở dashboard của plugin','Open the plugin dashboard')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px;">${actionIcon('link')}<span>${t('Mở web','Open')}</span></a>`);
+        // zalo-mod's dashboard is always gateway port + 1 (docker 18790, native 18890, or whatever
+        // the SELECTED project's gateway runs on) — never the hardcoded default. Derive it from the
+        // active project's gatewayUrl so every project opens its own dashboard.
+        let gwPort = 0;
+        try { gwPort = parseInt(new URL(state.install?.gatewayUrl).port, 10) || 0; } catch {}
+        const openPort = (gwPort ? gwPort + 1 : item.openWebPort);
+        secs.push(`<a class="secondary icon-btn2" href="${sameHostUrl('', openPort)}${item.openWebPath || ''}" target="_blank" rel="noopener" title="${t('Mở dashboard của plugin','Open the plugin dashboard')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px;">${actionIcon('link')}<span>${t('Mở web','Open')}</span></a>`);
       }
       if (requiresInstall) {
         secs.push(`<button class="secondary icon-btn2 update-plugin-btn" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''} title="${t('Cập nhật lên bản mới nhất','Update to latest version')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#ffb020; border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.05);">${actionIcon('refresh')}<span>${t('Cập nhật','Update')}</span></button>`);
@@ -1175,6 +1238,21 @@ function wireTab() {
     const m = state.confirmModal;
     if (action === 'cancel' || !m) { state.confirmModal = null; render(); return; }
     if (action === 'ok' && typeof m.onConfirm === 'function') await m.onConfirm();
+  }));
+  // Screen-recording / accessibility grants: only the OS can give these, so the button opens the
+  // right settings pane (and on macOS pokes the capture API so the system prompt shows up).
+  document.querySelectorAll('[data-host-perm]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => {
+    const kind = btn.dataset.hostPerm;
+    try {
+      const r = await api('/api/host/permissions', { method: 'POST', body: { kind, projectDir: activeProjectDir() } });
+      if (!r.opened) return showToast(t('Không mở được','Could not open'), t('Hệ điều hành này không có bảng cài đặt đó — cấp quyền thủ công.','This OS has no such settings pane — grant it manually.'), 'error');
+      const granted = r.screen && r.screen.supported ? r.screen.granted : null;
+      showToast(t('Đã mở cài đặt quyền','Opened settings'),
+        granted === true ? t('Quyền chụp/quay màn hình: đã có. Bật thêm Accessibility nếu cần gõ/click.','Screen recording: already granted. Also enable Accessibility for typing/clicking.')
+          : granted === false ? t('Chưa có quyền — bật cho "node" (và app Codex) trong danh sách vừa mở, rồi restart bot.','Not granted yet — tick "node" (and the Codex app) in the list that just opened, then restart the bot.')
+            : t('Bật quyền cho "node" và app Codex trong danh sách vừa mở.','Tick "node" and the Codex app in the list that just opened.'),
+        granted === false ? 'error' : 'success', 8000);
+    } catch (err) { showToast(t('Thất bại','Failed'), err.message, 'error'); }
   }));
   document.querySelectorAll('[data-pref]').forEach(btn => btn.onclick = () => { 
     state[btn.dataset.pref] = btn.dataset.value; 
@@ -1320,6 +1398,55 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
       } catch (err) { showToast(t('Thất bại','Failed'), err.message, 'error'); }
     },
   }));
+  document.querySelectorAll('[data-bot-host-control]').forEach(btn => btn.onclick = async () => {
+    let cur;
+    try { cur = await api('/api/host/control' + projectQuery({})); }
+    catch (err) { return showToast(t('Thất bại','Failed'), err.message, 'error'); }
+    const on = !!cur.enabled;
+    const apps = cur.apps || [];
+    const grants = cur.grants || [];
+    const chips = (items) => items.map((i) => `<code>${escapeHtml(i)}</code>`).join(' ');
+    const scripts = grants.filter((g) => ['node', 'npx', 'codex'].includes(g));
+    // One row per capability instead of a wall of prose — the operator is granting real access to
+    // their machine and should be able to see, at a glance, exactly what each row means.
+    const rows = [
+      { icon: '🗂', title: t('Mở ứng dụng','Open apps'), desc: apps.length ? chips(apps) : t('chưa dò được app nào','no apps detected') },
+      ...(cur.native ? [
+        { icon: '📸', title: t('Chụp & quay màn hình','Screen capture & recording'), desc: t('bot nhìn được màn hình khi bạn nhờ','the bot can see your screen when you ask') },
+        { icon: '🖱', title: t('Điều khiển chuột/bàn phím','Mouse & keyboard control'), desc: t('bot giao việc cho Codex CLI (dùng gói ChatGPT đã đăng nhập); macOS','the bot hands the job to the Codex CLI on your ChatGPT plan; macOS only') },
+        { icon: '⚙️', title: t('Chạy script','Run scripts'), desc: `${chips(scripts.length ? scripts : ['node'])} — <b>${t('chạy được mã tuỳ ý trên máy này','arbitrary code on this machine')}</b>` },
+      ] : []),
+    ];
+    const bodyHtml = on ? '' : `
+      <ul class="cu-status grant-list">${rows.map((r) => `<li><span aria-hidden="true">${r.icon}</span><div><b>${r.title}</b><br>${r.desc}</div></li>`).join('')}</ul>
+      <p class="cu-note">${t('Danh sách sửa trong <code>.openclaw/host-control.json</code>. Chỉ dùng trên máy có màn hình (không áp dụng VPS headless).','Edit the list in <code>.openclaw/host-control.json</code>. Desktop only (not a headless VPS).')}</p>`;
+    state.confirmModal = {
+      icon: '🖥️',
+      eyebrow: t('Điều khiển máy','PC control'),
+      title: on ? t('Tắt điều khiển máy?','Turn off PC control?') : t('Bật điều khiển máy?','Turn on PC control?'),
+      message: on
+        ? t('Bot sẽ không còn mở được Chrome/ứng dụng trên máy này nữa.','The bot will no longer be able to open Chrome/apps on this machine.')
+        : t('Bạn sắp cho bot những quyền sau trên MÁY NÀY:','You are about to grant the bot the following on THIS machine:'),
+      bodyHtml,
+      okText: on ? t('Tắt','Turn off') : t('Bật','Turn on'),
+      okDanger: on,
+      onConfirm: async () => {
+        state.confirmModal = null; render();
+        if (!on) showToast(t('Đang bật','Enabling'), t('Đang cấp quyền & cài Computer Use (có thể mất ~30s)…','Granting access & installing Computer Use (may take ~30s)…'), 'success');
+        try {
+          const r = await api('/api/host/control', { method: 'POST', body: { enabled: !on, projectDir: activeProjectDir() } });
+          if (!on && r.started && r.started.ok === false && r.started.reason) {
+            showToast(t('Đã bật (lưu ý)','Enabled (note)'), t('Không khởi động được service: ','Service did not start: ') + r.started.reason, 'error');
+          } else {
+            showToast(r.enabled ? t('Đã bật điều khiển máy','PC control on') : t('Đã tắt','Turned off'),
+              r.enabled ? t('Bot có thể mở Chrome/app trong danh sách.','The bot can open allow-listed Chrome/apps.') : t('Đã thu hồi quyền.','Access revoked.'), 'success');
+          }
+          if (r.enabled && r.native) openComputerUseModal(r);
+        } catch (err) { showToast(t('Thất bại','Failed'), err.message, 'error'); }
+      },
+    };
+    render();
+  });
   document.querySelectorAll('[data-project-remove]').forEach(btn => btn.onclick = (ev) => {
     ev.stopPropagation();
     const projectDir = btn.dataset.projectRemove;
@@ -1593,7 +1720,7 @@ function zaloToolbar(channelBots = []) {
   const active = channelBots.find((bot) => bot.id === state.activeBotId) || channelBots[0];
   const health = zaloAccountHealth(active);
   const loginLabel = health?.sessionSaved ? t('Đăng nhập lại','Log in again') : t('Đăng nhập Zalo','Zalo Login');
-  return `<div class="zalo-toolbar"><button class="secondary btn-inline" data-zalo-health-refresh type="button">${actionIcon('refresh')}<span>${t('Làm mới','Refresh')}</span></button><button class="secondary btn-inline" data-zalo-login-trigger type="button">🔑 <span>${loginLabel}</span></button></div>`;
+  return `<div class="zalo-toolbar"><button class="secondary btn-inline" data-zalo-health-refresh type="button">${actionIcon('refresh')}<span>${t('Làm mới','Refresh')}</span></button><button class="secondary btn-inline" data-zalo-login-trigger type="button">${actionIcon('key')}<span>${loginLabel}</span></button></div>`;
 }
 async function loadZaloHealth(silent=false){
   if (!activeProjectDir()) { state.zaloHealth = null; return; }

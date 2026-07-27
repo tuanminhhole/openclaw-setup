@@ -1812,7 +1812,7 @@ html[data-theme="light"] .bottom .nav.active {
 }
 
 /* Compact per-account Zalo health — shared versions stay in the right status column. */
-.zalo-toolbar{display:flex;gap:8px;align-items:center}.zalo-toolbar .btn-inline{min-height:36px;padding:6px 12px;font-size:13px}.zalo-toolbar svg{width:14px;height:14px}.bot-item-title{display:flex;align-items:center;gap:8px;min-width:0;padding-right:58px}.bot-item-title b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.zalo-quick-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;border:1px solid rgba(24,194,156,.35);background:rgba(24,194,156,.12);color:#25d6ad;font-size:10px;font-weight:800;white-space:nowrap}.zalo-bot-health{display:grid;gap:6px;margin-top:4px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)}.zalo-bot-health>div{display:flex;align-items:center;justify-content:space-between;gap:10px}.zalo-bot-health span{color:var(--muted);font-size:11px;font-weight:700}.zalo-bot-health em{font-size:11px;font-style:normal;font-weight:800;text-align:right}.zalo-bot-health em.ok{color:#25d6ad}.zalo-bot-health em.warn{color:#f7bf48}.zalo-bot-health em.bad{color:#ff6574}html[data-theme="light"] .zalo-bot-health{border-top-color:rgba(15,23,42,.08)}@media(max-width:640px){.zalo-toolbar{display:grid;grid-template-columns:1fr 1fr;width:100%}.zalo-toolbar .btn-inline{justify-content:center;padding:6px 8px}.bot-item-title{padding-right:54px}}
+.zalo-toolbar{display:flex;gap:8px;align-items:center}.zalo-toolbar .btn-inline{min-height:36px;padding:6px 12px;font-size:13px;gap:7px}.zalo-toolbar svg{width:14px;height:14px;flex:0 0 auto}.bot-item-title{display:flex;align-items:center;gap:8px;min-width:0;padding-right:58px}.bot-item-title b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.zalo-quick-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;border:1px solid rgba(24,194,156,.35);background:rgba(24,194,156,.12);color:#25d6ad;font-size:10px;font-weight:800;white-space:nowrap}.zalo-bot-health{display:grid;gap:6px;margin-top:4px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07)}.zalo-bot-health>div{display:flex;align-items:center;justify-content:space-between;gap:10px}.zalo-bot-health span{color:var(--muted);font-size:11px;font-weight:700}.zalo-bot-health em{font-size:11px;font-style:normal;font-weight:800;text-align:right}.zalo-bot-health em.ok{color:#25d6ad}.zalo-bot-health em.warn{color:#f7bf48}.zalo-bot-health em.bad{color:#ff6574}html[data-theme="light"] .zalo-bot-health{border-top-color:rgba(15,23,42,.08)}@media(max-width:640px){.zalo-toolbar{display:grid;grid-template-columns:1fr 1fr;width:100%}.zalo-toolbar .btn-inline{justify-content:center;padding:6px 8px}.bot-item-title{padding-right:54px}}
 
 /* Ensure bottom navigation bar is visible on tablet and mobile (under 1180px) */
 @media (max-width: 1180px) {
@@ -1959,6 +1959,25 @@ body:has(.modal-backdrop) .bottom{display:none!important}
 .confirm-body{display:grid;gap:8px;margin:14px 0 2px}
 .confirm-body .cmd{margin-top:0;user-select:all;word-break:break-all;white-space:pre-wrap;font-size:11.5px;line-height:1.5}
 .guide-step{margin:4px 0 0;color:var(--body);font-size:13px;font-weight:700}
+
+/* [Computer Use modal] Post-grant checklist: what got provisioned + the two manual steps
+   (9router combo, OS screen permissions). Scrolls on short screens instead of clipping. */
+.confirm-body{max-height:min(58vh,520px);overflow-y:auto}
+.confirm-body h4{margin:10px 0 2px;font-size:13px;font-weight:800;color:var(--body)}
+.confirm-body p{margin:0;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.confirm-body code{padding:1px 5px;border-radius:5px;background:rgba(127,127,127,.16);font-size:11.5px}
+.cu-status{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.cu-status li{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.55;color:var(--body)}
+.cu-status li>span{flex:0 0 auto;line-height:1.5}
+.cu-status li>div{min-width:0}
+/* Grant checklist in the confirm step: boxed rows so each capability reads as its own item. */
+.grant-list li{gap:10px;padding:9px 11px;border-radius:10px;background:rgba(127,127,127,.10)}
+.grant-list b{font-weight:800}
+.grant-list li>div{color:var(--muted)}
+.cu-models{display:flex;flex-wrap:wrap;gap:6px}
+.cu-perm-row{display:flex;flex-wrap:wrap;gap:8px}
+.cu-btn{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:9px;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer}
+.cu-note{margin-top:6px!important;padding:8px 10px;border-radius:9px;background:rgba(127,127,127,.12);font-size:11.5px!important}
 
 @media(max-width:760px){
   /* [Topbar] Keep search + theme + language on ONE row; theme becomes icon-only and the
