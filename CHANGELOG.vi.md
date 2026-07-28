@@ -1,6 +1,16 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.15.3] — 2026-07-28
+
+### Thêm mới
+
+- **Bot làm việc được trên màn hình của bạn, không chỉ mở app.** Quyền điều khiển máy có thêm một endpoint thao tác desktop, **cùng một dạng JSON cho mọi hệ điều hành**: chụp màn hình, lấy kích thước màn hình, di chuột, click (trái/phải/giữa, double), kéo thả, scroll, gõ chữ, nhấn tổ hợp (`ctrl+c`, `alt+tab`, …), đọc/ghi clipboard, liệt kê cửa sổ và đưa cửa sổ lên trước. Không cần cài thêm gì: Windows dùng một file PowerShell tự sinh (user32 + SendKeys + System.Drawing), macOS dùng `screencapture` + System Events, Linux dùng `xdotool` với `scrot`/`gnome-screenshot`/`import` — và nếu máy Linux thiếu công cụ thì endpoint nói rõ cần cài gói nào chứ không lỗi âm thầm. Ảnh chụp được ghi vào trong project nên bot chạy trong container nhận đúng đường dẫn nó đọc được và gửi thẳng ảnh vào chat. Danh sách action là allow-list, mọi lệnh đều được ghi log, và chỉ hoạt động sau khi bạn bấm "Điều khiển máy" (nút này giờ cũng ghi `ui: true`).
+
+### Sửa lỗi
+
+- **Lệnh CLI trong allow-list giờ chạy thật trên Windows.** `where claude` trả về shim npm không đuôi trước tiên — một shell script mà Windows không spawn được — nên bot nhận `spawn …\npm\claude ENOENT` dù tool đã cài và đã được cho phép. Nay phần dò chọn đúng file thực thi, và shim `.cmd`/`.bat` được đọc để giải ra thứ nó gói bên trong (một `.exe`, hoặc node kèm `cli.js`), nên lệnh vẫn chạy mà không cần shell.
+
 ## [5.15.2] — 2026-07-28
 
 ### Sửa lỗi

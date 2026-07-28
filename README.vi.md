@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS — chạy trên Docker, tự cài giúp bạn.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.15.2-0EA5E9?style=for-the-badge" alt="Version 5.15.2" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.15.3-0EA5E9?style=for-the-badge" alt="Version 5.15.3" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,7 +37,7 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.15.2
+## 🆕 Có gì mới trong v5.15.3
 
 - 🖥️ **"Điều khiển máy" — cho bot mở Chrome & ứng dụng trên máy bạn**: nút mới trên thẻ mỗi bot, bật lên là bot mở được Chrome hoặc app trong danh sách cho phép (TeamViewer, Zalo, …) trên máy đang chạy bot. **Mặc định TẮT**, cần token, chỉ giới hạn danh sách bạn khai, chỉ dùng trên máy có màn hình.
 - 🌐 **Duyệt web chạy ngay trên mọi hệ điều hành**: máy để bàn thì bot dùng **Chrome thật** (profile đã đăng nhập, web ít nghi là bot), server thì tự mở Chromium headless — hết cảnh "không có trình duyệt" chỉ vì chưa mở Chrome.

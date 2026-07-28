@@ -1,6 +1,16 @@
 # Changelog (English)
 
 
+## [5.15.3] — 2026-07-28
+
+### Added
+
+- **The bot can work your screen, not just open apps.** PC control gains a desktop-action endpoint with the same JSON on every OS: screenshot, screen size, pointer move, click (left/right/middle, double), drag, scroll, type text, key combos (`ctrl+c`, `alt+tab`, …), clipboard read/write, list windows and focus one. No native modules and nothing to install: Windows uses a generated PowerShell helper (user32 + SendKeys + System.Drawing), macOS uses `screencapture` and System Events, Linux uses `xdotool` with `scrot`/`gnome-screenshot`/`import` — and when a Linux box is missing those, the reply names the package instead of failing silently. Screenshots are written inside the project, so a containerised bot gets a path it can actually open and can send the image straight into chat. Actions are an allow-list, every call is logged, and they only answer after you press "Điều khiển máy" (which now also writes `ui: true`).
+
+### Fixed
+
+- **An allow-listed CLI on Windows actually runs now.** `where claude` lists the extensionless npm shim first — a shell script Windows cannot spawn — so the bot got `spawn …\npm\claude ENOENT` for a tool that was installed and allowed. Detection now prefers a real executable, and a `.cmd`/`.bat` shim is read and resolved to what it wraps (an `.exe`, or node plus its `cli.js`), so commands still run without a shell.
+
 ## [5.15.2] — 2026-07-28
 
 ### Fixed

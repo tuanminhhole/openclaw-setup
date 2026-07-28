@@ -16,6 +16,7 @@ function loadSharedModule(modulePath, globalName) {
 const { buildWorkspaceFileMap, buildCronjobSkillMd, buildInfographicGeneratorSkillMd, buildInfographicGeneratorJs } = loadSharedModule('../setup/shared/workspace-gen.js', '__openclawWorkspace');
 const { buildOpenclawJson, buildEnvFileContent, buildExecApprovalsJson, buildZaloConnectChannelConfig } = loadSharedModule('../setup/shared/bot-config-gen.js', '__openclawBotConfig');
 const { buildDockerArtifacts } = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
+const { HOST_UI_PS1, HOST_UI_PS1_VERSION } = loadSharedModule('../setup/shared/host-ui-ps1.js', '__openclawHostUiPs1');
 const { OPENCLAW_NPM_SPEC, NINE_ROUTER_NPM_SPEC, ZALO_CHANNEL_ID, ZALO_PLUGIN_ID, ZALO_CONNECT_VERSION, ZALO_CONNECT_PLUGIN_SPEC, build9RouterProviderConfig, get9RouterBaseUrl } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
 
@@ -913,6 +914,11 @@ function runCapture(cmd, args, opts = {}) {
       windowsHide: opts.windowsHide ?? true,
       env: { ...process.env, ...(opts.env || {}) },
     });
+    // Some callers need to feed stdin (pbcopy/xclip take the clipboard text that way).
+    if (opts.input != null) {
+      try { child.stdin.write(String(opts.input)); } catch (_) {}
+      try { child.stdin.end(); } catch (_) {}
+    }
     let timedOut = false;
     const timer = Number.isFinite(opts.timeout) && opts.timeout > 0
       ? setTimeout(() => {
@@ -3277,11 +3283,56 @@ function whichSync(name) {
   try {
     const finder = process.platform === 'win32' ? 'where' : 'which';
     const out = execFileSync(finder, [name], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    const first = String(out).split(/\r?\n/).map((s) => s.trim()).find(Boolean);
-    return first || '';
+    const hits = String(out).split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+    if (process.platform !== 'win32') return hits[0] || '';
+    // `where claude` lists the extensionless npm shim FIRST — a shell script Windows cannot spawn
+    // ("spawn ...\\npm\\claude ENOENT"), which is how an allow-listed CLI ended up unusable for the
+    // bot. Prefer something Windows can actually execute.
+    const rank = (f) => {
+      const ext = extname(f).toLowerCase();
+      const order = ['.exe', '.cmd', '.bat', '.com', '.ps1'];
+      const idx = order.indexOf(ext);
+      return idx === -1 ? order.length : idx;
+    };
+    return [...hits].sort((a, b) => rank(a) - rank(b))[0] || '';
   } catch (_) {
     return '';
   }
+}
+
+/**
+ * What to actually spawn for an allow-listed command. Windows needs the indirection:
+ *  - the path may be the extensionless npm shim (a shell script) — try the real siblings;
+ *  - a `.cmd`/`.bat` shim cannot be spawned without a shell on current Node, so read it and run
+ *    what it points at (`…\pkg\bin\x.exe`, or node + a cli.js) directly.
+ * Keeping shell:false matters: the bot supplies the arguments, and a shell would let one of them
+ * become a second command.
+ */
+function resolveHostExecutable(bin) {
+  if (process.platform !== 'win32') return { file: bin, prefixArgs: [] };
+  let target = bin;
+  if (!extname(target)) {
+    const candidate = ['.exe', '.cmd', '.bat'].map((ext) => target + ext).find((f) => existsSync(f));
+    if (candidate) target = candidate;
+  }
+  const ext = extname(target).toLowerCase();
+  if (ext !== '.cmd' && ext !== '.bat') return { file: target, prefixArgs: [] };
+  try {
+    const shim = readFileSync(target, 'utf8');
+    const dir = dirname(target);
+    const expand = (p) => resolve(dir, p.replace(/%~?dp0%\\?/gi, '').replace(/^\\+/, ''));
+    const exeRef = shim.match(/"([^"\n]*?\.exe)"/i);
+    if (exeRef) {
+      const exe = expand(exeRef[1]);
+      if (existsSync(exe)) return { file: exe, prefixArgs: [] };
+    }
+    const jsRef = shim.match(/"([^"\n]*?\.js)"/i);
+    if (jsRef) {
+      const js = expand(jsRef[1]);
+      if (existsSync(js)) return { file: process.execPath, prefixArgs: [js] };
+    }
+  } catch (_) {}
+  return { file: target, prefixArgs: [] };
 }
 
 /**
@@ -3347,6 +3398,13 @@ function grantHostCapabilities(cfg) {
       cfg.commands[name] = bin;
       added.push(name);
     }
+  }
+  // Desktop actions (/api/host/ui) come with the same grant: screenshot, pointer, keyboard,
+  // clipboard, windows. Built in, so they work on a machine with no Codex and no extra tools —
+  // on Linux they lean on xdotool/scrot, which the endpoint reports if missing.
+  if (cfg.ui !== true) {
+    cfg.ui = true;
+    added.push('desktop actions (screenshot/click/type)');
   }
   return added;
 }
@@ -3619,7 +3677,8 @@ function runHostCommand(res, name, bin, args, input, timeoutMs) {
     };
     let child;
     try {
-      child = spawn(bin, args, { shell: false, windowsHide: true });
+      const target = resolveHostExecutable(bin);
+      child = spawn(target.file, [...target.prefixArgs, ...args], { shell: false, windowsHide: true });
     } catch (e) {
       return finish({ ok: false, error: e.message }, 500);
     }
@@ -3639,6 +3698,262 @@ function runHostCommand(res, name, bin, args, input, timeoutMs) {
   });
 }
 
+/**
+ * Desktop actions for the bot: see the screen, move and click, type, read the clipboard, list and
+ * focus windows. The bot runs in a container with no desktop of its own, so the installer — which
+ * already runs on the operator's machine and already opens apps for it — performs them.
+ *
+ * No native modules: the approach follows the dependency-free tools (and Anthropic's own
+ * computer-use reference, which drives xdotool + a screenshot binary):
+ *   Windows  a version-stamped PowerShell helper (user32 P/Invoke, SendKeys, System.Drawing)
+ *   macOS    screencapture + osascript/System Events + pbcopy/pbpaste
+ *   Linux    xdotool + scrot|import|gnome-screenshot|spectacle + xclip|wl-copy
+ * Whatever the OS, the bot sends the same JSON and gets the same shape back, so its instructions
+ * do not fork per platform.
+ *
+ * Windows note: input injection and screen capture need a real desktop session. When the installer
+ * itself was started over SSH there is none, and the capture fails — the error says so instead of
+ * leaking a raw Win32Exception.
+ */
+const HOST_UI_ACTIONS = new Set([
+  'screenshot', 'screen_size', 'mouse_move', 'click', 'drag', 'scroll',
+  'type', 'key', 'clipboard_get', 'clipboard_set', 'windows', 'focus',
+]);
+
+function hostUiScriptPath(projectDir) {
+  return join(projectDir, '.openclaw', 'host-ui.ps1');
+}
+
+async function ensureHostUiScript(projectDir) {
+  const path = hostUiScriptPath(projectDir);
+  const stamp = `# OpenClaw host UI helper — version ${HOST_UI_PS1_VERSION}`;
+  try {
+    if (existsSync(path) && (await fsp.readFile(path, 'utf8')).startsWith(stamp)) return path;
+  } catch (_) {}
+  await fsp.mkdir(dirname(path), { recursive: true }).catch(() => {});
+  await fsp.writeFile(path, HOST_UI_PS1, 'utf8');
+  return path;
+}
+
+function firstExistingCommand(names) {
+  for (const name of names) {
+    const bin = whichSync(name);
+    if (bin) return { name, bin };
+  }
+  return null;
+}
+
+async function hostUiScreenshotTarget(projectDir) {
+  const dir = join(projectDir, '.openclaw', 'media', 'host-ui');
+  await fsp.mkdir(dir, { recursive: true }).catch(() => {});
+  // Keep the folder from growing forever: the bot takes a lot of these.
+  try {
+    const files = (await fsp.readdir(dir)).filter((f) => f.endsWith('.png')).sort();
+    for (const stale of files.slice(0, Math.max(0, files.length - 20))) {
+      await fsp.rm(join(dir, stale), { force: true }).catch(() => {});
+    }
+  } catch (_) {}
+  const name = `shot-${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+  return { hostPath: join(dir, name), containerPath: `/home/node/project/.openclaw/media/host-ui/${name}` };
+}
+
+async function runHostUiWindows(projectDir, action, body, shot) {
+  const script = await ensureHostUiScript(projectDir);
+  const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-Action', action];
+  const push = (flag, value) => { if (value !== undefined && value !== null && value !== '') args.push(flag, String(value)); };
+  push('-X', body.x);
+  push('-Y', body.y);
+  push('-ToX', body.toX);
+  push('-ToY', body.toY);
+  push('-Amount', body.amount);
+  push('-Text', body.text);
+  push('-Button', body.button);
+  push('-Clicks', body.clicks);
+  push('-Title', body.title);
+  if (shot) push('-Path', shot.hostPath);
+  const r = await runCapture('powershell', args, { shell: false, timeout: 30000 });
+  const parsed = parseJsonText(String(r.stdout || '').trim(), null);
+  if (parsed) return parsed;
+  const err = String(r.stderr || r.stdout || '').trim();
+  if (/Win32Exception|CopyFromScreen|handle is invalid/i.test(err)) {
+    return { ok: false, error: 'no desktop session available. The installer must run in the logged-in desktop session (not over SSH) for screen capture and input to work.' };
+  }
+  return { ok: false, error: err.split('\n')[0] || `powershell exited ${r.code}` };
+}
+
+async function runHostUiMac(action, body, shot) {
+  const osa = (script) => runCapture('osascript', ['-e', script], { shell: false, timeout: 20000 });
+  const point = () => `{${Number(body.x) || 0}, ${Number(body.y) || 0}}`;
+  switch (action) {
+    case 'screenshot': {
+      const r = await runCapture('screencapture', ['-x', shot.hostPath], { shell: false, timeout: 20000 });
+      return r.code === 0 ? { ok: true, path: shot.hostPath } : { ok: false, error: String(r.stderr || 'screencapture failed').trim() };
+    }
+    case 'screen_size': {
+      const r = await osa('tell application "Finder" to get bounds of window of desktop');
+      const nums = String(r.stdout || '').trim().split(/\s*,\s*/).map(Number);
+      return nums.length === 4 ? { ok: true, width: nums[2], height: nums[3] } : { ok: false, error: 'could not read screen bounds' };
+    }
+    case 'mouse_move':
+    case 'click': {
+      // System Events can click at a point; a plain move has no equivalent, so a move is a click
+      // target set-up only. Accessibility permission is required (System Settings → Privacy).
+      const clicks = Math.max(1, Number(body.clicks) || 1);
+      if (action === 'mouse_move') return { ok: true, note: 'macOS has no pointer-move without a click; pass x/y to click instead', x: body.x, y: body.y };
+      for (let i = 0; i < clicks; i++) {
+        const r = await osa(`tell application "System Events" to click at ${point()}`);
+        if (r.code !== 0) return { ok: false, error: String(r.stderr || '').trim() || 'click failed (grant Accessibility permission)' };
+      }
+      return { ok: true, button: 'left', clicks };
+    }
+    case 'type': {
+      const text = String(body.text || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const r = await osa(`tell application "System Events" to keystroke "${text}"`);
+      return r.code === 0 ? { ok: true, typed: String(body.text || '').length } : { ok: false, error: String(r.stderr || '').trim() };
+    }
+    case 'key': {
+      const map = { enter: 'return', esc: 'escape', pageup: 'page up', pagedown: 'page down' };
+      for (const combo of String(body.text || '').split(/\s+/).filter(Boolean)) {
+        const parts = combo.toLowerCase().split('+').map((p) => p.trim()).filter(Boolean);
+        const key = map[parts[parts.length - 1]] || parts[parts.length - 1];
+        const mods = parts.slice(0, -1).map((m) => ({ ctrl: 'control down', control: 'control down', cmd: 'command down', meta: 'command down', alt: 'option down', option: 'option down', shift: 'shift down' })[m]).filter(Boolean);
+        const using = mods.length ? ` using {${mods.join(', ')}}` : '';
+        const named = ['return', 'escape', 'tab', 'space', 'delete', 'up', 'down', 'left', 'right', 'home', 'end', 'page up', 'page down'];
+        const script = named.includes(key)
+          ? `tell application "System Events" to key code ${{ return: 36, escape: 53, tab: 48, space: 49, delete: 51, up: 126, down: 125, left: 123, right: 124, home: 115, end: 119, 'page up': 116, 'page down': 121 }[key]}${using}`
+          : `tell application "System Events" to keystroke "${key}"${using}`;
+        const r = await osa(script);
+        if (r.code !== 0) return { ok: false, error: String(r.stderr || '').trim() };
+      }
+      return { ok: true, keys: body.text };
+    }
+    case 'scroll': {
+      const amount = Number(body.amount) || 3;
+      const dir = amount < 0 ? 121 : 116; // page down / page up
+      for (let i = 0; i < Math.abs(amount); i++) await osa(`tell application "System Events" to key code ${dir}`);
+      return { ok: true, amount };
+    }
+    case 'clipboard_get': {
+      const r = await runCapture('pbpaste', [], { shell: false, timeout: 10000 });
+      return { ok: true, text: String(r.stdout || '') };
+    }
+    case 'clipboard_set': {
+      const r = await runCapture('sh', ['-c', 'pbcopy'], { shell: false, timeout: 10000, input: String(body.text || '') });
+      return r.code === 0 ? { ok: true, length: String(body.text || '').length } : { ok: false, error: 'pbcopy failed' };
+    }
+    case 'windows': {
+      const r = await osa('tell application "System Events" to get name of every process whose background only is false');
+      const list = String(r.stdout || '').trim().split(/\s*,\s*/).filter(Boolean).map((title) => ({ title, process: title }));
+      return { ok: true, windows: list };
+    }
+    case 'focus': {
+      const title = String(body.title || '').replace(/"/g, '');
+      if (!title) return { ok: false, error: 'focus needs a title' };
+      const r = await osa(`tell application "${title}" to activate`);
+      return r.code === 0 ? { ok: true, focused: title } : { ok: false, error: String(r.stderr || '').trim() || `no app named ${title}` };
+    }
+    default:
+      return { ok: false, error: `unsupported on macOS: ${action}` };
+  }
+}
+
+async function runHostUiLinux(action, body, shot) {
+  const xdo = whichSync('xdotool');
+  const need = (bin, hint) => ({ ok: false, error: `${hint} needs ${bin}; install it (e.g. apt install ${bin})` });
+  switch (action) {
+    case 'screenshot': {
+      const tool = firstExistingCommand(['gnome-screenshot', 'scrot', 'spectacle', 'import']);
+      if (!tool) return need('scrot', 'screenshot');
+      const argv = tool.name === 'gnome-screenshot' ? ['-f', shot.hostPath]
+        : tool.name === 'spectacle' ? ['-b', '-n', '-o', shot.hostPath]
+          : tool.name === 'import' ? ['-window', 'root', shot.hostPath]
+            : [shot.hostPath];
+      const r = await runCapture(tool.bin, argv, { shell: false, timeout: 20000 });
+      return r.code === 0 ? { ok: true, path: shot.hostPath, tool: tool.name } : { ok: false, error: String(r.stderr || 'capture failed').trim() };
+    }
+    case 'screen_size': {
+      if (!xdo) return need('xdotool', 'screen_size');
+      const r = await runCapture(xdo, ['getdisplaygeometry'], { shell: false, timeout: 10000 });
+      const [w, h] = String(r.stdout || '').trim().split(/\s+/).map(Number);
+      return w && h ? { ok: true, width: w, height: h } : { ok: false, error: 'could not read display geometry' };
+    }
+    case 'mouse_move':
+    case 'click':
+    case 'drag':
+    case 'scroll':
+    case 'type':
+    case 'key':
+    case 'windows':
+    case 'focus': {
+      if (!xdo) return need('xdotool', action);
+      const button = { left: 1, middle: 2, right: 3 }[String(body.button || 'left')] || 1;
+      const argvFor = {
+        mouse_move: ['mousemove', String(body.x ?? 0), String(body.y ?? 0)],
+        click: ['mousemove', String(body.x ?? 0), String(body.y ?? 0), 'click', '--repeat', String(Math.max(1, Number(body.clicks) || 1)), String(button)],
+        drag: ['mousemove', String(body.x ?? 0), String(body.y ?? 0), 'mousedown', '1', 'mousemove', String(body.toX ?? 0), String(body.toY ?? 0), 'mouseup', '1'],
+        scroll: ['click', '--repeat', String(Math.max(1, Math.abs(Number(body.amount) || 3))), (Number(body.amount) || 3) < 0 ? '5' : '4'],
+        type: ['type', '--delay', '12', '--', String(body.text || '')],
+        key: ['key', ...String(body.text || '').split(/\s+/).filter(Boolean)],
+        windows: ['search', '--onlyvisible', '--name', '.'],
+        focus: ['search', '--onlyvisible', '--name', String(body.title || ''), 'windowactivate'],
+      }[action];
+      const r = await runCapture(xdo, argvFor, { shell: false, timeout: 20000 });
+      if (action === 'windows') {
+        const ids = String(r.stdout || '').trim().split(/\s+/).filter(Boolean).slice(0, 40);
+        const titles = [];
+        for (const id of ids) {
+          const t = await runCapture(xdo, ['getwindowname', id], { shell: false, timeout: 5000 });
+          const title = String(t.stdout || '').trim();
+          if (title) titles.push({ title, id });
+        }
+        return { ok: true, windows: titles };
+      }
+      return r.code === 0 ? { ok: true, action } : { ok: false, error: String(r.stderr || '').trim() || `xdotool exited ${r.code}` };
+    }
+    case 'clipboard_get': {
+      const tool = firstExistingCommand(['wl-paste', 'xclip', 'xsel']);
+      if (!tool) return need('xclip', 'clipboard_get');
+      const argv = tool.name === 'xclip' ? ['-o', '-selection', 'clipboard'] : tool.name === 'xsel' ? ['-b', '-o'] : [];
+      const r = await runCapture(tool.bin, argv, { shell: false, timeout: 10000 });
+      return { ok: true, text: String(r.stdout || '') };
+    }
+    case 'clipboard_set': {
+      const tool = firstExistingCommand(['wl-copy', 'xclip', 'xsel']);
+      if (!tool) return need('xclip', 'clipboard_set');
+      const argv = tool.name === 'xclip' ? ['-selection', 'clipboard'] : tool.name === 'xsel' ? ['-b', '-i'] : [];
+      const r = await runCapture(tool.bin, argv, { shell: false, timeout: 10000, input: String(body.text || '') });
+      return r.code === 0 ? { ok: true, length: String(body.text || '').length } : { ok: false, error: `${tool.name} failed` };
+    }
+    default:
+      return { ok: false, error: `unsupported on Linux: ${action}` };
+  }
+}
+
+async function runHostUi(projectDir, body = {}) {
+  const action = String(body.action || '').trim();
+  if (!HOST_UI_ACTIONS.has(action)) {
+    return { status: 400, payload: { ok: false, error: `unknown action: ${action || '(none)'}`, actions: [...HOST_UI_ACTIONS] } };
+  }
+  const shot = action === 'screenshot' ? await hostUiScreenshotTarget(projectDir) : null;
+  let result;
+  try {
+    if (process.platform === 'win32') result = await runHostUiWindows(projectDir, action, body, shot);
+    else if (process.platform === 'darwin') result = await runHostUiMac(action, body, shot);
+    else result = await runHostUiLinux(action, body, shot);
+  } catch (err) {
+    result = { ok: false, error: err.message };
+  }
+  if (shot && result?.ok) {
+    // The project folder is bind-mounted into the container, so hand back the path the bot can
+    // actually open — otherwise it gets a Windows path it cannot read and reports failure.
+    result.path = shot.hostPath;
+    result.containerPath = shot.containerPath;
+    result.bytes = existsSync(shot.hostPath) ? (await fsp.stat(shot.hostPath)).size : 0;
+  }
+  sendLog(`[host-control] UI "${action}" → ${result?.ok ? 'ok' : `lỗi: ${result?.error || 'unknown'}`}`);
+  return { status: result?.ok ? 200 : 500, payload: result };
+}
+
 async function handleHostControl(req, res, projectDir) {
   const cfg = await readHostControlConfig(projectDir);
   const url = new URL(req.url, 'http://localhost');
@@ -3655,6 +3970,16 @@ async function handleHostControl(req, res, projectDir) {
   }
   if (url.pathname === '/api/host/apps' && req.method === 'GET') {
     return json(res, { ok: true, apps: Object.keys(cfg.apps || {}), commands: Object.keys(cfg.commands || {}), platform: process.platform });
+  }
+  if (url.pathname === '/api/host/ui' && req.method === 'POST') {
+    // Part of PC control, but its own switch: seeing the screen and moving the pointer is a bigger
+    // step than opening an app, so it only answers once the operator has granted capabilities.
+    if (cfg.ui !== true) {
+      return json(res, { ok: false, error: 'desktop actions are not granted. Ask the operator to press "Điều khiển máy" again in the dashboard (that writes ui:true).' }, 403);
+    }
+    const body = await readJson(req).catch(() => ({}));
+    const { status, payload } = await runHostUi(projectDir, body || {});
+    return json(res, payload, status);
   }
   if (url.pathname === '/api/host/exec' && req.method === 'POST') {
     const body = await readJson(req).catch(() => ({}));
@@ -3722,6 +4047,39 @@ async function writeHostControlAccess(projectDir, cfg) {
     '```',
     '',
     `Lệnh khả dụng: ${commands.map((c) => `\`${c}\``).join(', ')}. Lệnh mặc định timeout 180s, output tối đa ~200KB/luồng.`,
+  ] : [];
+  // Desktop actions: one endpoint, same JSON on every OS, so the bot does not need per-platform
+  // instructions. Screenshots land in the project folder, which the container already sees.
+  const uiBlock = cfg.ui === true ? [
+    '',
+    '### Thao tác trên màn hình chủ',
+    '',
+    'Một endpoint duy nhất cho mọi hệ điều hành. Cách làm đúng: **chụp màn hình trước, xem toạ độ, rồi mới click** —',
+    'đừng đoán vị trí. Toạ độ tính bằng pixel màn hình, gốc ở góc trên-trái.',
+    '',
+    '```sh',
+    `curl -s -X POST ${base}/api/host/ui -H "x-openclaw-token: ${cfg.token}" \\`,
+    '  -H "content-type: application/json" -d \'{"action":"screenshot"}\'',
+    '```',
+    '',
+    'Trả về `containerPath` — **đọc/gửi ảnh bằng đường dẫn đó** (nằm trong project nên bạn thấy được),',
+    'kèm `width`/`height` để biết màn hình bao lớn.',
+    '',
+    'Các action khác (cùng dạng `{"action":...}`):',
+    '',
+    '- `screen_size` — kích thước màn hình',
+    '- `mouse_move` + `x`,`y` — di chuột',
+    '- `click` + `x`,`y`, tuỳ chọn `button` (`left`/`right`/`middle`) và `clicks` (2 = double-click)',
+    '- `drag` + `x`,`y`,`toX`,`toY` — kéo thả',
+    '- `scroll` + `amount` (âm = xuống), tuỳ chọn `x`,`y`',
+    '- `type` + `text` — gõ chữ vào cửa sổ đang focus',
+    '- `key` + `text` — nhấn tổ hợp, ví dụ `"ctrl+c"`, `"enter"`, `"alt+tab"`; nhiều tổ hợp thì cách nhau bằng space',
+    '- `clipboard_get` / `clipboard_set` + `text` — đọc/ghi clipboard',
+    '- `windows` — liệt kê cửa sổ đang mở; `focus` + `title` — đưa cửa sổ lên trước',
+    '',
+    'Nếu trả về lỗi "no desktop session available" thì installer đang chạy ngoài phiên desktop —',
+    'nói chủ mở lại installer trong máy, đừng thử cách khác.',
+    'Trên Linux, thiếu `xdotool`/`scrot` thì endpoint nói rõ cần cài gì — báo lại cho chủ.',
   ] : [];
   // Screen capture / recording — only advertised when the operator granted the matching tool, so
   // the bot never tries a binary that is not on this machine's allow-list.
@@ -3829,6 +4187,7 @@ async function writeHostControlAccess(projectDir, cfg) {
     '',
     apps.length ? `App khả dụng trên máy này: ${apps.map((a) => `\`${a}\``).join(', ')}.` : 'Máy này chưa khai báo app nào — nhờ chủ thêm vào `.openclaw/host-control.json`.',
     ...execBlock,
+    ...uiBlock,
     // Docker only: a screenshot taken on the host lands on the HOST filesystem, which this
     // container cannot read — say so instead of letting the bot hunt for a missing file.
     ...(hasCapture ? [
