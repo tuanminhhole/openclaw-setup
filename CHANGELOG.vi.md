@@ -1,6 +1,16 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.15.5] — 2026-07-28
+
+### 🔧 Sửa lỗi: Bot không đọc được file gửi vào
+
+- **Sửa: service đã có `OPENCLAW_HOME`**: `openclaw daemon install` chỉ đưa một phần biến môi trường vào service nó sinh ra — `OPENCLAW_STATE_DIR` thì có, `OPENCLAW_HOME` thì không (đã kiểm chứng trên cả unit systemd thật *và* env-wrapper launchd thật). Mọi thứ resolve đường dẫn từ biến đó rơi về `~/.openclaw` và ghi **ra ngoài project**: zalo-connect lưu file gửi vào ở chỗ workspace của agent không với tới (gửi PDF cho bot thì nhận lại "em chưa trích xuất được nội dung"), và giữ session Zalo ở một home khác với config đang mô tả nó. Nay service được bù đủ mọi biến mà project cần, cho cả systemd và launchd.
+- **Sửa: nhận lại file đã ghi sai chỗ**: media và credentials Zalo nằm ở `~/.openclaw` được copy về project **trước khi** `OPENCLAW_HOME` mới có hiệu lực — nếu ngược thứ tự, bản vừa sửa sẽ tìm session trong project, không thấy, và đòi quét QR lại. State sqlite lạc thì cố tình không đụng: hai database không merge được bằng copy.
+- Cả hai bước sửa cũng chạy ở mỗi lần restart, nên project cài trước bản này tự khỏi.
+- **Sửa: lệnh tunnel forward cả dashboard Zalo Mod**: khung "Mở từ máy khác" hardcode cổng 18790 thay vì lấy gateway+1, nên project nào gateway không ở 18789 sẽ nhận lệnh thiếu cổng dashboard — mở ra không được mà log không có gì để lần.
+
+
 ## [5.15.4] — 2026-07-28
 
 ### 🔧 Sửa lỗi: Chế độ native trên Linux VPS

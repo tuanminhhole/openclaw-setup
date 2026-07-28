@@ -413,7 +413,11 @@ function remoteAccessPanel(s = {}) {
   const host = r.host || '<your-server-ip>';
   const user = r.user || 'root';
   const portOf = (raw, def) => { try { return new URL(raw).port || def; } catch { return def; } };
-  const ports = Array.from(new Set([r.uiPort || 51789, portOf(s.gatewayUrl, 18789), portOf(s.routerUrl, 20128), 18790]));
+  // zalo-mod's dashboard is gateway port + 1, not a fixed 18790 — the same rule the plugin card's
+  // "Open" button uses. Hardcoding it meant any project whose gateway is not on 18789 got a tunnel
+  // command missing the dashboard port, and the dashboard then simply failed to load with no clue why.
+  const gwPort = Number(portOf(s.gatewayUrl, 18789));
+  const ports = Array.from(new Set([r.uiPort || 51789, gwPort, Number(portOf(s.routerUrl, 20128)), gwPort + 1]));
   const cmd = `ssh ${ports.map((p) => `-L ${p}:127.0.0.1:${p}`).join(' ')} ${user}@${host}`;
   return `<details class="card" style="margin-top:12px;" ${r.headless ? 'open' : ''}>
     <summary style="cursor:pointer; font-weight:600;">🌐 ${t('Mở từ máy khác (VPS/server)', 'Open from another machine (VPS/server)')}</summary>

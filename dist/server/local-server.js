@@ -2767,6 +2767,10 @@ async function ocDaemon(projectDir, verb, extraArgs = []) {
  * stop+start that raced the migration lease all over again.
  */
 async function restartNativeRuntime(projectDir) {
+  // Every restart is a chance to repair a project installed before these two fixes existed — both
+  // calls are no-ops once the service env is complete and the stray files have been adopted.
+  await adoptStrayNativeHome(projectDir).catch(() => {});
+  await syncNativeServiceEnv(projectDir).catch(() => {});
   const stopStart = async () => {
     await ocDaemon(projectDir, 'stop');
     return ocDaemon(projectDir, 'start');
@@ -2797,6 +2801,102 @@ async function restartNativeRuntime(projectDir) {
     throw new Error('gateway did not answer /health after restart');
   }
   return true;
+}
+
+/**
+ * Make the generated service carry everything nativeEnv() promises.
+ *
+ * `openclaw daemon install` propagates only a fixed allow-list into the service it writes:
+ * OPENCLAW_STATE_DIR survives, but OPENCLAW_HOME does NOT — verified on both a systemd user unit and
+ * a launchd env-wrapper. Anything resolving paths from OPENCLAW_HOME then falls back to `~/.openclaw`
+ * and writes OUTSIDE the project. zalo-connect is the visible casualty: it stages inbound files and
+ * its Zalo session credentials under the wrong home, so a PDF sent to the bot lands somewhere the
+ * agent's workspace cannot reach ("em chưa trích xuất được nội dung từ PDF") and the session sits in
+ * a different home from the config that describes it.
+ *
+ * Idempotent: keys already present are left alone, so this is safe to run on every restart and it
+ * self-heals projects created before the fix.
+ */
+async function syncNativeServiceEnv(projectDir) {
+  if (!isNativeProject(projectDir)) return [];
+  const want = nativeEnv(projectDir);
+  const label = nativeServiceLabel(projectDir);
+
+  if (process.platform === 'linux') {
+    const unit = `${label}.service`;
+    const shown = await runCapture('systemctl', ['--user', 'show', '-p', 'FragmentPath', '--value', unit], { shell: false, timeout: 10000 });
+    const path = String(shown.stdout || '').trim() || join(os.homedir(), '.config', 'systemd', 'user', unit);
+    if (!existsSync(path)) return [];
+    const lines = (await fsp.readFile(path, 'utf8')).split('\n');
+    const have = new Set();
+    for (const line of lines) {
+      const m = line.trim().match(/^Environment="?([A-Z_0-9]+)=/);
+      if (m) have.add(m[1]);
+    }
+    const missing = Object.entries(want).filter(([k, v]) => !have.has(k) && v !== '');
+    if (!missing.length) return [];
+    // Insert after the last existing Environment= line so the additions stay inside [Service].
+    let at = -1;
+    lines.forEach((line, i) => { if (line.startsWith('Environment=')) at = i; });
+    if (at < 0) at = lines.findIndex((line) => line.trim() === '[Service]');
+    if (at < 0) return [];
+    lines.splice(at + 1, 0, ...missing.map(([k, v]) => `Environment=${k}=${v}`));
+    await fsp.copyFile(path, `${path}.bak`).catch(() => {});
+    await fsp.writeFile(path, lines.join('\n'), 'utf8');
+    await run('systemctl', ['--user', 'daemon-reload'], {}).catch(() => {});
+    sendLog(`[native] service env completed: ${missing.map(([k]) => k).join(', ')}`);
+    return missing.map(([k]) => k);
+  }
+
+  if (process.platform === 'darwin') {
+    // launchd runs the gateway through an env-wrapper that sources this file, so patching it is the
+    // launchd equivalent of adding Environment= lines to a unit.
+    const envFile = join(projectDir, '.openclaw', 'service-env', `${label}.env`);
+    if (!existsSync(envFile)) return [];
+    const body = await fsp.readFile(envFile, 'utf8');
+    const have = new Set([...body.matchAll(/^\s*export\s+([A-Z_0-9]+)=/gm)].map((m) => m[1]));
+    const missing = Object.entries(want).filter(([k, v]) => !have.has(k) && v !== '');
+    if (!missing.length) return [];
+    const added = missing.map(([k, v]) => `export ${k}='${String(v).replace(/'/g, "'\\''")}'`).join('\n');
+    await fsp.copyFile(envFile, `${envFile}.bak`).catch(() => {});
+    await fsp.writeFile(envFile, `${body.replace(/\n*$/, '')}\n${added}\n`, 'utf8');
+    sendLog(`[native] service env completed: ${missing.map(([k]) => k).join(', ')}`);
+    return missing.map(([k]) => k);
+  }
+
+  return [];
+}
+
+/**
+ * Reunite a native project with the files an unset OPENCLAW_HOME scattered into `~/.openclaw`.
+ *
+ * This MUST run before syncNativeServiceEnv takes effect: once OPENCLAW_HOME is finally correct, the
+ * plugin looks for its Zalo session inside the project — and if the credentials are still sitting in
+ * the home directory it finds nothing and demands a fresh QR login. Copy (never move) so a failed
+ * run leaves the working original in place; skip anything the project already has.
+ */
+async function adoptStrayNativeHome(projectDir) {
+  if (!isNativeProject(projectDir)) return [];
+  const projectHome = join(projectDir, '.openclaw');
+  const strayHome = join(os.homedir(), '.openclaw');
+  if (resolve(strayHome) === resolve(projectHome) || !existsSync(strayHome)) return [];
+  const moved = [];
+  const entries = await fsp.readdir(strayHome, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) {
+    // `state` is deliberately excluded: the project has its own live database and merging two
+    // sqlite files is not something a copy can do correctly.
+    const isCreds = /^zalo-connect-credentials.*\.json$/.test(entry.name);
+    if (!isCreds && entry.name !== 'media') continue;
+    const from = join(strayHome, entry.name);
+    const to = join(projectHome, entry.name);
+    if (existsSync(to)) continue;
+    await fsp.cp(from, to, { recursive: true }).catch(() => {});
+    if (existsSync(to)) moved.push(entry.name);
+  }
+  if (moved.length) {
+    sendLog(`[migrate] Native: adopted ${moved.join(', ')} from ${strayHome} (written there while OPENCLAW_HOME was unset).`);
+  }
+  return moved;
 }
 
 /**
@@ -2972,6 +3072,11 @@ async function startNativeRuntime({ projectDir, osChoice = '', gatewayPort, rout
   const env = nativeEnv(projectDir);
   await ensureSystemdLinger();
   await run('openclaw', ['daemon', 'install', '--force', '--port', String(gwPort)], { cwd: projectDir, env });
+  // Order is load-bearing: adopt the stray files FIRST, then complete the service env. The other way
+  // round, the gateway boots with a corrected OPENCLAW_HOME, finds no Zalo session there, and asks
+  // for a new QR scan even though a perfectly good session exists in the home directory.
+  await adoptStrayNativeHome(projectDir).catch((e) => sendLog(`[migrate] stray home skipped: ${e.message}`));
+  await syncNativeServiceEnv(projectDir).catch((e) => sendLog(`[native] service env sync skipped: ${e.message}`));
   await run('openclaw', ['daemon', 'start'], { cwd: projectDir, env });
   // Let the first boot finish its state migrations here, while nothing else is competing for the
   // lease. Every later action (create bot, install plugin) then restarts a settled gateway.
@@ -6658,4 +6763,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort };
+export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome };

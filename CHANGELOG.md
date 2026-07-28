@@ -1,6 +1,16 @@
 # Changelog (English)
 
 
+## [5.15.5] — 2026-07-28
+
+### 🔧 Fixes: The bot could not read files sent to it
+
+- **Fix: the service now carries `OPENCLAW_HOME`**: `openclaw daemon install` propagates only an allow-list of variables into the service it generates — `OPENCLAW_STATE_DIR` survives, `OPENCLAW_HOME` does not (verified on a real systemd unit *and* a real launchd env-wrapper). Everything resolving paths from it fell back to `~/.openclaw` and wrote **outside the project**: zalo-connect staged inbound files where the agent's workspace could not reach them (a PDF sent to the bot came back as "I could not extract the content"), and kept its Zalo session in a different home from the config describing it. The generated service is now completed with every variable the project promises, on both systemd and launchd.
+- **Fix: files written to the wrong home are adopted back**: media and Zalo credentials found in `~/.openclaw` are copied into the project before the corrected `OPENCLAW_HOME` takes effect — without that ordering, a fixed install would look for its session in the project, find nothing, and demand a fresh QR scan. The stray sqlite state is deliberately left alone: two databases cannot be merged by copying.
+- Both repairs also run on every restart, so a project created before this release fixes itself.
+- **Fix: the tunnel command forwards the Zalo Mod dashboard**: the remote-access panel hardcoded port 18790 instead of deriving gateway+1, so any project whose gateway was not on 18789 got a command missing its dashboard port — and the dashboard then failed to load with nothing in the logs to explain it.
+
+
 ## [5.15.4] — 2026-07-28
 
 ### 🔧 Fixes: Native mode on a Linux VPS
