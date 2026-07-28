@@ -1,6 +1,20 @@
 # Changelog (English)
 
 
+## [5.15.2] — 2026-07-28
+
+### Fixed
+
+- **The dashboard is no longer slow.** Opening a bot page or switching project used to sit there for seconds: `/api/system` spent ~4s on *every* call just to read the 9Router version (running `9router --version` boots its whole CLI) plus ~6s the first time while it scanned projects one after another, and the Zalo status call cost ~3s each time. Versions are now read from the installed `package.json`, the project scan runs in parallel behind a short cache, expensive probes are de-duplicated so simultaneous requests share one round-trip, and everything is warmed while the browser is still opening. Measured on the same machine: `/api/system` 4.0s → 0.09s, project list 30ms → 2ms, Zalo status 3.0s → 2ms, project switch 22ms.
+- **A native project no longer waits on Docker.** Reading the Zalo Connect version fell back to `docker exec` even when the project has no container, so every status call paid for a command that could not succeed.
+
+### Changed
+
+- **The Chrome the bot drives no longer starts as a copy of your own profile.** It opens an empty automation profile and you sign in once in the window that appears; nothing of yours is duplicated and your open Chrome windows are left alone. Run the starter with `OPENCLAW_CHROME_SEED_PROFILE=1` (or set it before pressing the button) if you would rather reuse the logins you already have — that copies cookies, logins, history and extensions, and has to close Chrome to do it, so it now says so first.
+- **The debug port stays on loopback.** The wildcard `--remote-allow-origins=*` is gone: a CDP client written in Node sends no Origin header, so the wildcard bought nothing and only widened who could drive that browser.
+- **Installing the browser plugin from the dashboard turns its opt-ins on.** The plugin ships with Docker patching, page JavaScript and file upload switched off; a dashboard install writes `patchDocker`, `allowPageScripting` and `allowFileUpload` into the project config, so browsing works right after the one-click install and the switches stay visible for anyone who wants them off.
+
+
 ## [5.15.1] — 2026-07-28
 
 ### Fixed

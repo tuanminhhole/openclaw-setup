@@ -1,5 +1,5 @@
 import http from 'http';
-import fs, { createReadStream, existsSync, promises as fsp } from 'fs';
+import fs, { createReadStream, existsSync, readFileSync, promises as fsp } from 'fs';
 import { createRequire } from 'module';
 import { basename, dirname, extname, join, normalize, resolve } from 'path';
 import { fileURLToPath } from 'url';
@@ -24,7 +24,7 @@ const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
 // scripts) runs a dedicated profile seeded from the operator's real one. Kept outside Chrome's
 // own folders: the block is an exact match on the default directory, and a sibling of it is a
 // needless bet on that staying true.
-const CHROME_SCRIPT_MARKER = 'OPENCLAW_CHROME_PROFILE_V2';
+const CHROME_SCRIPT_MARKER = 'OPENCLAW_CHROME_PROFILE_V3';
 const CHROME_DEBUG_PROFILE_LEAF_WIN = 'OpenClaw\\chrome-profile';
 const CHROME_DEBUG_PROFILE_LEAF_MAC = 'Library/Application Support/OpenClaw/chrome-profile';
 const CHROME_DEBUG_PROFILE_LEAF_LINUX = '.config/openclaw/chrome-profile';
@@ -102,6 +102,15 @@ async function pushBrowserScriptsIntoContainer(projectDir, aliases, files, sendL
     }
   }
   return pushed;
+}
+
+/**
+ * The browser-automation plugin defaults every high-impact behaviour to off (ClawHub's review reads
+ * broad defaults as "rogue agent", fairly). A dashboard install is an explicit, informed action, so
+ * the flags are turned on here — and stay visible in openclaw.json for anyone who wants them off.
+ */
+function browserAutomationOptIns() {
+  return { patchDocker: true, allowPageScripting: true, allowFileUpload: true };
 }
 
 async function patchBrowserAutomationHostPreference(projectDir, aliases = [], sendLog = () => {}) {
@@ -200,9 +209,20 @@ async function connectPreferredChrome() {
     // the same way and does not care.
     'ping -n 3 127.0.0.1 >nul',
     '',
+    // Copying the real profile duplicates cookies, logins, history and extensions into a second
+    // directory and has to close every Chrome window to do it. That is the operator's call, not
+    // a silent default: without OPENCLAW_CHROME_SEED_PROFILE=1 this starts a clean profile and
+    // they sign in once, in the window that opens.
     'if not exist "%OPENCLAW_CHROME_PROFILE_DIR%\\Default" (',
     // No parentheses in text inside an if-block: cmd closes the block on the first ")".
-    '  echo Lan dau: dang dong Chrome de chep profile - cookie, dang nhap...',
+    '  echo Chua co profile dieu khien - se tao MOI va ban dang nhap 1 lan trong cua so vua mo.',
+    '  echo Muon dung san dang nhap cua Chrome thuong thi dat OPENCLAW_CHROME_SEED_PROFILE=1 roi chay lai.',
+    '  echo Luu y: viec do CHEP cookie, dang nhap, lich su, extension sang profile dieu khien',
+    '  echo va phai DONG het cua so Chrome dang mo de chep.',
+    ')',
+    '',
+    'if not exist "%OPENCLAW_CHROME_PROFILE_DIR%\\Default" if "%OPENCLAW_CHROME_SEED_PROFILE%"=="1" (',
+    '  echo Dang dong Chrome de chep profile theo yeu cau cua ban...',
     '  taskkill /F /IM chrome.exe >nul 2>&1',
     '  ping -n 4 127.0.0.1 >nul',
     '  echo Dang chep profile Chrome that sang "%OPENCLAW_CHROME_PROFILE_DIR%" ...',
@@ -214,7 +234,9 @@ async function connectPreferredChrome() {
     'echo Dang mo Chrome - profile: %OPENCLAW_CHROME_PROFILE_DIR%',
     'start "" "%CHROME_BIN%" ^',
     '  --remote-debugging-port=9222 ^',
-    '  --remote-allow-origins=* ^',
+    // Loopback only, and no --remote-allow-origins=*: a CDP client written in Node sends no
+    // Origin header, so the wildcard bought nothing and only widened who could drive Chrome.
+    '  --remote-debugging-address=127.0.0.1 ^',
     '  --user-data-dir="%OPENCLAW_CHROME_PROFILE_DIR%" ^',
     '  --profile-directory=Default ^',
     '  --no-first-run ^',
@@ -254,7 +276,8 @@ async function connectPreferredChrome() {
     'fi',
     '',
     '# Chrome 136+ refuses --remote-debugging-port on the default profile directory, so run a',
-    '# dedicated one seeded from the real profile (keeps cookies, logins, history, extensions).',
+    '# dedicated one. It starts empty: copying the real profile duplicates cookies and logins,',
+    '# so it only happens when the operator asks with OPENCLAW_CHROME_SEED_PROFILE=1.',
     ': "${OPENCLAW_CHROME_PROFILE_DIR:=$DEFAULT_DEBUG_PROFILE}"',
     '',
     'echo "Using: $CHROME_BIN"',
@@ -262,21 +285,28 @@ async function connectPreferredChrome() {
     'pkill -f -- "--remote-debugging-port=9222" 2>/dev/null || true',
     'sleep 2',
     '',
-    'if [ ! -d "$OPENCLAW_CHROME_PROFILE_DIR/Default" ] && [ -d "$REAL_PROFILE/Default" ]; then',
-    '  echo "First run: copying the real Chrome profile into $OPENCLAW_CHROME_PROFILE_DIR ..."',
-    '  mkdir -p "$OPENCLAW_CHROME_PROFILE_DIR/Default"',
-    '  cp -R "$REAL_PROFILE/Default/." "$OPENCLAW_CHROME_PROFILE_DIR/Default/" 2>/dev/null || true',
-    '  cp -f "$REAL_PROFILE/Local State" "$OPENCLAW_CHROME_PROFILE_DIR/Local State" 2>/dev/null || true',
-    `  for junk in ${chromeProfileCacheJunk.map((n) => `"${n}"`).join(' ')}; do`,
-    '    rm -rf "$OPENCLAW_CHROME_PROFILE_DIR/Default/$junk"',
-    '  done',
+    'if [ ! -d "$OPENCLAW_CHROME_PROFILE_DIR/Default" ]; then',
+    '  if [ "$OPENCLAW_CHROME_SEED_PROFILE" = "1" ] && [ -d "$REAL_PROFILE/Default" ]; then',
+    '    echo "Copying your real Chrome profile into $OPENCLAW_CHROME_PROFILE_DIR as requested"',
+    '    echo "(cookies, logins, history and extensions are duplicated into that directory)."',
+    '    mkdir -p "$OPENCLAW_CHROME_PROFILE_DIR/Default"',
+    '    cp -R "$REAL_PROFILE/Default/." "$OPENCLAW_CHROME_PROFILE_DIR/Default/" 2>/dev/null || true',
+    '    cp -f "$REAL_PROFILE/Local State" "$OPENCLAW_CHROME_PROFILE_DIR/Local State" 2>/dev/null || true',
+    `    for junk in ${chromeProfileCacheJunk.map((n) => `"${n}"`).join(' ')}; do`,
+    '      rm -rf "$OPENCLAW_CHROME_PROFILE_DIR/Default/$junk"',
+    '    done',
+    '  else',
+    '    echo "Starting a clean automation profile - sign in once in the window that opens."',
+    '    echo "To reuse your existing logins instead: OPENCLAW_CHROME_SEED_PROFILE=1 $0"',
+    '    echo "(that copies cookies, logins, history and extensions into the automation profile)."',
+    '  fi',
     'fi',
     'mkdir -p "$OPENCLAW_CHROME_PROFILE_DIR"',
     '',
     'echo "Starting Chrome (profile: $OPENCLAW_CHROME_PROFILE_DIR)..."',
     '"$CHROME_BIN" \\',
     '  --remote-debugging-port=9222 \\',
-    '  --remote-allow-origins=* \\',
+    '  --remote-debugging-address=127.0.0.1 \\',
     '  --user-data-dir="$OPENCLAW_CHROME_PROFILE_DIR" \\',
     '  --profile-directory=Default \\',
     '  --no-first-run \\',
@@ -690,17 +720,58 @@ function run(cmd, args, opts = {}) {
   });
 }
 
+// Where npm puts global packages, derived from the running node binary so we never pay for
+// `npm root -g` (~100ms) just to find a version string.
+function globalNodeModulesDirs() {
+  const dirs = [];
+  const nodeDir = dirname(process.execPath);
+  dirs.push(join(nodeDir, '..', 'lib', 'node_modules'));      // unix prefix layout
+  dirs.push(join(nodeDir, 'node_modules'));                   // windows npm prefix
+  if (process.env.APPDATA) dirs.push(join(process.env.APPDATA, 'npm', 'node_modules'));
+  dirs.push('/usr/local/lib/node_modules', '/usr/lib/node_modules', '/opt/homebrew/lib/node_modules');
+  return dirs;
+}
+
+// `9router --version` boots the whole CLI and takes ~4 SECONDS on a normal machine. /api/system
+// used to pay that on every single call — and the UI calls it after every action, so the whole
+// dashboard felt slow for one version string. The version is right there in package.json.
+function readGlobalPackageVersion(name) {
+  for (const dir of globalNodeModulesDirs()) {
+    const pkg = join(dir, name, 'package.json');
+    try {
+      if (!existsSync(pkg)) continue;
+      const version = String(JSON.parse(readFileSync(pkg, 'utf8')).version || '').trim();
+      if (version) return version;
+    } catch {}
+  }
+  return '';
+}
+
 async function getCurrentRuntimeVersions() {
-  const [openclaw, nineRouter, node] = await Promise.all([
-    commandExists('openclaw', ['--version']),
-    commandExists('9router', ['--version']),
-    commandExists('node', ['--version']),
-  ]);
-  return {
-    openclaw: openclaw.ok ? (openclaw.output.split(/\r?\n/)[0] || '').trim() : '',
-    nineRouter: nineRouter.ok ? (nineRouter.output.split(/\r?\n/)[0] || '').trim() : '',
-    node: node.ok ? (node.output.split(/\r?\n/)[0] || '').trim() : process.version,
+  const ck = 'hostver:runtimes';
+  const cached = probeCacheGet(ck);
+  if (cached) return cached;
+
+  const fromDisk = {
+    openclaw: readGlobalPackageVersion('openclaw'),
+    nineRouter: readGlobalPackageVersion('9router'),
+    node: process.version || '',
   };
+  // Only shell out for what disk did not answer — a global install in a prefix we do not know
+  // about, mostly. Still cached, so an odd layout costs the slow probe once, not every request.
+  const needCli = !fromDisk.openclaw || !fromDisk.nineRouter;
+  if (needCli) {
+    const [openclaw, nineRouter] = await Promise.all([
+      fromDisk.openclaw ? null : commandExists('openclaw', ['--version']),
+      fromDisk.nineRouter ? null : commandExists('9router', ['--version']),
+    ]);
+    if (openclaw?.ok) fromDisk.openclaw = (openclaw.output.split(/\r?\n/)[0] || '').trim();
+    if (nineRouter?.ok) fromDisk.nineRouter = (nineRouter.output.split(/\r?\n/)[0] || '').trim();
+  }
+  // Versions only change on an install/update, and those paths already call probeCacheClear().
+  // The TTL is just a backstop for a package installed behind this server's back.
+  probeCacheSet(ck, fromDisk, 10 * 60 * 1000);
+  return fromDisk;
 }
 
 // Per-project cache for EXPENSIVE runtime/version probes (docker exec + openclaw CLI). These
@@ -716,8 +787,35 @@ function probeCacheGet(key) {
 }
 function probeCacheSet(key, value, ttlMs = 0) { _probeCache.set(key, { value, exp: ttlMs ? Date.now() + ttlMs : 0 }); }
 function probeCacheClear(prefix = '') {
-  if (!prefix) { _probeCache.clear(); return; }
+  if (!prefix) { _probeCache.clear(); _probeInflight.clear(); return; }
   for (const k of [..._probeCache.keys()]) if (k.startsWith(prefix)) _probeCache.delete(k);
+  for (const k of [..._probeInflight.keys()]) if (k.startsWith(prefix)) _probeInflight.delete(k);
+}
+
+// One probe per key at a time. The dashboard fires several requests at once and the startup
+// prefetch runs alongside them, so without this the same docker/CLI round-trip ran two or three
+// times over and every caller waited for the slowest copy. Serves a warm value immediately and
+// refreshes in the background once it is half-stale, so a click never waits on a probe.
+const _probeInflight = new Map();
+function sharedProbe(key, ttlMs, compute) {
+  const cached = probeCacheGet(key);
+  if (cached) {
+    if (Date.now() - cached.at > ttlMs / 2 && !_probeInflight.has(key)) {
+      const bg = compute()
+        .then((value) => { probeCacheSet(key, { value, at: Date.now() }, ttlMs); return value; })
+        .finally(() => _probeInflight.delete(key));
+      _probeInflight.set(key, bg);
+      bg.catch(() => {});
+    }
+    return Promise.resolve(cached.value);
+  }
+  const existing = _probeInflight.get(key);
+  if (existing) return existing;
+  const run = compute()
+    .then((value) => { probeCacheSet(key, { value, at: Date.now() }, ttlMs); return value; })
+    .finally(() => _probeInflight.delete(key));
+  _probeInflight.set(key, run);
+  return run;
 }
 
 async function resolveProjectRuntimeVersions(projectDir, mode = state.mode || 'docker') {
@@ -2063,6 +2161,8 @@ async function waitForNativeGatewayZaloReady(projectDir, timeoutMs = 90000, chan
 }
 
 async function startZaloLogin(projectDir, agentId = "") {
+  // A fresh login changes what channels status reports; do not serve the cached "not connected".
+  probeCacheClear(`zalohealth:${projectDir || ''}`);
   const cfgPath = join(projectDir, ".openclaw", "openclaw.json");
   if (!existsSync(cfgPath)) throw httpError(404, "openclaw.json not found");
   const cfg = JSON.parse(await fsp.readFile(cfgPath, "utf8"));
@@ -2321,7 +2421,17 @@ function buildZaloHealthSnapshot(cfg = {}, statusJson = null, credentialNames = 
 // ── Zalo health snapshot for the dashboard ──────────────────────────────────────
 // Runtime JSON is authoritative and account-aware. Text parsing remains only as a
 // compatibility fallback for older OpenClaw builds.
-async function getZaloHealth(projectDir) {
+// `openclaw channels status` is a CLI round-trip (docker exec on a container, or the host
+// gateway) and costs ~3 seconds. The dashboard asks for this on every page load and after every
+// action, so it is cached for a few seconds and refreshed in the background: a second visit is
+// instant, and the number on screen is never more than a few seconds stale. Login/restart paths
+// clear it (probeCacheClear) so a state change shows up immediately.
+const ZALO_HEALTH_TTL_MS = 4000;
+function getZaloHealth(projectDir) {
+  return sharedProbe(`zalohealth:${projectDir || ''}`, ZALO_HEALTH_TTL_MS, () => computeZaloHealth(projectDir));
+}
+
+async function computeZaloHealth(projectDir) {
   const meta = {
     supportedVersion: ZALO_CONNECT_VERSION,
     installedVersion: null,
@@ -2338,19 +2448,24 @@ async function getZaloHealth(projectDir) {
   if (meta.zaloModVersion) meta.zaloModInstalled = true;
 
   const botContainer = getBotContainerName(projectDir);
+  const native = isNativeProject(projectDir);
   if (cfg.channels?.['zalo-connect']?.enabled) {
     const manifestHost = join(projectDir, '.openclaw', 'extensions', 'zalo-connect', 'openclaw.plugin.json');
     try {
       meta.installedVersion = JSON.parse(await fsp.readFile(manifestHost, 'utf8')).version || null;
     } catch {
-      try {
-        const r = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', 'cat "${OPENCLAW_HOME:-/home/node/project/.openclaw}/extensions/zalo-connect/openclaw.plugin.json" 2>/dev/null'], { cwd: projectDir, shell: false, timeout: 8000 });
-        meta.installedVersion = JSON.parse(String(r.stdout || '{}')).version || null;
-      } catch {}
+      // Only Docker projects keep the manifest inside a container. A native project has no
+      // container at all, and this fallback used to shell into one anyway — seconds of waiting on
+      // a `docker exec` that could never succeed, on a request the dashboard makes constantly.
+      if (!native) {
+        try {
+          const r = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', 'cat "${OPENCLAW_HOME:-/home/node/project/.openclaw}/extensions/zalo-connect/openclaw.plugin.json" 2>/dev/null'], { cwd: projectDir, shell: false, timeout: 8000 });
+          meta.installedVersion = JSON.parse(String(r.stdout || '{}')).version || null;
+        } catch {}
+      }
     }
   }
 
-  const native = isNativeProject(projectDir);
   let containerRunning = false;
   let statusJson = null;
   let textStatus = '';
@@ -2360,7 +2475,9 @@ async function getZaloHealth(projectDir) {
     // /health over loopback, then read channel status + credentials directly on the host.
     const nmeta = readNativeMeta(projectDir) || {};
     const port = String(nmeta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT);
-    containerRunning = await probeHttpOk(`http://127.0.0.1:${port}/health`, 2500);
+    // Loopback: a live gateway answers in milliseconds. The old 2.5s budget was pure waiting
+    // whenever the runtime was down, on a request the dashboard makes on every page load.
+    containerRunning = await probeHttpOk(`http://127.0.0.1:${port}/health`, 900);
     if (containerRunning) {
       try {
         const r = await ocCapture(projectDir, ['channels', 'status', '--json'], { timeout: 20000 });
@@ -3817,7 +3934,8 @@ async function ensureChromeRelay() {
 // Launch real host Chrome in remote-debugging mode (port 9222) so the browser-automation plugin
 // can drive the user's actual Chrome (logged-in profile) instead of headless Chromium. The bot
 // reaches it via CDP (host.docker.internal:9222 from the container). Detached: keeps running after
-// this request. `--remote-allow-origins=*` is required by modern Chrome for cross-origin CDP.
+// this request. The debug port stays on loopback and no origin wildcard is passed — a Node CDP
+// client sends no Origin header, so the wildcard only widened who could drive the browser.
 // On a headless VPS there is no Chrome to open here — instead we start the bridge relay and hand
 // back copy-paste commands so the user runs Chrome on THEIR machine + a reverse SSH tunnel.
 // Where Chrome keeps the operator's own profile, per OS. Chrome must not already be running
@@ -3902,8 +4020,8 @@ async function startChromeDebug() {
       port: 9222,
       // Same dedicated profile directories the local button and the generated scripts use, so
       // an operator who has already run one of those keeps the session they signed in with.
-      chromeCmdMac: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir="$HOME/${CHROME_DEBUG_PROFILE_LEAF_MAC}" --profile-directory=Default --remote-allow-origins='*'`,
-      chromeCmdWin: `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\\${CHROME_DEBUG_PROFILE_LEAF_WIN}" --profile-directory=Default --remote-allow-origins=*`,
+      chromeCmdMac: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir="$HOME/${CHROME_DEBUG_PROFILE_LEAF_MAC}" --profile-directory=Default --remote-debugging-address=127.0.0.1`,
+      chromeCmdWin: `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\\${CHROME_DEBUG_PROFILE_LEAF_WIN}" --profile-directory=Default --remote-debugging-address=127.0.0.1`,
       tunnelCmd: `ssh -N -R 9222:127.0.0.1:9222 ${user}@${ip}`,
     };
   }
@@ -3922,12 +4040,20 @@ async function startChromeDebug() {
   // --enable-automation, so navigator.webdriver stays false and there is no banner.
   // Set OPENCLAW_CHROME_PROFILE_DIR to point somewhere else (anything but the default profile).
   const userDataDir = process.env.OPENCLAW_CHROME_PROFILE_DIR || debugChromeProfileDir();
-  await seedDebugChromeProfile(defaultChromeProfileDir(), userDataDir, sendLog);
+  // Only when the operator asked for their logins: the copy duplicates cookies and sessions into
+  // a second profile directory, which is not something to do on a button press by default.
+  if (process.env.OPENCLAW_CHROME_SEED_PROFILE === '1') {
+    await seedDebugChromeProfile(defaultChromeProfileDir(), userDataDir, sendLog);
+  } else if (!existsSync(join(userDataDir, 'Default'))) {
+    sendLog('[chrome] Mở Chrome với profile điều khiển trống — đăng nhập 1 lần trong cửa sổ vừa mở. Muốn dùng sẵn đăng nhập của Chrome thường thì đặt OPENCLAW_CHROME_SEED_PROFILE=1 (sẽ chép cookie/đăng nhập/lịch sử sang profile đó).');
+  }
   const args = [
     `--remote-debugging-port=${port}`,
+    // Loopback only, and no --remote-allow-origins=*: a Node CDP client sends no Origin header,
+    // so the wildcard only widened who could drive this browser.
+    '--remote-debugging-address=127.0.0.1',
     `--user-data-dir=${userDataDir}`,
     '--profile-directory=Default',
-    '--remote-allow-origins=*',
     '--no-first-run',
     '--no-default-browser-check',
   ];
@@ -4145,6 +4271,9 @@ async function listMarkdownFiles(projectDir, agentId = '') {
 }
 
 async function saveState(rootProjectDir) {
+  // Selecting, adding or removing a project all end up here, and all of them make the cached
+  // project list wrong — drop it so the next request rebuilds instead of showing the old set.
+  probeCacheClear('projects:');
   const file = join(rootProjectDir, STATE_FILE);
   await fsp.writeFile(file, JSON.stringify({
     projectDir: state.projectDir,
@@ -4226,6 +4355,9 @@ function isRestrictedSystemDir(dirPath) {
 // so a fresh `npx github:…` run (e.g. on a VPS where bots are already running) targets the
 // live project instead of defaulting to an empty ~/openclaw-setup folder.
 async function discoverDockerBotProjectRoots() {
+  const ck = 'dockerroots';
+  const cached = probeCacheGet(ck);
+  if (cached) return cached;
   const roots = [];
   try {
     const r = await runCapture(
@@ -4244,7 +4376,9 @@ async function discoverDockerBotProjectRoots() {
       }
     }
   } catch {}
-  return [...new Set(roots)];
+  const unique = [...new Set(roots)];
+  probeCacheSet(ck, unique, 15000);
+  return unique;
 }
 
 // Native installs have no container to inspect, so we can't detect them the way Docker bots are
@@ -4343,7 +4477,15 @@ async function ensureProjectsLoaded(rootProjectDir) {
   }
 }
 
-async function discoverProjects(rootProjectDir) {
+// The project list costs docker/native probes per project. It changes when someone creates or
+// deletes a project — not between two page loads — so serve it from a short cache and refresh in
+// the background: the dashboard opens instantly and is at most a few seconds stale.
+const PROJECTS_TTL_MS = 10000;
+function discoverProjects(rootProjectDir) {
+  return sharedProbe(`projects:${rootProjectDir || ''}`, PROJECTS_TTL_MS, () => computeDiscoverProjects(rootProjectDir));
+}
+
+async function computeDiscoverProjects(rootProjectDir) {
   await ensureProjectsLoaded(rootProjectDir);
 
   // Surface projects whose bot is running in Docker even if this install has no saved
@@ -4371,16 +4513,14 @@ async function discoverProjects(rootProjectDir) {
     }
   }
 
-  const updatedProjects = [];
-  for (const p of state.projects) {
-    if (existsSync(join(p.projectDir, '.openclaw', 'openclaw.json'))) {
-      const meta = await buildProjectMeta(p.projectDir).catch(() => null);
-      if (meta) {
-        updatedProjects.push(meta);
-      }
-    }
-  }
-  state.projects = updatedProjects;
+  // In parallel: each buildProjectMeta runs runtime detection (docker calls, port probes), so a
+  // handful of projects turned into seconds of dashboard load when this was a sequential loop.
+  const metas = await Promise.all(
+    state.projects
+      .filter((p) => existsSync(join(p.projectDir, '.openclaw', 'openclaw.json')))
+      .map((p) => buildProjectMeta(p.projectDir).catch(() => null)),
+  );
+  state.projects = metas.filter(Boolean);
   
   state.projects.sort((a, b) => {
     const aActive = state.projectDir && resolve(state.projectDir) === resolve(a.projectDir);
@@ -4969,6 +5109,11 @@ async function installFeature(projectDir, agentId, kind, id) {
         if (existingKey === 'browser-automation' || existingKey === 'openclaw-browser-automation') {
           cfg.plugins.entries[existingKey].config = Object.assign({}, cfg.plugins.entries[existingKey].config, {
             hostOs: await resolveProjectHostOs(projectDir),
+            // The plugin ships these off: editing the Docker build files, running page JavaScript
+            // and uploading local files are things it will not do until an operator says so.
+            // Installing it from this dashboard IS that operator saying so — otherwise browsing
+            // would need a hand-edited config right after a one-click install.
+            ...browserAutomationOptIns(),
           });
           cfg.tools = cfg.tools || { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
           cfg.tools.alsoAllow = Array.from(new Set([...(cfg.tools.alsoAllow || []), 'group:web']));
@@ -5068,6 +5213,11 @@ async function installFeature(projectDir, agentId, kind, id) {
         if (existingKey === 'browser-automation' || existingKey === 'openclaw-browser-automation') {
           cfg.plugins.entries[existingKey].config = Object.assign({}, cfg.plugins.entries[existingKey].config, {
             hostOs: await resolveProjectHostOs(projectDir),
+            // The plugin ships these off: editing the Docker build files, running page JavaScript
+            // and uploading local files are things it will not do until an operator says so.
+            // Installing it from this dashboard IS that operator saying so — otherwise browsing
+            // would need a hand-edited config right after a one-click install.
+            ...browserAutomationOptIns(),
           });
           cfg.tools = cfg.tools || { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
           cfg.tools.alsoAllow = Array.from(new Set([...(cfg.tools.alsoAllow || []), 'group:web']));
@@ -5923,6 +6073,15 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   // Bring the host-control service back up when the operator left it enabled, so the bot's
   // saved instructions keep working across installer restarts.
   ensureHostControl(projectDir).catch(() => {});
+  // Warm the probes the first page load would otherwise wait on (project list, runtime versions,
+  // public IP, Zalo status). They run while the browser is still starting, so the dashboard opens
+  // against a warm cache instead of paying for docker and CLI round-trips on first paint.
+  Promise.all([
+    discoverProjects(projectDir).catch(() => {}),
+    getCurrentRuntimeVersions().catch(() => {}),
+    getPublicIp().catch(() => {}),
+    existsSync(join(projectDir, '.openclaw', 'openclaw.json')) ? getZaloHealth(projectDir).catch(() => {}) : null,
+  ]).catch(() => {});
 }
 
 export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots };

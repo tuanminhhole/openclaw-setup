@@ -1,6 +1,20 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.15.2] — 2026-07-28
+
+### Sửa lỗi
+
+- **Dashboard không còn chậm.** Mở trang bot hay đổi project trước đây phải chờ vài giây: `/api/system` mất ~4s **mỗi lần** chỉ để đọc version 9Router (chạy `9router --version` là boot cả CLI của nó), cộng ~6s lần đầu vì quét project tuần tự, còn gọi trạng thái Zalo tốn ~3s mỗi lần. Nay version đọc thẳng từ `package.json` đã cài, quét project chạy song song sau một lớp cache ngắn, các phép dò nặng được gộp nên nhiều request cùng lúc chỉ đi một lượt, và tất cả được hâm sẵn ngay khi server bật. Đo trên cùng một máy: `/api/system` 4.0s → 0.09s, danh sách project 30ms → 2ms, trạng thái Zalo 3.0s → 2ms, đổi project 22ms.
+- **Project chạy native không còn phải chờ Docker.** Việc đọc version Zalo Connect vẫn fallback sang `docker exec` dù project không có container, nên mỗi lần lấy trạng thái đều trả giá cho một lệnh không bao giờ chạy được.
+
+### Thay đổi
+
+- **Chrome cho bot không còn khởi động bằng bản sao profile của bạn.** Nó mở một profile điều khiển trống và bạn đăng nhập một lần trong cửa sổ vừa hiện; không nhân bản gì của bạn, và các cửa sổ Chrome đang mở không bị đóng. Nếu muốn dùng sẵn đăng nhập đang có thì chạy kèm `OPENCLAW_CHROME_SEED_PROFILE=1` — việc đó chép cookie, đăng nhập, lịch sử, extension và phải đóng Chrome để chép, nên giờ nó nói rõ trước.
+- **Cổng debug chỉ mở ở loopback.** Bỏ `--remote-allow-origins=*`: client CDP viết bằng Node không gửi header Origin, nên cờ đó không đem lại gì mà chỉ nới rộng ai điều khiển được trình duyệt.
+- **Cài plugin trình duyệt từ dashboard sẽ bật sẵn các công tắc của nó.** Plugin ship với patch Docker, chạy JavaScript trong trang và upload file đều tắt; khi cài từ dashboard, `patchDocker`, `allowPageScripting`, `allowFileUpload` được ghi vào config project — bấm một lần là duyệt web chạy được, mà công tắc vẫn nằm đó cho ai muốn tắt.
+
+
 ## [5.15.1] — 2026-07-28
 
 ### Sửa lỗi
