@@ -592,7 +592,18 @@ function detectOs() {
   const platform = process.platform;
   if (platform === 'win32') return 'win';
   if (platform === 'darwin') return 'macos';
-  if (platform === 'linux') return os.release().toLowerCase().includes('microsoft') ? 'linux-desktop' : 'linux-desktop';
+  if (platform === 'linux') {
+    // WSL always has a Windows desktop behind it, so it counts as a desktop. Otherwise a session
+    // with no display server is a headless server, and the distinction is not cosmetic: 'vps' is
+    // what opens the gateway bind past loopback (bot-config-gen) — pick 'linux-desktop' on a VPS
+    // and the dashboard is only reachable through an SSH tunnel, while the browser tooling is set
+    // up as though a local Chrome existed.
+    if (os.release().toLowerCase().includes('microsoft')) return 'linux-desktop';
+    const sessionType = String(process.env.XDG_SESSION_TYPE || '').toLowerCase();
+    const hasDisplay = !!(process.env.DISPLAY || process.env.WAYLAND_DISPLAY || process.env.XDG_CURRENT_DESKTOP)
+      || sessionType === 'x11' || sessionType === 'wayland';
+    return hasDisplay ? 'linux-desktop' : 'vps';
+  }
   return 'linux-desktop';
 }
 
@@ -1761,6 +1772,25 @@ function portStatus(port) {
   });
 }
 
+/**
+ * First port at or after `start` that nothing on this host is listening on.
+ *
+ * The install-time allocator only knows about setup-managed projects, so it cannot see a docker
+ * project from another install, an SSH tunnel forwarding a remote bot's ports, or any other
+ * listener. Docker tolerates that (compose publishes into loopback and fails loudly on a clash);
+ * native binds the host directly, so it has to ask the host.
+ *
+ * `reserveNext` also requires port+1 to be free — that is where the zalo-mod dashboard lands.
+ */
+async function findFreeHostPort(start, { reserveNext = false, limit = 100 } = {}) {
+  for (let port = start; port < start + limit; port++) {
+    if ((await portStatus(port)) === 'online') continue;
+    if (reserveNext && (await portStatus(port + 1)) === 'online') continue;
+    return port;
+  }
+  return start;
+}
+
 async function buildBotStatus() {
   if (state.projectDir) await syncRuntimeState(state.projectDir).catch(() => {});
   const [gatewayStatus, routerStatus, bots, runtimeVersions] = await Promise.all([
@@ -2110,6 +2140,35 @@ async function waitForDockerContainer(name, timeoutMs = 30000) {
   return false;
 }
 
+/**
+ * Drop OpenClaw's boxed "Config warnings" banner (and any stray warning line) from CLI output.
+ *
+ * The banner prints on EVERY invocation and quotes the offending config keys verbatim, so a project
+ * whose zalo-connect plugin is missing has `channels.zalo-connect: unknown channel id: zalo-connect`
+ * in the output of *any* command. A readiness check that greps stdout for a channel id therefore
+ * reports "channel loaded" precisely when the plugin is absent — the check inverts itself. Strip the
+ * warnings before matching so only real command output counts.
+ */
+function stripCliWarnings(text = '') {
+  const kept = [];
+  let inBanner = false;
+  for (const line of String(text).split(/\r?\n/)) {
+    if (/◇\s*Config warnings/.test(line)) { inBanner = true; continue; }
+    // The banner is drawn as a box; its bottom edge is the only line starting with ├ or └.
+    if (inBanner) {
+      if (/^\s*[├└]/.test(line)) inBanner = false;
+      continue;
+    }
+    if (/unknown channel id|plugin not found|stale config|no channel plugin is installed/i.test(line)) continue;
+    kept.push(line);
+  }
+  return kept.join('\n');
+}
+
+// Both keywords are load-bearing, and callers must not narrow them to the id alone: `channels
+// status` lists a loaded channel by its DISPLAY NAME ("OpenClaw Zalo Connect default: enabled, …"),
+// so the hyphenated id shows up only in the stale-config warnings stripCliWarnings now removes.
+// Match on the id alone and the check can never pass once the plugin is actually installed.
 async function waitForGatewayZaloReady(botContainer, projectDir, timeoutMs = 90000, channelKeywords = ['zalo-connect', 'openclaw zalo connect']) {
   const started = Date.now();
   // Use dynamic port from env: OPENCLAW_GATEWAY_PORT → OPENCLAW_PORT → fallback 18789
@@ -2124,7 +2183,7 @@ async function waitForGatewayZaloReady(botContainer, projectDir, timeoutMs = 900
       const status = String(out.stdout || '').trim();
       if (status === 'READY') {
         const pluginCheck = await runCapture('docker', ['exec', botContainer, 'sh', '-c', 'openclaw channels status 2>&1 || true'], { cwd: projectDir, shell: false });
-        const output = ((pluginCheck.stdout || '') + ' ' + (pluginCheck.stderr || '')).toLowerCase();
+        const output = stripCliWarnings((pluginCheck.stdout || '') + '\n' + (pluginCheck.stderr || '')).toLowerCase();
         if (channelKeywords.some((kw) => output.includes(kw))) {
           ready = true;
           break;
@@ -2148,13 +2207,21 @@ async function waitForNativeGatewayZaloReady(projectDir, timeoutMs = 90000, chan
   const started = Date.now();
   const meta = readNativeMeta(projectDir) || {};
   const port = String(meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT);
+  const extDir = join(projectDir, '.openclaw', 'extensions', 'zalo-connect');
   let ready = false;
   let attempts = 0;
   while (Date.now() - started < timeoutMs) {
     attempts++;
+    // Decisive, free, and immune to the warning-banner trap above: with no plugin folder the channel
+    // cannot possibly be loaded, so return right away and let the caller install it instead of
+    // burning the whole timeout waiting for something that will never appear.
+    if (!existsSync(extDir)) {
+      sendLog('[zalo-connect] Plugin folder .openclaw/extensions/zalo-connect is absent — not waiting.');
+      return false;
+    }
     if (await probeHttpOk(`http://127.0.0.1:${port}/health`, 2500)) {
       const st = await ocCapture(projectDir, ['channels', 'status']).catch(() => ({ stdout: '', stderr: '' }));
-      const output = ((st.stdout || '') + ' ' + (st.stderr || '')).toLowerCase();
+      const output = stripCliWarnings((st.stdout || '') + '\n' + (st.stderr || '')).toLowerCase();
       if (channelKeywords.some((kw) => output.includes(kw))) { ready = true; break; }
       if (attempts > 2) sendLog('[zalo-connect] Gateway healthy but Zalo Connect is not loaded yet (' + Math.round((Date.now() - started) / 1000) + 's)...');
     } else if (attempts > 2 && attempts % 3 === 0) {
@@ -2204,20 +2271,17 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
       // No container: the gateway runs as a managed service on the host. Wait for it to
       // report the zalo-connect channel; if it never does and the plugin folder is absent,
       // install it on the host (into this project's .openclaw/extensions) and reload.
-      const gatewayReady = await waitForNativeGatewayZaloReady(projectDir, 180000, ['zalo-connect']);
+      const gatewayReady = await waitForNativeGatewayZaloReady(projectDir, 180000);
       if (!gatewayReady) {
-        const extDir = join(projectDir, '.openclaw', 'extensions', 'zalo-connect');
-        if (!existsSync(extDir)) {
-          sendLog(`[zalo-connect] Plugin missing — installing ${ZALO_CONNECT_PLUGIN_SPEC} natively...`);
-          const inst = await ocCapture(projectDir, ['plugins', 'install', ZALO_CONNECT_PLUGIN_SPEC, '--force', '--acknowledge-clawhub-risk']);
-          const instOut = `${inst.stdout}\n${inst.stderr}`;
-          for (const line of instOut.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
-          if (/installed plugin/i.test(instOut) || existsSync(extDir)) {
-            await restartNativeRuntime(projectDir).catch((err) => sendLog(`[native] restart skipped/failed: ${err.message}`));
-            await waitForNativeGatewayZaloReady(projectDir, 180000, ['zalo-connect']);
-          } else {
-            sendLog('[zalo-connect] Cài plugin không thành công — thử lại bằng nút "Đăng nhập Zalo".');
-          }
+        // ensureNativePlugins is the single place that knows what a native project owes itself, and
+        // it skips whatever is already on disk — so this covers learning-memory too, and reconnects
+        // on a healthy project cost nothing.
+        const installed = await ensureNativePlugins(projectDir);
+        if (installed.includes(ZALO_PLUGIN_ID)) {
+          await restartNativeRuntime(projectDir).catch((err) => sendLog(`[native] restart skipped/failed: ${err.message}`));
+          await waitForNativeGatewayZaloReady(projectDir, 180000);
+        } else if (!existsSync(join(projectDir, '.openclaw', 'extensions', 'zalo-connect'))) {
+          sendLog('[zalo-connect] Cài plugin không thành công — thử lại bằng nút "Đăng nhập Zalo".');
         }
       }
     } else {
@@ -2230,7 +2294,7 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
       // backend-aware entrypoint existed).
       const containerUp = await waitForDockerContainer(botContainer, 90000);
       if (!containerUp) sendLog(`[zalo-connect] ${botContainer} chưa chạy sau 90s — vẫn thử tiếp...`);
-      const gatewayReady = await waitForGatewayZaloReady(botContainer, projectDir, 180000, ['zalo-connect']);
+      const gatewayReady = await waitForGatewayZaloReady(botContainer, projectDir, 180000);
       if (!gatewayReady) {
         const check = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', '[ -d "${OPENCLAW_HOME:-/home/node/project/.openclaw}/extensions/zalo-connect" ] && echo OK || echo MISSING'], { cwd: projectDir, shell: false }).catch(() => ({ stdout: 'ERR' }));
         if (String(check.stdout || '').trim() === 'MISSING') {
@@ -2243,7 +2307,7 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
             // Gateway must reload to pick the plugin up — safe here: the gateway is past
             // its boot (we only reach this branch when it answered the exec above).
             await restartDockerBotContainer(projectDir).catch((err) => sendLog(`[docker] restart skipped/failed: ${err.message}`));
-            await waitForGatewayZaloReady(botContainer, projectDir, 180000, ['zalo-connect']);
+            await waitForGatewayZaloReady(botContainer, projectDir, 180000);
           } else {
             sendLog('[zalo-connect] Cài plugin không thành công — thử lại bằng nút "Đăng nhập Zalo" sau khi container ổn định.');
           }
@@ -2569,10 +2633,13 @@ function getBotServiceName(projectDir) {
 // single fixed one, so without this a second native project would take over the first's service.
 
 const NATIVE_MARKER = 'native.json';
-// Native ports sit one hundred above the docker ones (18789/20128) so a native project can run
-// next to a docker project — or next to an SSH tunnel forwarding a remote bot's ports — untouched.
-const NATIVE_DEFAULT_GATEWAY_PORT = 18889;
-const NATIVE_DEFAULT_ROUTER_PORT = 20228;
+// Native uses the same ports as everything else: openclaw's 18789 and 9router's 20128. It used to
+// jump a hundred above them unconditionally so it could sit next to a docker project, but that fired
+// even on a machine with nothing running at all — a fresh VPS still landed on 18889/20228, so every
+// tunnel command, bookmark and doc pointed at a port the user never chose. findFreeHostPort() now
+// handles coexistence by asking the host what is actually taken, which the fixed offset never did.
+const NATIVE_DEFAULT_GATEWAY_PORT = 18789;
+const NATIVE_DEFAULT_ROUTER_PORT = 20128;
 
 function nativeMarkerPath(projectDir) {
   return join(projectDir || state.projectDir || '', '.openclaw', NATIVE_MARKER);
@@ -2644,6 +2711,47 @@ function ocCapture(projectDir, args, opts = {}) {
   return runCapture(a.cmd, a.args, { shell: false, ...a.opts, ...opts, env: { ...(a.opts.env || {}), ...(opts.env || {}) } });
 }
 
+/** Probe the managed gateway's own /health until it answers. */
+async function waitForNativeGatewayHealthy(projectDir, timeoutMs = 120000) {
+  const meta = readNativeMeta(projectDir) || {};
+  const port = String(meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT);
+  const started = Date.now();
+  let attempts = 0;
+  while (Date.now() - started < timeoutMs) {
+    if (await probeHttpOk(`http://127.0.0.1:${port}/health`, 2500)) return true;
+    attempts++;
+    if (attempts % 5 === 0) sendLog(`[native] Waiting for gateway on ${port}... (${Math.round((Date.now() - started) / 1000)}s)`);
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  sendLog(`[native] Gateway did not answer /health on ${port} within ${Math.round(timeoutMs / 1000)}s.`);
+  return false;
+}
+
+/**
+ * The first gateway boot runs OpenClaw's startup migrations under a state-directory lease, and a
+ * second gateway that tries to start meanwhile exits 1 with this message rather than waiting. The
+ * docker path sidesteps it by never poking a booting container (see startZaloConnectLogin); when we
+ * do hit it natively, the message carries the exact instant the lease frees — so wait that out
+ * instead of retrying blind into systemd's StartLimitBurst (5 per 60s, after which the unit is
+ * abandoned for good).
+ */
+function migrationLeaseDeadline(text = '') {
+  const m = String(text).match(/migrations are already running[\s\S]*?after\s+(\d{4}-\d{2}-\d{2}T[\d:.]+Z)/i);
+  if (!m) return 0;
+  const t = Date.parse(m[1]);
+  return Number.isFinite(t) ? t : 0;
+}
+
+/** `openclaw daemon <verb>` for a native project: streams output to the UI log AND returns it. */
+async function ocDaemon(projectDir, verb, extraArgs = []) {
+  const args = ['daemon', verb, ...extraArgs];
+  sendLog(`$ openclaw ${args.join(' ')}`);
+  const out = await runCapture('openclaw', args, { cwd: projectDir, env: nativeEnv(projectDir), shell: false, timeout: 120000 });
+  const text = `${out.stdout || ''}\n${out.stderr || ''}`;
+  for (const line of text.split(/\r?\n/).map((l) => l.trimEnd()).filter(Boolean)) sendLog(line);
+  return { ...out, text };
+}
+
 /**
  * Restart the native gateway service.
  *
@@ -2652,20 +2760,105 @@ function ocCapture(projectDir, args, opts = {}) {
  * newly installed plugins never load, silently). stop+start is what actually works there, and it
  * works everywhere else too, so Windows takes that path and other systems keep `restart` with
  * stop+start as a fallback.
+ *
+ * Health is confirmed over /health at the end rather than trusted from the CLI's exit code: the
+ * CLI gives up verifying after ~13s while the generated unit allows 30s to start, so a slow but
+ * perfectly healthy gateway reports "restart failed" — which used to send callers down a pointless
+ * stop+start that raced the migration lease all over again.
  */
 async function restartNativeRuntime(projectDir) {
-  const env = nativeEnv(projectDir);
   const stopStart = async () => {
-    await run('openclaw', ['daemon', 'stop'], { cwd: projectDir, env }).catch(() => {});
-    await run('openclaw', ['daemon', 'start'], { cwd: projectDir, env });
+    await ocDaemon(projectDir, 'stop');
+    return ocDaemon(projectDir, 'start');
   };
-  if (process.platform === 'win32') return stopStart();
-  try {
-    await run('openclaw', ['daemon', 'restart'], { cwd: projectDir, env });
-  } catch (e) {
-    sendLog(`[native] daemon restart failed (${e.message}); falling back to stop+start`);
-    await stopStart();
+  let res;
+  if (process.platform === 'win32') {
+    res = await stopStart();
+  } else {
+    res = await ocDaemon(projectDir, 'restart');
+    // A lease collision is a "come back in a moment", not a broken service: stop+start would only
+    // collide again, so fall through to the wait below instead.
+    if (res.code !== 0 && !migrationLeaseDeadline(res.text)) {
+      sendLog(`[native] daemon restart exited ${res.code}; falling back to stop+start`);
+      res = await stopStart();
+    }
   }
+  const deadline = migrationLeaseDeadline(res.text);
+  if (deadline) {
+    const waitMs = Math.max(0, Math.min(deadline - Date.now(), 300000)) + 3000;
+    sendLog(`[native] Startup migrations hold the state lease — waiting ${Math.ceil(waitMs / 1000)}s before retrying.`);
+    await new Promise((r) => setTimeout(r, waitMs));
+    res = await ocDaemon(projectDir, 'restart');
+    if (res.code !== 0) res = await stopStart();
+  }
+  // systemd keeps restarting a crash-looping unit every RestartSec, so a gateway blocked by a lease
+  // we never saw still comes up on its own — give it room before calling the restart a failure.
+  if (!(await waitForNativeGatewayHealthy(projectDir, 180000))) {
+    throw new Error('gateway did not answer /health after restart');
+  }
+  return true;
+}
+
+/**
+ * `openclaw daemon install` has no `--system` flag, so on Linux the gateway becomes a systemd USER
+ * unit — and a user manager without linger is torn down when that user's last session exits. On a
+ * desktop the graphical session holds it open, which is why this never showed up on macOS or a
+ * Linux desktop; on a VPS the bot dies the moment the operator closes SSH and never comes back
+ * after a reboot. Linger is what makes a user unit behave like the `restart: always` container it
+ * replaces. Best-effort: a box without loginctl just keeps the old behaviour, loudly.
+ */
+async function ensureSystemdLinger() {
+  if (process.platform !== 'linux') return false;
+  let user = '';
+  try { user = process.env.SUDO_USER || os.userInfo().username; } catch { return false; }
+  if (!user) return false;
+  const cur = await runCapture('loginctl', ['show-user', user, '-p', 'Linger'], { shell: false, timeout: 10000 });
+  if (/Linger=yes/i.test(cur.stdout || '')) return true;
+  const out = await runCapture('loginctl', ['enable-linger', user], { shell: false, timeout: 20000 });
+  if (out.code === 0) {
+    sendLog(`[native] systemd linger enabled for "${user}" — the gateway now survives logout and reboot.`);
+    return true;
+  }
+  sendLog(`[native] WARNING: could not enable systemd linger for "${user}" (${(out.stderr || out.stdout || '').trim() || `exit ${out.code}`}).`);
+  sendLog(`[native] The gateway will stop when this user's last session ends. Fix it with: sudo loginctl enable-linger ${user}`);
+  return false;
+}
+
+/**
+ * Native counterpart of the docker entrypoint's `ensure_plugin` (docker-gen.js).
+ *
+ * A container reinstalls its missing plugins on every boot; a native project has no entrypoint, so
+ * nothing ever put zalo-connect or learning-memory on disk. The generated config declares both
+ * anyway (bot-config-gen writes plugins.entries + allow + slots.contextEngine), so without this the
+ * gateway boots with "plugin not found" warnings, `channels.zalo-connect` has no owner — Zalo login
+ * fails with `Unsupported channel "zalo-connect"` — and the bot silently runs with no context
+ * engine at all. Same set and same skip-if-present cheapness as ensure_plugin.
+ */
+async function ensureNativePlugins(projectDir, { restart = false } = {}) {
+  if (!isNativeProject(projectDir)) return [];
+  let cfg = {};
+  try { cfg = JSON.parse(await fsp.readFile(join(projectDir, '.openclaw', 'openclaw.json'), 'utf8')); } catch {}
+  // learning-memory backs plugins.slots.contextEngine for every bot; zalo-connect only when a bot
+  // actually declares the channel (mirrors docker-gen's `if (zaloBackend === 'zalo-connect')`).
+  const wanted = new Set(['learning-memory']);
+  if (cfg?.channels?.[ZALO_CHANNEL_ID] || cfg?.plugins?.entries?.[ZALO_PLUGIN_ID]) wanted.add(ZALO_PLUGIN_ID);
+  const installed = [];
+  for (const id of wanted) {
+    const dir = join(projectDir, '.openclaw', 'extensions', id);
+    if (existsSync(dir)) continue;
+    const spec = id === ZALO_PLUGIN_ID ? ZALO_CONNECT_PLUGIN_SPEC : pluginInstallSpec(id);
+    sendLog(`[native] plugin ${id} missing; installing ${spec}`);
+    const out = await ocCapture(projectDir, ['plugins', 'install', spec, '--force', '--acknowledge-clawhub-risk'], { timeout: 300000 });
+    const text = `${out.stdout || ''}\n${out.stderr || ''}`;
+    for (const line of text.split(/\r?\n/).map((l) => l.trimEnd()).filter(Boolean)) sendLog(`[native] ${line}`);
+    if (existsSync(dir) || /installed plugin/i.test(text)) installed.push(id);
+    else sendLog(`[native] WARNING: could not install plugin ${id} — the bot will run without it.`);
+  }
+  if (installed.length && restart) {
+    sendLog(`[native] Restarting gateway to load: ${installed.join(', ')}`);
+    await restartNativeRuntime(projectDir).catch((e) => sendLog(`[native] restart after plugin install: ${e.message}`));
+  }
+  return installed;
 }
 
 /** Fire-and-forget background process (9router has no service wrapper of its own). */
@@ -2769,11 +2962,20 @@ async function startNativeRuntime({ projectDir, osChoice = '', gatewayPort, rout
   await new Promise((r) => setTimeout(r, 8000));
   await applyResolved9RouterApiKey(projectDir).catch(() => {});
 
+  // Plugins BEFORE the gateway's first boot — the container entrypoint installs them ahead of the
+  // gateway for the same reason: a gateway that boots with its plugins already on disk loads them
+  // straight away, needs no follow-up restart, and prints no "plugin not found" warnings.
+  await ensureNativePlugins(projectDir).catch((e) => sendLog(`[native] plugin bootstrap skipped: ${e.message}`));
+
   // Managed service = auto-restart (KeepAlive/Restart=always) and start-at-login, the native
   // equivalent of docker's `restart: always`. --force so re-running install updates the port.
   const env = nativeEnv(projectDir);
+  await ensureSystemdLinger();
   await run('openclaw', ['daemon', 'install', '--force', '--port', String(gwPort)], { cwd: projectDir, env });
   await run('openclaw', ['daemon', 'start'], { cwd: projectDir, env });
+  // Let the first boot finish its state migrations here, while nothing else is competing for the
+  // lease. Every later action (create bot, install plugin) then restarts a settled gateway.
+  await waitForNativeGatewayHealthy(projectDir, 180000);
   sendLog(`[native] gateway service "${label}" running on 127.0.0.1:${gwPort}, 9router on 127.0.0.1:${rtPort}`);
   return { gatewayPort: gwPort, routerPort: rtPort, label };
 }
@@ -2922,6 +3124,14 @@ async function recreateDockerBot(projectDir) {
   // Native: there is no image to rebuild — the gateway reads openclaw.json from disk on boot, so
   // reloading config after a bot/plugin change is just a service restart. Callers stay unchanged.
   if (isNativeProject(projectDir)) {
+    // Never restart a gateway that is still on its first boot: OpenClaw runs startup migrations
+    // under a state lease, a restart mid-migration exits 1, and systemd's start limit can then
+    // abandon the unit. This is the same trap the docker path avoids by waiting for the container
+    // before touching it (see startZaloConnectLogin) — wait for /health first.
+    await waitForNativeGatewayHealthy(projectDir, 180000);
+    // The bot that was just created/edited may have added the Zalo channel or the context engine to
+    // openclaw.json; put those plugins on disk now so this one reload loads them too.
+    await ensureNativePlugins(projectDir).catch((e) => sendLog(`[native] plugin ensure skipped: ${e.message}`));
     sendLog('[native] Reloading gateway to pick up openclaw.json changes...');
     await restartNativeRuntime(projectDir).catch((e) => sendLog(`[native] restart failed: ${e.message}`));
     probeCacheClear();
@@ -4515,13 +4725,18 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
   state.os = osChoice;
   state.startedAt = new Date().toISOString();
   try {
-    // Native runs on the host's own ports, so it must not land on the docker defaults: a machine
-    // often has a docker project (or an SSH tunnel to a remote bot) already holding 18789/20128.
+    // Native binds the host directly, so it needs ports nothing else holds — but only when something
+    // actually holds them. Ask the host rather than assuming: a fresh machine keeps openclaw's and
+    // 9router's real defaults, and a machine that already runs a docker project (or an SSH tunnel to
+    // a remote bot) steps to the next free pair instead.
     if (mode === 'native') {
-      if (gatewayPort === 18789) gatewayPort = NATIVE_DEFAULT_GATEWAY_PORT;
-      if (routerPort === 20128) routerPort = NATIVE_DEFAULT_ROUTER_PORT;
+      gatewayPort = await findFreeHostPort(gatewayPort, { reserveNext: true });
+      routerPort = await findFreeHostPort(routerPort);
       state.gatewayPort = gatewayPort;
       state.routerPort = routerPort;
+      state.gatewayUrl = `http://127.0.0.1:${gatewayPort}`;
+      state.routerUrl = `http://127.0.0.1:${routerPort}`;
+      sendLog(`[native] ports: gateway ${gatewayPort}, 9router ${routerPort}`);
     }
     sendLog('OpenClaw local installer started');
     sendLog(`Target: OS=${osChoice}, mode=${mode}, project=${projectDir}, gatewayPort=${gatewayPort}, routerPort=${routerPort}`);
@@ -6443,4 +6658,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots };
+export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort };

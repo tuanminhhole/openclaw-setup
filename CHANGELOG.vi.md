@@ -1,6 +1,19 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.15.4] — 2026-07-28
+
+### 🔧 Sửa lỗi: Chế độ native trên Linux VPS
+
+- **Sửa: bản native tự cài plugin của nó**: container cài lại plugin thiếu mỗi lần boot (`ensure_plugin`), nhưng native không có phần tương ứng nên `zalo-connect` và `learning-memory` chưa bao giờ được ghi xuống đĩa dù config đã khai cả hai. Đăng nhập Zalo lỗi `Unsupported channel "zalo-connect"`, và bot chạy âm thầm mà không có context engine cho memory.
+- **Sửa: kiểm tra channel không còn đọc nhầm cảnh báo config**: OpenClaw in banner "Config warnings" ở mọi lệnh CLI, trong đó trích nguyên tên key sai — nên project thiếu plugin lại có chữ `zalo-connect` trong output của bất kỳ lệnh nào, và hàm kiểm tra pass đúng lúc plugin KHÔNG có. Nay lọc bỏ cảnh báo trước khi so khớp và kiểm tra thẳng thư mục plugin.
+- **Sửa: restart không còn đụng lease migration lúc boot đầu**: restart ngay sau khi tạo bot bị exit 1 (`startup migrations are already running`) và có thể làm systemd bỏ luôn service. Nay chờ `/health` trước, và tôn trọng mốc thời gian CLI báo được thử lại.
+- **Sửa: bot sống sót khi đóng SSH và khi reboot trên VPS**: `daemon install` ghi systemd *user* unit, vốn bị dẹp khi session cuối của user kết thúc — trên desktop không thấy, qua SSH thì chết bot. Bản native Linux nay bật `loginctl` linger.
+- **Sửa: Linux headless được nhận là VPS**: kiểm tra cũ có hai nhánh giống hệt nhau nên server luôn bị coi là desktop.
+- **Bảo mật: gateway native không bao giờ bind `0.0.0.0`**: Docker cần bind trong container và chỉ publish ra `127.0.0.1`, còn native không có lớp đó — bind 0.0.0.0 là đưa control plane HTTP thô ra mặt internet của VPS. Native giữ loopback; vào bằng SSH tunnel.
+- **Sửa: native dùng port mặc định**: gateway `18789` và 9Router `20128`, chỉ nhảy sang cặp trống kế tiếp khi máy đã có ai giữ. Trước đây native cộng thêm một trăm vô điều kiện nên máy trống trơn vẫn ra `18889`/`20228`.
+
+
 ## [5.15.3] — 2026-07-28
 
 ### Thêm mới

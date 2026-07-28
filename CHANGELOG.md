@@ -1,6 +1,19 @@
 # Changelog (English)
 
 
+## [5.15.4] — 2026-07-28
+
+### 🔧 Fixes: Native mode on a Linux VPS
+
+- **Fix: native installs now install their own plugins**: a container reinstalls missing plugins on every boot (`ensure_plugin`), but native mode had no counterpart, so `zalo-connect` and `learning-memory` were never put on disk even though the generated config declared both. Zalo login failed with `Unsupported channel "zalo-connect"` and the bot silently ran with no memory context engine.
+- **Fix: channel readiness no longer misreads config warnings**: OpenClaw prints a "Config warnings" banner on every CLI call, quoting the offending keys — so a project whose plugin was missing had `zalo-connect` in the output of any command, and the readiness probe passed exactly when the plugin was absent. Warnings are stripped before matching, and the plugin folder is checked directly.
+- **Fix: restart no longer collides with the first-boot migration lease**: restarting right after creating a bot exited 1 (`startup migrations are already running`) and could trip systemd's start limit. The reload now waits for `/health` first, and honours the retry deadline the CLI reports.
+- **Fix: the bot survives logout and reboot on a VPS**: `daemon install` writes a systemd *user* unit, which is torn down when the user's last session ends — invisible on a desktop, fatal over SSH. Native Linux installs now enable `loginctl` linger.
+- **Fix: headless Linux is detected as a VPS**: the previous check had two identical branches, so a server always looked like a desktop.
+- **Security: a native gateway never binds `0.0.0.0`**: Docker needs it inside the container and publishes only `127.0.0.1`, but a native gateway has no such mapping — it would put a plain-HTTP control plane on the VPS's public interface. Native stays on loopback; reach it over an SSH tunnel.
+- **Fix: native uses the default ports**: gateway `18789` and 9Router `20128`, stepping to the next free pair only when the host already has them taken. Native used to jump a hundred above unconditionally, so even an empty machine landed on `18889`/`20228`.
+
+
 ## [5.15.3] — 2026-07-28
 
 ### Added

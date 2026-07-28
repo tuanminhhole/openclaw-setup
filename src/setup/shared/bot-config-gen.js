@@ -277,11 +277,19 @@
     }
 
     // ── gateway ──────────────────────────────────────────────────────────────
+    // Docker MUST bind 0.0.0.0 inside the container to be reachable at all, but that is contained:
+    // compose publishes the port as `127.0.0.1:<port>:<port>` (docker-gen), so the host still only
+    // answers on loopback. A NATIVE gateway has no port mapping to hide behind — 0.0.0.0 there puts
+    // it straight on the VPS's public interface, with the auth token crossing the wire in plaintext
+    // (the gateway speaks plain HTTP/WS) and, on a fresh VPS, no firewall in front of it. The
+    // `osChoice === 'vps'` clause predates native mode; keep native on loopback and reach it through
+    // an SSH tunnel, which is what docker-on-a-VPS effectively does too.
+    const openGatewayBind = deployMode === 'docker' || (osChoice === 'vps' && deployMode !== 'native');
     cfg.gateway = {
       port: gatewayPort,
       mode: 'local',
-      bind: (deployMode === 'docker' || osChoice === 'vps') ? 'custom' : 'loopback',
-      ...(deployMode === 'docker' || osChoice === 'vps' ? { customBindHost: '0.0.0.0' } : {}),
+      bind: openGatewayBind ? 'custom' : 'loopback',
+      ...(openGatewayBind ? { customBindHost: '0.0.0.0' } : {}),
       controlUi: {
         allowedOrigins: gatewayAllowedOrigins.length > 0
           ? gatewayAllowedOrigins
