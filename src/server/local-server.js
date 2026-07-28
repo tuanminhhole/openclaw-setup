@@ -61,6 +61,49 @@ async function syncExecApprovals(projectDir, cfg) {
   await fsp.writeFile(path2, JSON.stringify(approvals, null, 2), 'utf8');
 }
 
+/**
+ * Write files into the bot container's plugin folder. Needed when `.openclaw/extensions` is a
+ * Docker named volume: the host sees an empty directory, so there is nothing on disk to patch.
+ * Best-effort — a stopped container or a project without Docker just yields 0.
+ */
+async function pushBrowserScriptsIntoContainer(projectDir, aliases, files, sendLog = () => {}) {
+  if (isNativeProject(projectDir)) return 0;
+  const container = getBotContainerName(projectDir);
+  if (!container) return 0;
+  const running = await runCapture('docker', ['inspect', '-f', '{{.State.Running}}', container], { shell: false, timeout: 8000 }).catch(() => null);
+  if (String(running?.stdout || '').trim() !== 'true') return 0;
+
+  const homeOut = await runCapture('docker', ['exec', container, 'sh', '-c', 'echo "${OPENCLAW_HOME:-/home/node/project/.openclaw}"'], { shell: false, timeout: 8000 }).catch(() => null);
+  const openclawHome = String(homeOut?.stdout || '').trim() || '/home/node/project/.openclaw';
+
+  let pushed = 0;
+  for (const alias of aliases) {
+    const dir = `${openclawHome}/extensions/${alias}`;
+    const check = await runCapture('docker', ['exec', container, 'sh', '-c', `[ -d "${dir}" ] && echo yes || echo no`], { shell: false, timeout: 8000 }).catch(() => null);
+    if (String(check?.stdout || '').trim() !== 'yes') continue;
+    for (const [name, content, mode] of files) {
+      const tmp = join(os.tmpdir(), `openclaw-${Date.now()}-${name}`);
+      try {
+        await fsp.writeFile(tmp, content, 'utf8');
+        // runCapture, not run: run() forces a shell on Windows, and the temp path goes through
+        // a home directory that usually has a space in it ("VT 2025") — cmd then splits it and
+        // docker cp fails with a usage error.
+        const cp = await runCapture('docker', ['cp', tmp, `${container}:${dir}/${name}`], { shell: false, timeout: 20000 });
+        if (cp.code !== 0) throw new Error(String(cp.stderr || cp.stdout || 'docker cp failed').trim());
+        // A world-writable file makes OpenClaw refuse to load the plugin, and a copy landing
+        // from a Windows host is exactly that.
+        await runCapture('docker', ['exec', container, 'sh', '-c', `chmod ${mode} "${dir}/${name}"`], { shell: false, timeout: 20000 });
+        pushed += 1;
+      } catch (err) {
+        sendLog(`[browser] Could not push ${name} into ${container}: ${err.message}`);
+      } finally {
+        await fsp.rm(tmp, { force: true }).catch(() => {});
+      }
+    }
+  }
+  return pushed;
+}
+
 async function patchBrowserAutomationHostPreference(projectDir, aliases = [], sendLog = () => {}) {
   const preferredCdpBlock = `const dns = require('dns').promises;
 const DEFAULT_CDP_URLS = [
@@ -300,9 +343,10 @@ async function connectPreferredChrome() {
 
   // Patch the plugin's own copies too: the plugin re-syncs its skill folder into every
   // workspace on startup, so an unpatched source would undo the profile change below.
+  const sourceScriptNames = ['start-chrome-debug.bat', 'start-chrome-debug.sh'];
   let scriptsPatched = 0;
   for (const dir of extensionDirs) {
-    for (const name of ['start-chrome-debug.bat', 'start-chrome-debug.sh']) {
+    for (const name of sourceScriptNames) {
       const file = join(dir, name);
       if (!existsSync(file)) continue;
       const content = await fsp.readFile(file, 'utf8');
@@ -314,7 +358,22 @@ async function connectPreferredChrome() {
     }
   }
   if (scriptsPatched > 0) {
-    sendLog(`[browser] Patched ${scriptsPatched} start-chrome script(s) to use the real Chrome profile (set OPENCLAW_CHROME_PROFILE_DIR to override).`);
+    sendLog(`[browser] Patched ${scriptsPatched} start-chrome script(s) to use a dedicated Chrome profile seeded from yours (set OPENCLAW_CHROME_PROFILE_DIR to override).`);
+  }
+
+  // Some Docker projects mount `.openclaw/extensions` as a named volume, so the plugin's own
+  // files exist only inside the container. Every host path above then quietly finds nothing,
+  // the plugin re-syncs its stale script into the workspaces on each boot, and the operator
+  // keeps running the version that cannot open the debug port. Push the script in through the
+  // container instead.
+  if (!extensionDirs.some((dir) => existsSync(join(dir, sourceScriptNames[0])) || existsSync(join(dir, sourceScriptNames[1])))) {
+    const pushed = await pushBrowserScriptsIntoContainer(projectDir, aliases, [
+      ['start-chrome-debug.bat', startChromeBat, '644'],
+      ['start-chrome-debug.sh', startChromeSh, '755'],
+    ], sendLog);
+    if (pushed > 0) {
+      sendLog(`[browser] Extensions live in a Docker volume — pushed ${pushed} start-chrome script(s) into the container so the plugin delivers the current one.`);
+    }
   }
 
   const browserMd = `# Browser Automation
@@ -366,12 +425,10 @@ Do not call \`search-tool.js\`; browser-automation does not own search. Use \`we
   const hostOs = normalizeHostOs(await resolveProjectHostOs(projectDir));
   const shouldKeepBat = hostOs === 'win';
   // Shipped as start-chrome-debug.* by the plugin; delivered to the workspace as
-  // start-chrome.* — it launches the operator's normal Chrome (with the debug port open),
-  // so "debug" in the name only ever made people think it was a developer-only thing.
-  const sourceName = shouldKeepBat ? 'start-chrome-debug.bat' : 'start-chrome-debug.sh';
+  // start-chrome.* — it launches Chrome with the debug port open, so "debug" in the name only
+  // ever made people think it was a developer-only thing.
   const scriptToKeep = shouldKeepBat ? 'start-chrome.bat' : 'start-chrome.sh';
   const legacyScripts = ['start-chrome-debug.bat', 'start-chrome-debug.sh', shouldKeepBat ? 'start-chrome.sh' : 'start-chrome.bat'];
-  const sourceScript = extensionDirs.map((dir) => join(dir, sourceName)).find((file) => existsSync(file));
   const sourceBrowserTool = extensionDirs.map((dir) => join(dir, 'browser-tool.js')).find((file) => existsSync(file));
 
   let sanitized = 0;
@@ -396,16 +453,12 @@ Do not call \`search-tool.js\`; browser-automation does not own search. Use \`we
         if (next !== content) await fsp.writeFile(targetBrowserTool, next, 'utf8');
       }
     }
-    if (sourceScript) {
-      const targetScript = join(pluginSkillPath, scriptToKeep);
-      await fsp.copyFile(sourceScript, targetScript).catch(() => {});
-      if (existsSync(targetScript)) {
-        const scriptContent = await fsp.readFile(targetScript, 'utf8');
-        const nextScript = patchChromeDebugScript(scriptContent, scriptToKeep.endsWith('.bat'));
-        if (nextScript !== scriptContent) await fsp.writeFile(targetScript, nextScript, 'utf8');
-      }
-      if (scriptToKeep.endsWith('.sh')) await fsp.chmod(targetScript, 0o755).catch(() => {});
-    }
+    // Written from the generator, not copied from the plugin: on a project whose extensions
+    // folder is a Docker volume there is no host copy to read, and the workspace would be left
+    // without a starter at all.
+    const targetScript = join(pluginSkillPath, scriptToKeep);
+    await fsp.writeFile(targetScript, scriptToKeep.endsWith('.bat') ? startChromeBat : startChromeSh, 'utf8');
+    if (scriptToKeep.endsWith('.sh')) await fsp.chmod(targetScript, 0o755).catch(() => {});
     await fsp.writeFile(join(pluginSkillPath, 'BROWSER.md'), browserMd, 'utf8');
     for (const dirName of ['cl-stealth-search', 'openclaw-smart-search']) {
       await fsp.rm(join(workspacePath, 'plugin-skills', dirName), { recursive: true, force: true }).catch(() => {});
@@ -3847,8 +3900,10 @@ async function startChromeDebug() {
       ok: true,
       headless: true,
       port: 9222,
-      chromeCmdMac: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir="$HOME/.openclaw-chrome-debug" --remote-allow-origins='*'`,
-      chromeCmdWin: `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=9222 --user-data-dir=%TEMP%\\openclaw-chrome-debug --remote-allow-origins=*`,
+      // Same dedicated profile directories the local button and the generated scripts use, so
+      // an operator who has already run one of those keeps the session they signed in with.
+      chromeCmdMac: `"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir="$HOME/${CHROME_DEBUG_PROFILE_LEAF_MAC}" --profile-directory=Default --remote-allow-origins='*'`,
+      chromeCmdWin: `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%LOCALAPPDATA%\\${CHROME_DEBUG_PROFILE_LEAF_WIN}" --profile-directory=Default --remote-allow-origins=*`,
       tunnelCmd: `ssh -N -R 9222:127.0.0.1:9222 ${user}@${ip}`,
     };
   }

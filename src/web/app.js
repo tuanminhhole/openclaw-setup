@@ -623,7 +623,7 @@ function wireSkillsHandlers(scope = document) {
   scope.querySelectorAll('[data-chrome-debug]').forEach(btn => btn.onclick = async () => {
     btn.disabled = true;
     try {
-      const r = await api('/api/browser/start-chrome-debug', { method: 'POST', body: {} });
+      const r = await api('/api/browser/start-chrome', { method: 'POST', body: {} });
       if (r.headless) {
         // VPS has no display — guide the user to run Chrome on THEIR machine + a reverse tunnel.
         state.confirmModal = {
@@ -639,8 +639,10 @@ function wireSkillsHandlers(scope = document) {
         };
         render();
       } else {
-        showToast(t('Đã mở Chrome debug', 'Chrome debug started'),
-          `${t('Cổng', 'Port')} ${r.port} — ${t('bot sẽ ưu tiên dùng Chrome này', 'the bot will prefer this Chrome')}`, 'success');
+        // The profile is a copy of the operator's own, so their normal Chrome can stay open —
+        // say so, because the old flow required closing every Chrome window first.
+        showToast(t('Đã mở Chrome cho bot', 'Chrome opened for the bot'),
+          `${t('Cổng', 'Port')} ${r.port} — ${t('cửa sổ Chrome mới này dùng bản sao profile của bạn (đã đăng nhập sẵn); Chrome thường của bạn cứ để nguyên.', 'the new window runs a copy of your profile (already signed in); your normal Chrome can stay open.')}`, 'success');
       }
     } catch (err) {
       showToast(t('Thất bại', 'Failed'), err.message, 'error');
@@ -1166,7 +1168,7 @@ function botSkillsPanel() {
         secs.push(`<button class="secondary icon-btn2 update-plugin-btn" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''} title="${t('Cập nhật lên bản mới nhất','Update to latest version')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#ffb020; border-color: rgba(255,176,32,0.25); background: rgba(255,176,32,0.05);">${actionIcon('refresh')}<span>${t('Cập nhật','Update')}</span></button>`);
       }
       if (item.id === 'browser-automation' || item.id === 'openclaw-browser-automation') {
-        secs.push(`<button class="secondary icon-btn2" type="button" data-chrome-debug title="${t('Mở Chrome (chế độ debug) trên máy này để bot dùng trình duyệt thật (đã đăng nhập)','Open real Chrome in debug mode on this machine so the bot can use it')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#4285F4; border-color: rgba(66,133,244,0.3); background: rgba(66,133,244,0.06);">${actionIcon('link')}<span>${t('Mở Chrome debug','Open Chrome debug')}</span></button>`);
+        secs.push(`<button class="secondary icon-btn2" type="button" data-chrome-debug title="${t('Mở Chrome trên máy này cho bot dùng. Chạy bản sao profile của bạn nên vẫn đăng nhập sẵn, và Chrome thường của bạn không bị đóng.','Open Chrome on this machine for the bot. It runs a copy of your profile, so it stays signed in, and your normal Chrome is left alone.')}" style="padding: 4px 8px; font-size: 11px; height: 28px; border-width: 1px; color:#4285F4; border-color: rgba(66,133,244,0.3); background: rgba(66,133,244,0.06);">${actionIcon('link')}<span>${t('Mở Chrome cho bot','Open Chrome for bot')}</span></button>`);
       }
     } else {
       secs.push(`<button class="secondary icon-btn2" type="button" data-feature-install="${key}" ${loading ? 'disabled' : ''}>${actionIcon('download')} ${ui('installVerb')}</button>`);

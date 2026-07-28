@@ -1,6 +1,17 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.15.1] — 2026-07-28
+
+### Sửa lỗi
+
+- **"Mở Chrome" giờ tới được mọi project.** Một số project Docker để `.openclaw/extensions` trong named volume, nên file của plugin chỉ nằm trong container. File mở Chrome trước đây chỉ được ghi lại theo đường dẫn trên máy host — chỗ đó rỗng nên không có gì thay đổi: bot vẫn nhận file cũ (bản mà Chrome 136+ từ chối mở cổng debug) dù bạn cập nhật bao nhiêu lần. Nay file giao vào từng workspace được ghi trực tiếp, và bản của plugin được đẩy vào trong container.
+
+### Thay đổi
+
+- **Nút trên card trình duyệt đổi thành "Mở Chrome cho bot".** Tên cũ là "Mở Chrome debug", đọc lên như thứ chỉ dân lập trình mới bấm. Nút cũng nói rõ chuyện gì xảy ra: cửa sổ mới chạy bản sao profile Chrome của bạn nên đã đăng nhập sẵn, và Chrome thường của bạn không bị đóng. Lệnh copy-paste cho VPS không màn hình dùng đúng thư mục profile riêng như nút và như file script.
+
+
 ## [5.15.0] — 2026-07-27
 
 ### Thêm mới

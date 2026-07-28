@@ -1,6 +1,17 @@
 # Changelog (English)
 
 
+## [5.15.1] — 2026-07-28
+
+### Fixed
+
+- **"Open Chrome" now really reaches every project.** Some Docker projects keep `.openclaw/extensions` in a named volume, so the plugin's files exist only inside the container. The Chrome starter was only ever rewritten on host paths, which silently found nothing there: the bot kept getting the old script — the one Chrome 136+ refuses to open a debug port for — no matter how many times you updated. The starter delivered to each workspace is now written directly, and the plugin's own copy is pushed into the container.
+
+### Changed
+
+- **The button on the browser card is now "Open Chrome for bot".** It used to say "Open Chrome debug", which read as something only a developer would press. It also tells you what actually happens: the new window runs a copy of your Chrome profile, so it is already signed in, and your own Chrome is left open. The copy-paste commands for a headless VPS use the same dedicated profile directory as the button and the scripts.
+
+
 ## [5.15.0] — 2026-07-27
 
 ### Added
