@@ -1,6 +1,13 @@
 # Changelog (English)
 
 
+## [5.15.6] — 2026-07-30
+
+### 🔧 Fixes: Abandoned plugin staging dirs
+
+- **Fix: an interrupted plugin install no longer shadows the real plugin.** `openclaw plugins install` unpacks into `extensions/.openclaw-install-stage-XXXXXX` and removes it on success. An install cut short leaves that copy behind — and it still carries a plugin manifest, so the gateway logs `duplicate plugin id detected` on every boot while a stale build competes for the same id. Found on a production host: a zalo-connect **3.0.7** staging dir sitting next to 3.0.17 for a week. Nothing is installing at entrypoint time, so any staging dir found there is abandoned by definition and is now removed — by the container entrypoint for Docker, and by the plugin bootstrap for native, which has no entrypoint.
+
+
 ## [5.15.5] — 2026-07-28
 
 ### 🔧 Fixes: The bot could not read files sent to it

@@ -1,6 +1,13 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.15.6] — 2026-07-30
+
+### 🔧 Sửa lỗi: Thư mục staging plugin bỏ dở
+
+- **Sửa: lần cài plugin bị ngắt giữa đường không còn che plugin thật.** `openclaw plugins install` giải nén vào `extensions/.openclaw-install-stage-XXXXXX` rồi xoá khi xong. Cài bị ngắt thì bản copy đó nằm lại — và nó vẫn mang manifest plugin, nên mỗi lần boot gateway lại in `duplicate plugin id detected`, trong khi một bản build cũ tranh cùng plugin id. Gặp thật trên máy production: thư mục staging zalo-connect **3.0.7** nằm cạnh 3.0.17 suốt một tuần. Ở thời điểm entrypoint chạy thì không có lần cài nào đang diễn ra, nên mọi staging dir tìm thấy ở đó đều là đồ bỏ — nay được xoá: entrypoint container lo cho Docker, còn bản native (không có entrypoint) dọn ở bước bootstrap plugin.
+
+
 ## [5.15.5] — 2026-07-28
 
 ### 🔧 Sửa lỗi: Bot không đọc được file gửi vào

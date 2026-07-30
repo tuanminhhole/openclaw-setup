@@ -2936,6 +2936,16 @@ async function ensureSystemdLinger() {
  */
 async function ensureNativePlugins(projectDir, { restart = false } = {}) {
   if (!isNativeProject(projectDir)) return [];
+  // Same cleanup the container entrypoint does (docker-gen.js): an interrupted `plugins install`
+  // leaves extensions/.openclaw-install-stage-XXXXXX behind, and it still carries a plugin manifest —
+  // so the gateway logs "duplicate plugin id detected" every boot and a stale build competes with the
+  // real one for the same id. Native has no entrypoint, so it has to happen here.
+  const extRoot = join(projectDir, '.openclaw', 'extensions');
+  for (const entry of await fsp.readdir(extRoot, { withFileTypes: true }).catch(() => [])) {
+    if (!entry.isDirectory() || !entry.name.startsWith('.openclaw-install-stage-')) continue;
+    await fsp.rm(join(extRoot, entry.name), { recursive: true, force: true }).catch(() => {});
+    sendLog(`[native] removed abandoned plugin staging dir ${entry.name}`);
+  }
   let cfg = {};
   try { cfg = JSON.parse(await fsp.readFile(join(projectDir, '.openclaw', 'openclaw.json'), 'utf8')); } catch {}
   // learning-memory backs plugins.slots.contextEngine for every bot; zalo-connect only when a bot

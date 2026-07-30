@@ -288,6 +288,17 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       'export OPENCLAW_HOME="${OPENCLAW_HOME:-$PWD/.openclaw}"',
       'export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$OPENCLAW_HOME}"',
       'mkdir -p "$OPENCLAW_HOME" "$OPENCLAW_STATE_DIR"',
+      // `openclaw plugins install` unpacks into extensions/.openclaw-install-stage-XXXXXX and removes
+      // it when it finishes. An interrupted install leaves the staging copy behind — and it still
+      // carries a plugin manifest, so the gateway logs "duplicate plugin id detected" on every boot
+      // and a stale build competes with the real one for the same id. Found on a production host: a
+      // zalo-connect 3.0.7 stage dir shadowing 3.0.17 for a week. Nothing is installing at entrypoint
+      // time, so any stage dir here is by definition abandoned.
+      'for stage in "$OPENCLAW_HOME"/extensions/.openclaw-install-stage-*; do',
+      '  [ -d "$stage" ] || continue',
+      '  echo "[entrypoint] removing abandoned plugin staging dir $(basename "$stage")"',
+      '  rm -rf "$stage"',
+      'done',
       'if [ "$OPENCLAW_STATE_DIR" != "$OPENCLAW_HOME" ]; then',
       '  for path in "$OPENCLAW_HOME"/*; do',
       '    [ -e "$path" ] || continue',
