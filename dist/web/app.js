@@ -1015,11 +1015,7 @@ function botListPanel(bots) {
   const listItems = bots.map(b => {
     const role = (b.role || b.desc || b.description || '').trim() || t('Tr\u1ee3 l\u00fd OpenClaw','OpenClaw assistant');
     const isZalo = b.channel === 'zalo-personal';
-    const health = isZalo ? zaloAccountHealth(b) : null;
-    const connection = !health ? t('Chưa rõ','Unknown') : health.running ? t('Đã kết nối','Connected') : health.lastError ? t('Mất kết nối','Disconnected') : t('Đang kết nối','Connecting');
-    const login = !health ? t('Chưa rõ','Unknown') : health.sessionSaved ? t('Đã đăng nhập','Logged in') : t('Chưa đăng nhập','Not logged in');
-    const connectionTone = health?.running ? 'ok' : health?.lastError ? 'bad' : 'warn';
-    const loginTone = health?.sessionSaved ? 'ok' : health ? 'bad' : 'warn';
+    const { connection, login, connectionTone, loginTone } = zaloHealthBadges(b);
     return `<article class="bot-item ${state.activeBotId===b.id?'active':''}" data-bot-id="${escapeHtml(b.id)}"><div class="bot-item-actions"><button class="bot-edit" data-edit-bot="${escapeHtml(b.id)}" title="${t('Sửa bot','Edit bot')}" aria-label="${t('Sửa bot','Edit bot')}">${actionIcon('edit')}</button><button class="bot-delete" data-delete-bot="${escapeHtml(b.id)}" title="${t('X\u00f3a bot','Delete bot')}" aria-label="${t('X\u00f3a bot','Delete bot')}">&times;</button></div><div class="bot-item-title"><b>${escapeHtml(b.name)}</b></div><small title="${escapeHtml(role)}">${escapeHtml(role)}</small>${isZalo ? `<div class="zalo-bot-health"><div><span>${t('Kết nối','Connection')}</span><em class="${connectionTone}">${connection}</em></div><div><span>${t('Đăng nhập','Login')}</span><em class="${loginTone}">${login}</em></div></div>` : ''}</article>`;
   });
   listItems.push(`
@@ -1627,7 +1623,10 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     body.projectDir = activeProjectDir();
     body.channel = state.botChannel || 'telegram';
     body.userTimezone = state.tz;
-    if (body.channel === 'zalo-personal') {
+    // Only the CREATE flow starts a Zalo QR login (the server kicks it off and sets
+    // loginStarted). Editing a bot (rename, persona...) must never pop the QR modal —
+    // the session is already saved and the PUT endpoint starts no login.
+    if (body.channel === 'zalo-personal' && !state.botEditId) {
       state.botModalOpen = false;
       state.zaloLoginOpen = true;
       state.zaloQrDataUrl = '';
@@ -1722,6 +1721,24 @@ function zaloAccountHealth(bot) {
     || accounts.find((account) => account.accountId === (bot?.accountId || 'default'))
     || null;
 }
+// Connection/login labels for one bot. lastError wins over running: the gateway keeps
+// running=true while the Zalo listener is stuck in a retry loop (e.g. "Đăng nhập thất
+// bại"), so a running-first check painted dead bots green.
+function zaloHealthBadges(bot) {
+  const health = bot?.channel === 'zalo-personal' ? zaloAccountHealth(bot) : null;
+  const loginFailed = !!health?.lastError && /đăng nhập|log ?in|auth|credential|session/i.test(String(health.lastError));
+  const connection = !health ? t('Chưa rõ','Unknown')
+    : health.lastError ? t('Mất kết nối','Disconnected')
+    : health.running ? t('Đã kết nối','Connected')
+    : t('Đang kết nối','Connecting');
+  const login = !health ? t('Chưa rõ','Unknown')
+    : loginFailed ? t('Phiên hết hạn','Session expired')
+    : health.sessionSaved ? t('Đã đăng nhập','Logged in')
+    : t('Chưa đăng nhập','Not logged in');
+  const connectionTone = !health ? 'warn' : health.lastError ? 'bad' : health.running ? 'ok' : 'warn';
+  const loginTone = !health ? 'warn' : loginFailed ? 'bad' : health.sessionSaved ? 'ok' : 'bad';
+  return { health, connection, login, connectionTone, loginTone };
+}
 function zaloToolbar(channelBots = []) {
   const active = channelBots.find((bot) => bot.id === state.activeBotId) || channelBots[0];
   const health = zaloAccountHealth(active);
@@ -1733,6 +1750,42 @@ async function loadZaloHealth(silent=false){
   try { state.zaloHealth = await api('/api/zalo/health' + projectQuery()); } catch (_) { state.zaloHealth = null; }
   if (!silent) render();
 }
+// Patch the connection/login badges of the rendered bot cards in place. render() rebuilds
+// the whole panel (killing focus/scroll), so the auto-refresh below must never call it.
+function updateZaloHealthDom() {
+  const bots = state.install?.bots || [];
+  document.querySelectorAll('.bot-item[data-bot-id] .zalo-bot-health').forEach((wrap) => {
+    const id = wrap.closest('[data-bot-id]')?.dataset.botId;
+    const bot = bots.find((b) => b.id === id);
+    if (!bot) return;
+    const badges = zaloHealthBadges(bot);
+    const ems = wrap.querySelectorAll('em');
+    if (ems[0]) { ems[0].className = badges.connectionTone; ems[0].textContent = badges.connection; }
+    if (ems[1]) { ems[1].className = badges.loginTone; ems[1].textContent = badges.login; }
+  });
+}
+// Live status: poll the health endpoint while Zalo bots are on screen (the server caches
+// the ~3s CLI probe with a short TTL, so this stays cheap) and patch the badges in place —
+// no more pressing "Làm mới" to see a bot drop or come back.
+const ZALO_HEALTH_POLL_MS = 10000;
+let zaloHealthPollBusy = false;
+// Debounced instant refresh for log-visible state changes (login saved, container
+// restarted...) so the badges flip within ~2s instead of waiting out a poll tick.
+let zaloHealthRefreshTimer = null;
+function scheduleZaloHealthRefresh() {
+  if (zaloHealthRefreshTimer) return;
+  zaloHealthRefreshTimer = setTimeout(async () => {
+    zaloHealthRefreshTimer = null;
+    try { await loadZaloHealth(true); updateZaloHealthDom(); } catch (_) {}
+  }, 1500);
+}
+setInterval(async () => {
+  if (document.hidden || zaloHealthPollBusy) return;
+  if (!activeProjectDir()) return;
+  if (!document.querySelector('.bot-item[data-bot-id] .zalo-bot-health')) return;
+  zaloHealthPollBusy = true;
+  try { await loadZaloHealth(true); updateZaloHealthDom(); } finally { zaloHealthPollBusy = false; }
+}, ZALO_HEALTH_POLL_MS);
 async function loadFeatureFlags(silent=false){
   const botId=currentBotId();
   if (!activeProjectDir()) { state.featureFlags = {}; state.featureInstalled = {}; state.featureVersions = {}; if (!silent) render(); return; }
@@ -1788,6 +1841,7 @@ function appendLogLine(line) {
     });
     return;
   }
+  if (/\[zalo-connect\].*(login saved|listener (connected|start failed)|restarted|login failed|logged out)/i.test(line)) scheduleZaloHealthRefresh();
   const html = `<p>${escapeHtml(line)}</p>`;
   if (state.zaloLoginOpen || /\[zalo-connect\]|zalo|qr|login|scan/i.test(line)) {
     state.zaloLoginLines.push(cleanTerminalLine(line));

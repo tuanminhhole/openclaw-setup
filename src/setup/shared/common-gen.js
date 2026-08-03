@@ -268,7 +268,13 @@ If setup reported a plugin install error, run this after the bot is running:
         {
           id: 'smart-route',
           name: 'Smart Proxy (Auto Route)',
-          contextWindow: 200000,
+          // smart-route fans out to whatever free upstreams the operator's combo holds, and the
+          // SMALLEST window in that pool is the real ceiling — many free models stop at 128k.
+          // Declaring 200k let sessions grow past what the route could actually accept: once
+          // full, even the compaction summarize call overflowed and every turn died with
+          // "auto-compaction could not recover" until /new. 131072 keeps compaction triggering
+          // (window - reserveTokens) while the summarize request still fits everywhere.
+          contextWindow: 131072,
           maxTokens: 8192,
           input: ['text', 'image'],
         },

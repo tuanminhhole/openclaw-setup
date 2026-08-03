@@ -1,6 +1,19 @@
 # Changelog (English)
 
 
+## [5.16.0] — 2026-08-03
+
+### ✨ New: Live bot status
+
+- **Connection/login badges now update by themselves.** While Zalo bot cards are on screen, the dashboard re-reads the health snapshot every ~10 seconds (the server caches the probe, so this stays cheap) and patches the badges in place — no full re-render, so nothing steals focus from a form you are typing in. Login/restart events in the live log refresh the badges within ~2 seconds. "Refresh" still exists; you should rarely need it.
+
+### 🔧 Fixes
+
+- **A dead Zalo session no longer shows a green "Connected".** Two halves: openclaw-zalo-connect (≥ 3.1.1) now reports listener failures to the gateway instead of retrying silently, and the dashboard lets a reported error outrank `running` — a bot stuck on "Đăng nhập thất bại" shows "Disconnected", and its login badge reads "Session expired" instead of "Logged in".
+- **Editing a bot no longer pops the Zalo QR modal.** The QR login flow belongs to bot creation only; saving a rename opened the modal for no reason — the edit endpoint never starts a login.
+- **Full sessions no longer deadlock on smart-route.** The generated provider entry declared a 200k context window, but smart-route fans out across free upstreams and the smallest window in the pool is the real ceiling. A session that grew past it could not even run the compaction summarize call — every turn failed with "auto-compaction could not recover this turn" until `/new`. New projects declare 131072 (reply length is untouched — that is `maxTokens`); existing projects migrate on the next container rebuild, and only the exact default 200000 is rewritten so custom tuning survives.
+
+
 ## [5.15.6] — 2026-07-30
 
 ### 🔧 Fixes: Abandoned plugin staging dirs

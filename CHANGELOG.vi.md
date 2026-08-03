@@ -1,6 +1,19 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.16.0] — 2026-08-03
+
+### ✨ Mới: Trạng thái bot theo thời gian thực
+
+- **Badge Kết nối/Đăng nhập giờ tự cập nhật.** Khi card bot Zalo đang hiện trên màn hình, dashboard tự đọc lại health snapshot mỗi ~10 giây (server cache sẵn kết quả probe nên rất nhẹ) và vá badge tại chỗ — không vẽ lại cả trang, nên không giật focus khỏi form bạn đang gõ. Sự kiện đăng nhập/restart trong log trực tiếp làm badge đổi trong ~2 giây. Nút "Làm mới" vẫn còn đó; nhưng hiếm khi cần bấm nữa.
+
+### 🔧 Sửa lỗi
+
+- **Phiên Zalo đã chết không còn hiện "Đã kết nối" xanh.** Sửa ở hai nửa: openclaw-zalo-connect (≥ 3.1.1) giờ báo lỗi listener lên gateway thay vì lặng lẽ retry, và dashboard cho lỗi được báo thắng cờ `running` — bot kẹt ở "Đăng nhập thất bại" hiện "Mất kết nối", badge Đăng nhập ghi "Phiên hết hạn" thay vì "Đã đăng nhập".
+- **Sửa bot không còn bật nhầm modal quét QR.** Luồng QR chỉ thuộc về việc tạo bot mới; bấm lưu khi đổi tên từng mở modal đó vô cớ — endpoint sửa bot không hề khởi động đăng nhập.
+- **Session đầy không còn kẹt cứng trên smart-route.** Config sinh ra khai cửa sổ ngữ cảnh 200k, nhưng smart-route phân phối qua nhiều model free và cửa sổ NHỎ NHẤT trong nhóm mới là trần thật. Session phình quá trần đó thì đến cả lệnh tóm tắt để nén cũng không chạy nổi — mọi lượt chat đều lỗi "auto-compaction could not recover this turn" cho tới khi `/new`. Bản cài mới khai 131072 (độ dài câu trả lời KHÔNG đổi — đó là `maxTokens`); project cũ tự migrate ở lần rebuild container kế tiếp, và chỉ giá trị mặc định 200000 bị ghi lại nên tinh chỉnh riêng của bạn được giữ nguyên.
+
+
 ## [5.15.6] — 2026-07-30
 
 ### 🔧 Sửa lỗi: Thư mục staging plugin bỏ dở
