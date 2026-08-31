@@ -194,6 +194,21 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     return `node -e \\"const fs=require('fs'),os=require('os'),path=require('path'),p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));const gp=Number(process.env.OPENCLAW_GATEWAY_PORT||process.env.OPENCLAW_PORT)||c.gateway?.port||18789;const a=new Set(['http://localhost:'+gp,'http://127.0.0.1:'+gp,'http://0.0.0.0:'+gp]);for(const entries of Object.values(os.networkInterfaces()||{})){for(const entry of entries||[]){if(!entry||entry.internal||entry.family!=='IPv4'||!entry.address)continue;a.add('http://' + entry.address + ':'+gp);}}const p9=c.models&&c.models.providers&&c.models.providers['9router'];if(p9){p9.request=Object.assign({},p9.request,{allowPrivateNetwork:true});}c.tools=Object.assign({},c.tools,{profile:'full',exec:{host:'gateway',security:'full',ask:'off'}});c.gateway=Object.assign({},c.gateway,{port:gp,bind:'custom',customBindHost:'0.0.0.0',controlUi:Object.assign({},c.gateway?.controlUi,{allowedOrigins:Array.from(a).filter(Boolean)})});fs.writeFileSync(p,JSON.stringify(c,null,2));}\\"`;
   }
 
+  // Idempotent config upgrade replayed on every runtime start. Docker embeds it in the container
+  // entrypoint; the native runtime (local-server.js) runs it via `node -e` before every gateway
+  // (re)start — one script, both deploy modes, so native bots stop missing config fixes like the
+  // smart-route contextWindow 200000/131072 → 1048576 (Kent chot 01/09/2026; chi dung den DUNG
+  // hai gia tri setup tung ghi, custom tuning giu nguyen). Full rationale sits with the
+  // entrypoint block inside buildDockerArtifacts.
+  // ⚠️ toolResultMaxChars: openclaw ≥2026.8 BO key nay khoi schema va TU CHOI BOOT khi thay no.
+  // Ban cu cua script nay them key vo dieu kien moi lan container start — nen mot khach rebuild
+  // image (Dockerfile keo openclaw moi) la roi vao vong: gateway chet vi key ⇒ xoa tay ⇒ entrypoint
+  // them lai ⇒ chet tiep, khong lo ra thu pham (ca that 103.98.149.154, 31/08/2026, 66 lan restart).
+  // Gio gate theo version openclaw THAT trong container: <2026.8 thi backfill nhu cu, ≥2026.8 thi
+  // GO key neu con (tu chua cac project da nhiem). Khong doc duoc version thi KHONG dong nao chay
+  // — tha thieu mot default con hon gieo key lam gateway tu choi boot.
+  const contextDefaultsScript = `const fs=require('fs'),path=require('path');const p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));let ch=false;c.skills=c.skills||{};c.skills.workshop=c.skills.workshop||{};if(!c.skills.workshop.approvalPolicy){c.skills.workshop.approvalPolicy='auto';ch=true;}if(c.browser&&c.browser.enabled!==false){c.tools=c.tools||{};const dn=Array.isArray(c.tools.deny)?c.tools.deny:[];if(!dn.includes('browser')){dn.push('browser');c.tools.deny=dn;ch=true;}}const d=(c.agents&&c.agents.defaults)?c.agents.defaults:null;if(d){if(d.imageMaxDimensionPx===undefined){d.imageMaxDimensionPx=1024;ch=true;}if(d.imageQuality===undefined){d.imageQuality='efficient';ch=true;}let ocMajorMinor=0;try{const v=String(require('child_process').execSync('openclaw --version',{stdio:['ignore','pipe','ignore']})).match(/(\\d{4})\\.(\\d+)/);if(v)ocMajorMinor=Number(v[1])*100+Number(v[2]);}catch(e){}if(ocMajorMinor&&ocMajorMinor<202608){d.contextLimits=d.contextLimits||{};if(d.contextLimits.toolResultMaxChars===undefined){d.contextLimits.toolResultMaxChars=12000;ch=true;}}else if(d.contextLimits&&d.contextLimits.toolResultMaxChars!==undefined){delete d.contextLimits.toolResultMaxChars;ch=true;}}const pr=c.models&&c.models.providers&&c.models.providers['9router'];if(pr&&Array.isArray(pr.models)){for(const m of pr.models){if(m&&m.id==='smart-route'&&(m.contextWindow===200000||m.contextWindow===131072)){m.contextWindow=1048576;ch=true;}}}if(ch)fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+
   function buildDockerArtifacts(options) {
     const {
       openClawNpmSpec,
@@ -277,7 +292,8 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     //     the compaction summarize call itself overflowed and only /new recovered. Only the
     //     exact setup-written 200000 is rewritten; an operator's custom value is left alone.
     // Each key is only filled in when absent, so an operator's own tuning is never clobbered.
-    const contextDefaultsScript = `const fs=require('fs'),path=require('path');const p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));let ch=false;c.skills=c.skills||{};c.skills.workshop=c.skills.workshop||{};if(!c.skills.workshop.approvalPolicy){c.skills.workshop.approvalPolicy='auto';ch=true;}if(c.browser&&c.browser.enabled!==false){c.tools=c.tools||{};const dn=Array.isArray(c.tools.deny)?c.tools.deny:[];if(!dn.includes('browser')){dn.push('browser');c.tools.deny=dn;ch=true;}}const d=(c.agents&&c.agents.defaults)?c.agents.defaults:null;if(d){if(d.imageMaxDimensionPx===undefined){d.imageMaxDimensionPx=1024;ch=true;}if(d.imageQuality===undefined){d.imageQuality='efficient';ch=true;}d.contextLimits=d.contextLimits||{};if(d.contextLimits.toolResultMaxChars===undefined){d.contextLimits.toolResultMaxChars=12000;ch=true;}}const pr=c.models&&c.models.providers&&c.models.providers['9router'];if(pr&&Array.isArray(pr.models)){for(const m of pr.models){if(m&&m.id==='smart-route'&&m.contextWindow===200000){m.contextWindow=131072;ch=true;}}}if(ch)fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+    // (The script itself lives at module scope — the native runtime replays the exact same
+    // migration before every gateway (re)start, since native projects have no entrypoint.)
     // Companion backfill for the same older projects: their TOOLS.md was generated before the
     // skill-authoring / long-turn guidance existed, and workspace files are only written when a
     // bot is created — so a rebuild alone leaves the assistant stopping at "proposal awaiting
@@ -450,6 +466,24 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '}',
       // `set -e` is on: a non-zero return here must never stop the gateway from starting.
       'start_local_headless_chrome || true',
+    ].join('\n'));
+    // ── Doctor-on-upgrade ─────────────────────────────────────────────────────────────────
+    // Update openclaw khong bao gio chi la "doi so version": schema config doi (key cu bi TU CHOI
+    // chu khong bo qua) va state DB doi migration (audit-events-v2…), va doctor chi chay sach khi
+    // gateway DANG TAT — tuc dung ngay tai day, truoc `gateway run`, trong container vua boot.
+    // So version hien tai voi lan boot truoc (marker trong $OPENCLAW_HOME); khac nhau moi chay,
+    // hai luot vi doctor boc migration theo LOP (ca that 103.98.149.154 can nhieu luot). `yes |`
+    // vi doctor co cau hoi tuong tac; loi doctor khong chan boot — gateway se tu noi not phan con
+    // thieu, con hon container chet cung khong ai chan doan duoc.
+    runtimeParts.push([
+      'OC_VER="$(openclaw --version 2>/dev/null | head -1)"',
+      'OC_VER_MARKER="$OPENCLAW_HOME/.openclaw-last-version"',
+      'if [ -n "$OC_VER" ] && [ "$OC_VER" != "$(cat "$OC_VER_MARKER" 2>/dev/null)" ]; then',
+      '  echo "[entrypoint] openclaw version changed ($(cat "$OC_VER_MARKER" 2>/dev/null || echo none) -> $OC_VER); running doctor --fix"',
+      '  yes | openclaw doctor --fix || true',
+      '  yes | openclaw doctor --fix || true',
+      '  printf %s "$OC_VER" > "$OC_VER_MARKER" || true',
+      'fi',
     ].join('\n'));
     runtimeParts.push('openclaw gateway run');
     const runtimeScript = ['#!/bin/sh', 'set -e', ...runtimeParts].join('\n');
@@ -697,6 +731,7 @@ ${appEnvironmentBlock}${plainSingleExtraHosts ? `${extraHostsBlock}\n` : ''}    
     build9RouterComposeEntrypointScript,
     buildGatewayPatchCmd,
     buildDockerArtifacts,
+    contextDefaultsScript,
   };
 
 })(typeof globalThis !== 'undefined' ? globalThis : {});

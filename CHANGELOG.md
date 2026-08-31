@@ -1,6 +1,21 @@
 # Changelog (English)
 
 
+## [5.16.1] — 2026-08-31
+
+### 🔧 Fixes: an openclaw upgrade no longer bricks the bot
+
+- **Pinned the OpenClaw version in the generated Dockerfile** (was `openclaw@latest`). A routine image rebuild could silently jump a whole OpenClaw generation — new strict config schema + new state-DB migrations — and the gateway then refused to boot. Seen live: a customer bot went down for 26 hours with 66 restarts after one rebuild pulled 2026.8.1 under a 2026.7-era config. Upgrading OpenClaw is now an explicit act shipped with a setup release.
+- **The entrypoint no longer re-infects the config with `toolResultMaxChars`.** OpenClaw ≥ 2026.8 dropped that key from the schema and refuses to boot when it is present — but the old entrypoint re-added it on every container start, so deleting it by hand could never stick. The backfill is now gated on the actual `openclaw --version` inside the container: older runtimes keep the backfill, 2026.8+ gets the key removed (self-healing already-infected projects), and an unreadable version changes nothing.
+- **Doctor-on-upgrade:** the entrypoint remembers the last OpenClaw version it booted (`.openclaw-last-version`) and, when it changes, runs `openclaw doctor --fix` twice before starting the gateway — exactly the stopped-writer window doctor needs for config + state-DB migrations.
+- **Native gateway startup no longer dies to systemd's start limit.** First boot runs OpenClaw's state migrations under a ~5-minute lease; a colliding start exits instantly, and five of those in 30s made systemd abandon the unit for good while the installer waited on a port that would never answer. The installed unit now gets a drop-in lifting the start limit, a parked "failed" unit is reset before starting, health waits outlast the lease (420s), and a stalled wait explains itself — including calling out an `ssh -L` self-loop squatting on the gateway port.
+- **`spawn openclaw ENOENT` fixed for skill/plugin installs from the Setup UI.** When the UI runs under the system Node while openclaw lives in an nvm prefix, the CLI was invisible. Bare commands are now resolved through PATH → nvm per-version bins (newest first) → global npm prefixes, and the resolved binary's own directory is prepended to the child PATH so its `#!/usr/bin/env node` picks the right runtime — applied to all five spawn sites.
+
+### ⚙️ Change: smart-route context window 131072 → 1,048,576
+
+- The 9router `smart-route` model entry now declares a 1M context window (owner decision, 2026-09-01), and existing projects are migrated on the next container start / native restart — only the exact setup-written values 200000/131072 are rewritten, custom tuning stays. Trade-off: if a combo still routes to a 128k upstream, long sessions can overflow there again — fix the combo, not the window.
+
+
 ## [5.16.0] — 2026-08-03
 
 ### ✨ New: Live bot status

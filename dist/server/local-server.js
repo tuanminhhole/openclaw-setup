@@ -15,7 +15,7 @@ function loadSharedModule(modulePath, globalName) {
 }
 const { buildWorkspaceFileMap, buildCronjobSkillMd, buildInfographicGeneratorSkillMd, buildInfographicGeneratorJs } = loadSharedModule('../setup/shared/workspace-gen.js', '__openclawWorkspace');
 const { buildOpenclawJson, buildEnvFileContent, buildExecApprovalsJson, buildZaloConnectChannelConfig } = loadSharedModule('../setup/shared/bot-config-gen.js', '__openclawBotConfig');
-const { buildDockerArtifacts } = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
+const { buildDockerArtifacts, contextDefaultsScript } = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
 const { HOST_UI_PS1, HOST_UI_PS1_VERSION } = loadSharedModule('../setup/shared/host-ui-ps1.js', '__openclawHostUiPs1');
 const { OPENCLAW_NPM_SPEC, NINE_ROUTER_NPM_SPEC, ZALO_CHANNEL_ID, ZALO_PLUGIN_ID, ZALO_CONNECT_VERSION, ZALO_CONNECT_PLUGIN_SPEC, build9RouterProviderConfig, get9RouterBaseUrl } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
@@ -646,16 +646,71 @@ function getRealHomedir() {
   return home;
 }
 
+/**
+ * Directories to search when a bare command is not sitting next to the running node.
+ *
+ * resolveBinPath's original assumption — "the CLI lives beside the node that runs me" — holds only
+ * while the Setup UI is launched by the same node that installed openclaw globally. It breaks the
+ * moment the UI runs under the SYSTEM node while openclaw lives in an nvm prefix: `openclaw` stays a
+ * bare name, spawn's own PATH lookup finds nothing either, and every skill/plugin install dies with
+ * `spawn openclaw ENOENT`. Hit on a customer VPS 2026-08-28, right after the UI became a systemd
+ * unit whose PATH carried only the system directories — `openclaw` existed the whole time, at
+ * /root/.nvm/versions/node/v24.20.0/bin/openclaw.
+ *
+ * PATH first (so an operator's own choice still wins), then nvm's per-version bins newest first,
+ * then the usual global npm prefixes. Cached: this runs on every spawn.
+ */
+let extraBinDirsCache = null;
+function extraBinDirs() {
+  if (extraBinDirsCache) return extraBinDirsCache;
+  const dirs = String(process.env.PATH || '').split(process.platform === 'win32' ? ';' : ':').filter(Boolean);
+  const home = os.homedir();
+  const nvmRoot = process.env.NVM_DIR ? join(process.env.NVM_DIR, 'versions', 'node') : join(home, '.nvm', 'versions', 'node');
+  // Newest version first: a box with several nvm nodes almost always installed the CLI under the
+  // latest one, and picking the oldest would run openclaw on a node its engines field rejects.
+  try {
+    for (const v of fs.readdirSync(nvmRoot).sort().reverse()) dirs.push(join(nvmRoot, v, 'bin'));
+  } catch (e) {}
+  for (const d of ['/usr/local/bin', '/usr/bin', '/opt/homebrew/bin', join(home, '.npm-global', 'bin'), join(home, '.local', 'bin')]) dirs.push(d);
+  extraBinDirsCache = dirs;
+  return dirs;
+}
+
 function resolveBinPath(cmd) {
   if (!cmd || cmd.includes('/') || cmd.includes('\\')) return cmd;
+  const names = process.platform === 'win32' ? [`${cmd}.cmd`, `${cmd}.exe`, cmd] : [cmd];
   const nodeBinDir = dirname(process.argv[0]);
-  const localPath = join(nodeBinDir, process.platform === 'win32' ? `${cmd}.cmd` : cmd);
-  if (existsSync(localPath)) return localPath;
-  const localExe = join(nodeBinDir, process.platform === 'win32' ? `${cmd}.exe` : cmd);
-  if (existsSync(localExe)) return localExe;
+  for (const name of names) {
+    const p = join(nodeBinDir, name);
+    if (existsSync(p)) return p;
+  }
   const nodeModulesBin = join(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? `${cmd}.cmd` : cmd);
   if (existsSync(nodeModulesBin)) return nodeModulesBin;
+  for (const dir of extraBinDirs()) {
+    for (const name of names) {
+      const p = join(dir, name);
+      if (existsSync(p)) return p;
+    }
+  }
   return cmd;
+}
+
+/**
+ * Child env for a resolved binary, with the binary's own directory on PATH.
+ *
+ * Load-bearing for anything picked out of an nvm prefix: `openclaw` there is a shebang script
+ * (`#!/usr/bin/env node`), so running it by absolute path still resolves `node` from the CHILD's
+ * PATH. Without this the CLI is found and then executed by whatever node happens to be first —
+ * the system one — which is not the node it was installed for.
+ */
+function binEnv(bin, extra = {}) {
+  const env = { ...process.env, ...extra };
+  if (!bin.includes('/') && !bin.includes('\\')) return env;
+  const sep = process.platform === 'win32' ? ';' : ':';
+  const dir = dirname(bin);
+  const cur = String(env.PATH || '').split(sep).filter(Boolean);
+  if (!cur.includes(dir)) env.PATH = [dir, ...cur].join(sep);
+  return env;
 }
 
 // Blacklist of Windows system/large directories that should never be walked
@@ -704,7 +759,7 @@ function run(cmd, args, opts = {}) {
     const shell = process.platform === 'win32';
     const rawBin = resolveBinPath(cmd);
     const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
-    const child = spawn(bin, args, { cwd: opts.cwd, shell, env: { ...process.env, ...(opts.env || {}) } });
+    const child = spawn(bin, args, { cwd: opts.cwd, shell, env: binEnv(rawBin, opts.env) });
     let stdout = '';
     let resolved = false;
     child.stdout.on('data', (d) => {
@@ -877,7 +932,7 @@ function runStreamed(cmd, args, opts = {}) {
     cwd: opts.cwd,
     shell,
     windowsHide: opts.windowsHide ?? true,
-    env: { ...process.env, ...(opts.env || {}) },
+    env: binEnv(rawBin, opts.env),
   });
   child.stdout.on('data', (d) => sendLog(String(d).trimEnd()));
   child.stderr.on('data', (d) => sendLog(String(d).trimEnd()));
@@ -895,7 +950,7 @@ function runStreamedToLogFile(cmd, args, logFile, opts = {}) {
     cwd: opts.cwd,
     shell,
     windowsHide: opts.windowsHide ?? true,
-    env: { ...process.env, ...(opts.env || {}) },
+    env: binEnv(rawBin, opts.env),
   });
   let offset = 0;
   const poll = setInterval(async () => {
@@ -923,7 +978,7 @@ function runCapture(cmd, args, opts = {}) {
       cwd: opts.cwd,
       shell,
       windowsHide: opts.windowsHide ?? true,
-      env: { ...process.env, ...(opts.env || {}) },
+      env: binEnv(rawBin, opts.env),
     });
     // Some callers need to feed stdin (pbcopy/xclip take the clipboard text that way).
     if (opts.input != null) {
@@ -1605,6 +1660,26 @@ function validateOpenclawConfig(cfg) {
   }
   if (!cfg.channels || typeof cfg.channels !== 'object') throw httpError(500, 'openclaw.json missing channels');
 
+  // Self-healing: two zalo-connect bindings can never share one account — one Zalo number, one
+  // listener. An older edit path hardcoded `accountId: 'default'`, so an edited bot could end up
+  // squatting the first bot's account while its own account sat unbound (no listener, and the
+  // other bot answered in its place). Only repair where the intent is unambiguous: the agent
+  // already has an account of its own provisioned under its agentId.
+  const zaloAccounts = cfg.channels?.['zalo-connect']?.accounts;
+  if (zaloAccounts) {
+    const owner = new Map();
+    for (const binding of cfg.bindings || []) {
+      if (binding.match?.channel !== 'zalo-connect') continue;
+      const accountId = binding.match?.accountId || 'default';
+      const agentId = binding.agentId;
+      if (!owner.has(accountId)) { owner.set(accountId, agentId); continue; }
+      if (owner.get(accountId) === agentId || !zaloAccounts[agentId]) continue;
+      binding.match.accountId = agentId;
+      owner.set(agentId, agentId);
+      sendLog(`[config] Bot "${agentId}" đang dùng chung account Zalo "${accountId}" với "${owner.get(accountId)}" — đã trả về account riêng "${agentId}".`);
+    }
+  }
+
   // Self-healing: Garbage collect any orphaned telegram accounts that are no longer bound to any active agent
   if (cfg.channels?.telegram?.accounts) {
     const boundAccountIds = new Set(
@@ -2012,9 +2087,15 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   agent.workspace = `/home/node/project/.openclaw/${workspaceDir}`;
   agent.agentDir = `agents/${agentId}/agent`;
 
-  // Find the existing accountId from bindings BEFORE removing them
-  const existingBinding = (cfg.bindings || []).find((b) => b.agentId === agentId && b.match?.channel === 'telegram');
-  const existingAccountId = existingBinding?.match?.accountId || null;
+  // Capture this agent's current accountId per channel BEFORE its bindings are dropped.
+  // The zalo-connect branch below used to hardcode 'default' (and this lookup only covered
+  // telegram), so editing ANY Zalo bot re-pointed it at the FIRST bot's Zalo account: two
+  // bindings claimed `default`, the earlier one won, and the edited bot's own account was left
+  // with no binding at all — so its listener never started and messages were answered by the
+  // other bot. Seen live on a 5-bot install (bot answered under the first bot's name).
+  const previousBindings = (cfg.bindings || []).filter((b) => b.agentId === agentId);
+  const previousAccountId = (ch) => previousBindings.find((b) => b.match?.channel === ch)?.match?.accountId || null;
+  const existingAccountId = previousAccountId('telegram');
   cfg.bindings = (cfg.bindings || []).filter((b) => b.agentId !== agentId);
   if (channel === 'telegram') {
     ensureTelegramChannel(cfg);
@@ -2030,7 +2111,16 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     cfg.bindings.push({ agentId, match: { channel: 'telegram', accountId } });
   } else if (channel === 'zalo-personal') {
     ensureZaloConnectChannel(cfg);
-    cfg.bindings.push({ agentId, match: { channel: 'zalo-connect', accountId: 'default' } });
+    const zc = cfg.channels['zalo-connect'];
+    zc.accounts = zc.accounts || {};
+    // Keep the account this bot already owns; only a bot that never had one falls back to the
+    // create-path rule (first Zalo bot takes `default`, the rest get their own agentId account).
+    // This agent's bindings are already filtered out above, so what remains belongs to others.
+    const otherZaloBindings = cfg.bindings.filter((b) => b.match?.channel === 'zalo-connect').length;
+    const accountId = previousAccountId('zalo-connect') || (otherZaloBindings === 0 ? 'default' : agentId);
+    zc.accounts[accountId] = zc.accounts[accountId] || { enabled: true };
+    zc.defaultAccount = zc.defaultAccount || 'default';
+    cfg.bindings.push({ agentId, match: { channel: 'zalo-connect', accountId } });
   } else if (channel === 'fb-messenger') {
     ensureFbMessengerChannel(cfg, String(body.pageId || '').trim(), String(body.appId || '').trim());
     cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: 'default' } });
@@ -2640,6 +2730,11 @@ const NATIVE_MARKER = 'native.json';
 // handles coexistence by asking the host what is actually taken, which the fixed offset never did.
 const NATIVE_DEFAULT_GATEWAY_PORT = 18789;
 const NATIVE_DEFAULT_ROUTER_PORT = 20128;
+// The gateway's startup migrations hold a lease on the state directory for FIVE MINUTES, and a boot
+// that collides with it exits immediately instead of waiting. Any health wait shorter than that
+// lease reports failure on a gateway that was always going to come up on its own — the old 180s
+// could not outlast it even in the best case.
+const NATIVE_GATEWAY_HEALTH_TIMEOUT_MS = 420000;
 
 function nativeMarkerPath(projectDir) {
   return join(projectDir || state.projectDir || '', '.openclaw', NATIVE_MARKER);
@@ -2717,13 +2812,22 @@ async function waitForNativeGatewayHealthy(projectDir, timeoutMs = 120000) {
   const port = String(meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT);
   const started = Date.now();
   let attempts = 0;
+  let diagnosed = false;
   while (Date.now() - started < timeoutMs) {
     if (await probeHttpOk(`http://127.0.0.1:${port}/health`, 2500)) return true;
     attempts++;
     if (attempts % 5 === 0) sendLog(`[native] Waiting for gateway on ${port}... (${Math.round((Date.now() - started) / 1000)}s)`);
+    // Half a minute of silence is already abnormal for a gateway that is merely slow, and the two
+    // causes that never resolve on their own (a stolen port, an abandoned unit) look exactly like
+    // "still booting" from here. Say what is wrong once, early, and keep waiting either way.
+    if (attempts === 10 && !diagnosed) {
+      diagnosed = true;
+      await reportNativeGatewayBlockage(projectDir, port).catch(() => {});
+    }
     await new Promise((r) => setTimeout(r, 3000));
   }
   sendLog(`[native] Gateway did not answer /health on ${port} within ${Math.round(timeoutMs / 1000)}s.`);
+  if (!diagnosed) await reportNativeGatewayBlockage(projectDir, port).catch(() => {});
   return false;
 }
 
@@ -2766,11 +2870,33 @@ async function ocDaemon(projectDir, verb, extraArgs = []) {
  * perfectly healthy gateway reports "restart failed" — which used to send callers down a pointless
  * stop+start that raced the migration lease all over again.
  */
+/**
+ * Docker projects replay the idempotent config migrations on every container start — the
+ * entrypoint embeds contextDefaultsScript. Native projects have no entrypoint, so an existing
+ * native bot never received those fixes (a bot created before 5.16.0 kept the smart-route
+ * contextWindow at 200000 and stayed exposed to the compaction deadlock). Replaying the exact
+ * same script here, right before every gateway (re)start, gives native the docker semantics:
+ * migrate first, then boot on the upgraded config.
+ */
+async function runNativeConfigMigrations(projectDir) {
+  const res = await runCapture(process.execPath, ['-e', contextDefaultsScript], {
+    cwd: projectDir,
+    env: nativeEnv(projectDir),
+    shell: false,
+  });
+  if (res.code !== 0) sendLog(`[native] config migrations skipped: ${String(res.stderr || res.stdout || '').trim().slice(0, 200)}`);
+  return res.code === 0;
+}
+
 async function restartNativeRuntime(projectDir) {
-  // Every restart is a chance to repair a project installed before these two fixes existed — both
-  // calls are no-ops once the service env is complete and the stray files have been adopted.
+  // Every restart is a chance to repair a project installed before these fixes existed — the
+  // calls are no-ops once the service env is complete, stray files are adopted, and the config
+  // already carries the migrated defaults.
   await adoptStrayNativeHome(projectDir).catch(() => {});
   await syncNativeServiceEnv(projectDir).catch(() => {});
+  await runNativeConfigMigrations(projectDir).catch(() => {});
+  await hardenNativeServiceRestarts(projectDir).catch(() => {});
+  await clearNativeServiceFailure(projectDir).catch(() => {});
   const stopStart = async () => {
     await ocDaemon(projectDir, 'stop');
     return ocDaemon(projectDir, 'start');
@@ -2795,9 +2921,10 @@ async function restartNativeRuntime(projectDir) {
     res = await ocDaemon(projectDir, 'restart');
     if (res.code !== 0) res = await stopStart();
   }
-  // systemd keeps restarting a crash-looping unit every RestartSec, so a gateway blocked by a lease
-  // we never saw still comes up on its own — give it room before calling the restart a failure.
-  if (!(await waitForNativeGatewayHealthy(projectDir, 180000))) {
+  // With the start limit lifted (hardenNativeServiceRestarts) systemd really does keep restarting a
+  // crash-looping unit every RestartSec, so a gateway blocked by a lease we never saw still comes up
+  // on its own — give it the full lease window before calling the restart a failure.
+  if (!(await waitForNativeGatewayHealthy(projectDir, NATIVE_GATEWAY_HEALTH_TIMEOUT_MS))) {
     throw new Error('gateway did not answer /health after restart');
   }
   return true;
@@ -2925,6 +3052,112 @@ async function ensureSystemdLinger() {
 }
 
 /**
+ * Stop systemd abandoning the gateway while the state lease is still held.
+ *
+ * `openclaw daemon install` writes `StartLimitBurst=5` / `StartLimitIntervalSec=60` next to
+ * `Restart=always`. The gateway's startup migrations take a lease on the state directory that lasts
+ * five minutes, and a boot that collides with it exits 1 *immediately* — so five collisions burn the
+ * whole limit in 30 seconds, systemd logs "Start request repeated too quickly", and the unit stays
+ * dead for good even though the lease frees itself minutes later. Verified on a fresh Ubuntu 24.04
+ * VPS (2026-08-28): the setup UI sat on "Waiting for gateway on 18789..." until it timed out, while
+ * `systemctl --user start` afterwards brought the same unit up on the first try.
+ *
+ * A drop-in rather than an edit to the unit body: `daemon install --force` rewrites the unit on every
+ * run, and drop-ins survive that.
+ */
+async function hardenNativeServiceRestarts(projectDir) {
+  if (process.platform !== 'linux' || !isNativeProject(projectDir)) return false;
+  const unit = `${nativeServiceLabel(projectDir)}.service`;
+  const dir = join(os.homedir(), '.config', 'systemd', 'user', `${unit}.d`);
+  const file = join(dir, '99-openclaw-setup.conf');
+  const body = [
+    '# Written by openclaw-setup — regenerated on every install, do not edit.',
+    '# Startup migrations hold the state lease for ~5 minutes and a colliding boot exits at once, so',
+    '# the stock StartLimitBurst=5/StartLimitIntervalSec=60 abandons the unit for good within 30s.',
+    '# No start limit = systemd keeps retrying every RestartSec until the lease frees itself.',
+    '[Unit]',
+    'StartLimitIntervalSec=0',
+    '[Service]',
+    'RestartSec=10',
+    '',
+  ].join('\n');
+  if ((await fsp.readFile(file, 'utf8').catch(() => '')) === body) return true;
+  await fsp.mkdir(dir, { recursive: true });
+  await fsp.writeFile(file, body, 'utf8');
+  await run('systemctl', ['--user', 'daemon-reload'], {}).catch(() => {});
+  sendLog('[native] service hardened: systemd start limit lifted (a migration lease can take 5 min).');
+  return true;
+}
+
+/**
+ * A unit parked at "Start request repeated too quickly" refuses every later `start` until its
+ * failure is cleared — including the one that would finally succeed. Cheap and idempotent, so it
+ * runs before each start and also repairs a project abandoned by an earlier install.
+ */
+async function clearNativeServiceFailure(projectDir) {
+  if (process.platform !== 'linux' || !isNativeProject(projectDir)) return false;
+  const unit = `${nativeServiceLabel(projectDir)}.service`;
+  const shown = await runCapture('systemctl', ['--user', 'show', '-p', 'ActiveState', '--value', unit], { shell: false, timeout: 10000 });
+  if (!/^failed/i.test(String(shown.stdout || '').trim())) return false;
+  await run('systemctl', ['--user', 'reset-failed', unit], {}).catch(() => {});
+  sendLog(`[native] cleared the previous failed state of ${unit} before starting it.`);
+  return true;
+}
+
+/**
+ * Name whatever already owns a port, so a stalled wait can say why it will never end.
+ *
+ * The trap this exists for: an operator runs the port-forward command out of `ssh <host>-setup`
+ * (`ssh -L 18789:127.0.0.1:18789 root@<host>`) while already logged INTO that host instead of from
+ * their own machine. ssh binds 18789 locally and forwards it to 18789 on the same box — a self-loop
+ * that accepts every connection and answers nothing. The gateway can then never bind its port, and
+ * health probes hang instead of failing, so the port looks alive and is useless. Seen on a customer
+ * VPS 2026-08-28. `ss` (iproute2) is used on Linux rather than `lsof`, which a minimal Ubuntu lacks.
+ */
+async function describePortHolder(port) {
+  const trim = (v) => String(v || '').trim();
+  if (process.platform === 'win32') {
+    const out = await runCapture('powershell', ['-NoProfile', '-Command', `$p=(Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess; if ($p) { "pid $p: " + (Get-Process -Id $p -ErrorAction SilentlyContinue).Path }`], { shell: false, timeout: 15000 });
+    return trim(out.stdout);
+  }
+  if (process.platform === 'linux') {
+    const ss = await runCapture('ss', ['-ltnp'], { shell: false, timeout: 10000 });
+    const line = String(ss.stdout || '').split('\n').find((l) => new RegExp(`[:.]${port}\\s`).test(l)) || '';
+    const pid = (line.match(/pid=(\d+)/) || [])[1];
+    if (!pid) return trim(line);
+    const ps = await runCapture('ps', ['-o', 'args=', '-p', pid], { shell: false, timeout: 10000 });
+    return `pid ${pid}: ${trim(ps.stdout) || trim(line)}`;
+  }
+  const out = await runCapture('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN'], { shell: false, timeout: 10000 });
+  return trim(String(out.stdout || '').split('\n')[1]);
+}
+
+/**
+ * Explain a gateway that is not answering, instead of counting down in silence.
+ *
+ * Three causes, all indistinguishable from "still booting" without this: an ssh port-forward
+ * self-loop holding the port (describePortHolder), the migration lease plus systemd's start limit
+ * leaving the unit dead for good (hardenNativeServiceRestarts), or an ordinary crash on boot — for
+ * which the unit's own journal is the only thing that ever says so.
+ */
+async function reportNativeGatewayBlockage(projectDir, port) {
+  const holder = await describePortHolder(port).catch(() => '');
+  if (holder) {
+    sendLog(`[native] Port ${port} is already held by → ${holder}`);
+    if (/(^|\/|\s)ssh(\s|$)/.test(holder) && new RegExp(`-L\\s*\\d*:?${port}:`).test(holder)) {
+      sendLog(`[native] That is an SSH port-forward, not the gateway. \`ssh -L ${port}:...\` belongs on YOUR OWN machine — run it on the server and it steals port ${port} from the gateway and answers nothing. Kill that ssh process on the server, then start the gateway again.`);
+    }
+  }
+  if (process.platform !== 'linux' || !isNativeProject(projectDir)) return;
+  const unit = `${nativeServiceLabel(projectDir)}.service`;
+  const st = await runCapture('systemctl', ['--user', 'show', '-p', 'ActiveState', '-p', 'SubState', '-p', 'NRestarts', '--value', unit], { shell: false, timeout: 10000 }).catch(() => ({}));
+  const vals = String(st.stdout || '').split('\n').map((v) => v.trim()).filter(Boolean);
+  if (vals.length) sendLog(`[native] ${unit} → ${vals.join(' / ')}`);
+  const log = await runCapture('journalctl', ['--user', '-u', unit, '-n', '15', '--no-pager'], { shell: false, timeout: 15000 }).catch(() => ({}));
+  for (const line of String(log.stdout || '').split('\n').map((l) => l.trimEnd()).filter(Boolean)) sendLog(`[native] ${line}`);
+}
+
+/**
  * Native counterpart of the docker entrypoint's `ensure_plugin` (docker-gen.js).
  *
  * A container reinstalls its missing plugins on every boot; a native project has no entrypoint, so
@@ -2983,7 +3216,7 @@ function startDetached(cmd, args, opts = {}) {
     detached: true,
     stdio: 'ignore',
     windowsHide: opts.windowsHide ?? true,
-    env: { ...process.env, ...(opts.env || {}) },
+    env: binEnv(rawBin, opts.env),
   });
   child.on('error', (err) => sendLog(`[native] Failed to start "${cmd}": ${err.message}`));
   child.unref();
@@ -3077,20 +3310,38 @@ async function startNativeRuntime({ projectDir, osChoice = '', gatewayPort, rout
   // straight away, needs no follow-up restart, and prints no "plugin not found" warnings.
   await ensureNativePlugins(projectDir).catch((e) => sendLog(`[native] plugin bootstrap skipped: ${e.message}`));
 
+  // Config migrations BEFORE the first boot too — same ordering the container entrypoint uses
+  // (migrate, then start), so an adopted pre-existing project boots on the upgraded config.
+  await runNativeConfigMigrations(projectDir).catch(() => {});
+
   // Managed service = auto-restart (KeepAlive/Restart=always) and start-at-login, the native
   // equivalent of docker's `restart: always`. --force so re-running install updates the port.
   const env = nativeEnv(projectDir);
   await ensureSystemdLinger();
   await run('openclaw', ['daemon', 'install', '--force', '--port', String(gwPort)], { cwd: projectDir, env });
+  await hardenNativeServiceRestarts(projectDir).catch((e) => sendLog(`[native] service hardening skipped: ${e.message}`));
+  await clearNativeServiceFailure(projectDir).catch(() => {});
+  // `daemon install` already STARTED the unit, and that first boot begins the state migrations that
+  // hold a five-minute lease on the state directory. This used to restart it right away — to pick up
+  // the env completed below — and the restart landed mid-migration: the lease was left behind, every
+  // following boot exited 1 until it expired, and systemd's start limit abandoned the unit long
+  // before that. The setup UI then waited out its whole timeout on a service that was never coming
+  // back (real Ubuntu 24.04 VPS, 2026-08-28). So let this boot finish UNDISTURBED first, and only
+  // then repair the env and restart a settled gateway.
+  const firstBootOk = await waitForNativeGatewayHealthy(projectDir, NATIVE_GATEWAY_HEALTH_TIMEOUT_MS);
   // Order is load-bearing: adopt the stray files FIRST, then complete the service env. The other way
   // round, the gateway boots with a corrected OPENCLAW_HOME, finds no Zalo session there, and asks
   // for a new QR scan even though a perfectly good session exists in the home directory.
   await adoptStrayNativeHome(projectDir).catch((e) => sendLog(`[migrate] stray home skipped: ${e.message}`));
-  await syncNativeServiceEnv(projectDir).catch((e) => sendLog(`[native] service env sync skipped: ${e.message}`));
-  await run('openclaw', ['daemon', 'start'], { cwd: projectDir, env });
-  // Let the first boot finish its state migrations here, while nothing else is competing for the
-  // lease. Every later action (create bot, install plugin) then restarts a settled gateway.
-  await waitForNativeGatewayHealthy(projectDir, 180000);
+  const envAdded = await syncNativeServiceEnv(projectDir).catch((e) => { sendLog(`[native] service env sync skipped: ${e.message}`); return []; });
+  // One restart, and only when there is something to gain by it: a completed env to load, or a first
+  // boot that never answered (in which case the restart is the repair attempt).
+  if (envAdded.length || !firstBootOk) {
+    sendLog(envAdded.length
+      ? '[native] restarting gateway to load the completed service env'
+      : '[native] first boot never answered /health — restarting once to recover');
+    await restartNativeRuntime(projectDir).catch((e) => sendLog(`[native] restart after install: ${e.message}`));
+  }
   sendLog(`[native] gateway service "${label}" running on 127.0.0.1:${gwPort}, 9router on 127.0.0.1:${rtPort}`);
   return { gatewayPort: gwPort, routerPort: rtPort, label };
 }
@@ -3243,7 +3494,7 @@ async function recreateDockerBot(projectDir) {
     // under a state lease, a restart mid-migration exits 1, and systemd's start limit can then
     // abandon the unit. This is the same trap the docker path avoids by waiting for the container
     // before touching it (see startZaloConnectLogin) — wait for /health first.
-    await waitForNativeGatewayHealthy(projectDir, 180000);
+    await waitForNativeGatewayHealthy(projectDir, NATIVE_GATEWAY_HEALTH_TIMEOUT_MS);
     // The bot that was just created/edited may have added the Zalo channel or the context engine to
     // openclaw.json; put those plugins on disk now so this one reload loads them too.
     await ensureNativePlugins(projectDir).catch((e) => sendLog(`[native] plugin ensure skipped: ${e.message}`));
@@ -6743,11 +6994,57 @@ async function printRemoteAccessHint(uiPort) {
   console.log(`   ssh ${fwd} ${sshUserName()}@${ip}`);
   console.log(`   then open:  http://localhost:${uiPort}`);
   console.log(`   (forwards ${ports.length} live port${ports.length > 1 ? 's' : ''}: ${ports.join(', ')})`);
+  // Spelled out because the obvious mistake is to paste that line into the shell it was printed in.
+  // Run there, ssh binds every one of those ports on THIS box and forwards them straight back to
+  // itself: the gateway can no longer bind 18789, and the self-loop accepts connections while
+  // answering nothing, so the port looks alive and the whole install hangs on "Waiting for gateway".
+  // Cost a customer VPS install on 2026-08-28.
+  console.log('   ⚠️  Run that line on YOUR OWN machine — NOT in this shell. On the server it');
+  console.log(`      steals port ${ports.join('/')} from the bot and the install never finishes.`);
   console.log('');
+}
+
+/** True when whatever answers on host:port already looks like an OpenClaw Setup UI. */
+async function detectExistingSetupUi(host, port) {
+  try {
+    const res = await fetch(`http://${host}:${port}/`, { signal: AbortSignal.timeout(2500) });
+    if (!res.ok) return false;
+    const body = (await res.text()).slice(0, 65536);
+    return /openclaw/i.test(body);
+  } catch (_) {
+    return false;
+  }
 }
 
 export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 51789, openBrowser = true, projectDir = process.cwd() } = {}) {
   const port = await findPort(host, preferredPort);
+  if (port !== preferredPort && (await detectExistingSetupUi(host, preferredPort))) {
+    // Another Setup UI already owns the preferred port (a systemd service, an earlier npx run…).
+    // Hopping to :51790 here is exactly how operators end up with SSH tunnels and printed hints
+    // pointing at a port nothing serves — so reuse the running instance instead of starting a
+    // second one, and keep this process alive so an `ssh -L … "npx create-openclaw-bot"`
+    // one-liner still holds the tunnel open. If the other instance ever goes away, take the
+    // port over so the URL keeps working without the operator re-running anything.
+    const url = `http://${host}:${preferredPort}`;
+    activeUiHost = host;
+    activeUiPort = preferredPort;
+    activeUiProjectDir = projectDir;
+    console.log(`OpenClaw Setup UI is already running: ${url}`);
+    console.log('Reusing the running instance — nothing new was started. Keep this window open if it holds your SSH tunnel.');
+    ensureReopenShortcut();
+    if (openBrowser) openUrl(url);
+    printRemoteAccessHint(preferredPort).catch(() => {});
+    const takeover = setInterval(async () => {
+      if ((await findPort(host, preferredPort)) !== preferredPort) return; // still busy
+      clearInterval(takeover);
+      console.log(`Port ${preferredPort} freed up — starting a Setup UI there to keep ${url} working.`);
+      startLocalInstaller({ host, preferredPort, openBrowser: false, projectDir }).catch(() => {});
+    }, 5000);
+    return;
+  }
+  if (port !== preferredPort) {
+    console.log(`⚠ Port ${preferredPort} is busy with something that is not a Setup UI — using ${port} instead.`);
+  }
   activeUiHost = host;
   activeUiPort = port;
   activeUiProjectDir = projectDir;
@@ -6773,4 +7070,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome };
+export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };

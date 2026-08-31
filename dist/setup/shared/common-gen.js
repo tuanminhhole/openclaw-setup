@@ -1,6 +1,11 @@
 // @ts-nocheck
 (function (root) {
-  const OPENCLAW_NPM_SPEC = 'openclaw@latest';
+  // GHIM version, khong dung @latest: Dockerfile sinh ra mang spec nay, nen "@latest" nghia la
+  // MOI lan rebuild image co the nhay han mot the he openclaw — schema config doi, state DB doi
+  // migration, va bot khach chet ngay sau mot lan bam rebuild vo hai (ca that 103.98.149.154,
+  // 31/08/2026: rebuild keo 2026.7.1-2 → 2026.8.1, gateway tu choi boot, 66 lan restart).
+  // Nang version = doi spec nay MOT CACH CO Y trong mot ban phat hanh setup, kem kiem chung.
+  const OPENCLAW_NPM_SPEC = 'openclaw@2026.8.1';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const NINE_ROUTER_PORT = 20128;
@@ -268,13 +273,14 @@ If setup reported a plugin install error, run this after the bot is running:
         {
           id: 'smart-route',
           name: 'Smart Proxy (Auto Route)',
-          // smart-route fans out to whatever free upstreams the operator's combo holds, and the
-          // SMALLEST window in that pool is the real ceiling — many free models stop at 128k.
-          // Declaring 200k let sessions grow past what the route could actually accept: once
-          // full, even the compaction summarize call overflowed and every turn died with
-          // "auto-compaction could not recover" until /new. 131072 keeps compaction triggering
-          // (window - reserveTokens) while the summarize request still fits everywhere.
-          contextWindow: 131072,
+          // 1M (Kent chot 01/09/2026) — dao lai quyet dinh 131072 cua 5.16.0. Boi canh de doc
+          // lai sau: 131072 sinh ra vi smart-route fan-out sang upstream free ma model nho nhat
+          // trong pool tran ~128k; khai 200k lam phien day den muc chinh loi goi compaction cung
+          // overflow ("auto-compaction could not recover" cho den /new). Gio pool upstream da la
+          // cac model cua so lon nen khai 1M de phien dai khong bi compaction som. TRADE-OFF: neu
+          // mot combo van con model 128k thi phien vuot 128k se chet dung nhu hoi 5.15.x — do la
+          // van de cua combo, sua bang cach chon model, khong sua bang cach ha window o day nua.
+          contextWindow: 1048576,
           maxTokens: 8192,
           input: ['text', 'image'],
         },

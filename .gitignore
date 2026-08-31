@@ -96,3 +96,9 @@ start-bot.sh
 uninstall-openclaw*.bat
 uninstall-openclaw*.sh
 test-vps-install.mjs
+
+# ===== Noi bo — khong len repo public =====
+# CLAUDE.md tro vao vault noi bo va ghi ro dinh huong thuong mai (roi OpenClaw sang MonkeyAgent).
+/CLAUDE.md
+# artifact npm pack thu cong
+/*.tgz

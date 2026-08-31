@@ -1,6 +1,21 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.16.1] — 2026-08-31
+
+### 🔧 Sửa lỗi: update openclaw không còn làm chết bot
+
+- **Ghim version OpenClaw trong Dockerfile sinh ra** (trước là `openclaw@latest`). Một lần rebuild image bình thường có thể âm thầm nhảy nguyên một thế hệ OpenClaw — schema config chặt hơn + state DB đòi migration — và gateway từ chối boot. Ca thật: bot khách chết 26 giờ, 66 lần restart, sau một lần rebuild kéo 2026.8.1 về đè lên config thời 2026.7. Từ nay nâng OpenClaw là việc CHỦ ĐÍCH, đi kèm một bản phát hành setup.
+- **Entrypoint không còn tái nhiễm `toolResultMaxChars` vào config.** OpenClaw ≥ 2026.8 bỏ key này khỏi schema và từ chối boot khi thấy nó — nhưng entrypoint cũ THÊM LẠI mỗi lần container start, nên xoá tay kiểu gì cũng vô ích. Giờ backfill được gate theo `openclaw --version` thật trong container: bản cũ giữ backfill, ≥ 2026.8 thì GỠ key (tự chữa project đã nhiễm), không đọc được version thì không đụng gì.
+- **Doctor-on-upgrade:** entrypoint nhớ version OpenClaw của lần boot trước (`.openclaw-last-version`); version đổi là tự chạy `openclaw doctor --fix` hai lượt TRƯỚC khi start gateway — đúng khoảnh khắc gateway đang tắt mà doctor cần.
+- **Cài native không còn bị systemd bỏ rơi giữa migration.** Boot đầu giữ lease state ~5 phút; boot va vào lease thì exit ngay, 5 lần trong 30 giây là systemd khai tử unit trong khi installer ngồi đợi một cổng không bao giờ trả lời. Nay unit có drop-in bỏ start limit, unit đang "failed" được reset trước khi start, health chờ lâu hơn lease (420s), và khi chờ quá lâu installer TỰ NÓI lý do — kể cả gọi đúng tên vụ `ssh -L` tự-loop chiếm cổng gateway.
+- **Sửa `spawn openclaw ENOENT` khi bấm cài skill/plugin từ Setup UI.** UI chạy bằng Node hệ thống trong khi openclaw nằm trong nvm thì CLI vô hình. Nay lệnh trần được tìm qua PATH → các bin nvm theo version (mới nhất trước) → prefix npm global, và thư mục của binary tìm được được nhét vào PATH của tiến trình con để `#!/usr/bin/env node` chọn đúng runtime — áp cho cả 5 chỗ spawn.
+
+### ⚙️ Thay đổi: cửa sổ ngữ cảnh smart-route 131072 → 1.048.576
+
+- Model `smart-route` của 9router nay khai cửa sổ 1M (Kent chốt 01/09/2026); project hiện hữu được nâng ở lần container start / native restart kế tiếp — chỉ đúng hai giá trị setup từng ghi (200000/131072) bị nâng, tinh chỉnh tay giữ nguyên. Đánh đổi: combo nào còn route sang upstream 128k thì phiên dài vẫn có thể tràn ở đó — sửa combo, đừng hạ window nữa.
+
+
 ## [5.16.0] — 2026-08-03
 
 ### ✨ Mới: Trạng thái bot theo thời gian thực
