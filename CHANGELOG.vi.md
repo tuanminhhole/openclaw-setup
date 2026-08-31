@@ -1,6 +1,20 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.16.2] — 2026-08-31
+
+### 🔧 Sửa lỗi: gom nốt mọi cạnh sắc còn lại của việc lên OpenClaw 2026.8.x — một lượt
+
+Hoàn tất phần 5.16.1 mở ra. 5.16.1 sửa cơ chế làm chết bot khi update (ghim version, config bị tái nhiễm, doctor-on-upgrade); bản này đóng nốt ba ca còn lại — đo trên một ca cứu hộ thật — để cài mới (có hay không có web search) lẫn project cũ đa agent đều tự lên:
+
+- **Bot có web search boot được trên OpenClaw ≥ 2026.8.** Config sinh ra khai provider `duckduckgo`, nhưng 2026.8 đã tách nó thành plugin ngoài kèm phê duyệt capability — gateway vì thế từ chối ready. Entrypoint nay tự cài `@openclaw/duckduckgo-plugin` (kèm consent) trước khi start gateway mỗi khi config cần; cài hỏng chỉ mất tool tìm kiếm, không bao giờ chặn boot.
+- **Project đa agent được tự set `agents.ownership: "explicit"`** trên 2026.8+ — bản đó bắt buộc có mới chịu boot roster nhiều hơn một agent.
+- **Session store cũ theo agent được tự cất đi.** 2026.8 thay `agents/*/sessions/sessions.json` và từ chối chạy khi file còn đó, nhưng `doctor --fix` lại tự hoãn vòng quanh chính nó. Script migration nay đổi tên file thành `.bak-legacy-<ts>` (khôi phục được; file chỉ giữ con trỏ phiên đang mở) — CHỈ trên 2026.8+, vì với 2026.7 đó là store đang sống.
+- **Vá an toàn nhánh không đọc được version:** khi `openclaw --version` không đọc được, migration nay không đổi bất cứ gì — bản gate đầu trong 5.16.1 vẫn có thể xoá nhầm `toolResultMaxChars` ở trạng thái đó.
+
+Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi lần boot) và native (mỗi lần restart gateway) hành xử y hệt nhau.
+
+
 ## [5.16.1] — 2026-08-31
 
 ### 🔧 Sửa lỗi: update openclaw không còn làm chết bot

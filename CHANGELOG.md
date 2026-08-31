@@ -1,6 +1,20 @@
 # Changelog (English)
 
 
+## [5.16.2] — 2026-08-31
+
+### 🔧 Fixes: the remaining OpenClaw 2026.8.x upgrade edges, all in one pass
+
+Completes what 5.16.1 started. 5.16.1 fixed the upgrade-bricking mechanics (version pin, config re-infection, doctor-on-upgrade); this release closes the three remaining cases measured on a real recovery, so a fresh install — with or without web search — and an upgraded multi-agent project all come up on their own:
+
+- **Web-search bots boot on OpenClaw ≥ 2026.8.** The generated config declares the `duckduckgo` provider, but 2026.8 unbundled it into an external plugin with capability consent — so the gateway refused to become ready. The entrypoint now installs `@openclaw/duckduckgo-plugin` (with consent) before starting the gateway whenever the config asks for it; an install failure only costs the search tool, never the boot.
+- **Multi-agent projects get `agents.ownership: "explicit"` automatically** on 2026.8+, which that version requires before it will boot a roster with more than one agent.
+- **Legacy per-agent session stores are parked automatically.** 2026.8 replaces `agents/*/sessions/sessions.json` and refuses to start while one exists, but `doctor --fix` defers the migration back to itself in a loop. The migration script now renames the file to `.bak-legacy-<ts>` (recoverable; it only holds open-session pointers) — on 2026.8+ only, since on 2026.7 that file is the live store.
+- **No-version safety fixed:** when `openclaw --version` cannot be read, the migration now changes nothing at all — the first cut of the 5.16.1 gate could still delete `toolResultMaxChars` in that state.
+
+All three migrations run from the shared config-migration script, so Docker (entrypoint, every boot) and native (every gateway restart) get identical behavior.
+
+
 ## [5.16.1] — 2026-08-31
 
 ### 🔧 Fixes: an openclaw upgrade no longer bricks the bot
