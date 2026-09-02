@@ -37,8 +37,39 @@ const CHROME_PROFILE_CACHE_DIRS = [
   'extensions_crx_cache', 'optimization_guide_model_store', 'blob_storage',
 ];
 
+// openclaw 2026.8.x replaced exec-approvals.json with shared SQLite state and BLOCKS every
+// message dispatch while the legacy file exists ("ExecApprovalsMigrationRequiredError" —
+// measured on vps_c-thu 02/09/2026: the bot went silent with zero model calls, and doctor
+// refuses to migrate the file itself). The exec policy already lives in openclaw.json
+// (tools.exec), so on 2026.8+ we must neither write nor keep this file.
+function specMajorMinor(spec) {
+  const m = String(spec || '').match(/(\d{4})\.(\d+)/);
+  return m ? Number(m[1]) * 100 + Number(m[2]) : 0;
+}
+let hostOcMajorMinorCache = null;
+async function hostOpenclawMajorMinor() {
+  if (hostOcMajorMinorCache !== null) return hostOcMajorMinorCache;
+  const r = await runCapture('openclaw', ['--version'], { shell: false }).catch(() => null);
+  hostOcMajorMinorCache = specMajorMinor(r && (r.stdout || r.stderr));
+  return hostOcMajorMinorCache;
+}
+async function projectOpenclawMajorMinor(projectDir) {
+  // Docker projects run the pinned image spec; native projects run the host install.
+  if (isNativeProject(projectDir)) return (await hostOpenclawMajorMinor()) || specMajorMinor(OPENCLAW_NPM_SPEC);
+  return specMajorMinor(OPENCLAW_NPM_SPEC);
+}
+
 async function syncExecApprovals(projectDir, cfg) {
   const openclawHome = join(projectDir, '.openclaw');
+  if ((await projectOpenclawMajorMinor(projectDir)) >= 202608) {
+    for (const f of [join(openclawHome, 'exec-approvals.json'), join(openclawHome, '.openclaw', 'exec-approvals.json')]) {
+      if (existsSync(f)) {
+        await fsp.rename(f, `${f}.bak-legacy-${Date.now()}`).catch(() => {});
+        sendLog(`[migrate] parked legacy exec approvals ${f} (openclaw >=2026.8 blocks dispatch while it exists)`);
+      }
+    }
+    return;
+  }
   const agentMetas = (cfg.agents?.list || []).map((a) => ({ agentId: a.id }));
   const approvals = buildExecApprovalsJson({ agentMetas });
 
@@ -1404,7 +1435,39 @@ function ensureConfigShape(cfg) {
   cfg.agents.defaults = cfg.agents.defaults || { model: { primary: DEFAULT_MODEL, fallbacks: [] } };
   cfg.agents.defaults.model = cfg.agents.defaults.model || { primary: DEFAULT_MODEL, fallbacks: [] };
   if (!cfg.agents.defaults.model.primary || cfg.agents.defaults.model.primary === '9router/smart-route' || cfg.agents.defaults.model.primary === 'openai/smart-route') cfg.agents.defaults.model.primary = DEFAULT_MODEL;
-  cfg.agents.list = Array.isArray(cfg.agents.list) ? cfg.agents.list : [];
+  // openclaw 2026.8.x keys agents by `agents.entries` and its strict schema REJECTS
+  // `agents.list` in the FILE (measured on vps_c-thu: doctor moves list→entries, then the
+  // whole UI shows 0 bots because everything here reads .list). Bridge the two shapes:
+  // hydrate a hidden .list view from entries, and expose .entries as a getter built from
+  // .list — so JSON.stringify writes only schema-valid entries while every read/mutation
+  // path in this file keeps working on .list unchanged. Configs that still use a real
+  // list (openclaw ≤2026.7 projects) keep the old behavior untouched.
+  const rawEntries = (cfg.agents.entries && typeof cfg.agents.entries === 'object' && !Array.isArray(cfg.agents.entries))
+    ? cfg.agents.entries : null;
+  if (rawEntries) {
+    const seeded = Array.isArray(cfg.agents.list) && cfg.agents.list.length
+      ? cfg.agents.list
+      : Object.entries(rawEntries).map(([id, v]) => ({ id, ...(v && typeof v === 'object' ? v : {}) }));
+    Object.defineProperty(cfg.agents, 'list', { value: seeded, enumerable: false, writable: true, configurable: true });
+    Object.defineProperty(cfg.agents, 'entries', {
+      enumerable: true,
+      configurable: true,
+      get() {
+        const out = {};
+        for (const a of (cfg.agents.list || [])) {
+          if (a && a.id) { const { id, ...rest } = a; out[id] = rest; }
+        }
+        return out;
+      },
+      set(v) {
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          cfg.agents.list = Object.entries(v).map(([id, x]) => ({ id, ...(x && typeof x === 'object' ? x : {}) }));
+        }
+      },
+    });
+  } else {
+    cfg.agents.list = Array.isArray(cfg.agents.list) ? cfg.agents.list : [];
+  }
   for (const agent of cfg.agents.list) {
     if (agent && typeof agent === 'object') {
       delete agent.channel;
@@ -2389,7 +2452,7 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
         const check = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', '[ -d "${OPENCLAW_HOME:-/home/node/project/.openclaw}/extensions/zalo-connect" ] && echo OK || echo MISSING'], { cwd: projectDir, shell: false }).catch(() => ({ stdout: 'ERR' }));
         if (String(check.stdout || '').trim() === 'MISSING') {
           sendLog(`[zalo-connect] Plugin missing — installing ${ZALO_CONNECT_PLUGIN_SPEC}...`);
-          const installCmd = `cd /home/node/project && openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force --acknowledge-clawhub-risk 2>&1`;
+          const installCmd = `cd /home/node/project && (openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force --accept-capabilities || openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force ${LEGACY_CLAWHUB_FLAG}) 2>&1`;
           const inst = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', installCmd], { cwd: projectDir, shell: false });
           const instOut = `${inst.stdout}\n${inst.stderr}`;
           for (const line of instOut.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
@@ -2768,7 +2831,12 @@ function nativeServiceLabel(projectDir) {
 /** The env every native CLI call needs (mirrors the docker runtime env in docker-gen.js). */
 function nativeEnv(projectDir, extra = {}) {
   const dir = projectDir || state.projectDir || '';
-  const home = join(dir, '.openclaw');
+  // openclaw 2026.8.x fs-safe refuses atomic writes through a symlinked state dir
+  // ("Atomic replace parent must be a real directory") — hand it the real path. Native
+  // projects on 2026.8.x keep real state at ~/.openclaw with the project dir symlinked
+  // (daemon install rejects a custom OPENCLAW_HOME), so this path IS a symlink there.
+  let home = join(dir, '.openclaw');
+  try { home = fs.realpathSync(home); } catch {}
   const meta = readNativeMeta(dir) || {};
   const gatewayPort = String(meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT);
   const label = nativeServiceLabel(dir);
@@ -2804,6 +2872,27 @@ function ocRun(projectDir, args, opts = {}) {
 function ocCapture(projectDir, args, opts = {}) {
   const a = ocArgv(projectDir, args);
   return runCapture(a.cmd, a.args, { shell: false, ...a.opts, ...opts, env: { ...(a.opts.env || {}), ...(opts.env || {}) } });
+}
+
+// openclaw 2026.8.x renamed the ClawHub consent flags — plugins: --accept-capabilities,
+// skills: --acknowledge-install-policy-warning. 2026.7 and older only know
+// --acknowledge-clawhub-risk. Callers pass the NEW flag; when the CLI rejects it
+// ("does not recognize option") retry once with the legacy flag so an updated setup can
+// still manage projects running an older openclaw.
+const LEGACY_CLAWHUB_FLAG = '--acknowledge-clawhub-risk';
+const NEW_CONSENT_FLAGS = ['--accept-capabilities', '--acknowledge-install-policy-warning'];
+function legacyConsentArgs(args) {
+  return args.map((a) => (NEW_CONSENT_FLAGS.includes(a) ? LEGACY_CLAWHUB_FLAG : a));
+}
+function flagNotRecognized(out) {
+  const text = typeof out === 'string' ? out : `${out?.stdout || ''}\n${out?.stderr || ''}\n${out?.message || ''}`;
+  return /does not recognize option/i.test(text);
+}
+/** ocCapture with the 2026.7↔2026.8 consent-flag fallback. */
+async function ocCaptureInstall(projectDir, args, opts = {}) {
+  const out = await ocCapture(projectDir, args, opts);
+  if (!flagNotRecognized(out)) return out;
+  return ocCapture(projectDir, legacyConsentArgs(args), opts);
 }
 
 /** Probe the managed gateway's own /health until it answers. */
@@ -3191,7 +3280,7 @@ async function ensureNativePlugins(projectDir, { restart = false } = {}) {
     if (existsSync(dir)) continue;
     const spec = id === ZALO_PLUGIN_ID ? ZALO_CONNECT_PLUGIN_SPEC : pluginInstallSpec(id);
     sendLog(`[native] plugin ${id} missing; installing ${spec}`);
-    const out = await ocCapture(projectDir, ['plugins', 'install', spec, '--force', '--acknowledge-clawhub-risk'], { timeout: 300000 });
+    const out = await ocCaptureInstall(projectDir, ['plugins', 'install', spec, '--force', '--accept-capabilities'], { timeout: 300000 });
     const text = `${out.stdout || ''}\n${out.stderr || ''}`;
     for (const line of text.split(/\r?\n/).map((l) => l.trimEnd()).filter(Boolean)) sendLog(`[native] ${line}`);
     if (existsSync(dir) || /installed plugin/i.test(text)) installed.push(id);
@@ -3258,11 +3347,106 @@ async function startNative9Router(projectDir, { restart = false } = {}) {
     sendLog(`[native] 9router already listening on ${routerPort}`);
     return routerPort;
   }
+  // Linux: run 9router as a systemd USER unit, not a detached child. startDetached leaves the
+  // process inside THIS server's cgroup — restarting the setup-ui service (or rebooting the VPS)
+  // silently killed 9router and the bot lost its model (measured on vps_c-thu, 02/09/2026).
+  // macOS/Windows keep the detached process: no deployed native host runs there yet, and each
+  // would need its own service wrapper (launchd/Task Scheduler).
+  if (process.platform === 'linux') {
+    const ok = await installNative9RouterUnit(projectDir, routerPort, dataDir).catch((e) => { sendLog(`[native] 9router unit skipped: ${e.message}`); return false; });
+    if (ok) return routerPort;
+  }
   startDetached('9router', ['-n', '-l', '-H', '127.0.0.1', '-p', String(routerPort), '--skip-update'], {
     cwd: projectDir,
     env: nativeEnv(projectDir, { DATA_DIR: dataDir }),
   });
   return routerPort;
+}
+
+async function installNative9RouterUnit(projectDir, routerPort, dataDir) {
+  const bin = resolveBinPath('9router');
+  const binDir = bin.includes('/') ? dirname(bin) : '';
+  const unitDir = join(os.homedir(), '.config', 'systemd', 'user');
+  await fsp.mkdir(unitDir, { recursive: true });
+  const pathLine = [binDir, '/usr/local/sbin', '/usr/local/bin', '/usr/sbin', '/usr/bin', '/sbin', '/bin'].filter(Boolean).join(':');
+  const unit = [
+    '[Unit]',
+    `Description=9Router LLM proxy (127.0.0.1:${routerPort})`,
+    'After=network-online.target',
+    'Wants=network-online.target',
+    'StartLimitIntervalSec=0',
+    '',
+    '[Service]',
+    'Type=simple',
+    `WorkingDirectory=${projectDir}`,
+    `ExecStart=${bin.includes('/') ? bin : '/usr/bin/env 9router'} -n -l -H 127.0.0.1 -p ${routerPort} --skip-update`,
+    'Restart=always',
+    'RestartSec=5',
+    `Environment=HOME=${os.homedir()}`,
+    `Environment=DATA_DIR=${dataDir}`,
+    `Environment=PATH=${pathLine}`,
+    '',
+    '[Install]',
+    'WantedBy=default.target',
+  ].join('\n');
+  await fsp.writeFile(join(unitDir, 'openclaw-9router.service'), `${unit}\n`, 'utf8');
+  await run('systemctl', ['--user', 'daemon-reload'], {}).catch(() => {});
+  const res = await runCapture('systemctl', ['--user', 'enable', '--now', 'openclaw-9router.service'], { shell: false, timeout: 30000 });
+  if (res.code !== 0) throw new Error(String(res.stderr || res.stdout || 'systemctl enable failed').trim().slice(0, 160));
+  sendLog('[native] 9router installed as systemd user unit openclaw-9router.service (survives UI restarts and reboots)');
+  return true;
+}
+
+/**
+ * openclaw 2026.8.x `daemon install` only manages the service when the state dir is the
+ * canonical <account home>/.openclaw — a custom OPENCLAW_HOME is refused, and its fs-safe
+ * layer refuses atomic writes through a symlinked state dir ("parent must be a real
+ * directory"). Measured on vps_c-thu 02/09/2026. So for 2026.8+ the REAL state lives at
+ * ~/.openclaw and <project>/.openclaw becomes a symlink to it (junction on Windows, so no
+ * admin rights needed). nativeEnv() realpaths the symlink, so every other CLI call keeps
+ * working. One native project per OS account — which is how every deployed host runs.
+ * Returns the env for `daemon install` (plain HOME, no OPENCLAW_* overrides), or null when
+ * the runtime is older than 2026.8 and nothing should change.
+ */
+async function prepareNativeStateHome(projectDir) {
+  if ((await hostOpenclawMajorMinor()) < 202608) return null;
+  const home = os.homedir();
+  const homeState = join(home, '.openclaw');
+  const projState = join(projectDir, '.openclaw');
+  const installEnv = { ...nativeEnv(projectDir) };
+  delete installEnv.OPENCLAW_HOME;
+  delete installEnv.OPENCLAW_STATE_DIR;
+  installEnv.HOME = home;
+  if (resolve(projState) === resolve(homeState)) return installEnv;
+  const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+  const projIsLink = (() => { try { return fs.lstatSync(projState).isSymbolicLink(); } catch { return false; } })();
+  if (projIsLink) {
+    // Already migrated (or hand-fixed): just make sure the link lands on the home state.
+    try {
+      if (resolve(fs.realpathSync(projState)) === resolve(homeState)) return installEnv;
+    } catch {}
+    throw new Error(`${projState} là symlink nhưng không trỏ về ${homeState} — kiểm tay trước khi cài service`);
+  }
+  const homeExists = existsSync(homeState) || (() => { try { fs.lstatSync(homeState); return true; } catch { return false; } })();
+  if (homeExists) {
+    const homeIsLink = (() => { try { return fs.lstatSync(homeState).isSymbolicLink(); } catch { return false; } })();
+    if (homeIsLink) {
+      // Reverse layout from an earlier hand-fix attempt: drop the link, the real dir moves in below.
+      fs.unlinkSync(homeState);
+    } else if (existsSync(join(homeState, 'openclaw.json'))) {
+      // A real, populated state dir that is not this project's — do not touch someone's data.
+      throw new Error(`${homeState} đã chứa state của một project khác — 2026.8 chỉ hỗ trợ MỘT project native mỗi tài khoản`);
+    } else {
+      // Stray/partial dir (stale CLI runs create these): park it, keep nothing in the way.
+      const parked = `${homeState}.bak-stray-${Date.now()}`;
+      await fsp.rename(homeState, parked);
+      sendLog(`[native] parked stray state dir ${homeState} -> ${parked}`);
+    }
+  }
+  await fsp.rename(projState, homeState);
+  fs.symlinkSync(homeState, projState, linkType);
+  sendLog(`[native] state moved to ${homeState}; ${projState} is now a symlink (openclaw >=2026.8 layout)`);
+  return installEnv;
 }
 
 /**
@@ -3318,7 +3502,16 @@ async function startNativeRuntime({ projectDir, osChoice = '', gatewayPort, rout
   // equivalent of docker's `restart: always`. --force so re-running install updates the port.
   const env = nativeEnv(projectDir);
   await ensureSystemdLinger();
-  await run('openclaw', ['daemon', 'install', '--force', '--port', String(gwPort)], { cwd: projectDir, env });
+  // openclaw 2026.8.x refuses `daemon install` with a custom OPENCLAW_HOME ("service
+  // management skipped: non-default state dir"). Move the real state to ~/.openclaw and
+  // leave a symlink (junction on Windows) at <project>/.openclaw, then install with the
+  // plain account HOME. Older runtimes keep the original env untouched.
+  const daemonEnv = await prepareNativeStateHome(projectDir).catch((e) => { sendLog(`[native] state-home prep skipped: ${e.message}`); return null; });
+  if (daemonEnv) {
+    await run('openclaw', ['daemon', 'install', '--force', '--port', String(gwPort)], { cwd: projectDir, env: daemonEnv });
+  } else {
+    await run('openclaw', ['daemon', 'install', '--force', '--port', String(gwPort)], { cwd: projectDir, env });
+  }
   await hardenNativeServiceRestarts(projectDir).catch((e) => sendLog(`[native] service hardening skipped: ${e.message}`));
   await clearNativeServiceFailure(projectDir).catch(() => {});
   // `daemon install` already STARTED the unit, and that first boot begins the state migrations that
@@ -5326,6 +5519,23 @@ async function discoverDockerBotProjectRoots() {
 // launcher's parent — that covers the folders users actually pick (e.g. ~/openclaw-native, D:\bot)
 // without a full filesystem walk. Mirrors discoverDockerBotProjectRoots so discoverProjects can
 // surface native projects even when this install has no saved state for them.
+// A directory whose .openclaw merely HOLDS another project's state is not a project of its
+// own. openclaw 2026.8.x native layout puts the real state at ~/.openclaw with the project
+// dir symlinked to it — without this filter the account home shows up as a phantom "root"
+// project tab after every refresh (measured on vps_c-thu). The native marker's `label` was
+// written from the ORIGINAL project dir, so a mismatch identifies the phantom.
+function isPhantomStateDirProject(dir) {
+  try {
+    const meta = readNativeMeta(dir);
+    if (!meta || !meta.label) return false;
+    // Compare against the label DERIVED from the directory name — nativeServiceLabel()
+    // itself returns meta.label first, which would make this check always pass.
+    const derived = `ai.openclaw.gateway.${slugify(basename(dir || 'openclaw'), 'bot')}`;
+    return meta.label !== derived;
+  } catch {}
+  return false;
+}
+
 async function discoverNativeProjectRoots(rootProjectDir) {
   const roots = new Set();
   const bases = new Set();
@@ -5345,7 +5555,7 @@ async function discoverNativeProjectRoots(rootProjectDir) {
   if (rootProjectDir && existsSync(nativeMarkerPath(rootProjectDir)) && existsSync(join(rootProjectDir, '.openclaw', 'openclaw.json'))) {
     roots.add(resolve(rootProjectDir));
   }
-  return [...roots];
+  return [...roots].filter((dir) => !isPhantomStateDirProject(dir));
 }
 
 async function findLatestProject(rootProjectDir) {
@@ -5383,7 +5593,7 @@ async function findLatestProject(rootProjectDir) {
 
     if (existsSync(join(full, '.openclaw', 'openclaw.json'))) {
       const st = await fsp.stat(join(full, '.openclaw', 'openclaw.json')).catch(() => null);
-      if (st) candidates.push({ dir: full, mtimeMs: st.mtimeMs });
+      if (st && !isPhantomStateDirProject(full)) candidates.push({ dir: full, mtimeMs: st.mtimeMs });
       return;
     }
     const entries = await fsp.readdir(full, { withFileTypes: true }).catch(() => []);
@@ -5453,6 +5663,10 @@ async function computeDiscoverProjects(rootProjectDir) {
     }
   }
 
+  // Drop phantom state-dir "projects" that slipped into the saved list (e.g. the account
+  // home after a 2026.8.x native state move) — and keep them out of the persisted state.
+  state.projects = state.projects.filter((p) => !isPhantomStateDirProject(p.projectDir));
+
   // In parallel: each buildProjectMeta runs runtime detection (docker calls, port probes), so a
   // handful of projects turned into seconds of dashboard load when this was a sequential loop.
   const metas = await Promise.all(
@@ -5475,16 +5689,22 @@ async function computeDiscoverProjects(rootProjectDir) {
 }
 
 async function resolveProjectDir(rootProjectDir, body = {}) {
-  if (body.projectDir && existsSync(join(resolve(String(body.projectDir)), '.openclaw', 'openclaw.json'))) {
+  // Every acceptance path below must refuse phantom state-dir "projects" — the browser can
+  // keep sending a remembered projectDir (e.g. "/root") long after it stopped being one,
+  // and accepting it re-saves the phantom into state on the next saveState().
+  if (body.projectDir && existsSync(join(resolve(String(body.projectDir)), '.openclaw', 'openclaw.json'))
+      && !isPhantomStateDirProject(resolve(String(body.projectDir)))) {
     state.projectDir = resolve(String(body.projectDir));
     await syncRuntimeState(state.projectDir);
     return state.projectDir;
   }
+  if (state.projectDir && isPhantomStateDirProject(state.projectDir)) state.projectDir = null;
   if (state.projectDir && existsSync(join(state.projectDir, '.openclaw', 'openclaw.json'))) {
     await syncRuntimeState(state.projectDir);
     return state.projectDir;
   }
   await loadSavedState(rootProjectDir);
+  if (state.projectDir && isPhantomStateDirProject(state.projectDir)) state.projectDir = null;
   if (state.projectDir && existsSync(join(state.projectDir, '.openclaw', 'openclaw.json'))) {
     await syncRuntimeState(state.projectDir);
     return state.projectDir;
@@ -5527,6 +5747,7 @@ async function buildProjectMeta(projectDir) {
 async function connectExistingProject(projectDir, rootProjectDir) {
   const resolved = resolve(String(projectDir || ''));
   if (!existsSync(join(resolved, '.openclaw', 'openclaw.json'))) throw httpError(404, 'openclaw.json not found in selected project');
+  if (isPhantomStateDirProject(resolved)) throw httpError(400, `${resolved} chỉ là nơi chứa state của project khác (symlink 2026.8.x), không phải project riêng`);
   // Switch the active project + return its bots FAST (a plain file read). The heavy runtime
   // probing — detectRuntime runs `openclaw gateway status` + `config get` (slow CLI / docker
   // exec) and used to run TWICE here (syncRuntimeState + buildProjectMeta), ~6s total — is
@@ -5888,7 +6109,7 @@ async function installFeature(projectDir, agentId, kind, id) {
       // Native: no container — install on the host with the project env (ocCapture) so the
       // skill lands in this project's workspace, then reload the managed gateway service.
       sendLog(`[skill] Installing/updating clawhub:${slug} natively for agent ${agentId}...`);
-      const out = await ocCapture(projectDir, ['skills', 'install', slug, '--agent', agentId, '--force', '--acknowledge-clawhub-risk']);
+      const out = await ocCaptureInstall(projectDir, ['skills', 'install', slug, '--agent', agentId, '--force', '--acknowledge-install-policy-warning']);
       for (const line of `${out.stdout}\n${out.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(line);
       if (out.code !== 0 && !isSkillFolderExists(projectDir, agentId, slug)) {
         throw new Error(out.stderr || out.stdout || `Failed to install skill ${slug}.`);
@@ -5899,7 +6120,7 @@ async function installFeature(projectDir, agentId, kind, id) {
       const botContainer = getBotContainerName(projectDir);
       sendLog(`[skill] Installing/updating clawhub:${slug} inside container ${botContainer} for agent ${agentId}...`);
 
-      const cmd = `cd /home/node/project && openclaw skills install ${slug} --agent ${agentId} --force --acknowledge-clawhub-risk`;
+      const cmd = `cd /home/node/project && (openclaw skills install ${slug} --agent ${agentId} --force --acknowledge-install-policy-warning || openclaw skills install ${slug} --agent ${agentId} --force ${LEGACY_CLAWHUB_FLAG})`;
       const cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
       
       if (cmdOut) {
@@ -5921,9 +6142,13 @@ async function installFeature(projectDir, agentId, kind, id) {
       await run('openclaw', ['doctor', '--fix'], { cwd: projectDir, env: openclawProjectEnv(projectDir) }).catch((err) => sendLog(`[skill] doctor --fix skipped: ${err.message}`));
       sendLog(`[skill] Installing clawhub:${slug} for agent ${agentId}...`);
       
-      await run('openclaw', ['skills', 'install', slug, '--agent', agentId, '--force', '--acknowledge-clawhub-risk'], {
+      const skillArgs = ['skills', 'install', slug, '--agent', agentId, '--force', '--acknowledge-install-policy-warning'];
+      await run('openclaw', skillArgs, {
         cwd: projectDir,
         env: openclawProjectEnv(projectDir)
+      }).catch(async (err) => {
+        if (!flagNotRecognized(err)) throw err;
+        await run('openclaw', legacyConsentArgs(skillArgs), { cwd: projectDir, env: openclawProjectEnv(projectDir) });
       });
     }
 
@@ -5952,14 +6177,14 @@ async function installFeature(projectDir, agentId, kind, id) {
       }
       if (native) {
         sendLog(`[zalo-connect] Installing/updating ${ZALO_CONNECT_PLUGIN_SPEC} natively...`);
-        const out = await ocCapture(projectDir, ['plugins', 'install', ZALO_CONNECT_PLUGIN_SPEC, '--force', '--acknowledge-clawhub-risk']);
+        const out = await ocCaptureInstall(projectDir, ['plugins', 'install', ZALO_CONNECT_PLUGIN_SPEC, '--force', '--accept-capabilities']);
         if (out) for (const line of `${out.stdout}\n${out.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
         const okDir = existsSync(join(projectDir, '.openclaw', 'extensions', 'zalo-connect'));
         if (out.code !== 0 && !okDir) throw new Error(out.stderr || out.stdout || 'Failed to install zalo-connect.');
       } else if (composeDir) {
         const botContainer = getBotContainerName(projectDir);
         sendLog(`[zalo-connect] Installing/updating ${ZALO_CONNECT_PLUGIN_SPEC} inside ${botContainer}...`);
-        const cmd = `cd /home/node/project && openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force --acknowledge-clawhub-risk 2>&1`;
+        const cmd = `cd /home/node/project && (openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force --accept-capabilities || openclaw plugins install ${ZALO_CONNECT_PLUGIN_SPEC} --force ${LEGACY_CLAWHUB_FLAG}) 2>&1`;
         const out = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
         if (out) for (const line of `${out.stdout}\n${out.stderr}`.split(/\r?\n/).filter(Boolean)) sendLog(`[zalo-connect] ${line}`);
         const okDir = existsSync(join(projectDir, '.openclaw', 'extensions', 'zalo-connect'));
@@ -5992,7 +6217,7 @@ async function installFeature(projectDir, agentId, kind, id) {
     }
     const installSpec = pluginInstallSpec(id);
     const installArgs = ['plugins', 'install', installSpec, '--force'];
-    if (installSpec.startsWith('clawhub:')) installArgs.push('--acknowledge-clawhub-risk');
+    if (installSpec.startsWith('clawhub:')) installArgs.push('--accept-capabilities');
 
     let composeDir = null;
     if (isNativeProject(projectDir)) {
@@ -6009,11 +6234,11 @@ async function installFeature(projectDir, agentId, kind, id) {
       let cmdOut;
       if (isNativeProject(projectDir)) {
         sendLog(`[plugin] Installing/updating ${installSpec} natively...`);
-        cmdOut = await ocCapture(projectDir, installArgs);
+        cmdOut = await ocCaptureInstall(projectDir, installArgs);
       } else {
         const botContainer = getBotContainerName(projectDir);
         sendLog(`[plugin] Installing/updating ${installSpec} inside container ${botContainer}...`);
-        const cmd = `cd /home/node/project && openclaw ${installArgs.join(' ')}`;
+        const cmd = `cd /home/node/project && (openclaw ${installArgs.join(' ')} || openclaw ${legacyConsentArgs(installArgs).join(' ')})`;
         cmdOut = await runCapture('docker', ['exec', botContainer, 'sh', '-lc', cmd], { cwd: projectDir, shell: false });
       }
 
@@ -6122,6 +6347,13 @@ async function installFeature(projectDir, agentId, kind, id) {
         cwd: projectDir,
         env: openclawProjectEnv(projectDir),
         resolveOnPattern: /Installed plugin:/
+      }).catch(async (err) => {
+        if (!flagNotRecognized(err)) throw err;
+        await run('openclaw', legacyConsentArgs(installArgs), {
+          cwd: projectDir,
+          env: openclawProjectEnv(projectDir),
+          resolveOnPattern: /Installed plugin:/
+        });
       }).catch((err) => {
         // Fallback verification: if the plugin's folder or mapped key is present, it succeeded despite integrity warnings
         const aliases = ['openclaw-zalo-mod', 'zalo-mod', id, id.replace('openclaw-', '')];

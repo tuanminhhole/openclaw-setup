@@ -204,7 +204,9 @@
     }
 
     // ── commands ──────────────────────────────────────────────────────────────
-    cfg.commands = { native: 'auto', nativeSkills: 'auto', restart: true, ownerDisplay: 'raw' };
+    // No `ownerDisplay`: openclaw 2026.8.x strict schema rejects it as an unrecognized key
+    // and refuses to start (measured on vps_c-thu, 02/09/2026).
+    cfg.commands = { native: 'auto', nativeSkills: 'auto', restart: true };
     if (selectedSkills.includes('scheduler')) {
       cfg.commands.ownerAllowFrom = ['*'];
     }
@@ -476,7 +478,8 @@
     plugins.allow = allow;
     // Select learning-memory as the active context engine (always-on memory).
     plugins.slots = { contextEngine: 'learning-memory' };
-    if (allow.length) plugins.bundledDiscovery = 'compat';
+    // No `bundledDiscovery`: openclaw 2026.8.x moved it into shared SQLite state and the
+    // strict schema rejects the key in openclaw.json (measured on vps_c-thu, 02/09/2026).
 
     return { plugins };
   }

@@ -1,6 +1,22 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.16.3] — 2026-09-02
+
+### 🚑 Tương thích OpenClaw 2026.8.1 — gom mọi lỗ từ hai máy khách thật, sửa một lượt
+
+Đo trên hai host production (một VPS cài native mới và một máy Docker khách cũ rebuild đầu tiên). Đủ Docker + native, Windows/macOS/Linux.
+
+- **Config sinh ra sạch schema chặt.** 2026.8 từ chối thẳng `commands.ownerDisplay` và `plugins.bundledDiscovery` — config mới không còn mang chúng, và script migration dùng chung (entrypoint Docker + tiền khởi động native) gỡ chúng khỏi config cũ, chuyển `agents.list` sang `agents.entries`, park kho session cũ của từng agent.
+- **exec-approvals.json hết làm bot câm.** Trên 2026.8 file cũ này CHẶN MỌI tin nhắn (`ExecApprovalsMigrationRequiredError`) mà doctor lại không chịu migrate. Setup không ghi file này cho runtime 2026.8+ nữa và park bản đang có; policy vốn đã nằm trong `tools.exec`.
+- **Cài native chạy lại được.** `daemon install` 2026.8 từ chối `OPENCLAW_HOME` tuỳ biến, và tầng fs-safe từ chối ghi qua symlink. State thật giờ nằm ở `~/.openclaw`, thư mục project giữ symlink (Windows dùng junction — không cần quyền admin), `daemon install` chạy với HOME chuẩn, mọi lệnh CLI khác realpath state dir trước.
+- **Cờ đồng ý ClawHub đổi tên.** Skill dùng `--acknowledge-install-policy-warning`, plugin dùng `--accept-capabilities`; mọi đường cài (UI, bootstrap native, docker exec, Dockerfile, entrypoint) dùng cờ mới và tự lùi về `--acknowledge-clawhub-risk` khi gặp runtime cũ — một bản setup quản được máy ở cả hai đời.
+- **Dashboard hiện lại bot.** 2026.8 lưu agent theo `agents.entries` và cấm `agents.list` trong file; UI giờ đọc entries qua view list ẩn và chỉ ghi ra entries đúng schema. Hết cảnh máy đã migrate hiện 0 bot.
+- **Hết tab project "root" ma.** Thư mục chỉ CHỨA state của project khác (layout `~/.openclaw` mới) không còn bị nhận nhầm là project — bộ dò, chọn-project-mới-nhất, và cả trình duyệt còn nhớ đường cũ đều bị từ chối.
+- **9router sống qua restart và reboot (native Linux).** Giờ chạy bằng systemd user unit riêng thay vì tiến trình con của Setup UI — restart UI (hay reboot VPS) không giết proxy model nữa.
+- **Chỉ dẫn workspace cho agent:** AGENTS.md sinh ra dạy model rằng file người dùng gửi nằm ở đường dẫn tuyệt đối `MediaPath` ngoài workspace — model yếu hết phán "file chưa được lưu".
+
+
 ## [5.16.2] — 2026-08-31
 
 ### 🔧 Sửa lỗi: gom nốt mọi cạnh sắc còn lại của việc lên OpenClaw 2026.8.x — một lượt

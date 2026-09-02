@@ -855,6 +855,12 @@ Skills cung cấp công cụ cho bạn. Cần cái nào, đọc \`SKILL.md\` c�
 - **Discord links:** Bọc nhiều link trong \`<>\` để khỏi hiện embed
 - **WhatsApp/Zalo:** Không dùng header — dùng **đậm** hoặc IN HOA để nhấn mạnh
 
+**📎 File user gửi qua chat (zip/pdf/doc...):**
+
+- File đã được runtime tải sẵn và nằm ở đường dẫn TUYỆT ĐỐI trong metadata của lượt đó (\`MediaPath\`, hoặc dòng ghi chú "[Attached file(s) already saved to disk...]") — thường là \`.openclaw/media/inbound/…\`, **BÊN NGOÀI workspace của bạn**.
+- Dùng NGUYÊN đường dẫn đó với \`exec\`/\`read\`. ĐỪNG \`find\`/\`ls\` trong workspace rồi kết luận "file chưa được lưu" — file không nằm ở đó là điều bình thường.
+- Không thấy đường dẫn trong lượt hiện tại → nói thật là không thấy file đính kèm, đừng đoán.
+
 ## 💓 Heartbeats — Chủ động!
 
 Khi nhận heartbeat poll, đừng chỉ trả \`HEARTBEAT_OK\` mọi lần. Dùng heartbeat có ích!
@@ -1058,6 +1064,12 @@ Skills provide your tools. When you need one, check its \`SKILL.md\`. Keep local
 - **Zalo/WhatsApp/Discord:** No markdown tables! Use bullet lists instead
 - **Discord links:** Wrap multiple links in \`<>\` to suppress embeds
 - **WhatsApp/Zalo:** No headers — use **bold** or CAPS for emphasis
+
+**📎 Files users send through chat (zip/pdf/doc...):**
+
+- The runtime already downloaded the file to an ABSOLUTE path given in that turn's metadata (\`MediaPath\`, or a note line "[Attached file(s) already saved to disk...]") — usually under \`.openclaw/media/inbound/…\`, **OUTSIDE your workspace**.
+- Use that EXACT path with \`exec\`/\`read\`. Do NOT \`find\`/\`ls\` inside your workspace and then claim "the file was never saved" — it is normal for the file not to be there.
+- If no path is present in the current turn, say plainly that you see no attachment — don't guess.
 
 ## 💓 Heartbeats — Be Proactive!
 
