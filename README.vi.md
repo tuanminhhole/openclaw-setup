@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS — chạy trên Docker, tự cài giúp bạn.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.16.3-0EA5E9?style=for-the-badge" alt="Version 5.16.3" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.16.4-0EA5E9?style=for-the-badge" alt="Version 5.16.4" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,10 +37,21 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.16.3
+## 🆕 Có gì mới trong v5.16.4
+
+- 🚑 **Theo kịp OpenClaw 2026.8.1 — bản setup cũ đã lỗi thời, đợt này chữa hết một lượt.** OpenClaw (nền tảng chạy bot) nâng cấp lớn và đổi nhiều "luật chơi": file cấu hình bị soát khắt khe hơn, chỗ lưu dữ liệu dời đi, vài lệnh cài đặt đổi tên. Với bản setup cũ, hệ quả là cài bot mới có thể đứng giữa chừng, bot đang chạy bỗng **im lặng không trả lời**, màn hình quản trị hiện **0 bot** dù bot vẫn sống. Từ 5.16.3–5.16.4: cài mới chạy mượt trên 2026.8.1 (đủ Docker lẫn native, Windows/macOS/Linux), **máy cũ tự được chữa khi nâng cấp** — tự dọn cấu hình lỗi thời, tự dời dữ liệu, tự gỡ file cũ từng khiến bot "câm".
+- 🤖 **Bot hết chối "không thấy file"**: file khách gửi qua chat giờ được chỉ đường tận nơi cho AI — kể cả model yếu cũng tìm được.
+- 🔁 **9Router (bộ định tuyến model AI) tự sống lại** sau khi máy chủ khởi động lại hay giao diện bảo trì — trước đây nó có thể chết im mà không ai hay, bot mất não.
+- 🔄 **Nút "Cập nhật" trong giao diện giờ cập nhật thật**: trên máy chủ cài kiểu chuẩn, trước đây nút chỉ khởi động lại bản cũ mà vẫn báo thành công — giờ bấm là setup tự kéo bản mới về rồi tự khởi động lại.
+- 🧭 **Một bản setup quản được cả máy đời cũ (2026.7) lẫn đời mới (2026.8)** — lệnh nào openclaw đổi tên thì setup tự thử tên mới rồi lùi về tên cũ, không bắt khách nâng cấp gấp.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.15.3</b></summary>
 
 - 🖥️ **"Điều khiển máy" — cho bot mở Chrome & ứng dụng trên máy bạn**: nút mới trên thẻ mỗi bot, bật lên là bot mở được Chrome hoặc app trong danh sách cho phép (TeamViewer, Zalo, …) trên máy đang chạy bot. **Mặc định TẮT**, cần token, chỉ giới hạn danh sách bạn khai, chỉ dùng trên máy có màn hình.
 - 🌐 **Duyệt web chạy ngay trên mọi hệ điều hành**: máy để bàn thì bot dùng **Chrome thật** (profile đã đăng nhập, web ít nghi là bot), server thì tự mở Chromium headless — hết cảnh "không có trình duyệt" chỉ vì chưa mở Chrome.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.14.1</b></summary>

@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS — Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.16.3-0EA5E9?style=for-the-badge" alt="Version 5.16.3" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.16.4-0EA5E9?style=for-the-badge" alt="Version 5.16.4" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,15 +37,26 @@
 
 ---
 
-## 🆕 What's New in v5.16.3
+## 🆕 What's New in v5.16.4
+
+- 🚑 **The big OpenClaw 2026.8.1 catch-up — the old setup had gone stale; this wave heals it all in one pass.** OpenClaw (the platform the bots run on) shipped a major upgrade and changed the rules: configs are strictly checked, data moved to a new home, several install commands were renamed. With the old setup that meant fresh installs could stall, running bots suddenly went **silent**, and the admin screen showed **0 bots** while the bot was alive. As of 5.16.3–5.16.4: fresh installs run smoothly on 2026.8.1 (Docker and native, Windows/macOS/Linux), and **existing machines heal themselves on upgrade** — stale config cleaned, data relocated, and the old file that could mute the bot retired automatically.
+- 🤖 **The bot stops claiming "I can't see the file"**: files sent through chat now come with clear directions for the AI — even weaker models find them.
+- 🔁 **9Router (the AI model router) comes back on its own** after a server reboot or UI maintenance — previously it could die silently and the bot lost its brain.
+- 🔄 **The in-app "Update" button really updates now**: on standard server installs it used to just restart the old version while reporting success — now it pulls the latest and relaunches itself.
+- 🧭 **One setup build manages both generations** (2026.7 and 2026.8) — renamed commands are tried the new way first with an automatic fallback, so nobody is forced to upgrade overnight.
+
+<details>
+<summary><b>Previous: What's new in v5.15.3</b></summary>
 
 - 🖥️ **"Control PC" — let the bot open Chrome & apps on your machine**: a new toggle on each bot card turns on the ability for the bot to open Chrome or an allow-listed app (TeamViewer, Zalo, …) on the computer running it. **Off by default**, token-gated, allow-list only, desktop-only.
 - 🌐 **Browsing works out of the box on every OS**: the bot drives your real Chrome on a desktop (your logged-in profile, so sites don't flag it) and starts its own headless Chromium on a server — no more "no browser available" just because Chrome wasn't running.
 
+</details>
+
 <details>
 <summary><b>Previous: What's new in v5.14.1</b></summary>
 
-- 🦞 **Zalo bots acknowledge your message with a reaction**: an icon lands on your message right away, so you can see the bot picked it up while the answer is still being written. It runs in the channel layer, so it **costs no tokens**. On by default for new Zalo bots; change or disable it via `messages.ackReaction` in `openclaw.json`. Needs Zalo Connect 3.0.15+.
+- 🦞 **Zalo bots react to acknowledge your message**: an icon appears on the message you just sent, so you know the bot received it while it is still writing the reply. Runs at the chat-channel layer, so it **costs no tokens**. On by default for new Zalo bots; change the icon or turn it off via `messages.ackReaction` in `openclaw.json`. Needs Zalo Connect 3.0.15+.
 
 </details>
 

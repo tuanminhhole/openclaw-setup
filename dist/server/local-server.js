@@ -6869,7 +6869,13 @@ async function handler(req, res, rootProjectDir) {
     if (url.pathname === '/api/setup/update' && req.method === 'POST') {
       const installerDir = resolve(__dirname, '../..');
       const isGit = existsSync(resolve(installerDir, '.git'));
-      const mode = isGit ? 'git' : 'github';
+      // npm -g install: the new-host template installs create-openclaw-bot globally and runs
+      // the UI as a systemd user service. Without its own branch this fell into the "github"
+      // relaunch path, which only restarted the OLD version (measured on vps_c-thu, 02/09/2026).
+      // npx installs also live under node_modules, so exclude the _npx cache explicitly.
+      const isNpx = /[\\/]_npx[\\/]/.test(installerDir);
+      const isGlobalNpm = !isGit && !isNpx && /[\\/]node_modules[\\/]create-openclaw-bot[\\/]?$/.test(installerDir);
+      const mode = isGit ? 'git' : (isGlobalNpm ? 'npm-global' : 'github');
       setImmediate(async () => {
         try {
           if (isGit) {
@@ -6883,6 +6889,11 @@ async function handler(req, res, rootProjectDir) {
               await run('npm', ['run', 'build'], { cwd: installerDir }).catch((e) =>
                 sendLog(`[update-setup] build skipped: ${e.message}`));
             }
+          } else if (isGlobalNpm) {
+            // Pull the latest from npm in place, then exit — the service manager (or the
+            // respawn path for a hand-run UI) relaunches onto the freshly installed dist.
+            sendLog('[update-setup] Global npm install detected — npm i -g create-openclaw-bot@latest…');
+            await run('npm', ['i', '-g', 'create-openclaw-bot@latest', '--no-audit', '--no-fund'], { cwd: installerDir });
           } else {
             // Ephemeral `npx github:…` install: nothing to pull in place — the relaunch
             // re-runs `npx github:…`, which fetches the latest from GitHub.

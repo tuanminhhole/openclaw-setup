@@ -1,21 +1,35 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.16.4] — 2026-09-02
+
+### 🔧 Sửa: nút "Cập nhật setup" chạy được trên bản cài npm-global
+
+- Khuôn host mới cài create-openclaw-bot global và chạy UI như systemd user service. Endpoint tự cập nhật trước đây chỉ xử kiểu git-clone và `npx github:`, nên trên các host này bấm nút chỉ restart bản CŨ mà vẫn báo thành công. Giờ nó nhận diện bản cài npm global (loại trừ cache npx), chạy `npm i -g create-openclaw-bot@latest` tại chỗ, rồi để service manager kéo tiến trình dậy trên bản dist mới.
+- Nói dễ hiểu: **từ bản này, bấm nút Cập nhật trong giao diện là setup tự lên bản mới** — trước đây trên máy chủ cài kiểu chuẩn, nút này chỉ khởi động lại bản cũ mà vẫn báo thành công.
+
+
 ## [5.16.3] — 2026-09-02
 
-### 🚑 Tương thích OpenClaw 2026.8.1 — gom mọi lỗ từ hai máy khách thật, sửa một lượt
+### 🚑 Cập nhật lớn theo OpenClaw 2026.8.1 — bản setup cũ đã lỗi thời, bản này chữa hết một lượt
 
-Đo trên hai host production (một VPS cài native mới và một máy Docker khách cũ rebuild đầu tiên). Đủ Docker + native, Windows/macOS/Linux.
+OpenClaw (nền tảng chạy bot) vừa nâng cấp lớn lên **2026.8.1** và đổi nhiều "luật chơi": file cấu
+hình bị soát khắt khe hơn (gặp mục lạ là từ chối chạy), chỗ lưu dữ liệu dời đi, vài lệnh cài đặt
+đổi tên, cách quản lý danh sách bot cũng thay đổi. Hệ quả với bản setup cũ: cài bot mới có thể
+đứng giữa chừng, bot đang chạy bỗng **im lặng không trả lời**, màn hình quản trị hiện **0 bot** dù
+bot vẫn sống, thậm chí mọc thêm project lạ tên "root". Toàn bộ đã được phát hiện trên hai máy
+khách thật và gom sửa trong một bản:
 
-- **Config sinh ra sạch schema chặt.** 2026.8 từ chối thẳng `commands.ownerDisplay` và `plugins.bundledDiscovery` — config mới không còn mang chúng, và script migration dùng chung (entrypoint Docker + tiền khởi động native) gỡ chúng khỏi config cũ, chuyển `agents.list` sang `agents.entries`, park kho session cũ của từng agent.
-- **exec-approvals.json hết làm bot câm.** Trên 2026.8 file cũ này CHẶN MỌI tin nhắn (`ExecApprovalsMigrationRequiredError`) mà doctor lại không chịu migrate. Setup không ghi file này cho runtime 2026.8+ nữa và park bản đang có; policy vốn đã nằm trong `tools.exec`.
-- **Cài native chạy lại được.** `daemon install` 2026.8 từ chối `OPENCLAW_HOME` tuỳ biến, và tầng fs-safe từ chối ghi qua symlink. State thật giờ nằm ở `~/.openclaw`, thư mục project giữ symlink (Windows dùng junction — không cần quyền admin), `daemon install` chạy với HOME chuẩn, mọi lệnh CLI khác realpath state dir trước.
-- **Cờ đồng ý ClawHub đổi tên.** Skill dùng `--acknowledge-install-policy-warning`, plugin dùng `--accept-capabilities`; mọi đường cài (UI, bootstrap native, docker exec, Dockerfile, entrypoint) dùng cờ mới và tự lùi về `--acknowledge-clawhub-risk` khi gặp runtime cũ — một bản setup quản được máy ở cả hai đời.
-- **Dashboard hiện lại bot.** 2026.8 lưu agent theo `agents.entries` và cấm `agents.list` trong file; UI giờ đọc entries qua view list ẩn và chỉ ghi ra entries đúng schema. Hết cảnh máy đã migrate hiện 0 bot.
-- **Hết tab project "root" ma.** Thư mục chỉ CHỨA state của project khác (layout `~/.openclaw` mới) không còn bị nhận nhầm là project — bộ dò, chọn-project-mới-nhất, và cả trình duyệt còn nhớ đường cũ đều bị từ chối.
-- **9router sống qua restart và reboot (native Linux).** Giờ chạy bằng systemd user unit riêng thay vì tiến trình con của Setup UI — restart UI (hay reboot VPS) không giết proxy model nữa.
-- **Chỉ dẫn workspace cho agent:** AGENTS.md sinh ra dạy model rằng file người dùng gửi nằm ở đường dẫn tuyệt đối `MediaPath` ngoài workspace — model yếu hết phán "file chưa được lưu".
-
+- **Cài mới chạy mượt trên OpenClaw 2026.8.1** — đủ Docker lẫn native, Windows/macOS/Linux.
+- **Máy cũ tự được chữa khi nâng cấp**: hệ thống tự dọn cấu hình lỗi thời, tự dời dữ liệu sang
+  chỗ mới, tự gỡ file cũ từng khiến bot "câm" hoàn toàn.
+- **Màn hình quản trị hiện đúng bot** — hết cảnh 0 bot, hết project "root" lạ tự mọc.
+- **Bot hết chối "không thấy file"**: file khách gửi qua chat giờ được chỉ đường tận nơi cho AI,
+  kể cả model yếu cũng tìm được.
+- **9Router (bộ định tuyến model AI) tự sống lại** sau khi máy chủ khởi động lại hay giao diện
+  bảo trì — trước đây nó có thể chết im mà không ai hay, bot mất não.
+- **Một bản setup quản được cả máy đời cũ (2026.7) lẫn đời mới (2026.8)** — lệnh nào đổi tên thì
+  tự thử tên mới rồi lùi về tên cũ, không bắt khách nâng cấp gấp.
 
 ## [5.16.2] — 2026-08-31
 

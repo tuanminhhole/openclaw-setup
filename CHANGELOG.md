@@ -1,21 +1,36 @@
 # Changelog (English)
 
 
+## [5.16.4] — 2026-09-02
+
+### 🔧 Fix: the "Update setup" button now works on npm-global installs
+
+- New-host template installs create-openclaw-bot globally and runs the UI as a systemd user service. The self-update endpoint only handled git clones and `npx github:` installs, so on these hosts the button restarted the OLD version and reported success. It now detects a global npm install (excluding the npx cache), runs `npm i -g create-openclaw-bot@latest` in place, and lets the service manager relaunch onto the new dist.
+- In plain words: **from this version on, clicking Update in the UI really updates the setup** — on standard server installs the button used to just restart the old version while reporting success.
+
+
 ## [5.16.3] — 2026-09-02
 
-### 🚑 OpenClaw 2026.8.1 compatibility — every hole from the first real customer rollouts, fixed in one pass
+### 🚑 The big OpenClaw 2026.8.1 catch-up — the old setup had gone stale, this release heals everything in one pass
 
-Measured on two production hosts (a fresh native VPS install and the first Docker rebuild of an existing customer). Docker and native, Windows/macOS/Linux.
+OpenClaw (the platform the bots run on) shipped a major 2026.8.1 upgrade and changed the rules:
+config files are now strictly checked (one unknown entry and it refuses to start), data moved to
+a new home, several install commands were renamed, and bot lists are managed differently. With
+the old setup that meant: fresh installs could stall halfway, running bots suddenly went
+**silent**, the admin screen showed **0 bots** while the bot was alive, and a phantom "root"
+project appeared out of nowhere. All of it was caught on two real customer machines and fixed in
+one pass:
 
-- **Generated config is strict-schema clean.** 2026.8 rejects `commands.ownerDisplay` and `plugins.bundledDiscovery` outright — new configs no longer carry them, and the shared migration script (docker entrypoint + native pre-start) strips them from existing configs, moves `agents.list` into keyed `agents.entries`, and parks the legacy per-agent session stores.
-- **exec-approvals.json no longer silences the bot.** On 2026.8 the legacy file blocks EVERY message dispatch (`ExecApprovalsMigrationRequiredError`) and doctor refuses to migrate it. Setup no longer writes it for 2026.8+ runtimes and parks any existing copy; the same policy already lives in `tools.exec`.
-- **Native installs work again.** 2026.8 `daemon install` refuses a custom `OPENCLAW_HOME`, and its fs-safe layer refuses writes through symlinks. The real state now lives at `~/.openclaw` with the project dir symlinked (junction on Windows — no admin needed), `daemon install` runs with the plain account HOME, and every other CLI call realpaths the state dir first.
-- **ClawHub consent flags renamed.** Skills use `--acknowledge-install-policy-warning`, plugins use `--accept-capabilities`; every install path (UI, native bootstrap, docker exec, Dockerfile, entrypoint) uses the new flags and falls back to `--acknowledge-clawhub-risk` once when the runtime is older — one setup build manages hosts on either runtime.
-- **The dashboard shows your bots again.** 2026.8 keys agents by `agents.entries` and forbids `agents.list` in the file; the UI now reads entries through a hidden list view and writes back only schema-valid entries. Bot count no longer shows 0 on migrated hosts.
-- **No more phantom "root" project tab.** A directory that merely HOLDS another project's state (the new `~/.openclaw` layout) is no longer detected as a project — discovery, latest-project selection, and even a browser still requesting the stale path all refuse it.
-- **9router survives restarts and reboots (Linux native).** It now runs as its own systemd user unit instead of a detached child of the setup UI — restarting the UI (or rebooting the VPS) no longer kills the model proxy.
-- **Agent workspace guidance:** generated AGENTS.md now tells the model that user-sent files live at the absolute `MediaPath` outside the workspace — weak models stop claiming "the file was never saved".
-
+- **Fresh installs run smoothly on OpenClaw 2026.8.1** — Docker and native, Windows/macOS/Linux.
+- **Existing machines heal themselves on upgrade**: stale config is cleaned up, data is moved to
+  its new home, and the old file that could mute the bot entirely is retired automatically.
+- **The admin screen shows your bots again** — no more 0-bot display, no more phantom "root" tab.
+- **The bot stops claiming "I can't see the file"**: files sent through chat now come with clear
+  directions for the AI — even weaker models find them.
+- **9Router (the AI model router) comes back on its own** after a server reboot or UI maintenance
+  — previously it could die silently and the bot lost its brain.
+- **One setup build manages both generations** (2026.7 and 2026.8) — renamed commands are tried
+  the new way first with an automatic fallback, so nobody is forced to upgrade overnight.
 
 ## [5.16.2] — 2026-08-31
 
