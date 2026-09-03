@@ -1,6 +1,20 @@
 # Changelog (English)
 
 
+## [5.16.5] — 2026-09-03
+
+### 🩹 Native installs on OpenClaw 2026.8 — smooth from the very first run
+
+Measured on two more fresh customer machines. Docker and native, Windows/macOS/Linux.
+
+- **Generated configs pass the strict checks 100%** - the last stale key (a tool-output limit the new runtime manages itself) is gone, and config migrations now run BEFORE plugin installs so nothing trips over a half-migrated file.
+- **The 2026.8 state-home move fires reliably** - the installer no longer mis-detects the runtime version when it checks before OpenClaw finished installing.
+- **Restarts and plugin installs no longer get blocked** - every service command now runs the way 2026.8 requires (plain account home, and a confirmed stop for the operator gateway).
+- **9Router login works on Docker**: the new 9Router blocks the default password for "remote" access, and inside Docker every request counts as remote - 123456 could never log in. The initial password is now provisioned properly (still change it once you're in).
+- **Deleting a project fully removes the old 9Router service** - it used to keep the port busy in the background and silently fork the next install onto a different port that no tunnel pointed at.
+- **Native machines auto-install the DuckDuckGo web-search plugin with capability consent** - the gateway refused to report ready without it and boot-looped.
+
+
 ## [5.16.4] — 2026-09-02
 
 ### 🔧 Fix: the "Update setup" button now works on npm-global installs

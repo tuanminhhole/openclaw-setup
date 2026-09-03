@@ -562,6 +562,10 @@ ${indentBlock(docker9RouterEntrypointScript, 8)}
       - PORT=${routerPort}
       - HOSTNAME=0.0.0.0
       - CI=true
+      # 9router blocks the default password for "remote" access, and inside Docker every
+      # host request arrives via the bridge network, so it always counts as remote — without
+      # this the user can NEVER log in with the documented default (measured 02/09/2026).
+      - INITIAL_PASSWORD=123456
     volumes:
       - 9router-data:/root/.9router
       - ./sync.js:/tmp/sync.js:ro
@@ -656,6 +660,10 @@ ${indentBlock(docker9RouterEntrypointScript, 8)}
       - PORT=${routerPort}
       - HOSTNAME=0.0.0.0
       - CI=true
+      # 9router blocks the default password for "remote" access, and inside Docker every
+      # host request arrives via the bridge network, so it always counts as remote — without
+      # this the user can NEVER log in with the documented default (measured 02/09/2026).
+      - INITIAL_PASSWORD=123456
     volumes:
       - 9router-data:/root/.9router
       - ./sync.js:/tmp/sync.js:ro

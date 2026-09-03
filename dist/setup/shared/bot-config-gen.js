@@ -141,7 +141,9 @@
           // and poisons the session until a manual reset. 12k chars (~3k tokens) per
           // result keeps per-source content substantial while making that runaway
           // impossible. Applies to persisted results + overflow recovery.
-          contextLimits: { toolResultMaxChars: 12000 },
+          // No contextLimits.toolResultMaxChars: openclaw 2026.8.x strict schema rejects the
+          // key outright (measured on a fresh native install, 03/09/2026) — the runaway-turn
+          // protection it provided is handled by the 2026.8 runtime itself.
           // Agent-TURN budget (seconds). 120 was too short for multi-step cloud turns (OCR +
           // file gen + tool calls). 900 = OpenClaw's own native default and the practical max
           // we use. This is the turn budget — a DIFFERENT layer from 9router's per-request

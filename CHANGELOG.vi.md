@@ -1,6 +1,20 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.16.5] — 2026-09-03
+
+### 🩹 Cài native trên OpenClaw 2026.8 - mượt từ lần chạy đầu tiên
+
+Đo trên hai máy khách mới dựng. Đủ Docker + native, Windows/macOS/Linux.
+
+- **Cấu hình sinh ra qua bộ soát khắt khe 100%** - gỡ nốt key lỗi thời cuối cùng (giới hạn dữ liệu tool mà runtime mới tự quản), và migration cấu hình chạy TRƯỚC bước cài plugin nên không còn vấp file nửa vời.
+- **Bước dời dữ liệu sang chỗ mới của 2026.8 chạy chắc tay** - trình cài không còn đoán nhầm đời runtime khi kiểm tra trước lúc OpenClaw cài xong.
+- **Khởi động lại và cài plugin hết bị chặn giữa chừng** - mọi lệnh dịch vụ giờ chạy đúng kiểu 2026.8 yêu cầu.
+- **Đăng nhập 9Router hoạt động trên Docker**: 9Router mới chặn mật khẩu mặc định với truy cập "từ xa", mà trong Docker mọi truy cập đều bị tính từ xa - 123456 không bao giờ vào được. Giờ mật khẩu ban đầu được cấp đúng cách (vào rồi vẫn nên đổi).
+- **Xoá project gỡ sạch dịch vụ 9Router cũ** - trước đây nó chạy ngầm giữ cổng, làm lần cài mới lặng lẽ tách sang cổng khác mà không đường hầm nào trỏ tới.
+- **Máy native tự cài plugin tìm kiếm DuckDuckGo kèm xác nhận quyền** - thiếu nó gateway từ chối báo sẵn sàng và khởi động vòng lặp.
+
+
 ## [5.16.4] — 2026-09-02
 
 ### 🔧 Sửa: nút "Cập nhật setup" chạy được trên bản cài npm-global

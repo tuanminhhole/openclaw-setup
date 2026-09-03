@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows · macOS · Linux · VPS — Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.16.4-0EA5E9?style=for-the-badge" alt="Version 5.16.4" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.16.5-0EA5E9?style=for-the-badge" alt="Version 5.16.5" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,13 +37,23 @@
 
 ---
 
-## 🆕 What's New in v5.16.4
+## 🆕 What's New in v5.16.5
 
-- 🚑 **The big OpenClaw 2026.8.1 catch-up — the old setup had gone stale; this wave heals it all in one pass.** OpenClaw (the platform the bots run on) shipped a major upgrade and changed the rules: configs are strictly checked, data moved to a new home, several install commands were renamed. With the old setup that meant fresh installs could stall, running bots suddenly went **silent**, and the admin screen showed **0 bots** while the bot was alive. As of 5.16.3–5.16.4: fresh installs run smoothly on 2026.8.1 (Docker and native, Windows/macOS/Linux), and **existing machines heal themselves on upgrade** — stale config cleaned, data relocated, and the old file that could mute the bot retired automatically.
-- 🤖 **The bot stops claiming "I can't see the file"**: files sent through chat now come with clear directions for the AI — even weaker models find them.
-- 🔁 **9Router (the AI model router) comes back on its own** after a server reboot or UI maintenance — previously it could die silently and the bot lost its brain.
-- 🔄 **The in-app "Update" button really updates now**: on standard server installs it used to just restart the old version while reporting success — now it pulls the latest and relaunches itself.
-- 🧭 **One setup build manages both generations** (2026.7 and 2026.8) — renamed commands are tried the new way first with an automatic fallback, so nobody is forced to upgrade overnight.
+- 🩹 **Native installs on OpenClaw 2026.8 are smooth from the first run** - this wave patches the remaining chain of issues measured on fresh customer machines: generated configs pass the new strict checks 100%, install steps run in the right order, and restarts/plugin installs no longer get blocked midway.
+- 🔑 **9Router login works on Docker**: the new 9Router blocks the default password for "remote" access - and inside Docker every request counts as remote, so 123456 could never log in. It works now (still change the password once you're in).
+- 🧹 **Deleting a project fully removes the old 9Router**: it used to keep running in the background holding the port, silently forking the next install onto a different port - now removal is clean and reinstalls land on the standard port.
+- 🔌 **Native machines auto-install the web-search plugin** (DuckDuckGo) with its capability consent - no more boot loops over a missing nod.
+
+<details>
+<summary><b>Previous: What's new in v5.16.3</b></summary>
+
+- 🚑 **The big OpenClaw 2026.8.1 catch-up**: fresh installs run smoothly (Docker and native, Windows/macOS/Linux), and existing machines heal themselves on upgrade - stale config cleaned, data relocated, and the old file that could mute the bot retired automatically.
+- 🤖 **The bot stops claiming "I can't see the file"**: files sent through chat come with clear directions for the AI.
+- 🔁 **9Router comes back on its own** after a server reboot or UI maintenance.
+- 🔄 **The in-app "Update" button really updates** on standard server installs.
+- 🧭 **One setup build manages both generations** (2026.7 and 2026.8).
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.15.3</b></summary>

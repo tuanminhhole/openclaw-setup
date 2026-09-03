@@ -7,7 +7,7 @@
 *Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS — chạy trên Docker, tự cài giúp bạn.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.16.4-0EA5E9?style=for-the-badge" alt="Version 5.16.4" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.16.5-0EA5E9?style=for-the-badge" alt="Version 5.16.5" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,13 +37,23 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.16.4
+## 🆕 Có gì mới trong v5.16.5
 
-- 🚑 **Theo kịp OpenClaw 2026.8.1 — bản setup cũ đã lỗi thời, đợt này chữa hết một lượt.** OpenClaw (nền tảng chạy bot) nâng cấp lớn và đổi nhiều "luật chơi": file cấu hình bị soát khắt khe hơn, chỗ lưu dữ liệu dời đi, vài lệnh cài đặt đổi tên. Với bản setup cũ, hệ quả là cài bot mới có thể đứng giữa chừng, bot đang chạy bỗng **im lặng không trả lời**, màn hình quản trị hiện **0 bot** dù bot vẫn sống. Từ 5.16.3–5.16.4: cài mới chạy mượt trên 2026.8.1 (đủ Docker lẫn native, Windows/macOS/Linux), **máy cũ tự được chữa khi nâng cấp** — tự dọn cấu hình lỗi thời, tự dời dữ liệu, tự gỡ file cũ từng khiến bot "câm".
-- 🤖 **Bot hết chối "không thấy file"**: file khách gửi qua chat giờ được chỉ đường tận nơi cho AI — kể cả model yếu cũng tìm được.
-- 🔁 **9Router (bộ định tuyến model AI) tự sống lại** sau khi máy chủ khởi động lại hay giao diện bảo trì — trước đây nó có thể chết im mà không ai hay, bot mất não.
-- 🔄 **Nút "Cập nhật" trong giao diện giờ cập nhật thật**: trên máy chủ cài kiểu chuẩn, trước đây nút chỉ khởi động lại bản cũ mà vẫn báo thành công — giờ bấm là setup tự kéo bản mới về rồi tự khởi động lại.
-- 🧭 **Một bản setup quản được cả máy đời cũ (2026.7) lẫn đời mới (2026.8)** — lệnh nào openclaw đổi tên thì setup tự thử tên mới rồi lùi về tên cũ, không bắt khách nâng cấp gấp.
+- 🩹 **Cài native trên OpenClaw 2026.8 mượt từ phát đầu** - đợt này vá nốt chuỗi lỗi đo được khi dựng máy khách mới: cấu hình sinh ra sạch 100% với bộ soát khắt khe của OpenClaw mới, các bước cài tự chạy đúng thứ tự, và mọi thao tác khởi động lại/cài plugin không còn bị chặn giữa chừng.
+- 🔑 **Đăng nhập 9Router hoạt động trên Docker**: bản 9Router mới chặn mật khẩu mặc định với truy cập "từ xa" - mà trong Docker thì mọi truy cập đều bị tính là từ xa, nên trước đây không cách nào vào được bằng 123456. Giờ đăng nhập bình thường (vào rồi vẫn nên đổi mật khẩu).
+- 🧹 **Xoá project gỡ sạch 9Router cũ**: trước đây 9Router cũ còn chạy ngầm giữ cổng, làm lần cài mới tự tách sang cổng khác mà không ai hay - giờ xoá là sạch, cài lại đúng cổng chuẩn.
+- 🔌 **Máy native tự cài đủ plugin tìm kiếm web** (DuckDuckGo) kèm xác nhận quyền - hết cảnh bot khởi động vòng lặp vì thiếu một cái gật đầu.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.16.3</b></summary>
+
+- 🚑 **Theo kịp OpenClaw 2026.8.1**: cài mới chạy mượt (đủ Docker lẫn native, Windows/macOS/Linux), máy cũ tự được chữa khi nâng cấp - tự dọn cấu hình lỗi thời, tự dời dữ liệu, tự gỡ file cũ từng khiến bot "câm".
+- 🤖 **Bot hết chối "không thấy file"**: file khách gửi qua chat được chỉ đường tận nơi cho AI.
+- 🔁 **9Router tự sống lại** sau khi máy chủ khởi động lại hay giao diện bảo trì.
+- 🔄 **Nút "Cập nhật" trong giao diện cập nhật thật** trên máy chủ cài kiểu chuẩn.
+- 🧭 **Một bản setup quản được cả máy đời cũ (2026.7) lẫn đời mới (2026.8)**.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.15.3</b></summary>

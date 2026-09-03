@@ -48,7 +48,11 @@ function specMajorMinor(spec) {
 }
 let hostOcMajorMinorCache = null;
 async function hostOpenclawMajorMinor() {
-  if (hostOcMajorMinorCache !== null) return hostOcMajorMinorCache;
+  // Cache only a REAL version: during bot creation this is first called before
+  // `npm i -g openclaw` has run, and caching that 0 forever made prepareNativeStateHome
+  // skip the 2026.8 state-home move — daemon install then failed with "non-default
+  // state dir" (measured on a fresh native install, 03/09/2026).
+  if (hostOcMajorMinorCache) return hostOcMajorMinorCache;
   const r = await runCapture('openclaw', ['--version'], { shell: false }).catch(() => null);
   hostOcMajorMinorCache = specMajorMinor(r && (r.stdout || r.stderr));
   return hostOcMajorMinorCache;
@@ -2939,7 +2943,20 @@ function migrationLeaseDeadline(text = '') {
 async function ocDaemon(projectDir, verb, extraArgs = []) {
   const args = ['daemon', verb, ...extraArgs];
   sendLog(`$ openclaw ${args.join(' ')}`);
-  const out = await runCapture('openclaw', args, { cwd: projectDir, env: nativeEnv(projectDir), shell: false, timeout: 120000 });
+  // openclaw 2026.8.x refuses EVERY `daemon *` verb (not just install) while OPENCLAW_HOME is
+  // set — "service management skipped: non-default state dir" (measured 03/09/2026: the
+  // post-plugin-install restart failed on a fresh native host). On the 2026.8 layout the
+  // state already lives at ~/.openclaw, so run daemon verbs with the plain account HOME and
+  // no OPENCLAW_* overrides; STOP even suggests --force for the operator gateway, so pass it.
+  let env = nativeEnv(projectDir);
+  if ((await hostOpenclawMajorMinor()) >= 202608) {
+    env = { ...env };
+    delete env.OPENCLAW_HOME;
+    delete env.OPENCLAW_STATE_DIR;
+    env.HOME = os.homedir();
+  }
+  if (verb === 'stop' && !extraArgs.includes('--force')) args.push('--force');
+  const out = await runCapture('openclaw', args, { cwd: projectDir, env, shell: false, timeout: 120000 });
   const text = `${out.stdout || ''}\n${out.stderr || ''}`;
   for (const line of text.split(/\r?\n/).map((l) => l.trimEnd()).filter(Boolean)) sendLog(line);
   return { ...out, text };
@@ -3274,6 +3291,10 @@ async function ensureNativePlugins(projectDir, { restart = false } = {}) {
   // actually declares the channel (mirrors docker-gen's `if (zaloBackend === 'zalo-connect')`).
   const wanted = new Set(['learning-memory']);
   if (cfg?.channels?.[ZALO_CHANNEL_ID] || cfg?.plugins?.entries?.[ZALO_PLUGIN_ID]) wanted.add(ZALO_PLUGIN_ID);
+  // openclaw >=2026.8 unbundled duckduckgo AND refuses to report ready while the config
+  // declares a plugin that lacks capability consent — the docker entrypoint ensures it,
+  // native must too (measured 03/09/2026: fresh install crash-looped on this).
+  if (cfg?.plugins?.entries?.duckduckgo) wanted.add('duckduckgo');
   const installed = [];
   for (const id of wanted) {
     const dir = join(projectDir, '.openclaw', 'extensions', id);
@@ -3492,11 +3513,12 @@ async function startNativeRuntime({ projectDir, osChoice = '', gatewayPort, rout
   // Plugins BEFORE the gateway's first boot — the container entrypoint installs them ahead of the
   // gateway for the same reason: a gateway that boots with its plugins already on disk loads them
   // straight away, needs no follow-up restart, and prints no "plugin not found" warnings.
-  await ensureNativePlugins(projectDir).catch((e) => sendLog(`[native] plugin bootstrap skipped: ${e.message}`));
-
-  // Config migrations BEFORE the first boot too — same ordering the container entrypoint uses
-  // (migrate, then start), so an adopted pre-existing project boots on the upgraded config.
+  // Config migrations FIRST: `openclaw plugins install` validates the config, so a config
+  // still carrying pre-2026.8 keys makes every plugin install fail before migrations ran
+  // (measured on a fresh native install, 03/09/2026 — learning-memory refused to install).
   await runNativeConfigMigrations(projectDir).catch(() => {});
+
+  await ensureNativePlugins(projectDir).catch((e) => sendLog(`[native] plugin bootstrap skipped: ${e.message}`));
 
   // Managed service = auto-restart (KeepAlive/Restart=always) and start-at-login, the native
   // equivalent of docker's `restart: always`. --force so re-running install updates the port.
@@ -3544,6 +3566,13 @@ async function removeNativeRuntime(projectDir) {
   if (!isNativeProject(projectDir)) return false;
   const env = nativeEnv(projectDir);
   await run('openclaw', ['daemon', 'uninstall'], { cwd: projectDir, env }).catch((e) => sendLog(`[native] daemon uninstall: ${e.message}`));
+  // The 9router systemd unit has Restart=always: killing the listener alone brings it (or an
+  // orphaned child) back, the port stays busy, and the NEXT install silently forks off to a
+  // new router port that no ssh tunnel or oc-web table points at (measured 03/09/2026).
+  if (process.platform === 'linux') {
+    await run('systemctl', ['--user', 'disable', '--now', 'openclaw-9router.service'], {}).catch(() => {});
+    await run('systemctl', ['--user', 'disable', '--now', 'openclaw-9router-sync.service'], {}).catch(() => {});
+  }
   const routerPort = (readNativeMeta(projectDir) || {}).routerPort || NATIVE_DEFAULT_ROUTER_PORT;
   await killListenerOnPort(routerPort);
   return true;
@@ -6088,6 +6117,8 @@ const PLUGIN_NPM_SPEC = {
   // learning-memory ships on ClawHub as `openclaw-learning-memory` (manifest id is
   // `learning-memory`, used as the config key). Install by the full package spec.
   'learning-memory': 'clawhub:openclaw-learning-memory',
+  // duckduckgo is openclaw's own external plugin on npm, not a ClawHub package.
+  'duckduckgo': '@openclaw/duckduckgo-plugin',
 };
 const pluginInstallSpec = (id) => PLUGIN_NPM_SPEC[id] || `clawhub:${id}`;
 
