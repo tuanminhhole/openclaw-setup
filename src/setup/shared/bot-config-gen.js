@@ -196,13 +196,15 @@
     // arbitrary emoji globally would make those channels reject every ack, so other
     // channels keep their existing behaviour until someone picks a value valid there.
     //
-    // 🦞 is sent as a Zalo *custom* reaction (emoji as rIcon + a hash as rType), which
-    // needs zalo-connect ≥3.0.15 — earlier versions only knew the 55 built-ins and would
-    // drop it silently. Scope "all" covers DMs and groups; in a mention-gated group the
-    // plugin still only reacts to messages that address the bot, since non-addressed ones
-    // are buffered as passive context before the reaction step.
+    // `/-heart` is one of Zalo's 55 BUILT-IN reactions, so every zalo-connect version can
+    // send it. The previous default (🦞) went out as a Zalo *custom* reaction (emoji as
+    // rIcon + a hash as rType), which needs zalo-connect ≥3.0.15 — on anything older it was
+    // dropped silently and the bot looked unresponsive until the reply landed.
+    // Scope "all" covers DMs and groups; in a mention-gated group the plugin still only
+    // reacts to messages that address the bot, since non-addressed ones are buffered as
+    // passive context before the reaction step.
     if (isZaloPersonal(channelKey)) {
-      cfg.messages = { ackReaction: '🦞', ackReactionScope: 'all', removeAckAfterReply: false };
+      cfg.messages = { ackReaction: '/-heart', ackReactionScope: 'all', removeAckAfterReply: false };
     }
 
     // ── commands ──────────────────────────────────────────────────────────────

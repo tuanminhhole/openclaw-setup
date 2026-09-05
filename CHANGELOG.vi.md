@@ -1,6 +1,17 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.16.6] — 2026-09-05
+
+### 🩹 Bot thả cảm xúc được trên mọi bản Zalo, và hết con bot lạ thứ hai
+
+Ba lỗi đo trực tiếp trên máy khách đang chạy (vps_tracy-hong, 03-04/09).
+
+- **Trái tim thả được trên mọi bản Zalo Connect.** Bot mới giờ báo đã nhận tin bằng trái tim có sẵn của Zalo. Con tôm hùm trước đây đi đường cảm xúc *tuỳ chỉnh*, chỉ bản Zalo Connect 3.0.15 trở lên mới hiểu — bản cũ hơn thì im lặng bỏ qua, khách nhìn tưởng bot chết cho tới lúc câu trả lời hiện ra. Máy đang chạy tự nâng ở lần khởi động kế tiếp; cảm xúc anh chị tự chọn thì giữ nguyên.
+- **Không còn con bot thứ hai lạ hoắc trong màn hình quản trị.** Với project chạy Docker, nền tảng tự tạo trợ lý mặc định của nó ngay lúc project chưa có con bot nào, rồi con đó nằm chình ình cạnh bot thật — khách hỏi con nào mới là của mình là đúng. Nó vẫn nằm nguyên trong cấu hình của nền tảng, chỉ là màn hình quản trị nay chỉ hiện những bot anh chị tự tạo. Bot thật sự được đặt tên "main" thì vẫn hiện bình thường.
+- **Quét QR Zalo hết lỗi "không rõ ai làm chủ".** Khi project có nhiều hơn một trợ lý, nền tảng từ chối mọi thao tác kênh không nói rõ trợ lý nào đứng tên — nên bấm quét QR là chết trước cả khi mã hiện ra. Trình cài giờ tự gắn kênh Zalo vào đúng bot thật trước khi mở QR. Thiết lập sẵn có không bao giờ bị ghi đè.
+
+
 ## [5.16.5] — 2026-09-03
 
 ### 🩹 Cài native trên OpenClaw 2026.8 - mượt từ lần chạy đầu tiên

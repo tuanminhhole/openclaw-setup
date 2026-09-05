@@ -1,6 +1,17 @@
 # Changelog (English)
 
 
+## [5.16.6] — 2026-09-05
+
+### 🩹 The bot reacts on every Zalo build, and the stray second bot is gone
+
+Three fixes measured on live customer machines (vps_tracy-hong, 03-04/09).
+
+- **The heart reaction lands on every Zalo Connect version.** New bots now acknowledge an inbound message with Zalo's built-in heart. The previous lobster went out as a *custom* reaction, which only Zalo Connect 3.0.15+ understood — on anything older it was dropped silently and the bot looked dead until the reply arrived. Projects already running are upgraded automatically on the next start; a reaction you picked yourself is left alone.
+- **No more phantom second bot in the admin screen.** On Docker projects the platform creates its own default assistant while the project still has zero bots, and it then sat in the bot list next to the real one — customers reasonably asked which of the two was theirs. It stays in the platform's own config exactly as the platform expects, but the admin screen now shows only the bots you created. A bot you genuinely named "main" is still shown.
+- **Zalo QR login no longer fails with "no explicit owner".** When a project holds more than one assistant, the platform refuses any channel action that cannot say which one owns it — so scanning the QR died before the code appeared. The setup now pins the Zalo channel to your real bot before opening the QR. Existing settings are never overwritten.
+
+
 ## [5.16.5] — 2026-09-03
 
 ### 🩹 Native installs on OpenClaw 2026.8 — smooth from the very first run

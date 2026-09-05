@@ -382,8 +382,11 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       // seeded. Kept out of the shared migration because zalo-connect reads the GLOBAL
       // messages.ackReaction, and that same key also feeds Telegram/Discord/Slack/
       // WhatsApp — which accept only their own fixed reaction sets and would reject an
-      // arbitrary emoji. Absent-only, so an operator's own choice is never overwritten.
-      const ackReactionScript = `const fs=require('fs'),path=require('path');const p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));let ch=false;c.messages=c.messages||{};if(c.messages.ackReaction===undefined){c.messages.ackReaction='🦞';ch=true;}if(c.messages.ackReactionScope===undefined){c.messages.ackReactionScope='all';ch=true;}if(ch)fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
+      // arbitrary emoji. Absent-only, so an operator's own choice is never overwritten —
+      // with one exception: the 🦞 this script itself used to seed is rewritten to
+      // `/-heart`. 🦞 only ships as a Zalo CUSTOM reaction (needs zalo-connect ≥3.0.15,
+      // silently dropped below that); `/-heart` is a built-in every version can send.
+      const ackReactionScript = `const fs=require('fs'),path=require('path');const p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));let ch=false;c.messages=c.messages||{};if(c.messages.ackReaction===undefined||c.messages.ackReaction==='🦞'){c.messages.ackReaction='/-heart';ch=true;}if(c.messages.ackReactionScope===undefined){c.messages.ackReactionScope='all';ch=true;}if(ch)fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
       runtimeParts.push(`node - <<'NODE'\n${ackReactionScript}\nNODE`);
     }
     // Always-on memory context engine for every bot (see bot-config-gen: plugins.slots

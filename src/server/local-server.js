@@ -1794,6 +1794,22 @@ function bindingChannelId(channel = '') {
   return channel;
 }
 
+// OpenClaw ≥2026.8 materialises a DEFAULT agent `main` ("Trợ lý OpenClaw") the first time a
+// gateway boots against a roster it considers empty — which is exactly what happens in Docker
+// mode, where `docker compose up` runs while the project still has zero bots (writeCoreProject
+// seeds agents with an empty list). The entry is legitimate OpenClaw state and is left alone in
+// openclaw.json, but it is NOT a bot the operator created: showing it next to the real bot made
+// customers think a second Zalo bot appeared out of nowhere (measured on vps_tracy-hong, 03/09).
+//
+// Identified by disk, not by name: every bot this setup creates gets `workspace` in the config
+// AND that directory on disk. The materialised default has neither, so an operator who really
+// does name their bot `main` is never hidden.
+function isPhantomMainAgent(agent, projectDir, agentCount) {
+  if (!agent || agent.id !== 'main' || agentCount < 2) return false;
+  if (!agent.workspace) return true;
+  return !existsSync(join(projectDir, agent.workspace));
+}
+
 async function listConfiguredBots(projectDir) {
   const cfgPath = join(projectDir || '', '.openclaw', 'openclaw.json');
   if (!projectDir || !existsSync(cfgPath)) return [];
@@ -1801,7 +1817,8 @@ async function listConfiguredBots(projectDir) {
   const cfg = ensureConfigShape(parseJsonText(raw));
   const normalized = JSON.stringify(cfg, null, 2) + '\n';
   if (normalized !== raw) await fsp.writeFile(cfgPath, normalized, 'utf8');
-  const rows = await Promise.all(cfg.agents.list.map(async (agent) => {
+  const roster = cfg.agents.list.filter((agent) => !isPhantomMainAgent(agent, projectDir, cfg.agents.list.length));
+  const rows = await Promise.all(roster.map(async (agent) => {
     const identity = await readAgentIdentity(projectDir, agent);
     const meta = await readBotMeta(projectDir, agent, cfg);
     const env = await readProjectEnv(projectDir);
@@ -2395,10 +2412,32 @@ async function startZaloLogin(projectDir, agentId = "") {
   probeCacheClear(`zalohealth:${projectDir || ''}`);
   const cfgPath = join(projectDir, ".openclaw", "openclaw.json");
   if (!existsSync(cfgPath)) throw httpError(404, "openclaw.json not found");
-  const cfg = JSON.parse(await fsp.readFile(cfgPath, "utf8"));
-  const binding = (cfg.bindings || []).find((b) =>
+  const raw = await fsp.readFile(cfgPath, "utf8");
+  const cfg = ensureConfigShape(parseJsonText(raw));
+  let binding = (cfg.bindings || []).find((b) =>
     (!agentId || b.agentId === agentId) && b.match?.channel === "zalo-connect"
   );
+  // A roster with more than one agent makes OpenClaw ≥2026.8 refuse any channel operation that
+  // cannot name its owner: `AgentSelectionRequiredError — Multiple agents are configured, but
+  // this operation has no explicit owner`. That is exactly what a Docker project looks like once
+  // the gateway has materialised its default `main` agent alongside the real bot, and the QR
+  // login dies with it (measured on vps_tracy-hong, 03/09).
+  //
+  // `openclaw channels login` has no --agent flag (2026.8.1: only --channel/--account/--verbose),
+  // and neither does the channels.start call it makes into the gateway — so the owner can only be
+  // named the way OpenClaw's own error hint says: through a binding. Pin one to the real bot
+  // before the QR starts. Additive: an existing binding is never rewritten, and the phantom
+  // `main` is never the target.
+  if (!binding) {
+    const roster = (cfg.agents.list || []).filter((a) => !isPhantomMainAgent(a, projectDir, (cfg.agents.list || []).length));
+    const target = (agentId && roster.some((a) => a.id === agentId)) ? agentId : roster[0]?.id;
+    if (target) {
+      binding = { agentId: target, match: { channel: 'zalo-connect', accountId: 'default' } };
+      cfg.bindings = [...(cfg.bindings || []), binding];
+      await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
+      sendLog(`[zalo-connect] No zalo-connect binding found — pinned this QR login to agent [${target}] so OpenClaw knows who owns the channel.`);
+    }
+  }
   return startZaloConnectLogin(projectDir, binding?.match?.accountId || "default");
 }
 
