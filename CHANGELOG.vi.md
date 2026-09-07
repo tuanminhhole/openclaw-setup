@@ -1,6 +1,17 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.16.9] — 2026-09-07
+
+### 🩹 Ba lỗi lộ ra khi dựng bot trên máy vốn đã chạy OpenClaw
+
+Mọi mục dưới đây đo trên máy thật hôm nay, không suy đoán.
+
+- **Bot mới khởi động được trên máy vốn đã có OpenClaw bản cũ.** Trình cài có nâng OpenClaw lên, nhưng vẫn đọc theo số phiên bản lúc máy mới bật, nên bỏ qua một bước bắt buộc rồi dừng với lỗi "non-default state dir or config path" — bot cài xong mà không bao giờ chạy. Máy sạch không dính lỗi này; máy đã có bot sẵn thì lần nào cũng dính.
+- **Nâng lên OpenClaw 2026.9 không còn để lại quả bom hẹn giờ.** Bản 2026.9 bỏ một thiết lập trình duyệt mà các bản trước *bắt buộc* phải có. Bot còn giữ thiết lập đó vẫn trả lời như thường nhờ bản nạp sẵn trong bộ nhớ, nhưng âm thầm từ chối mọi câu lệnh và mọi lần nạp lại cấu hình — rồi tắt hẳn ở lần khởi động sau. Nay thiết lập đó được gỡ ngay lúc nâng cấp, và chỉ gỡ trên bản đã bỏ nó.
+- **Bot mới tách riêng tin nhắn của từng người thành từng cuộc trò chuyện.** Mặc định của OpenClaw dồn mọi người nhắn riêng cho bot vào chung một cuộc — chính OpenClaw gọi đó là lỗ bảo mật. Hệ quả kèm theo: tin nhắn riêng không hiện trong màn hình quản trị, và cuộc chung ấy phình lên tới lúc bot trả lời bằng thông báo lỗi. Bot đang chạy giữ nguyên: đổi thiết lập này là mất mạch trò chuyện cũ, nên phải là quyết định có chủ ý.
+
+
 ## [5.16.8] — 2026-09-07
 
 ### 🚀 Đưa bot lên OpenClaw 2026.9.2 - và chữa nút Cập nhật bấm hoài không lên

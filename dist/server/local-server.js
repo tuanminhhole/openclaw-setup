@@ -47,11 +47,26 @@ function specMajorMinor(spec) {
   return m ? Number(m[1]) * 100 + Number(m[2]) : 0;
 }
 let hostOcMajorMinorCache = null;
+/**
+ * Drop the cached host version. MUST be called right after `npm i -g openclaw@…` changes the
+ * global install, because the cache below survives the upgrade and every version-gated
+ * decision after it would still see the OLD runtime.
+ */
+function invalidateHostOpenclawVersion() {
+  hostOcMajorMinorCache = null;
+}
 async function hostOpenclawMajorMinor() {
   // Cache only a REAL version: during bot creation this is first called before
   // `npm i -g openclaw` has run, and caching that 0 forever made prepareNativeStateHome
   // skip the 2026.8 state-home move — daemon install then failed with "non-default
   // state dir" (measured on a fresh native install, 03/09/2026).
+  //
+  // A real-but-STALE version is just as bad and does not self-heal: on a host that already
+  // had an older openclaw (vps_mkt ran 2026.7.1-2), the first call caches 202607, the
+  // installer then upgrades the global package to 2026.9.x, and prepareNativeStateHome still
+  // reads 202607 → skips the state-home move → `daemon install` dies with "non-default state
+  // dir or config path" and the gateway never starts. Measured on vps_mkt, 07/09/2026.
+  // Hence invalidateHostOpenclawVersion() after every global install/upgrade.
   if (hostOcMajorMinorCache) return hostOcMajorMinorCache;
   const r = await runCapture('openclaw', ['--version'], { shell: false }).catch(() => null);
   hostOcMajorMinorCache = specMajorMinor(r && (r.stdout || r.stderr));
@@ -3808,6 +3823,7 @@ async function updateRuntime(target, projectDir) {
   if (isNativeProject(projectDir)) {
     sendLog(`[native] Updating ${target} → ${spec}`);
     await run('npm', ['install', '-g', spec]);
+    if (!isRouter) invalidateHostOpenclawVersion();
     if (isRouter) await startNative9Router(projectDir, { restart: true }).catch((e) => sendLog(`[native] 9router restart: ${e.message}`));
     else await restartNativeRuntime(projectDir);
     await syncRuntimeState(projectDir, { full: true }).catch(() => {});
@@ -5394,6 +5410,9 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
     if (mode !== 'native') await ensureDockerInstalled(osChoice);
     await writeCoreProject({ projectDir, osChoice, mode, gatewayPort, routerPort, userTimezone });
     await run('npm', ['install', '-g', OPENCLAW_NPM_SPEC]);
+    // The global runtime just changed — every version gate after this point (notably
+    // prepareNativeStateHome) must read the NEW version, not the one this host booted with.
+    invalidateHostOpenclawVersion();
     await run('npm', ['install', '-g', NINE_ROUTER_NPM_SPEC]);
     if (mode === 'docker') {
       const dockerDir = join(projectDir, 'docker', 'openclaw');

@@ -1,6 +1,17 @@
 # Changelog (English)
 
 
+## [5.16.9] — 2026-09-07
+
+### 🩹 Three failures found while putting a bot onto a machine that already ran OpenClaw
+
+Every item below was measured on a live machine today, not inferred.
+
+- **A new bot now starts on a machine that already had an older OpenClaw.** The installer upgrades OpenClaw, but kept reading the version the machine booted with, so it skipped a required step and finished with "non-default state dir or config path" — the bot was installed and never ran. Fresh machines never hit this; machines with a bot already on them always did.
+- **Upgrading to OpenClaw 2026.9 no longer leaves a bot one restart away from dying.** 2026.9 dropped a browser setting that earlier versions *required*. A bot carrying it kept answering from memory while silently refusing every command and every settings reload — and stopped for good at the next restart. The setting is now removed during the upgrade, and only on versions that dropped it.
+- **New bots keep each person's direct messages in their own conversation.** OpenClaw's default puts every person who messages the bot into one shared conversation — its own runtime flags that as a security problem. It also meant direct chats never appeared in the admin screen, and the single shared conversation grew until the bot started replying with an error. Existing bots are untouched: changing this drops earlier context, so it stays a deliberate decision.
+
+
 ## [5.16.8] — 2026-09-07
 
 ### 🚀 Moves your bot onto OpenClaw 2026.9.2 — and fixes the Update button that never worked

@@ -230,6 +230,23 @@
       cfg.messages = { ackReaction: '/-heart', ackReactionScope: 'all' };
     }
 
+    // ── session scope ─────────────────────────────────────────────────────────
+    // OpenClaw's own default (`main`) funnels EVERY direct message from EVERY person into a
+    // single shared session. Its runtime calls that out as a security problem verbatim:
+    //   "⚠️ SECURITY: Multiple users sharing DM session.
+    //    Configure \"session.dmScope: per-channel-peer\" in OpenClaw config."
+    // Two things go wrong in practice, both measured on vps_thuy-le 07/09/2026: the Control
+    // UI shows no DM session at all (there is nothing per-peer to list, so only groups
+    // appear), and the one shared session grows without bound until the model answers with
+    // an empty turn — "incomplete turn … payloads=0 tools=0" surfacing to the user as
+    // "⚠️ Agent couldn't generate a response".
+    // per-channel-peer (not per-peer) is the vendor's own wording and is the right split for
+    // a bot wired to several channels: the same person on Zalo and on Telegram stays apart.
+    // The key exists since 2026.7, so this is safe on every runtime setup installs.
+    // Only NEW configs get it — existing customer bots keep their current scope until
+    // someone changes it deliberately, because splitting sessions drops the old context.
+    cfg.session = { ...(cfg.session || {}), dmScope: 'per-channel-peer' };
+
     // ── commands ──────────────────────────────────────────────────────────────
     // No `ownerDisplay`: openclaw 2026.8.x strict schema rejects it as an unrecognized key
     // and refuses to start (measured on vps_c-thu, 02/09/2026).
