@@ -1,6 +1,20 @@
 # Changelog (English)
 
 
+## [5.16.7] — 2026-09-07
+
+### 🛡️ Your bot keeps its brain, its privacy, and its heartbeat
+
+Found by auditing a real customer machine against the newest OpenClaw release. Three of these fail silently - nothing warns you, things just stop working.
+
+- **Nobody can switch your bot's AI by accident any more** - picking a model in the admin screen used to be written into the bot's configuration permanently, and restarting did not undo it.
+- **One bot can no longer read another bot's conversations** - the platform default let any bot reach every conversation on the machine, including other people's bots.
+- **Machines with two bots stop breaking in three places** - the heartbeat switched itself off, the Automations page failed to load, and voice sessions errored out.
+- **Retired a leftover file** - `HEARTBEAT.md` moved into the automation itself in OpenClaw 2026.8 and the platform deletes it, so recreating it every  time was pointless churn.
+- **Multi-bot workspaces mention their teammates again** - `TEAMS.md` was written but nothing pointed to it, so the assistant never read it.
+- **A safety net for older configuration files** so a machine cannot get stuck on startup after a platform upgrade.
+
+
 ## [5.16.6] — 2026-09-05
 
 ### 🩹 The bot reacts on every Zalo build, and the stray second bot is gone

@@ -1,6 +1,20 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.16.7] — 2026-09-07
+
+### 🛡️ Bot giữ được não, giữ được riêng tư, và giữ được nhịp tim
+
+Tìm ra khi soát một máy khách đang chạy với bản OpenClaw mới nhất. Ba lỗi trong số này hỏng lặng lẽ - không báo gì, chỉ đơn giản là thôi hoạt động.
+
+- **Không ai đổi nhầm AI của bot được nữa** - trước đây chọn model trong màn hình quản trị là ghi thẳng vào cấu hình bot, khởi động lại cũng không về như cũ.
+- **Bot này không đọc được hội thoại của bot kia** - mặc định nền tảng cho mỗi bot với tới mọi cuộc trò chuyện trên máy, kể cả của bot người khác.
+- **Máy có hai bot hết hỏng ba chỗ** - nhịp kiểm tra định kỳ tự tắt, trang Tự động hoá không mở được, phiên thoại báo lỗi.
+- **Cho một file cũ nghỉ hưu** - từ OpenClaw 2026.8, nhịp kiểm tra định kỳ nằm trong chính lịch tự động và nền tảng xoá `HEARTBEAT.md`, nên sinh lại mỗi lần chỉ tổ lặp vô ích.
+- **Bot trong máy nhiều bot lại biết mặt đồng đội** - file `TEAMS.md` vẫn được tạo nhưng không chỗ nào dẫn tới, nên trợ lý chưa từng đọc.
+- **Thêm lưới an toàn cho file cấu hình đời cũ** để máy không đứng hình khi nâng cấp nền tảng.
+
+
 ## [5.16.6] — 2026-09-05
 
 ### 🩹 Bot thả cảm xúc được trên mọi bản Zalo, và hết con bot lạ thứ hai

@@ -865,7 +865,7 @@ Skills cung cấp công cụ cho bạn. Cần cái nào, đọc \`SKILL.md\` c�
 
 Khi nhận heartbeat poll, đừng chỉ trả \`HEARTBEAT_OK\` mọi lần. Dùng heartbeat có ích!
 
-Bạn được tự do sửa \`HEARTBEAT.md\` với checklist/ghi chú ngắn. Giữ nó nhỏ để tiết kiệm token.
+Muốn nhớ việc gì giữa các nhịp, ghi checklist ngắn vào phần ghi chú (scratch) của chính automation đó — \`openclaw cron scratch\`. Giữ nó nhỏ để tiết kiệm token.
 
 ### Heartbeat vs Cron: dùng cái nào
 
@@ -873,7 +873,7 @@ Bạn được tự do sửa \`HEARTBEAT.md\` với checklist/ghi chú ngắn. G
 
 **Cron khi:** cần giờ chính xác ("9:00 sáng thứ Hai"); task cần tách khỏi lịch sử main session; muốn model/thinking khác; nhắc một lần ("nhắc sau 20 phút"); kết quả gửi thẳng vào channel.
 
-**Mẹo:** Gộp các check định kỳ tương tự vào \`HEARTBEAT.md\` thay vì tạo nhiều cron job.
+**Mẹo:** Gộp các check định kỳ tương tự vào MỘT automation thay vì tạo nhiều cron job.
 
 **Nên check (xoay vòng, 2-4 lần/ngày):** email khẩn, lịch 24-48h tới, mentions, thời tiết (nếu chủ sắp ra ngoài).
 
@@ -911,8 +911,7 @@ Mục tiêu: hữu ích mà không phiền. Check vài lần một ngày, làm v
 - 👤 **USER.md** — Thông tin và bối cảnh về User
 - 💭 **MEMORY.md** — Bộ nhớ dài hạn
 - ✨ **DREAMS.md** — Tự tổng hợp hoạt động trong ngày
-- 💓 **HEARTBEAT.md** — Nhịp kiểm tra định kỳ
-- 🚀 **BOOTSTRAP.md** — Khởi động và thiết lập
+- 🚀 **BOOTSTRAP.md** — Khởi động và thiết lập${otherAgents.length > 0 ? '\n- 👥 **TEAMS.md** — Các trợ lý khác cùng máy và cách gọi nhau' : ''}
 
 ## Make It Yours
 
@@ -1075,7 +1074,7 @@ Skills provide your tools. When you need one, check its \`SKILL.md\`. Keep local
 
 When you receive a heartbeat poll, don't just reply \`HEARTBEAT_OK\` every time. Use heartbeats productively!
 
-You are free to edit \`HEARTBEAT.md\` with a short checklist or reminders. Keep it small to limit token burn.
+To remember things between beats, keep a short checklist in the automation's own scratch (\`openclaw cron scratch\`). Keep it small to limit token burn.
 
 ### Heartbeat vs Cron: When to Use Each
 
@@ -1083,7 +1082,7 @@ You are free to edit \`HEARTBEAT.md\` with a short checklist or reminders. Keep 
 
 **Use cron when:** exact timing matters ("9:00 AM sharp every Monday"); task needs isolation from main session history; you want a different model or thinking level; one-shot reminders ("remind me in 20 minutes"); output should deliver directly to a channel.
 
-**Tip:** Batch similar periodic checks into \`HEARTBEAT.md\` instead of creating multiple cron jobs.
+**Tip:** Batch similar periodic checks into ONE automation instead of creating multiple cron jobs.
 
 **Things to check (rotate, 2-4 times per day):** urgent emails, calendar next 24-48h, mentions, weather (if your human might go out).
 
@@ -1121,8 +1120,7 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 - 👤 **USER.md** — User info and context
 - 💭 **MEMORY.md** — Long-term memory
 - ✨ **DREAMS.md** — Daily activity self-summarization
-- 💓 **HEARTBEAT.md** — Periodic check rhythm
-- 🚀 **BOOTSTRAP.md** — Startup instructions
+- 🚀 **BOOTSTRAP.md** — Startup instructions${otherAgents.length > 0 ? '\n- 👥 **TEAMS.md** — Other assistants on this machine and how to reach them' : ''}
 
 ## Make It Yours
 
@@ -1425,7 +1423,10 @@ Add whatever helps you do your job. This is your cheat sheet.
         isVi, skillListStr, workspacePath, variant, agentWorkspaceDir, hasBrowser, hasScheduler, hasZaloMod, browserDocVariant,
       }),
       'MEMORY.md': buildMemoryDoc({ isVi, variant: memoryVariant }),
-      'HEARTBEAT.md': buildHeartbeatDoc({ isVi }),
+      // KHÔNG sinh HEARTBEAT.md nữa: từ OpenClaw 2026.8, nhịp kiểm tra định kỳ nằm trong scratch
+      // của chính cron job, và doctor `core/doctor/heartbeat-scratch-migration` dời nội dung file
+      // này sang đó rồi XOÁ file (`LEGACY_HEARTBEAT_FILENAME`). Setup mà cứ sinh lại thì mỗi lần
+      // dựng workspace là một lần tái nhiễm — đúng vết xe của `toolResultMaxChars` hồi 5.16.1.
       'BOOTSTRAP.md': buildBootstrapDoc({ isVi, botName }),
       'DREAMS.md': buildDreamsDoc({ isVi }),
     };

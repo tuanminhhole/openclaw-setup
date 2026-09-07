@@ -149,6 +149,26 @@
           // we use. This is the turn budget — a DIFFERENT layer from 9router's per-request
           // timeout, so raising it does not conflict with / overrun 9router.
           timeoutSeconds: 900,
+          // Đổi model trong Control UI KHÔNG được ghi vào config. OpenClaw mặc định "dính" lựa
+          // chọn model vào `agents.defaults.model` ([agents/sticky-model-selection] … target=defaults),
+          // nên một lần bấm nhầm là bot rời 9router vĩnh viễn, restart cũng không về. "session"
+          // giữ lựa chọn trong phiên đang chat. Khoá có từ OpenClaw 2026.8 (setup cài 2026.8.1).
+          modelSelectionScope: 'session',
+          // Nhiều agent mà không khai chủ thì OpenClaw TẮT heartbeat và chỉ ghi một dòng log:
+          // "[heartbeat] disabled — multi-agent config has no ambient heartbeat owner". Bot mất
+          // nhịp tự kiểm tra mà không ai hay. Chủ là bot THẬT đầu tiên, không phải agent `main`.
+          // Roster nhiều agent mà không khai chủ thì hỏng ba chỗ, đo được từng cái trên máy thật:
+          //   • [heartbeat] disabled — bot mất nhịp tự kiểm tra, không báo gì
+          //   • cron.list ✗ "Agent-less cron job has no resolvable owner" — VỠ CẢ TRANG Automations
+          //     trong Control UI, vì job hệ thống (memory-dreaming…) không gắn agent nào
+          //   • talk.catalog ✗ "Talk session ownership has no explicit owner"
+          // Chủ là bot THẬT đầu tiên, không phải agent `main` của gateway chat.
+          ...(agentMetas.length > 1 && agentMetas[0]?.agentId
+            ? {
+                heartbeat: { agentId: agentMetas[0].agentId },
+                systemAgent: { agentId: agentMetas[0].agentId },
+              }
+            : {}),
           ...(isLocal ? { llm: { idleTimeoutSeconds: 300 } } : {}),
         },
         list: agentsList,
@@ -236,7 +256,15 @@
     }
 
     // ── tools ────────────────────────────────────────────────────────────────
-    cfg.tools = { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
+    cfg.tools = {
+      profile: 'full',
+      exec: { host: 'gateway', security: 'full', ask: 'off' },
+      // Mặc định của OpenClaw là "all" — nguyên văn schema: "any session on the Gateway, including
+      // other agents and users". Máy khách hay chạy nhiều bot cho nhiều người, để nguyên là bot này
+      // đọc được hội thoại của bot kia qua sessions_history/sessions_search. "agent" giới hạn trong
+      // đúng agent của mình. (Khoá có ở cả 2026.7 lẫn 2026.8.)
+      sessions: { visibility: 'agent' },
+    };
     const alsoAllow = [];
     if (selectedSkills.includes('scheduler') || selectedSkills.includes('cron')) {
       alsoAllow.push('group:automation');
@@ -291,6 +319,13 @@
     // `osChoice === 'vps'` clause predates native mode; keep native on loopback and reach it through
     // an SSH tunnel, which is what docker-on-a-VPS effectively does too.
     const openGatewayBind = deployMode === 'docker' || (osChoice === 'vps' && deployMode !== 'native');
+    // Talk (thoại) cũng cần chủ khi có nhiều agent: "Multiple agents are configured, but Talk
+    // session ownership has no explicit owner. Set talk.agentId…" — không khai là talk.catalog
+    // lỗi ngay lúc mở Control UI.
+    if (agentMetas.length > 1 && agentMetas[0]?.agentId) {
+      cfg.talk = { ...(cfg.talk || {}), agentId: agentMetas[0].agentId };
+    }
+
     cfg.gateway = {
       port: gatewayPort,
       mode: 'local',
