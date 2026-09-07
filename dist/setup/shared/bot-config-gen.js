@@ -224,7 +224,10 @@
     // reacts to messages that address the bot, since non-addressed ones are buffered as
     // passive context before the reaction step.
     if (isZaloPersonal(channelKey)) {
-      cfg.messages = { ackReaction: '/-heart', ackReactionScope: 'all', removeAckAfterReply: false };
+      // KHÔNG khai `removeAckAfterReply`: OpenClaw 2026.9 bỏ khoá này và schema chặt từ chối
+      // khoá lạ — máy nâng lên 2026.9.2 sẽ chết với "messages: Unrecognized key" (đo trên
+      // vps_thuy-le 07/09, gateway không khởi động được cho tới khi gỡ khoá ra).
+      cfg.messages = { ackReaction: '/-heart', ackReactionScope: 'all' };
     }
 
     // ── commands ──────────────────────────────────────────────────────────────

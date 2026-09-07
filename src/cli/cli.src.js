@@ -8,6 +8,40 @@ import { spawn } from 'child_process';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// `--version` / `--help` phải TRẢ LỜI RỒI THOÁT, đứng trước mọi thứ khác.
+//
+// Trước đây CLI không biết hai cờ này: gõ `create-openclaw-bot --version` là nó lờ đi rồi chạy
+// tiếp như thường — tạo thư mục project, dựng Setup UI, **chiếm cổng 51789 và treo vĩnh viễn**.
+// Đo trên vps_minh-thu 07/09: hai tiến trình `cli.js --version` nằm đó từ 02/09 giữ cổng, nên
+// systemd relaunch bản mới xong không bind được cổng — bấm "Cập nhật" thành công mà giao diện
+// vẫn là bản cũ, không ai hiểu vì sao.
+{
+  const rawArgs = process.argv.slice(2);
+  if (rawArgs.includes('--version') || rawArgs.includes('-v')) {
+    let v = '0.0.0';
+    try {
+      v = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8')).version || v;
+    } catch {}
+    console.log(v);
+    process.exit(0);
+  }
+  if (rawArgs.includes('--help') || rawArgs.includes('-h')) {
+    console.log([
+      'create-openclaw-bot — trình cài đặt OpenClaw Bot',
+      '',
+      'Cách dùng: create-openclaw-bot [tuỳ chọn]',
+      '',
+      '  --host=<địa chỉ>      Địa chỉ Setup UI lắng nghe (mặc định 127.0.0.1)',
+      '  --port=<cổng>         Cổng Setup UI (mặc định 51789)',
+      '  --project-dir=<đường> Thư mục project',
+      '  --no-open             Không tự mở trình duyệt',
+      '  -v, --version         In phiên bản rồi thoát',
+      '  -h, --help            In trợ giúp này rồi thoát',
+    ].join('\n'));
+    process.exit(0);
+  }
+}
+
 const runCmd = (cmd, cmdArgs, opts = {}) => {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, cmdArgs, { 

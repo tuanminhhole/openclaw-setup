@@ -1,6 +1,20 @@
 # Changelog (English)
 
 
+## [5.16.8] — 2026-09-07
+
+### 🚀 Moves your bot onto OpenClaw 2026.9.2 — and fixes the Update button that never worked
+
+Every item was measured while upgrading real customer machines today.
+
+- **The Update button actually installs the newest OpenClaw now.** It was pinned to the previous release, so pressing it reinstalled the same version forever.
+- **Update no longer lands in the wrong place.** On machines with two Node installations the update was installed into a different location than the one running — the log said "updated successfully" while the screen kept showing the old version.
+- **Upgraded machines start again instead of dying on config.** OpenClaw 2026.9 retired two settings; a machine that upgraded with them still in place refused to boot. They are now removed automatically, and only on machines new enough to need it.
+- **Workspaces are migrated before the bot starts**, so the upgrade no longer stops with "run openclaw doctor --fix".
+- **Asking the installer for its version answers instead of hanging.** `create-openclaw-bot --version` used to start the admin screen and hold the port forever, which silently broke every later update on that machine.
+- **The Update button says which version it installs**, instead of a bare "Update" that looked like a display setting.
+
+
 ## [5.16.7] — 2026-09-07
 
 ### 🛡️ Your bot keeps its brain, its privacy, and its heartbeat

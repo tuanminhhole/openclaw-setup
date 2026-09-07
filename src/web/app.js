@@ -455,9 +455,9 @@ function topbarActionsHtml() {
       <button class="seg__btn ${state.lang==='en'?'is-active':''}" data-pref="lang" data-value="en">EN</button>
     </div>
     ${hasNewVersion ? `
-    <button class="topbar__btn seg__btn" data-update-setup style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--ok); background: rgba(46, 230, 166, 0.08); color: var(--ok); font-weight: 600; cursor: pointer; transition: background 0.2s;">
+    <button class="topbar__btn seg__btn" data-update-setup title="${t('Đang dùng', 'Currently on')} ${setupVer} — ${t('bấm để lên', 'click to upgrade to')} ${latestSetupVer}" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--ok); background: rgba(46, 230, 166, 0.08); color: var(--ok); font-weight: 600; cursor: pointer; transition: background 0.2s;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-      <span>${t('Cập nhật', 'Update')}</span>
+      <span>${t('Cập nhật', 'Update')} ${latestSetupVer}</span>
     </button>
     ` : ''}
   `;

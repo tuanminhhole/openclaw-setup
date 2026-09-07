@@ -1,6 +1,20 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.16.8] — 2026-09-07
+
+### 🚀 Đưa bot lên OpenClaw 2026.9.2 - và chữa nút Cập nhật bấm hoài không lên
+
+Mọi mục dưới đây đo được khi nâng cấp máy khách thật hôm nay.
+
+- **Nút Cập nhật giờ cài đúng bản OpenClaw mới nhất.** Trước đây nó bị ghim vào bản cũ nên bấm bao nhiêu lần cũng cài lại đúng bản đó.
+- **Bản cập nhật không còn rơi nhầm chỗ.** Máy có hai bộ Node thì bản mới cài vào chỗ khác với chỗ đang chạy - nhật ký báo "cập nhật thành công" mà màn hình vẫn bản cũ.
+- **Máy nâng cấp xong khởi động được, không chết vì cấu hình.** OpenClaw 2026.9 bỏ hai thiết lập cũ; máy nào nâng lên mà còn giữ chúng là bot không chạy. Nay chúng được gỡ tự động, và chỉ gỡ trên máy đã đủ mới.
+- **Không gian làm việc được chuyển đổi trước khi bot chạy**, nên nâng cấp không còn dừng lại với thông báo "run openclaw doctor --fix".
+- **Hỏi phiên bản thì trả lời, không treo máy nữa.** Lệnh `create-openclaw-bot --version` trước đây mở luôn màn hình quản trị và giữ cổng vĩnh viễn - âm thầm làm hỏng mọi lần cập nhật sau đó trên máy ấy.
+- **Nút Cập nhật ghi rõ sẽ lên bản nào**, thay cho chữ "Cập nhật" trơ trọi trông như một nút chỉnh giao diện.
+
+
 ## [5.16.7] — 2026-09-07
 
 ### 🛡️ Bot giữ được não, giữ được riêng tư, và giữ được nhịp tim

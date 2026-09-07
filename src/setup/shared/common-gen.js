@@ -5,7 +5,7 @@
   // migration, va bot khach chet ngay sau mot lan bam rebuild vo hai (ca that 103.98.149.154,
   // 31/08/2026: rebuild keo 2026.7.1-2 → 2026.8.1, gateway tu choi boot, 66 lan restart).
   // Nang version = doi spec nay MOT CACH CO Y trong mot ban phat hanh setup, kem kiem chung.
-  const OPENCLAW_NPM_SPEC = 'openclaw@2026.8.1';
+  const OPENCLAW_NPM_SPEC = 'openclaw@2026.9.2';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const NINE_ROUTER_PORT = 20128;

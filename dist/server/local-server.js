@@ -3030,7 +3030,28 @@ async function runNativeConfigMigrations(projectDir) {
     shell: false,
   });
   if (res.code !== 0) sendLog(`[native] config migrations skipped: ${String(res.stderr || res.stdout || '').trim().slice(0, 200)}`);
+  await runOpenclawDoctorFixIfNeeded(projectDir);
   return res.code === 0;
+}
+
+/**
+ * OpenClaw 2026.9 từ chối khởi động khi workspace còn ở dạng cũ:
+ *   "Gateway failed to start: Legacy workspace setup state requires migration for
+ *    …/workspace-<agent>; run openclaw doctor --fix."
+ * Đo trên vps_thuy-le 07/09 — bot chết cho tới khi chạy tay `doctor --fix`. Việc dọn này chỉ
+ * OpenClaw biết cách làm, nên gọi thẳng nó trước mỗi lần (re)start thay vì tự đoán rồi sửa mò.
+ * Chỉ chạy trên 2026.9+ (bản cũ không có phép migrate đó), và lỗi ở đây KHÔNG chặn boot —
+ * gateway vẫn được thử khởi động, cùng lắm là báo đúng lỗi cũ.
+ */
+async function runOpenclawDoctorFixIfNeeded(projectDir) {
+  try {
+    const ver = await hostOpenclawMajorMinor();
+    if (!ver || ver < 202609) return;
+    sendLog('[native] openclaw doctor --fix (2026.9 yêu cầu migrate workspace trước khi boot)…');
+    await run('openclaw', ['doctor', '--fix'], { cwd: projectDir, env: openclawProjectEnv(projectDir) });
+  } catch (err) {
+    sendLog(`[native] doctor --fix bỏ qua: ${err?.message || String(err)}`);
+  }
 }
 
 async function restartNativeRuntime(projectDir) {
@@ -6962,8 +6983,18 @@ async function handler(req, res, rootProjectDir) {
           } else if (isGlobalNpm) {
             // Pull the latest from npm in place, then exit — the service manager (or the
             // respawn path for a hand-run UI) relaunches onto the freshly installed dist.
-            sendLog('[update-setup] Global npm install detected — npm i -g create-openclaw-bot@latest…');
-            await run('npm', ['i', '-g', 'create-openclaw-bot@latest', '--no-audit', '--no-fund'], { cwd: installerDir });
+            // Cài vào ĐÚNG prefix của bản đang chạy, không phải prefix mà `npm` trong PATH
+            // của service trỏ tới. Máy khách hay có HAI npm global (nvm + npm hệ thống): đo trên
+            // vps_thuy-le 07/09 — bản đang chạy ở `/usr/lib/node_modules` (5.16.5) mà `npm i -g`
+            // lại cài vào `/root/.nvm/versions/node/v24.20.0/lib/node_modules` (5.16.7). Log báo
+            // "updated successfully", service restart, mà giao diện vẫn bản cũ — không ai hiểu nổi.
+            // installerDir = <prefix>/lib/node_modules/create-openclaw-bot ⇒ lùi 3 cấp là prefix.
+            const npmPrefix = resolve(installerDir, '..', '..', '..');
+            const prefixArgs = /[\\/]lib[\\/]node_modules[\\/]create-openclaw-bot[\\/]?$/.test(installerDir)
+              ? ['--prefix', npmPrefix]
+              : [];
+            sendLog(`[update-setup] Global npm install detected — npm i -g create-openclaw-bot@latest${prefixArgs.length ? ` (prefix ${npmPrefix})` : ''}…`);
+            await run('npm', ['i', '-g', 'create-openclaw-bot@latest', '--no-audit', '--no-fund', ...prefixArgs], { cwd: installerDir });
           } else {
             // Ephemeral `npx github:…` install: nothing to pull in place — the relaunch
             // re-runs `npx github:…`, which fetches the latest from GitHub.
