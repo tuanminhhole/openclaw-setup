@@ -324,47 +324,59 @@ function openPathModal({ title, message, value = '', placeholder = '', field2 = 
  * one thing only the operator can do — grant the OS screen permissions from the system settings.
  */
 function openComputerUseModal(r = {}) {
+  const cu = r.computerUse || {};
   const codex = r.codex || {};
-  const appOk = codex.app && codex.app.present;
-  const cli = (r.commands || []).includes('codex');
+  const isMac = /mac/i.test(state.system?.os || state.os || '');
   const line = (icon, text) => `<li><span aria-hidden="true">${icon}</span><div>${text}</div></li>`;
+
+  // OpenClaw's own `computer` tool is the real thing here: screenshot, move, click, type, drag.
+  // Codex is only a fallback for machines that have the ChatGPT app, so it must not lead - the
+  // old copy said "mouse/keyboard control is macOS-only", which stopped being true once the
+  // cua-computer plugin shipped for Windows.
   const statusItems = [
-    cli
-      ? line('✅', t('Bot giao được việc cho <code>codex</code> — Codex tự nhìn màn hình, click, gõ phím rồi trả kết quả về.', 'The bot can hand jobs to <code>codex</code> — Codex looks at the screen, clicks and types, then reports back.'))
-      : line('⚠️', t('Không tìm thấy CLI <code>codex</code> — cài app ChatGPT/Codex rồi bật lại quyền này.', 'No <code>codex</code> CLI found — install the ChatGPT/Codex app, then re-enable this.')),
-    codex.pluginInstalled
-      ? line('✅', t(`Computer Use trong app Codex đã ${codex.installedNow ? 'được cài' : 'sẵn sàng'}${codex.mcpRepaired ? ' (đã sửa khai báo MCP cũ)' : ''}.`, `Computer Use in the Codex app is ${codex.installedNow ? 'installed' : 'ready'}${codex.mcpRepaired ? ' (stale MCP entry repaired)' : ''}.`))
-      : line('⚠️', t(`Chưa bật được Computer Use trong app Codex: ${escapeHtml(codex.error || 'không rõ lý do')}`, `Could not enable Computer Use in the Codex app: ${escapeHtml(codex.error || 'unknown reason')}`)),
-    appOk
-      ? line('✅', t('Đã thấy ứng dụng ChatGPT/Codex — <b>nhớ để app đang chạy</b>.', 'Found the ChatGPT/Codex desktop app — <b>keep it running</b>.'))
-      : line('⚠️', t('CHƯA thấy ứng dụng ChatGPT/Codex — cài rồi mở lên, không có nó thì không điều khiển GUI được.', 'No ChatGPT/Codex desktop app found — install and open it, GUI control needs it.')),
+    cu.ok && cu.enabled
+      ? line('✅', t('Bot <b>nhìn và điều khiển được máy này</b>: chụp màn hình, rê chuột, bấm chuột, gõ phím, kéo thả.', 'Your bot <b>can see and drive this machine</b>: screenshot, move, click, type, drag.'))
+      : line('⚠️', t(`Chưa bật được điều khiển máy: ${escapeHtml(cu.error || 'không rõ lý do')}`, `Could not enable computer control: ${escapeHtml(cu.error || 'unknown reason')}`)),
+    (r.apps && r.apps.length)
+      ? line('✅', t(`Mở được <b>${r.apps.length}</b> ứng dụng đang có trên máy.`, `Can open <b>${r.apps.length}</b> apps installed on this machine.`))
+      : '',
     (r.granted && r.granted.length)
       ? line('✅', t(`Đã cấp quyền chạy: ${escapeHtml(r.granted.join(', '))}.`, `Granted: ${escapeHtml(r.granted.join(', '))}.`))
       : '',
+    // Only mention Codex when it is actually available; otherwise it is noise.
+    (codex.app && codex.app.present && (r.commands || []).includes('codex'))
+      ? line('✅', t('Ngoài ra bot giao được việc cho <code>codex</code> khi cần.', 'The bot can also hand jobs to <code>codex</code> when useful.'))
+      : '',
   ].filter(Boolean).join('');
-  state.confirmModal = {
-    icon: '🖥️',
-    eyebrow: t('Điều khiển máy','PC control'),
-    title: t('Xong — còn 1 bước bạn tự làm','Done — one step left for you'),
-    message: t('Model chính của bot vẫn là smart-route, không đổi.','Your bot keeps smart-route as its primary model.'),
-    bodyHtml: `
-      <ul class="cu-status">${statusItems}</ul>
+
+  // Windows needs no privacy prompts; macOS does, and only from System Settings.
+  const permBlock = isMac ? `
       <h4>${t('Cấp quyền màn hình cho máy','Grant the OS screen permissions')}</h4>
-      <p>${t('macOS chỉ cấp <b>Screen Recording</b> / <b>Accessibility</b> từ System Settings — bấm nút dưới, rồi bật cho <code>node</code> và app Codex.','macOS only grants <b>Screen Recording</b> / <b>Accessibility</b> from System Settings — click below, then tick <code>node</code> and the Codex app.')}</p>
+      <p>${t('macOS chỉ cấp <b>Screen Recording</b> và <b>Accessibility</b> từ System Settings. Bấm nút dưới rồi bật cho <code>node</code>.','macOS only grants <b>Screen Recording</b> and <b>Accessibility</b> from System Settings. Click below, then tick <code>node</code>.')}</p>
       <p class="cu-perm-row">
         <button class="secondary cu-btn" type="button" data-host-perm="screen">${t('Chụp/quay màn hình','Screen recording')}</button>
         <button class="secondary cu-btn" type="button" data-host-perm="accessibility">${t('Accessibility (chuột/bàn phím)','Accessibility (mouse/keys)')}</button>
-      </p>
-      <p class="cu-note">${t('Cách dùng: nhắn bot bình thường, ví dụ “mở TeamViewer và đọc giúp mật khẩu trên màn hình” — bot tự giao cho Codex rồi báo kết quả về.','How to use it: just ask your bot normally, e.g. “open TeamViewer and read the password on screen” — it hands the job to Codex and reports back.')}</p>
-      <p class="cu-note">${t('Việc giao cho Codex chạy bằng gói ChatGPT đã đăng nhập (tốn quota gói đó); chat thường vẫn đi qua các model free của <code>smart-route</code>. Điều khiển chuột/bàn phím hiện chỉ có trên macOS.','Jobs handed to Codex run on the signed-in ChatGPT plan (they spend that quota); ordinary chat still uses the free <code>smart-route</code> models. Mouse/keyboard control is macOS-only for now.')}</p>
+      </p>` : '';
+
+  state.confirmModal = {
+    icon: '🖥️',
+    eyebrow: t('Điều khiển máy','PC control'),
+    title: cu.ok && cu.enabled ? t('Đã bật điều khiển máy','Computer control is on') : t('Bật chưa xong','Not fully enabled'),
+    message: t('Model chính của bot vẫn là smart-route, không đổi.','Your bot keeps smart-route as its primary model.'),
+    bodyHtml: `
+      <ul class="cu-status">${statusItems}</ul>
+      ${permBlock}
+      <p class="cu-note">${t('Cách dùng: nhắn bot bình thường, ví dụ “chụp màn hình cho anh xem” hoặc “mở TeamViewer rồi đọc mật khẩu trên màn hình”.','How to use it: just ask your bot normally, e.g. "take a screenshot" or "open TeamViewer and read the password on screen".')}</p>
+      <p class="cu-note">${t('Chỉ dùng được trên máy có màn hình. Máy chủ VPS không màn hình thì không áp dụng. Tắt nút này là thu hồi lại toàn bộ quyền trên.','Only works on a machine with a screen. A headless VPS cannot use this. Turning the switch off revokes all of it.')}</p>
+      <p class="cu-note">${t('<b>Sau khi khởi động lại máy hoặc đăng xuất Windows, phần điều khiển máy sẽ tắt.</b> Mở lại giao diện này và bật lại nút là xong. Bot vẫn chat bình thường, chỉ riêng phần nhìn và điều khiển màn hình là cần bật lại.','<b>Restarting or signing out of Windows turns computer control off.</b> Open this screen and switch it back on. Chat keeps working meanwhile; only seeing and driving the screen needs re-enabling.')}</p>
     `,
     okText: t('Đã hiểu','Got it'),
     okDanger: false,
     hideCancel: true,
     onConfirm: () => { state.confirmModal = null; render(); },
   };
-  render();
 }
+
 async function pickFolderPathShared() {
   try {
     const picked = await api('/api/project/pick-folder', { method: 'POST', body: {} });
@@ -1256,8 +1268,8 @@ function wireTab() {
       const granted = r.screen && r.screen.supported ? r.screen.granted : null;
       showToast(t('Đã mở cài đặt quyền','Opened settings'),
         granted === true ? t('Quyền chụp/quay màn hình: đã có. Bật thêm Accessibility nếu cần gõ/click.','Screen recording: already granted. Also enable Accessibility for typing/clicking.')
-          : granted === false ? t('Chưa có quyền — bật cho "node" (và app Codex) trong danh sách vừa mở, rồi restart bot.','Not granted yet — tick "node" (and the Codex app) in the list that just opened, then restart the bot.')
-            : t('Bật quyền cho "node" và app Codex trong danh sách vừa mở.','Tick "node" and the Codex app in the list that just opened.'),
+          : granted === false ? t('Chưa có quyền. Bật cho "node" trong danh sách vừa mở, rồi khởi động lại bot.','Not granted yet. Tick "node" in the list that just opened, then restart the bot.')
+            : t('Bật quyền cho "node" trong danh sách vừa mở.','Tick "node" in the list that just opened.'),
         granted === false ? 'error' : 'success', 8000);
     } catch (err) { showToast(t('Thất bại','Failed'), err.message, 'error'); }
   }));
@@ -1420,7 +1432,10 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
       { icon: '🗂', title: t('Mở ứng dụng','Open apps'), desc: apps.length ? chips(apps) : t('chưa dò được app nào','no apps detected') },
       ...(cur.native ? [
         { icon: '📸', title: t('Chụp & quay màn hình','Screen capture & recording'), desc: t('bot nhìn được màn hình khi bạn nhờ','the bot can see your screen when you ask') },
-        { icon: '🖱', title: t('Điều khiển chuột/bàn phím','Mouse & keyboard control'), desc: t('bot giao việc cho Codex CLI (dùng gói ChatGPT đã đăng nhập); macOS','the bot hands the job to the Codex CLI on your ChatGPT plan; macOS only') },
+        // Was "hands the job to the Codex CLI ... macOS only", written before OpenClaw shipped its
+        // own `computer` tool. That tool works on Windows too via the cua-computer plugin, and it
+        // needs no ChatGPT plan, so the old wording both scared people off and was simply wrong.
+        { icon: '🖱', title: t('Điều khiển chuột/bàn phím','Mouse & keyboard control'), desc: t('bot rê chuột, bấm, gõ phím và kéo thả trên máy này','the bot moves the mouse, clicks, types and drags on this machine') },
         { icon: '⚙️', title: t('Chạy script','Run scripts'), desc: `${chips(scripts.length ? scripts : ['node'])} — <b>${t('chạy được mã tuỳ ý trên máy này','arbitrary code on this machine')}</b>` },
       ] : []),
     ];
@@ -1439,7 +1454,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
       okDanger: on,
       onConfirm: async () => {
         state.confirmModal = null; render();
-        if (!on) showToast(t('Đang bật','Enabling'), t('Đang cấp quyền & cài Computer Use (có thể mất ~30s)…','Granting access & installing Computer Use (may take ~30s)…'), 'success');
+        if (!on) showToast(t('Đang bật','Enabling'), t('Đang cấp quyền và khởi động node điều khiển (có thể mất ~30s)…','Granting access and starting the control node (may take ~30s)…'), 'success');
         try {
           const r = await api('/api/host/control', { method: 'POST', body: { enabled: !on, projectDir: activeProjectDir() } });
           if (!on && r.started && r.started.ok === false && r.started.reason) {

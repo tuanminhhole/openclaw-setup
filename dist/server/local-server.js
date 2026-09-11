@@ -1311,7 +1311,16 @@ async function migrateNativePaths(projectDir) {
     const abs = join(wsRoot, base);
     if (obj.workspace !== abs) { obj.workspace = abs; changed = true; }
   };
+  // Walk BOTH shapes. This reads the file with a raw JSON.parse (no ensureConfigShape), so on an
+  // openclaw >=2026.8 config - which keys agents by `agents.entries`, not `agents.list` - `.list`
+  // is simply undefined and the loop used to run over an empty array and fix nothing. A bot added
+  // to such a project kept whatever workspace path it was written with; when that was a container
+  // path the gateway refused to start at all and every bot in the project went down with it.
   for (const a of (cfg.agents?.list || [])) fix(a);
+  const entries = cfg.agents?.entries;
+  if (entries && typeof entries === 'object' && !Array.isArray(entries)) {
+    for (const a of Object.values(entries)) fix(a);
+  }
   fix(cfg.agents?.defaults);
   if (changed) {
     await fsp.copyFile(cfgPath, `${cfgPath}.bak`).catch(() => {});
@@ -1741,6 +1750,52 @@ async function appendEnvValue(projectDir, key, value) {
   await fsp.writeFile(envPath, env, 'utf8');
 }
 
+/**
+ * Ask openclaw itself whether the config we just wrote is schema-valid, and roll back if not.
+ *
+ * validateOpenclawConfig() below only checks the shapes THIS file cares about. openclaw's own
+ * schema is strict and rejects unknown keys, and it does so at BOOT: one bad key anywhere means
+ * `Gateway failed to start: Invalid config ...` and every bot in the project goes dark at once.
+ * The operator sees bots "not logged in" and reasonably concludes their sessions are gone, when
+ * nothing is wrong with the sessions at all.
+ *
+ * So: write, ask openclaw, and put the backup back the moment it complains. Restoring is always
+ * better than leaving a config in place that we already know will not boot.
+ * Returns null when the config is fine (or when we could not run the check), a message otherwise.
+ */
+async function verifyConfigOrRollback(projectDir) {
+  if (!isNativeProject(projectDir)) return null; // Docker is retired; only check what we run.
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  const backup = `${cfgPath}.bak`;
+  const r = await ocCapture(projectDir, ['config', 'validate'], { timeout: 30000 }).catch(() => null);
+  if (!r) return null;                       // Could not run the CLI at all - do not guess.
+  const out = `${r.stdout || ''}${r.stderr || ''}`;
+  if (r.code === 0 || /Config valid/i.test(out)) return null;
+  // Fail SAFE: roll back only when openclaw actually says the config is bad. A non-zero exit can
+  // also mean it looked in the wrong place ("Config file not found") or that the CLI itself broke,
+  // and restoring a backup over a perfectly good config would be worse than the bug this guards.
+  // Wording measured on 2026.9.2: "OpenClaw config is invalid: ..." followed by "× openclaw.json:38
+  // — agents.entries.<id>: Unrecognized key: "role"". Match the shapes openclaw actually prints.
+  if (!/config is invalid|invalid config|unrecognized key|invalid input|invalid option|expected/i.test(out)) {
+    sendLog(`[config] Bỏ qua kiểm tra cấu hình (openclaw không kết luận được): ${out.trim().slice(0, 160)}`);
+    return null;
+  }
+  // Keep the rejected file next to the good one: it is the only evidence of what went wrong.
+  const rejected = `${cfgPath}.rejected-${Date.now()}`;
+  await fsp.copyFile(cfgPath, rejected).catch(() => {});
+  let restored = false;
+  if (existsSync(backup)) {
+    await fsp.copyFile(backup, cfgPath).catch(() => {});
+    restored = true;
+  }
+  const detail = out.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 4).join(' · ');
+  sendLog(`[config] openclaw từ chối cấu hình vừa ghi: ${detail}`);
+  sendLog(`[config] Bản bị từ chối giữ ở ${rejected}${restored ? '; đã khôi phục bản trước đó.' : '.'}`);
+  return restored
+    ? `Cấu hình vừa ghi bị openclaw từ chối nên đã khôi phục bản cũ (bot vẫn chạy bình thường). Lý do: ${detail}`
+    : `Cấu hình vừa ghi bị openclaw từ chối và không có bản sao lưu để khôi phục. Lý do: ${detail}`;
+}
+
 function validateOpenclawConfig(cfg) {
   if (!Array.isArray(cfg.agents?.list)) throw httpError(500, 'openclaw.json missing agents.list');
   for (const a of cfg.agents.list) {
@@ -2133,6 +2188,9 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   // so the generator's ".openclaw/workspace-x" would double. Rewrite to an absolute path now so
   // the bot reads its persona on the very first turn (not only after the next runtime sync).
   if (isNativeProject(projectDir)) await migrateNativePaths(projectDir).catch(() => {});
+  // Check AFTER the path normalisation above, so we validate exactly what the gateway will read.
+  const rejected = await verifyConfigOrRollback(projectDir).catch(() => null);
+  if (rejected) throw httpError(500, rejected);
   await syncExecApprovals(projectDir, cfg);
 
   const hasScheduler = !!(cfg.tools?.alsoAllow || []).includes('group:automation');
@@ -2244,10 +2302,21 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   }
 
   agent.name = botName;
-  agent.role = botDesc;
+  // NEVER put `role` (or any free-form field) on the agent entry. openclaw's schema is strict and
+  // rejects unknown keys outright: `agents.entries.<id>: Unrecognized key: "role"` makes the
+  // gateway refuse to boot, which takes down EVERY bot in the project, not just the edited one.
+  // Measured on a customer host: editing one bot silently killed all of them, and the dashboard
+  // then showed "chưa đăng nhập" for sessions that were perfectly intact.
+  // The description already has a home - bot-meta.json, written a few lines below - and that is
+  // what the UI reads back (readBotIdentity prefers meta.role). ensureConfigShape deletes this key
+  // on load precisely because it does not belong here; re-adding it on save just undid that.
   validateOpenclawConfig(cfg);
   if (existsSync(cfgPath)) await fsp.copyFile(cfgPath, `${cfgPath}.bak`);
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+  if (isNativeProject(projectDir)) await migrateNativePaths(projectDir).catch(() => {});
+  // Editing one bot must never be able to take the whole project down.
+  const rejectedEdit = await verifyConfigOrRollback(projectDir).catch(() => null);
+  if (rejectedEdit) throw httpError(500, rejectedEdit);
   await syncExecApprovals(projectDir, cfg);
 
   // Synchronize the token to .env files for the primary bot to ensure Docker picks it up
@@ -3588,6 +3657,12 @@ async function prepareNativeStateHome(projectDir) {
  * from here works because the operator pressing the button is sitting at that desktop.
  */
 async function setComputerUse(projectDir, enable) {
+  // Docker is retired, and the node host has to touch a real desktop, so this only makes sense
+  // on a native project. Say so plainly instead of half-applying and leaving the operator to
+  // wonder why the bot still refuses.
+  if (!isNativeProject(projectDir)) {
+    return { ok: false, error: 'Chỉ dùng được với bot chạy native (không phải Docker).' };
+  }
   const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
   if (!existsSync(cfgPath)) return { ok: false, error: 'openclaw.json not found' };
   const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
@@ -3601,34 +3676,124 @@ async function setComputerUse(projectDir, enable) {
   if (enable) {
     allow.add('computer');
     allow.add('screen');
+    // Without this, `plugins enable` is refused outright with "blocked by allowlist".
     if (!cfg.plugins.allow.includes('cua-computer')) cfg.plugins.allow.push('cua-computer');
     cfg.plugins.entries['cua-computer'] = { ...(cfg.plugins.entries['cua-computer'] || {}), enabled: true };
+    // A fourth gate nobody sees until they hit it: the gateway keeps a per-platform allowlist of
+    // node commands. `computer.act` counts as a dangerous default and `screen.snapshot` as a
+    // desktop-host command, so BOTH are stripped from the defaults and the invoke is refused with
+    // `"screen.snapshot" is not in the allowlist for platform "windows"` — even though the plugin
+    // is enabled and the node is paired and approved. Only gateway.nodes.commands.allow puts them
+    // back (it is applied after the dangerous-command filter).
+    cfg.gateway = (cfg.gateway && typeof cfg.gateway === 'object') ? cfg.gateway : {};
+    cfg.gateway.nodes = (cfg.gateway.nodes && typeof cfg.gateway.nodes === 'object') ? cfg.gateway.nodes : {};
+    cfg.gateway.nodes.commands = (cfg.gateway.nodes.commands && typeof cfg.gateway.nodes.commands === 'object')
+      ? cfg.gateway.nodes.commands : {};
+    const nodeAllow = new Set(Array.isArray(cfg.gateway.nodes.commands.allow) ? cfg.gateway.nodes.commands.allow : []);
+    nodeAllow.add('screen.snapshot');
+    nodeAllow.add('computer.act');
+    cfg.gateway.nodes.commands.allow = [...nodeAllow];
   } else {
     allow.delete('computer');
     allow.delete('screen');
     if (cfg.plugins.entries['cua-computer']) cfg.plugins.entries['cua-computer'].enabled = false;
+    const nodeAllow = cfg.gateway?.nodes?.commands?.allow;
+    if (Array.isArray(nodeAllow)) {
+      cfg.gateway.nodes.commands.allow = nodeAllow.filter((c) => c !== 'screen.snapshot' && c !== 'computer.act');
+    }
+    // Leave the allowlist clean too, so a later re-enable is a deliberate act rather than a
+    // leftover permission nobody remembers granting.
+    cfg.plugins.allow = cfg.plugins.allow.filter((x) => x !== 'cua-computer');
   }
   cfg.tools.alsoAllow = [...allow];
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
 
   if (!enable) {
     await stopNodeHost().catch(() => {});
-    sendLog('[computer-use] Đã tắt: gỡ tool computer/screen và dừng node điều khiển.');
+    await restartNativeRuntime(projectDir).catch(() => {});
+    sendLog('[computer-use] Đã tắt: gỡ tool computer/screen, tắt plugin và dừng node điều khiển.');
     return { ok: true, enabled: false };
   }
 
-  sendLog('[computer-use] Đã bật tool computer + plugin cua-computer. Đang khởi động node điều khiển...');
+  // The gateway reads plugins and the tool allowlist at boot. openclaw itself says "Restart the
+  // gateway to apply" when a plugin is enabled — skip this and the switch reports success while
+  // the bot still has no computer tool, which is exactly the kind of silent half-success that
+  // sends the owner back to us.
+  sendLog('[computer-use] Đã bật tool computer + plugin cua-computer. Đang khởi động lại bot để nạp...');
+  await restartNativeRuntime(projectDir).catch((e) => sendLog(`[computer-use] restart: ${e.message}`));
+
   const meta = readNativeMeta(projectDir) || {};
   const port = meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT;
+  // The node host cannot connect until the gateway is listening again.
+  let up = false;
+  for (let i = 0; i < 30; i++) {
+    if ((await portStatus(port)) === 'online') { up = true; break; }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  if (!up) return { ok: false, error: `Bot chưa khởi động lại xong (cổng ${port}). Thử lại sau ít phút.` };
+
   await startNodeHost(projectDir, port);
-  return { ok: true, enabled: true, gatewayPort: port };
+  const running = await nodeHostRunning();
+  if (!running) return { ok: false, error: 'Đã bật quyền nhưng node điều khiển chưa chạy. Xem nhật ký để biết vì sao.' };
+
+  // The node registers its capability surface a moment after the socket opens, so the pending
+  // request is not there instantly. Give it a few rounds rather than approving once and hoping.
+  let caps = await nodeHasComputerCaps(projectDir);
+  for (let i = 0; i < 6 && !caps; i++) {
+    await approvePendingNodes(projectDir).catch(() => {});
+    await new Promise((r) => setTimeout(r, 3000));
+    caps = await nodeHasComputerCaps(projectDir);
+  }
+  if (!caps) {
+    // Half-success, reported as such. Mở app và chạy lệnh đi đường `exec` nên vẫn dùng được bình
+    // thường; chỉ phần chụp/điều khiển màn hình là chưa. Trả ok:true để phần đã chạy được không bị
+    // báo thành hỏng — báo hỏng toàn bộ khiến người dùng tưởng mất luôn thứ đang chạy.
+    sendLog('[computer-use] Node đã chạy nhưng chưa khai báo được khả năng màn hình.');
+    return {
+      ok: true,
+      enabled: true,
+      gatewayPort: port,
+      screenControl: false,
+      note: 'Bot mở ứng dụng và chạy lệnh trên máy được. Riêng chụp/điều khiển màn hình thì máy chưa '
+        + 'khai báo được khả năng này, nên tạm thời chưa dùng được.',
+    };
+  }
+  sendLog('[computer-use] Máy đã sẵn sàng: bot chụp màn hình, bấm chuột và gõ phím được.');
+  return { ok: true, enabled: true, gatewayPort: port, screenControl: true };
+}
+
+/**
+ * Read the gateway auth token out of the project config.
+ *
+ * The node host authenticates to the gateway over the same WebSocket everything else uses, and
+ * with `gateway.auth.mode: "token"` it is rejected before it can advertise anything:
+ *   `unauthorized: gateway token missing (provide gateway auth token)` -> exit code 1.
+ * Started detached, that failure is invisible: the process is simply gone a second later and the
+ * switch looks like it worked. Pass the token explicitly.
+ */
+function gatewayAuthToken(projectDir) {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(join(projectDir, '.openclaw', 'openclaw.json'), 'utf8'));
+    const t = cfg?.gateway?.auth?.token;
+    return typeof t === 'string' && t ? t : '';
+  } catch { return ''; }
 }
 
 /** Run `openclaw node run` detached so it outlives this request but stays in this desktop session. */
 async function startNodeHost(projectDir, gatewayPort) {
   if (await nodeHostRunning()) { sendLog('[computer-use] Node điều khiển đã chạy sẵn.'); return; }
-  const a = ocArgv(projectDir, ['node', 'run', '--host', '127.0.0.1', '--port', String(gatewayPort)]);
-  const child = spawn(a.cmd, a.args, { ...a.opts, detached: true, stdio: 'ignore', windowsHide: true });
+  const token = gatewayAuthToken(projectDir);
+  if (!token) sendLog('[computer-use] Không đọc được gateway token — node có thể bị từ chối kết nối.');
+  // `--no-tls`: the gateway here is plain ws:// on loopback. Without it the node tries TLS and
+  // the handshake never completes.
+  const a = ocArgv(projectDir, ['node', 'run', '--host', '127.0.0.1', '--port', String(gatewayPort), '--no-tls']);
+  // Go through the same bin resolution + env merge as run()/runCapture(). Spawning `a.cmd` raw
+  // with only nativeEnv() drops PATH entirely, so on Windows `openclaw` does not even resolve.
+  const rawBin = resolveBinPath(a.cmd);
+  const shell = process.platform === 'win32';
+  const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+  const env = binEnv(rawBin, { ...(a.opts.env || {}), ...(token ? { OPENCLAW_GATEWAY_TOKEN: token } : {}) });
+  const child = spawn(bin, a.args, { cwd: a.opts.cwd, shell, env, detached: true, stdio: 'ignore', windowsHide: true });
   child.on('error', (err) => sendLog(`[computer-use] không chạy được node host: ${err.message}`));
   child.unref();
   // Confirm instead of assuming: a node host that failed to start looks exactly like one that
@@ -3638,6 +3803,42 @@ async function startNodeHost(projectDir, gatewayPort) {
     if (await nodeHostRunning()) { sendLog('[computer-use] Node điều khiển đã kết nối.'); return; }
   }
   sendLog('[computer-use] Node điều khiển chưa lên sau 30s — kiểm tra lại bằng `openclaw node status`.');
+}
+
+/**
+ * Approve the node's capability surface.
+ *
+ * Connecting is not enough: the gateway parks the node's capability list as a pending pairing
+ * request and the node logs `node capability surface is awaiting operator approval` on a loop.
+ * Until someone approves it the node advertises nothing, so the bot answers "I don't have
+ * permission" even though every config key is right. The operator already consented by pressing
+ * the button, so approve it here instead of making them find a CLI id in a log file.
+ */
+async function approvePendingNodes(projectDir) {
+  const pending = await ocCapture(projectDir, ['nodes', 'pending'], { timeout: 20000 });
+  const text = `${pending.stdout || ''}\n${pending.stderr || ''}`;
+  const ids = [...new Set((text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) || []))];
+  if (!ids.length) return 0;
+  let done = 0;
+  for (const id of ids) {
+    const r = await ocCapture(projectDir, ['nodes', 'approve', id], { timeout: 20000 });
+    if (r.code === 0) { done++; sendLog(`[computer-use] Đã duyệt node ${id}.`); }
+    else sendLog(`[computer-use] Duyệt node ${id} không được: ${String(r.stderr || r.stdout || '').trim().slice(0, 200)}`);
+  }
+  return done;
+}
+
+/**
+ * Does the connected node actually offer screen control?
+ *
+ * A node can be connected and approved and still advertise only the core caps (file, system,
+ * browser...) when the CUA driver refuses to load - most often because the host was started
+ * outside an interactive desktop session. Checking the caps is the only way to tell a working
+ * setup from one that will fail on the first screenshot the owner asks for.
+ */
+async function nodeHasComputerCaps(projectDir) {
+  const r = await ocCapture(projectDir, ['nodes', 'status'], { timeout: 20000 });
+  return /\bcomputer\b/i.test(`${r.stdout || ''}${r.stderr || ''}`);
 }
 
 async function nodeHostRunning() {
@@ -4489,6 +4690,12 @@ function detectHostApps() {
     // list from "5 apps we guessed" into "everything this machine has", and it stays correct
     // when the customer installs something new. Measured on win_kha: 5 → 182 apps.
     Object.assign(apps, scanWindowsStartMenuApps(), apps); // hand-written entries win
+  } else if (process.platform === 'linux') {
+    add('firefox', ['/usr/bin/firefox']);
+    add('files', ['/usr/bin/nautilus', '/usr/bin/dolphin', '/usr/bin/thunar']);
+    // Linux had NO scanning at all until 5.17.0, so the list came back empty and the bot could
+    // not open anything on a desktop Linux box.
+    Object.assign(apps, scanLinuxDesktopApps(), apps);
   } else if (process.platform === 'darwin') {
     add('teamviewer', ['/Applications/TeamViewer.app']);
     add('chrome', ['/Applications/Google Chrome.app']);
@@ -4504,7 +4711,17 @@ function detectHostApps() {
 function scanWindowsStartMenuApps() {
   const apps = {};
   // Uninstallers and doc links are not apps; opening one by accident is worse than not having it.
-  const SKIP = /(uninstall|gỡ cài đặt|go cai dat|readme|help|documentation|website|release notes|license|repair|modify)/i;
+  // Start Menu is full of things that are not apps: manuals, user guides, uninstallers, links to
+  // a vendor's website. Shipping those to the bot is worse than useless - it clutters the list and
+  // invites it to "open" a PDF when asked for the program. Seen on win_kha: ~40 of 182 entries were
+  // noise like `auto-tune-pro-manual`, `articulator-user-guide`, `un-install-auto-tune-pro`.
+  const SKIP = new RegExp([
+    'uninstall', 'un-?install', 'g[ỡo]\\s*c[àa]i\\s*đ?[ặa]t',
+    'readme', 'release\\s*notes', 'licen[cs]e', 'repair', 'modify',
+    '\\b(help|faq|homepage|dokumentation|documentation)\\b',
+    'user.?guide', 'manual', 'module.?docs', 'web.?site',
+    "what.?(is.?|s.?)?new", 'changelog', 'quick.?start.?guide',
+  ].join('|'), 'i');
   const roots = [
     join(process.env.ProgramData || 'C:\\ProgramData', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
     join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
@@ -4524,6 +4741,40 @@ function scanWindowsStartMenuApps() {
     }
   };
   for (const r of roots) if (r) walk(r);
+  return apps;
+}
+
+/**
+ * Freedesktop .desktop entries, the Linux equivalent of the Start Menu. Honours NoDisplay/Hidden
+ * so entries the desktop itself keeps out of its menu stay out of the bot's list too.
+ */
+function scanLinuxDesktopApps() {
+  const apps = {};
+  const home = os.homedir();
+  const roots = [
+    '/usr/share/applications',
+    '/usr/local/share/applications',
+    join(home, '.local', 'share', 'applications'),
+    '/var/lib/flatpak/exports/share/applications',
+    join(home, '.local', 'share', 'flatpak', 'exports', 'share', 'applications'),
+    '/var/lib/snapd/desktop/applications',
+  ];
+  for (const dir of roots) {
+    let entries = [];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      if (!e.isFile() || !e.name.endsWith('.desktop')) continue;
+      const full = join(dir, e.name);
+      let text = '';
+      try { text = fs.readFileSync(full, 'utf8'); } catch { continue; }
+      if (/^\s*(NoDisplay|Hidden)\s*=\s*true/im.test(text)) continue;
+      if (/^\s*Type\s*=\s*(?!Application)/im.test(text)) continue;
+      const nameLine = text.match(/^\s*Name\s*=\s*(.+)$/im);
+      const label = (nameLine ? nameLine[1] : e.name.replace(/\.desktop$/, '')).trim();
+      const key = slugify(label, '');
+      if (key && !apps[key]) apps[key] = full;
+    }
+  }
   return apps;
 }
 
@@ -4889,6 +5140,26 @@ async function readHostControlConfig(projectDir) {
   if (!cfg.apps || typeof cfg.apps !== 'object') {
     cfg.apps = detectHostApps();
     changed = true;
+  } else {
+    // Re-scan every read instead of trusting the stored list. Two reasons, both seen for real:
+    // the customer installs software after setup and the bot cannot open it, and entries saved
+    // by an older, looser filter (manuals, user guides, uninstallers) stay in the list forever
+    // because nothing ever revisits them. Anything the operator added by hand is kept: it is a
+    // path we would never have produced ourselves.
+    const scanned = detectHostApps();
+    const scannedPaths = new Set(Object.values(scanned).map((v) => String(v).toLowerCase()));
+    const kept = {};
+    for (const [key, value] of Object.entries(cfg.apps)) {
+      // Hand-added entries point somewhere we did not scan; keep those untouched.
+      if (!scannedPaths.has(String(value).toLowerCase()) && !scanned[key]) kept[key] = value;
+    }
+    const merged = { ...scanned, ...kept };
+    if (JSON.stringify(merged) !== JSON.stringify(cfg.apps)) {
+      const before = Object.keys(cfg.apps).length;
+      cfg.apps = merged;
+      changed = true;
+      sendLog(`[host-control] Quét lại danh sách ứng dụng: ${before} → ${Object.keys(merged).length}.`);
+    }
   }
   if (!cfg.commands || typeof cfg.commands !== 'object') {
     cfg.commands = detectHostCommands();
@@ -7491,6 +7762,7 @@ async function handler(req, res, rootProjectDir) {
         granted,
         native: isNativeProject(projectDir),
         codex,
+        computerUse,
       });
     }
     // Take the operator to the OS privacy pane PC control needs (screen recording, accessibility).

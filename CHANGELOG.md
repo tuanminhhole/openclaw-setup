@@ -1,6 +1,30 @@
 # Changelog (English)
 
 
+## [5.17.1] - 2026-09-11
+### 🛟 One bad bot can no longer take down the rest
+
+**Editing or adding a bot could stop every bot in the project.** Setup wrote a field into the
+settings file that OpenClaw does not accept. OpenClaw then refused to start at all, so every bot
+went quiet at once and the dashboard showed them as "not logged in" - even though the Zalo
+sessions were perfectly fine the whole time.
+
+Setup now asks OpenClaw to check the settings file before it takes effect. If OpenClaw objects,
+the previous file is put straight back and your bots keep running, and the rejected file is kept
+next to it so the cause can be found. Nothing is left in a state that cannot start.
+
+- **A newly added bot could be pointed at a folder that does not exist on the machine**, so it
+  never read its own persona and answered as a blank assistant. Fixed for both old and new
+  settings formats.
+- **"Control PC" now actually starts the helper it needs.** It was being launched without the
+  credentials to connect and quit after a second, with no error shown anywhere. It also needs an
+  approval step and a command permission that were never being granted. All three are handled.
+- **Correction to the previous release.** 5.17.0 said the bot could take screenshots and control
+  the screen. Opening apps and running commands on the machine does work. Screen control does not
+  work yet on Windows through this route, and Setup now tells you that plainly instead of
+  reporting success. Nothing else in 5.17.0 is affected.
+
+
 ## [5.17.0] - 2026-09-11
 ### 🖥️ Bots now run directly on your machine, and can actually use it
 

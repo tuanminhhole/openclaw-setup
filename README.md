@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows, macOS, Linux, VPS — Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.0-0EA5E9?style=for-the-badge" alt="Version 5.17.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.1-0EA5E9?style=for-the-badge" alt="Version 5.17.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,7 +37,7 @@
 
 ---
 
-## 🆕 What's New in v5.17.0
+## 🆕 What's New in v5.17.1
 
 - 🩹 **Native installs on OpenClaw 2026.8 are smooth from the first run** - this wave patches the remaining chain of issues measured on fresh customer machines: generated configs pass the new strict checks 100%, install steps run in the right order, and restarts/plugin installs no longer get blocked midway.
 - 🔑 **9Router login works on Docker**: the new 9Router blocks the default password for "remote" access - and inside Docker every request counts as remote, so 123456 could never log in. It works now (still change the password once you're in).
@@ -58,7 +58,7 @@
 <details>
 <summary><b>Previous: What's new in v5.15.3</b></summary>
 
-- 🖥️ **"Control PC" — let the bot open Chrome & apps on your machine**: a new toggle on each bot card turns on the ability for the bot to open Chrome or an allow-listed app (TeamViewer, Zalo, …) on the computer running it. **Off by default**, token-gated, allow-list only, desktop-only.
+- 🖥️ **"Control PC" - let the bot open apps on your machine**: a toggle on each bot card lets the bot open any application installed on the computer running it (Chrome, TeamViewer, Zalo and the rest), read from the real Start Menu or Applications folder rather than a short hand-written list. It can also run commands there. **Off by default**, token-gated, and only on a machine with a screen.
 - 🌐 **Browsing works out of the box on every OS**: the bot drives your real Chrome on a desktop (your logged-in profile, so sites don't flag it) and starts its own headless Chromium on a server — no more "no browser available" just because Chrome wasn't running.
 
 </details>

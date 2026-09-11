@@ -1,6 +1,28 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.17.1] - 2026-09-11
+### 🛟 Một bot lỗi không còn kéo sập cả dàn
+
+**Sửa hoặc thêm một bot có thể làm tắt toàn bộ bot trong project.** Trình cài đặt ghi vào tệp cấu
+hình một mục mà OpenClaw không chấp nhận. OpenClaw từ chối khởi động, thế là mọi bot im lặng cùng
+lúc và bảng điều khiển hiện "chưa đăng nhập" - trong khi phiên Zalo vẫn còn nguyên vẹn.
+
+Từ bản này, trình cài đặt hỏi OpenClaw kiểm tra tệp cấu hình trước khi cho nó có hiệu lực. OpenClaw
+mà không chịu thì bản cũ được đặt lại ngay, bot vẫn chạy bình thường, còn bản bị từ chối thì giữ
+bên cạnh để tìm nguyên nhân. Không để lại tình trạng không khởi động được.
+
+- **Bot mới thêm có thể bị trỏ vào thư mục không tồn tại trên máy**, nên nó không đọc được tính cách
+  của chính mình và trả lời như một trợ lý trắng. Đã sửa cho cả cấu hình kiểu cũ lẫn kiểu mới.
+- **Nút "Điều khiển máy" giờ mới thật sự bật được thành phần nó cần.** Trước đó thành phần này được
+  chạy mà không có thông tin đăng nhập nên tắt sau một giây, và không hiện lỗi ở đâu cả. Nó còn cần
+  một bước duyệt và một quyền chạy lệnh mà trước giờ chưa hề được cấp. Đã xử lý cả ba.
+- **Nói lại cho đúng về bản trước.** Bản 5.17.0 ghi là bot chụp được màn hình và điều khiển màn
+  hình. Phần mở ứng dụng và chạy lệnh trên máy thì chạy được thật. Phần điều khiển màn hình trên
+  Windows theo đường này thì chưa chạy được, và trình cài đặt giờ báo thẳng điều đó thay vì báo
+  thành công. Các phần khác của 5.17.0 không bị ảnh hưởng.
+
+
 ## [5.17.0] - 2026-09-11
 ### 🖥️ Bot chạy thẳng trên máy, và điều khiển được máy
 
