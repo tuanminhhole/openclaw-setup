@@ -1,6 +1,54 @@
 # Changelog (English)
 
 
+## [5.17.1] - 2026-09-12
+### 🛟 One bad bot can no longer take down the rest, and "Control PC" actually works
+
+**Editing or adding a bot could stop every bot in the project.** Setup wrote a field into the
+settings file that OpenClaw does not accept. OpenClaw then refused to start at all, so every bot
+went quiet at once and the dashboard showed them as "not logged in" - even though the Zalo
+sessions were perfectly fine the whole time.
+
+Setup now asks OpenClaw to check the settings file before it takes effect. If OpenClaw objects,
+the previous file is put straight back and your bots keep running, and the rejected file is kept
+next to it so the cause can be found.
+
+- **A newly added bot could be pointed at a folder that does not exist on the machine**, so it
+  never read its own persona and answered as a blank assistant. Fixed for both old and new
+  settings formats.
+
+### 🖥️ Your bot can really drive the computer now
+
+5.17.0 introduced the **"Control PC"** button, but screen control did not actually work on
+Windows. It does now: press it once and the bot can **take screenshots, move the mouse, click,
+type and drag** on that machine, and **open any installed application** - including one installed
+yesterday - because it operates the machine the way a person would rather than needing someone to
+enumerate apps in advance.
+
+Five separate faults were stacked on top of each other, and every one of them made the bot say it
+had no permission:
+
+- The screen-control component was being killed by the bot's own plugins fighting over a port; it
+  now runs on its own and nothing collides.
+- It was started without the credentials to connect and quit after a second, silently.
+- An approval step and a command permission were never being granted.
+- Setup misread the state and **reported a working setup as broken**.
+- On Windows, every command Setup ran against OpenClaw failed in a way that explained nothing.
+
+**The "Restart" button on Windows was not restarting anything.** It reported success against a
+service that does not exist, so a settings change never took effect. It now stops and starts the
+bot the same way the "1 - KHOI DONG BOT" file does, and waits for it to come back before saying
+it is done.
+
+### 🧹 The old PC-control service is gone
+
+Setup used to run a small side service that opened apps on behalf of the bot. OpenClaw ships a
+better tool for that, so the old service was removed entirely. Keeping both did more harm than
+good: on a customer machine the bot kept answering "no connection to the home machine" without
+ever trying the tool it already had. The instructions in each bot's workspace were rewritten to
+match.
+
+
 ## [5.17.0] - 2026-09-11
 ### 🖥️ Bots now run directly on your machine, and can actually use it
 

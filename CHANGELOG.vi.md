@@ -1,6 +1,48 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.17.1] - 2026-09-12
+### 🛟 Một bot lỗi không còn kéo sập cả dàn, và nút "Điều khiển máy" chạy thật
+
+**Sửa hoặc thêm một bot có thể làm tắt toàn bộ bot trong project.** Trình cài đặt ghi vào tệp cấu
+hình một mục mà OpenClaw không chấp nhận. OpenClaw từ chối khởi động, thế là mọi bot im lặng cùng
+lúc và bảng điều khiển hiện "chưa đăng nhập" - trong khi phiên Zalo vẫn còn nguyên vẹn.
+
+Từ bản này, trình cài đặt hỏi OpenClaw kiểm tra tệp cấu hình trước khi cho nó có hiệu lực. OpenClaw
+mà không chịu thì bản cũ được đặt lại ngay, bot vẫn chạy bình thường, còn bản bị từ chối thì giữ
+bên cạnh để tìm nguyên nhân.
+
+- **Bot mới thêm có thể bị trỏ vào thư mục không tồn tại trên máy**, nên nó không đọc được tính cách
+  của chính mình và trả lời như một trợ lý trắng. Đã sửa cho cả cấu hình kiểu cũ lẫn kiểu mới.
+
+### 🖥️ Bot điều khiển được máy tính thật
+
+Bản 5.17.0 giới thiệu nút **"Điều khiển máy"** nhưng phần điều khiển màn hình chưa chạy được trên
+Windows. Nay đã chạy: bấm nút một lần là bot **chụp được màn hình, rê chuột, bấm, gõ phím và kéo
+thả** trên máy đó, và **mở được mọi ứng dụng đang cài** - kể cả app vừa cài hôm qua - vì nó thao
+tác đúng như người ngồi trước máy chứ không cần ai khai báo trước danh sách.
+
+Năm chỗ hỏng nằm chồng lên nhau, chỗ nào cũng làm bot báo "không có quyền":
+
+- Thành phần điều khiển màn hình bị chính plugin của bot làm chết vì tranh cổng; nay nó chạy tách
+  riêng nên không còn đụng nhau.
+- Nó thiếu thông tin đăng nhập với bot nên tắt sau một giây mà không báo gì.
+- Thiếu một bước duyệt và một quyền chạy lệnh mà trước giờ chưa hề được cấp.
+- Trình cài đặt đọc nhầm trạng thái và **báo hỏng một hệ thống đang chạy tốt**.
+- Trên Windows, mọi lệnh trình cài đặt gọi tới OpenClaw đều hỏng theo một cách không nói rõ là gì.
+
+**Nút "Khởi động lại" trên Windows trước đây không khởi động lại gì cả.** Nó báo thành công với một
+dịch vụ không tồn tại, nên thay đổi cấu hình không bao giờ có hiệu lực. Nay nó dừng và bật lại đúng
+như tệp "1 - KHOI DONG BOT", rồi chờ bot sống lại mới báo xong.
+
+### 🧹 Bỏ hẳn dịch vụ điều khiển máy cũ
+
+Trước đây trình cài đặt chạy thêm một dịch vụ nhỏ để mở app hộ bot. OpenClaw đã có sẵn công cụ làm
+việc đó tử tế hơn, nên dịch vụ cũ được gỡ bỏ hoàn toàn. Giữ hai đường song song còn hại hơn: trên
+máy khách, bot cứ trả lời "chưa có kết nối tới máy nhà" mà không hề thử công cụ nó đang có trong
+tay. Hướng dẫn trong thư mục làm việc của bot cũng được viết lại cho khớp.
+
+
 ## [5.17.0] - 2026-09-11
 ### 🖥️ Bot chạy thẳng trên máy, và điều khiển được máy
 

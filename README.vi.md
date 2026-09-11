@@ -7,7 +7,7 @@
 *Chạy một lệnh, mở dashboard, bot lên sóng. Windows, macOS, Linux, VPS. Bot chạy thẳng trên máy, không cần Docker.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.0-0EA5E9?style=for-the-badge" alt="Version 5.17.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.1-0EA5E9?style=for-the-badge" alt="Version 5.17.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,7 +37,7 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.17.0
+## 🆕 Có gì mới trong v5.17.1
 
 - 🩹 **Cài native trên OpenClaw 2026.8 mượt từ phát đầu** - đợt này vá nốt chuỗi lỗi đo được khi dựng máy khách mới: cấu hình sinh ra sạch 100% với bộ soát khắt khe của OpenClaw mới, các bước cài tự chạy đúng thứ tự, và mọi thao tác khởi động lại/cài plugin không còn bị chặn giữa chừng.
 - 🔑 **Đăng nhập 9Router hoạt động trên Docker**: bản 9Router mới chặn mật khẩu mặc định với truy cập "từ xa" - mà trong Docker thì mọi truy cập đều bị tính là từ xa, nên trước đây không cách nào vào được bằng 123456. Giờ đăng nhập bình thường (vào rồi vẫn nên đổi mật khẩu).
@@ -58,7 +58,7 @@
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.15.3</b></summary>
 
-- 🖥️ **"Điều khiển máy" — cho bot mở Chrome & ứng dụng trên máy bạn**: nút mới trên thẻ mỗi bot, bật lên là bot mở được Chrome hoặc app trong danh sách cho phép (TeamViewer, Zalo, …) trên máy đang chạy bot. **Mặc định TẮT**, cần token, chỉ giới hạn danh sách bạn khai, chỉ dùng trên máy có màn hình.
+- 🖥️ **"Điều khiển máy" - cho bot dùng máy của bạn**: nút trên thẻ mỗi bot, bật lên là bot chụp được màn hình, rê chuột, bấm, gõ phím và kéo thả trên máy đang chạy bot, bằng chính công cụ computer của OpenClaw. Vì nó thao tác như người ngồi trước máy nên mở được mọi ứng dụng đang cài, kể cả app vừa cài hôm qua, không cần khai báo danh sách. **Mặc định TẮT**, và chỉ dùng trên máy có màn hình.
 - 🌐 **Duyệt web chạy ngay trên mọi hệ điều hành**: máy để bàn thì bot dùng **Chrome thật** (profile đã đăng nhập, web ít nghi là bot), server thì tự mở Chromium headless — hết cảnh "không có trình duyệt" chỉ vì chưa mở Chrome.
 
 </details>
@@ -249,7 +249,7 @@ Bấm nút **Cập nhật** ở **góc trên bên phải giao diện Setup**. H�
 - **Node.js 24 LTS** (bắt buộc). Cả trình cài đặt lẫn bot đều chạy bằng Node. [Tải Node.js](https://nodejs.org/).
   Máy chưa có Node thì trình cài đặt tự cài giúp bạn.
 - **Git**: Đã cài đặt và có trong biến môi trường PATH.
-- **Không cần Docker nữa.** Từ bản 5.17.0 bot chạy thẳng trên máy.
+- **Không cần Docker nữa.** Từ bản 5.17.1 bot chạy thẳng trên máy.
 
 ---
 

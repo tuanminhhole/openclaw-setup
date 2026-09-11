@@ -727,6 +727,19 @@ function extraBinDirs() {
   return dirs;
 }
 
+/**
+ * Windows refuses to spawn a .cmd/.bat shim without a shell.
+ *
+ * Node has thrown a bare `spawn EINVAL` for that since the 2024 argument-injection fix, with no
+ * hint about which command or why. Every `openclaw` call here goes through `openclaw.cmd`, and
+ * ocCapture asks for `shell: false`, so on Windows those calls died on arrival: measured on a
+ * customer machine, the node host started and connected fine and then `nodes approve` failed with
+ * nothing but "spawn EINVAL" in the log. Force the shell for these, whatever the caller asked.
+ */
+function needsWindowsShell(bin) {
+  return process.platform === 'win32' && /\.(cmd|bat)"?$/i.test(String(bin || ''));
+}
+
 function resolveBinPath(cmd) {
   if (!cmd || cmd.includes('/') || cmd.includes('\\')) return cmd;
   const names = process.platform === 'win32' ? [`${cmd}.cmd`, `${cmd}.exe`, cmd] : [cmd];
@@ -1022,8 +1035,8 @@ function runCapture(cmd, args, opts = {}) {
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
-    const shell = opts.shell ?? process.platform === 'win32';
     const rawBin = resolveBinPath(cmd);
+    const shell = needsWindowsShell(rawBin) || (opts.shell ?? process.platform === 'win32');
     const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
     const child = spawn(bin, args, {
       cwd: opts.cwd,
@@ -1311,7 +1324,16 @@ async function migrateNativePaths(projectDir) {
     const abs = join(wsRoot, base);
     if (obj.workspace !== abs) { obj.workspace = abs; changed = true; }
   };
+  // Walk BOTH shapes. This reads the file with a raw JSON.parse (no ensureConfigShape), so on an
+  // openclaw >=2026.8 config - which keys agents by `agents.entries`, not `agents.list` - `.list`
+  // is simply undefined and the loop used to run over an empty array and fix nothing. A bot added
+  // to such a project kept whatever workspace path it was written with; when that was a container
+  // path the gateway refused to start at all and every bot in the project went down with it.
   for (const a of (cfg.agents?.list || [])) fix(a);
+  const entries = cfg.agents?.entries;
+  if (entries && typeof entries === 'object' && !Array.isArray(entries)) {
+    for (const a of Object.values(entries)) fix(a);
+  }
   fix(cfg.agents?.defaults);
   if (changed) {
     await fsp.copyFile(cfgPath, `${cfgPath}.bak`).catch(() => {});
@@ -1741,6 +1763,52 @@ async function appendEnvValue(projectDir, key, value) {
   await fsp.writeFile(envPath, env, 'utf8');
 }
 
+/**
+ * Ask openclaw itself whether the config we just wrote is schema-valid, and roll back if not.
+ *
+ * validateOpenclawConfig() below only checks the shapes THIS file cares about. openclaw's own
+ * schema is strict and rejects unknown keys, and it does so at BOOT: one bad key anywhere means
+ * `Gateway failed to start: Invalid config ...` and every bot in the project goes dark at once.
+ * The operator sees bots "not logged in" and reasonably concludes their sessions are gone, when
+ * nothing is wrong with the sessions at all.
+ *
+ * So: write, ask openclaw, and put the backup back the moment it complains. Restoring is always
+ * better than leaving a config in place that we already know will not boot.
+ * Returns null when the config is fine (or when we could not run the check), a message otherwise.
+ */
+async function verifyConfigOrRollback(projectDir) {
+  if (!isNativeProject(projectDir)) return null; // Docker is retired; only check what we run.
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  const backup = `${cfgPath}.bak`;
+  const r = await ocCapture(projectDir, ['config', 'validate'], { timeout: 30000 }).catch(() => null);
+  if (!r) return null;                       // Could not run the CLI at all - do not guess.
+  const out = `${r.stdout || ''}${r.stderr || ''}`;
+  if (r.code === 0 || /Config valid/i.test(out)) return null;
+  // Fail SAFE: roll back only when openclaw actually says the config is bad. A non-zero exit can
+  // also mean it looked in the wrong place ("Config file not found") or that the CLI itself broke,
+  // and restoring a backup over a perfectly good config would be worse than the bug this guards.
+  // Wording measured on 2026.9.2: "OpenClaw config is invalid: ..." followed by "× openclaw.json:38
+  // — agents.entries.<id>: Unrecognized key: "role"". Match the shapes openclaw actually prints.
+  if (!/config is invalid|invalid config|unrecognized key|invalid input|invalid option|expected/i.test(out)) {
+    sendLog(`[config] Bỏ qua kiểm tra cấu hình (openclaw không kết luận được): ${out.trim().slice(0, 160)}`);
+    return null;
+  }
+  // Keep the rejected file next to the good one: it is the only evidence of what went wrong.
+  const rejected = `${cfgPath}.rejected-${Date.now()}`;
+  await fsp.copyFile(cfgPath, rejected).catch(() => {});
+  let restored = false;
+  if (existsSync(backup)) {
+    await fsp.copyFile(backup, cfgPath).catch(() => {});
+    restored = true;
+  }
+  const detail = out.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 4).join(' · ');
+  sendLog(`[config] openclaw từ chối cấu hình vừa ghi: ${detail}`);
+  sendLog(`[config] Bản bị từ chối giữ ở ${rejected}${restored ? '; đã khôi phục bản trước đó.' : '.'}`);
+  return restored
+    ? `Cấu hình vừa ghi bị openclaw từ chối nên đã khôi phục bản cũ (bot vẫn chạy bình thường). Lý do: ${detail}`
+    : `Cấu hình vừa ghi bị openclaw từ chối và không có bản sao lưu để khôi phục. Lý do: ${detail}`;
+}
+
 function validateOpenclawConfig(cfg) {
   if (!Array.isArray(cfg.agents?.list)) throw httpError(500, 'openclaw.json missing agents.list');
   for (const a of cfg.agents.list) {
@@ -2133,6 +2201,9 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   // so the generator's ".openclaw/workspace-x" would double. Rewrite to an absolute path now so
   // the bot reads its persona on the very first turn (not only after the next runtime sync).
   if (isNativeProject(projectDir)) await migrateNativePaths(projectDir).catch(() => {});
+  // Check AFTER the path normalisation above, so we validate exactly what the gateway will read.
+  const rejected = await verifyConfigOrRollback(projectDir).catch(() => null);
+  if (rejected) throw httpError(500, rejected);
   await syncExecApprovals(projectDir, cfg);
 
   const hasScheduler = !!(cfg.tools?.alsoAllow || []).includes('group:automation');
@@ -2244,10 +2315,21 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   }
 
   agent.name = botName;
-  agent.role = botDesc;
+  // NEVER put `role` (or any free-form field) on the agent entry. openclaw's schema is strict and
+  // rejects unknown keys outright: `agents.entries.<id>: Unrecognized key: "role"` makes the
+  // gateway refuse to boot, which takes down EVERY bot in the project, not just the edited one.
+  // Measured on a customer host: editing one bot silently killed all of them, and the dashboard
+  // then showed "chưa đăng nhập" for sessions that were perfectly intact.
+  // The description already has a home - bot-meta.json, written a few lines below - and that is
+  // what the UI reads back (readBotIdentity prefers meta.role). ensureConfigShape deletes this key
+  // on load precisely because it does not belong here; re-adding it on save just undid that.
   validateOpenclawConfig(cfg);
   if (existsSync(cfgPath)) await fsp.copyFile(cfgPath, `${cfgPath}.bak`);
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+  if (isNativeProject(projectDir)) await migrateNativePaths(projectDir).catch(() => {});
+  // Editing one bot must never be able to take the whole project down.
+  const rejectedEdit = await verifyConfigOrRollback(projectDir).catch(() => null);
+  if (rejectedEdit) throw httpError(500, rejectedEdit);
   await syncExecApprovals(projectDir, cfg);
 
   // Synchronize the token to .env files for the primary bot to ensure Docker picks it up
@@ -2939,9 +3021,31 @@ function nativeEnv(projectDir, extra = {}) {
   };
 }
 
+/**
+ * Path to openclaw's own entry script, so we can run it with THIS node instead of its .cmd shim.
+ *
+ * The shim is a liability on Windows twice over: Node refuses to spawn a .cmd without a shell
+ * (`spawn EINVAL`), and the shim itself then re-resolves `node` from PATH - which fails with
+ * `'"node"' is not recognized as an internal or external command` whenever the installer's own
+ * environment does not carry node's directory. Both were measured on a customer machine, and both
+ * surfaced as "computer use does not work" rather than as anything to do with PATH. Calling the
+ * script directly with process.execPath sidesteps the shim entirely; the launchers already do it.
+ */
+function openclawEntryScript() {
+  for (const dir of globalNodeModulesDirs()) {
+    const entry = join(dir, 'openclaw', 'dist', 'index.js');
+    try { if (existsSync(entry)) return entry; } catch {}
+  }
+  return '';
+}
+
 /** Resolve `openclaw <args>` for whichever runtime this project uses. */
 function ocArgv(projectDir, args) {
   if (isNativeProject(projectDir)) {
+    const entry = openclawEntryScript();
+    // Prefer the script over the shim; fall back to the shim only when the global install is
+    // somewhere we did not expect, so an unusual layout still works as before.
+    if (entry) return { cmd: process.execPath, args: [entry, ...args], opts: { cwd: projectDir, env: nativeEnv(projectDir) } };
     return { cmd: 'openclaw', args, opts: { cwd: projectDir, env: nativeEnv(projectDir) } };
   }
   return { cmd: 'docker', args: ['exec', getBotContainerName(projectDir), 'openclaw', ...args], opts: { cwd: projectDir } };
@@ -3094,6 +3198,50 @@ async function runOpenclawDoctorFixIfNeeded(projectDir) {
   }
 }
 
+/**
+ * Restart the gateway on Windows the way the double-click launcher starts it.
+ *
+ * Stops the running gateway process, then relaunches `gateway-start.cmd` through `run-hidden.vbs`
+ * - the exact pair "1 - KHOI DONG BOT" uses, so the gateway lands in the operator's own desktop
+ * session with no console window. Returns true only once the port answers again: a restart that
+ * silently left the bot down is the failure this whole function exists to avoid.
+ */
+async function restartWindowsGateway(projectDir) {
+  const vbs = join(projectDir, 'run-hidden.vbs');
+  const cmd = join(projectDir, 'gateway-start.cmd');
+  // The launchers are rewritten on every start, but a project from an older build may not have
+  // them yet. Write them now rather than failing - they are the supported way in on Windows.
+  if (!existsSync(vbs) || !existsSync(cmd)) {
+    const meta = readNativeMeta(projectDir) || {};
+    await writeWindowsLaunchers(
+      projectDir,
+      meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT,
+      meta.routerPort || state.routerPort || NATIVE_DEFAULT_ROUTER_PORT,
+    ).catch((e) => sendLog(`[native] không tạo được launcher: ${e.message}`));
+  }
+  if (!existsSync(vbs) || !existsSync(cmd)) return false;
+
+  const meta = readNativeMeta(projectDir) || {};
+  const port = meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT;
+  await runCapture('powershell', ['-NoProfile', '-Command',
+    "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*openclaw*gateway --port*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue }"],
+    { shell: false, timeout: 20000 }).catch(() => {});
+  // Give the socket time to be released, or the new gateway loses the port to its own corpse.
+  for (let i = 0; i < 10 && (await portStatus(port)) === 'online'; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  startDetached('wscript.exe', [vbs, cmd], { cwd: projectDir });
+  for (let i = 0; i < 45; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    if ((await portStatus(port)) === 'online') {
+      sendLog(`[native] Bot đã khởi động lại (cổng ${port}).`);
+      return true;
+    }
+  }
+  sendLog(`[native] Bot chưa lên lại sau 90s (cổng ${port}).`);
+  return false;
+}
+
 async function restartNativeRuntime(projectDir) {
   // Every restart is a chance to repair a project installed before these fixes existed — the
   // calls are no-ops once the service env is complete, stray files are adopted, and the config
@@ -3109,6 +3257,18 @@ async function restartNativeRuntime(projectDir) {
   };
   let res;
   if (process.platform === 'win32') {
+    // `openclaw daemon` cannot touch the gateway on Windows. It manages a Scheduled Task, and it
+    // refuses to create one for our layout at all: "service management skipped: non-default state
+    // dir or config path" (the project keeps its state in <project>\.openclaw, not the account
+    // home). So `daemon stop` + `daemon start` both report success against a service that does not
+    // exist, while the real gateway - started by "1 - KHOI DONG BOT" as a plain hidden process -
+    // keeps running untouched. Measured on a customer machine: `daemon status` said
+    // "Runtime: stopped · Service unit not found" while the port was demonstrably listening, and
+    // the dashboard's Restart button silently did nothing, so a config change never took effect.
+    // Restart it the same way the launcher starts it instead.
+    const restarted = await restartWindowsGateway(projectDir);
+    if (restarted) return;
+    sendLog('[native] Không khởi động lại được bằng launcher, thử qua daemon.');
     res = await stopStart();
   } else {
     res = await ocDaemon(projectDir, 'restart');
@@ -3588,6 +3748,12 @@ async function prepareNativeStateHome(projectDir) {
  * from here works because the operator pressing the button is sitting at that desktop.
  */
 async function setComputerUse(projectDir, enable) {
+  // Docker is retired, and the node host has to touch a real desktop, so this only makes sense
+  // on a native project. Say so plainly instead of half-applying and leaving the operator to
+  // wonder why the bot still refuses.
+  if (!isNativeProject(projectDir)) {
+    return { ok: false, error: 'Chỉ dùng được với bot chạy native (không phải Docker).' };
+  }
   const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
   if (!existsSync(cfgPath)) return { ok: false, error: 'openclaw.json not found' };
   const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
@@ -3601,36 +3767,192 @@ async function setComputerUse(projectDir, enable) {
   if (enable) {
     allow.add('computer');
     allow.add('screen');
+    // Without this, `plugins enable` is refused outright with "blocked by allowlist".
     if (!cfg.plugins.allow.includes('cua-computer')) cfg.plugins.allow.push('cua-computer');
     cfg.plugins.entries['cua-computer'] = { ...(cfg.plugins.entries['cua-computer'] || {}), enabled: true };
+    // A fourth gate nobody sees until they hit it: the gateway keeps a per-platform allowlist of
+    // node commands. `computer.act` counts as a dangerous default and `screen.snapshot` as a
+    // desktop-host command, so BOTH are stripped from the defaults and the invoke is refused with
+    // `"screen.snapshot" is not in the allowlist for platform "windows"` — even though the plugin
+    // is enabled and the node is paired and approved. Only gateway.nodes.commands.allow puts them
+    // back (it is applied after the dangerous-command filter).
+    cfg.gateway = (cfg.gateway && typeof cfg.gateway === 'object') ? cfg.gateway : {};
+    cfg.gateway.nodes = (cfg.gateway.nodes && typeof cfg.gateway.nodes === 'object') ? cfg.gateway.nodes : {};
+    cfg.gateway.nodes.commands = (cfg.gateway.nodes.commands && typeof cfg.gateway.nodes.commands === 'object')
+      ? cfg.gateway.nodes.commands : {};
+    const nodeAllow = new Set(Array.isArray(cfg.gateway.nodes.commands.allow) ? cfg.gateway.nodes.commands.allow : []);
+    nodeAllow.add('screen.snapshot');
+    nodeAllow.add('computer.act');
+    cfg.gateway.nodes.commands.allow = [...nodeAllow];
   } else {
     allow.delete('computer');
     allow.delete('screen');
     if (cfg.plugins.entries['cua-computer']) cfg.plugins.entries['cua-computer'].enabled = false;
+    const nodeAllow = cfg.gateway?.nodes?.commands?.allow;
+    if (Array.isArray(nodeAllow)) {
+      cfg.gateway.nodes.commands.allow = nodeAllow.filter((c) => c !== 'screen.snapshot' && c !== 'computer.act');
+    }
+    // Leave the allowlist clean too, so a later re-enable is a deliberate act rather than a
+    // leftover permission nobody remembers granting.
+    cfg.plugins.allow = cfg.plugins.allow.filter((x) => x !== 'cua-computer');
   }
   cfg.tools.alsoAllow = [...allow];
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
 
   if (!enable) {
     await stopNodeHost().catch(() => {});
-    sendLog('[computer-use] Đã tắt: gỡ tool computer/screen và dừng node điều khiển.');
+    await restartNativeRuntime(projectDir).catch(() => {});
+    sendLog('[computer-use] Đã tắt: gỡ tool computer/screen, tắt plugin và dừng node điều khiển.');
     return { ok: true, enabled: false };
   }
 
-  sendLog('[computer-use] Đã bật tool computer + plugin cua-computer. Đang khởi động node điều khiển...');
+  // The gateway reads plugins and the tool allowlist at boot. openclaw itself says "Restart the
+  // gateway to apply" when a plugin is enabled — skip this and the switch reports success while
+  // the bot still has no computer tool, which is exactly the kind of silent half-success that
+  // sends the owner back to us.
+  sendLog('[computer-use] Đã bật tool computer + plugin cua-computer. Đang khởi động lại bot để nạp...');
+  // Stop the node host FIRST. Restarting the gateway drops its socket, and on some closes the node
+  // gives up with "reconnect paused ... exiting for supervisor restart" - there is no supervisor
+  // here, so it would sit dead while everything else looked fine. Start it fresh afterwards.
+  await stopNodeHost().catch(() => {});
+  await restartNativeRuntime(projectDir).catch((e) => sendLog(`[computer-use] restart: ${e.message}`));
+
   const meta = readNativeMeta(projectDir) || {};
   const port = meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT;
+  // The node host cannot connect until the gateway is listening again.
+  let up = false;
+  for (let i = 0; i < 30; i++) {
+    if ((await portStatus(port)) === 'online') { up = true; break; }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  if (!up) return { ok: false, error: `Bot chưa khởi động lại xong (cổng ${port}). Thử lại sau ít phút.` };
+
   await startNodeHost(projectDir, port);
-  return { ok: true, enabled: true, gatewayPort: port };
+  const running = await nodeHostRunning();
+  if (!running) return { ok: false, error: 'Đã bật quyền nhưng node điều khiển chưa chạy. Xem nhật ký để biết vì sao.' };
+
+  // The node registers its capability surface a moment after the socket opens, so the pending
+  // request is not there instantly. Give it a few rounds rather than approving once and hoping.
+  // The node publishes its capability surface a little after the socket opens, and the CUA driver
+  // is imported asynchronously on top of that, so the first look is expected to come up empty.
+  // Measured on a customer machine: connected and approved within seconds, capabilities visible
+  // roughly half a minute later. Checking a couple of times and giving up reports a working setup
+  // as broken, so wait properly.
+  let caps = await nodeHasComputerCaps(projectDir);
+  for (let i = 0; i < 20 && !caps; i++) {
+    await approvePendingNodes(projectDir).catch(() => {});
+    await new Promise((r) => setTimeout(r, 3000));
+    caps = await nodeHasComputerCaps(projectDir);
+  }
+  if (!caps) {
+    // Half-success, reported as such. Mở app và chạy lệnh đi đường `exec` nên vẫn dùng được bình
+    // thường; chỉ phần chụp/điều khiển màn hình là chưa. Trả ok:true để phần đã chạy được không bị
+    // báo thành hỏng — báo hỏng toàn bộ khiến người dùng tưởng mất luôn thứ đang chạy.
+    sendLog(`[computer-use] Node đã chạy nhưng chưa khai báo được khả năng màn hình. ${nodeCapsLastReason}`);
+    return {
+      ok: true,
+      enabled: true,
+      gatewayPort: port,
+      screenControl: false,
+      note: 'Bot mở ứng dụng và chạy lệnh trên máy được. Riêng chụp/điều khiển màn hình thì máy chưa '
+        + 'khai báo được khả năng này, nên tạm thời chưa dùng được.',
+    };
+  }
+  sendLog('[computer-use] Máy đã sẵn sàng: bot chụp màn hình, bấm chuột và gõ phím được.');
+  return { ok: true, enabled: true, gatewayPort: port, screenControl: true };
+}
+
+/**
+ * Read the gateway auth token out of the project config.
+ *
+ * The node host authenticates to the gateway over the same WebSocket everything else uses, and
+ * with `gateway.auth.mode: "token"` it is rejected before it can advertise anything:
+ *   `unauthorized: gateway token missing (provide gateway auth token)` -> exit code 1.
+ * Started detached, that failure is invisible: the process is simply gone a second later and the
+ * switch looks like it worked. Pass the token explicitly.
+ */
+function gatewayAuthToken(projectDir) {
+  try {
+    const cfg = JSON.parse(fs.readFileSync(join(projectDir, '.openclaw', 'openclaw.json'), 'utf8'));
+    const t = cfg?.gateway?.auth?.token;
+    return typeof t === 'string' && t ? t : '';
+  } catch { return ''; }
+}
+
+/**
+ * Give the node host a state dir of its own, holding nothing but what it needs.
+ *
+ * `openclaw node run` loads the plugins of whatever state dir it is pointed at. Point it at the
+ * bot's and it loads the bot's plugins too - including zalo-mod, which opens its dashboard port.
+ * The gateway already holds that port, so the node host dies on startup with
+ * `listen EADDRINUSE: address already in use 127.0.0.1:18790`, before it ever publishes
+ * `computer.act` / `screen.snapshot`. From the outside that is indistinguishable from "this
+ * machine cannot do computer use": the node appears paired and approved, yet advertises only the
+ * core capabilities. Measured on a customer machine, and it cost most of a day to see.
+ *
+ * A separate dir with only cua-computer enabled has no such plugin to collide with. The node still
+ * reaches the same gateway over loopback with the same token, so nothing else changes.
+ */
+async function prepareNodeHostHome(projectDir, gatewayPort) {
+  const home = join(projectDir, '.openclaw-node');
+  await fsp.mkdir(home, { recursive: true });
+  const cfg = {
+    gateway: {
+      port: Number(gatewayPort),
+      mode: 'local',
+      bind: 'loopback',
+      ...(gatewayAuthToken(projectDir) ? { auth: { mode: 'token', token: gatewayAuthToken(projectDir) } } : {}),
+    },
+    // Only the driver. Anything else here would be a plugin running twice on one machine.
+    plugins: { allow: ['cua-computer'], entries: { 'cua-computer': { enabled: true } } },
+  };
+  await fsp.writeFile(join(home, 'openclaw.json'), JSON.stringify(cfg, null, 2) + '\n', 'utf8');
+  return home;
 }
 
 /** Run `openclaw node run` detached so it outlives this request but stays in this desktop session. */
 async function startNodeHost(projectDir, gatewayPort) {
   if (await nodeHostRunning()) { sendLog('[computer-use] Node điều khiển đã chạy sẵn.'); return; }
-  const a = ocArgv(projectDir, ['node', 'run', '--host', '127.0.0.1', '--port', String(gatewayPort)]);
-  const child = spawn(a.cmd, a.args, { ...a.opts, detached: true, stdio: 'ignore', windowsHide: true });
-  child.on('error', (err) => sendLog(`[computer-use] không chạy được node host: ${err.message}`));
-  child.unref();
+  const token = gatewayAuthToken(projectDir);
+  if (!token) sendLog('[computer-use] Không đọc được gateway token — node có thể bị từ chối kết nối.');
+  // `--no-tls`: the gateway here is plain ws:// on loopback. Without it the node tries TLS and
+  // the handshake never completes.
+  const a = ocArgv(projectDir, ['node', 'run', '--host', '127.0.0.1', '--port', String(gatewayPort), '--no-tls']);
+  // Go through the same bin resolution + env merge as run()/runCapture(). Spawning `a.cmd` raw
+  // with only nativeEnv() drops PATH entirely, so on Windows `openclaw` does not even resolve.
+  const rawBin = resolveBinPath(a.cmd);
+  const shell = process.platform === 'win32';
+  const bin = shell && rawBin.includes(' ') && !rawBin.startsWith('"') ? `"${rawBin}"` : rawBin;
+  const nodeHome = await prepareNodeHostHome(projectDir, gatewayPort).catch((e) => {
+    sendLog(`[computer-use] không tạo được state riêng cho node: ${e.message}`);
+    return null;
+  });
+  if (process.platform === 'win32') {
+    // Node refuses to spawn the `openclaw.cmd` shim detached: `spawn EINVAL`, with nothing else
+    // logged. Go through the generated launcher and wscript, the same pair that starts the gateway
+    // here - it is the one shape proven to work on Windows, and it keeps the process in the
+    // operator's desktop session, which the screen driver requires.
+    await writeWindowsLaunchers(projectDir, gatewayPort,
+      (readNativeMeta(projectDir) || {}).routerPort || state.routerPort || NATIVE_DEFAULT_ROUTER_PORT)
+      .catch((e) => sendLog(`[computer-use] không ghi được launcher: ${e.message}`));
+    const vbs = join(projectDir, 'run-hidden.vbs');
+    const cmd = join(projectDir, 'node-host.cmd');
+    if (!existsSync(vbs) || !existsSync(cmd)) {
+      sendLog('[computer-use] thiếu node-host.cmd — không khởi động được node điều khiển.');
+      return;
+    }
+    startDetached('wscript.exe', [vbs, cmd], { cwd: projectDir });
+  } else {
+    const env = binEnv(rawBin, {
+      ...(a.opts.env || {}),
+      // Override the project's state dir: see prepareNodeHostHome for why sharing it kills the node.
+      ...(nodeHome ? { OPENCLAW_HOME: nodeHome, OPENCLAW_STATE_DIR: nodeHome } : {}),
+      ...(token ? { OPENCLAW_GATEWAY_TOKEN: token } : {}),
+    });
+    const child = spawn(bin, a.args, { cwd: a.opts.cwd, shell, env, detached: true, stdio: 'ignore', windowsHide: true });
+    child.on('error', (err) => sendLog(`[computer-use] không chạy được node host: ${err.message}`));
+    child.unref();
+  }
   // Confirm instead of assuming: a node host that failed to start looks exactly like one that
   // started, until the bot says it has no permission.
   for (let i = 0; i < 15; i++) {
@@ -3638,6 +3960,72 @@ async function startNodeHost(projectDir, gatewayPort) {
     if (await nodeHostRunning()) { sendLog('[computer-use] Node điều khiển đã kết nối.'); return; }
   }
   sendLog('[computer-use] Node điều khiển chưa lên sau 30s — kiểm tra lại bằng `openclaw node status`.');
+}
+
+/**
+ * Approve the node's capability surface.
+ *
+ * Connecting is not enough: the gateway parks the node's capability list as a pending pairing
+ * request and the node logs `node capability surface is awaiting operator approval` on a loop.
+ * Until someone approves it the node advertises nothing, so the bot answers "I don't have
+ * permission" even though every config key is right. The operator already consented by pressing
+ * the button, so approve it here instead of making them find a CLI id in a log file.
+ */
+async function approvePendingNodes(projectDir) {
+  const pending = await ocCapture(projectDir, ['nodes', 'pending'], { timeout: 20000 });
+  const text = `${pending.stdout || ''}\n${pending.stderr || ''}`;
+  const ids = [...new Set((text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi) || []))];
+  if (!ids.length) return 0;
+  let done = 0;
+  for (const id of ids) {
+    const r = await ocCapture(projectDir, ['nodes', 'approve', id], { timeout: 20000 });
+    if (r.code === 0) { done++; sendLog(`[computer-use] Đã duyệt node ${id}.`); }
+    else sendLog(`[computer-use] Duyệt node ${id} không được: ${String(r.stderr || r.stdout || '').trim().slice(0, 200)}`);
+  }
+  return done;
+}
+
+/**
+ * Does the connected node actually offer screen control?
+ *
+ * A node can be connected and approved and still advertise only the core caps (file, system,
+ * browser...) when the CUA driver refuses to load - most often because the host was started
+ * outside an interactive desktop session. Checking the caps is the only way to tell a working
+ * setup from one that will fail on the first screenshot the owner asks for.
+ */
+let nodeCapsLastReason = '';
+
+async function nodeHasComputerCaps(projectDir) {
+  // Read JSON, never the table. `nodes status` renders a fixed-width table and wraps the Caps
+  // column, so a node that genuinely advertises "computer" and "screen" prints them as "comp" and
+  // "scre" across two rows - a text match on the table reports a working setup as broken, which is
+  // exactly what it did on a customer machine.
+  const r = await ocCapture(projectDir, ['nodes', 'status', '--json'], { timeout: 30000 });
+  const text = `${r.stdout || ''}`;
+  const start = text.indexOf('{');
+  if (start === -1) {
+    // Say what actually came back. "Not ready yet" and "the command failed" look identical from
+    // the outside, and guessing between them is what turns a five-minute fix into a long day.
+    nodeCapsLastReason = `không đọc được nodes status (exit ${r.code}): ${String(r.stderr || r.stdout || '').trim().slice(0, 160)}`;
+    return false;
+  }
+  let parsed;
+  try { parsed = JSON.parse(text.slice(start)); } catch (e) {
+    nodeCapsLastReason = `nodes status trả về dữ liệu không đọc được: ${e.message}`;
+    return false;
+  }
+  const nodes = Array.isArray(parsed?.nodes) ? parsed.nodes : [];
+  const ok = nodes.some((n) => {
+    const commands = Array.isArray(n?.commands) ? n.commands : [];
+    // Both halves or neither: the gateway only exposes Computer Use when the pair is effective.
+    return commands.includes('computer.act') && commands.includes('screen.snapshot');
+  });
+  if (!ok) {
+    nodeCapsLastReason = nodes.length
+      ? `node đã nối nhưng mới khai báo: ${(nodes[0].commands || []).join(', ') || '(chưa có lệnh nào)'}`
+      : 'gateway chưa thấy node nào';
+  }
+  return ok;
 }
 
 async function nodeHostRunning() {
@@ -3665,7 +4053,13 @@ async function stopNodeHost() {
  * install or update instead of leaving the customer pressing a stale copy.
  */
 async function writeWindowsLaunchers(projectDir, gatewayPort, routerPort) {
-  const files = buildWindowsLaunchers({ projectDir, gatewayPort, routerPort, setupPort: activeUiPort || 51789 });
+  // node-host.cmd needs the gateway token baked in: the node authenticates with it, and without
+  // one it exits within a second with `unauthorized: gateway token missing`.
+  const files = buildWindowsLaunchers({
+    projectDir, gatewayPort, routerPort,
+    setupPort: activeUiPort || 51789,
+    gatewayToken: gatewayAuthToken(projectDir),
+  });
   for (const [name, content] of Object.entries(files)) {
     await fsp.writeFile(join(projectDir, name), content, 'utf8');
   }
@@ -4436,111 +4830,22 @@ async function getDockerBridgeIp() {
   } catch {}
   return '172.17.0.1';
 }
-// ── Host control ────────────────────────────────────────────────────────────────
-// The bot runs inside a container: it has no view of the host desktop and cannot start a
-// program there, which is why asking it to open TeamViewer gets a refusal. The installer,
-// though, already runs ON the host and already spawns processes (it launches Chrome). This
-// exposes that ability to the bot over a small HTTP service.
+// ── PC control ──────────────────────────────────────────────────────────────────
+// Letting the bot drive this machine is OpenClaw's `computer` + `screen` tools, nothing else.
+// Up to 5.17.1 the installer also ran a small HTTP service on 18795 that opened allow-listed apps
+// for the bot. It was removed: the tools do the job properly, and having a second, weaker path
+// beside them actively hurt. On a customer machine the bot kept answering "chưa có kết nối Host
+// Control" and never reached for the tools it already had.
 //
-// Reachability: the dashboard itself binds to 127.0.0.1, which a container cannot reach, so
-// this listens on the Docker bridge address as well — the same approach the Chrome relay
-// uses, private to this machine and not routable from outside.
-//
-// Everything is gated: the service only starts when hostControl.enabled is true, every
-// request needs the per-project token, and `open` accepts a key from the operator's own app
-// list rather than an arbitrary command line. Opening apps on the host is a real capability,
-// so it stays opt-in and enumerable instead of a general shell.
-const HOST_CONTROL_PORT = 18795;
-let _hostControlServer = null;
-// The project the running host-control service serves. Tracked separately from the server
-// singleton so enabling from a different (connected) project re-points the service without a
-// restart — the request handler reads config from THIS dir, not a value captured at first-start.
-let _hostControlProjectDir = null;
+// What is left is the switch itself, recorded per project in .openclaw/host-control.json.
 
 function hostControlConfigPath(projectDir) {
   return join(projectDir, '.openclaw', 'host-control.json');
 }
 
-/** Common install locations, so the app list is useful before anyone edits it. */
-function detectHostApps() {
-  const apps = {};
-  const add = (key, candidates) => {
-    for (const candidate of candidates) {
-      if (candidate && existsSync(candidate)) {
-        apps[key] = candidate;
-        return;
-      }
-    }
-  };
-  if (process.platform === 'win32') {
-    const pf = process.env['ProgramFiles'] || 'C:\\Program Files';
-    const pf86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
-    const local = process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local');
-    add('teamviewer', [join(pf, 'TeamViewer', 'TeamViewer.exe'), join(pf86, 'TeamViewer', 'TeamViewer.exe')]);
-    add('chrome', [join(pf, 'Google', 'Chrome', 'Application', 'chrome.exe'), join(pf86, 'Google', 'Chrome', 'Application', 'chrome.exe')]);
-    add('zalo', [join(local, 'Programs', 'Zalo', 'Zalo.exe'), join(local, 'Zalo', 'Zalo.exe')]);
-    add('explorer', ['C:\\Windows\\explorer.exe']);
-    add('notepad', ['C:\\Windows\\System32\\notepad.exe']);
-    // A hand-written shortlist only covers what WE thought of. Every customer machine has its
-    // own software, and the bot is useless the moment it is asked for something not on the list —
-    // "mở TeamViewer" fails not because the app is missing but because nobody enumerated it.
-    // The Start Menu is the one place Windows guarantees an entry per installed app, and a .lnk
-    // launches correctly without knowing where the .exe actually lives. Scanning it turns the
-    // list from "5 apps we guessed" into "everything this machine has", and it stays correct
-    // when the customer installs something new. Measured on win_kha: 5 → 182 apps.
-    Object.assign(apps, scanWindowsStartMenuApps(), apps); // hand-written entries win
-  } else if (process.platform === 'darwin') {
-    add('teamviewer', ['/Applications/TeamViewer.app']);
-    add('chrome', ['/Applications/Google Chrome.app']);
-    add('zalo', ['/Applications/Zalo.app']);
-    add('finder', ['/System/Library/CoreServices/Finder.app']);
-    // Same idea as Windows: enumerate what is really installed instead of guessing.
-    Object.assign(apps, scanMacApplications(), apps);
-  }
-  return apps;
-}
 
-/** Every .lnk under both Start Menu trees, keyed by a slug of its name. */
-function scanWindowsStartMenuApps() {
-  const apps = {};
-  // Uninstallers and doc links are not apps; opening one by accident is worse than not having it.
-  const SKIP = /(uninstall|gỡ cài đặt|go cai dat|readme|help|documentation|website|release notes|license|repair|modify)/i;
-  const roots = [
-    join(process.env.ProgramData || 'C:\\ProgramData', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
-    join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
-  ];
-  const walk = (dir, depth = 0) => {
-    if (depth > 4) return;
-    let entries = [];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-    for (const e of entries) {
-      const p = join(dir, e.name);
-      if (e.isDirectory()) { walk(p, depth + 1); continue; }
-      if (!/\.lnk$/i.test(e.name)) continue;
-      const name = e.name.replace(/\.lnk$/i, '');
-      if (SKIP.test(name)) continue;
-      const key = slugify(name, '');
-      if (key && !apps[key]) apps[key] = p;
-    }
-  };
-  for (const r of roots) if (r) walk(r);
-  return apps;
-}
 
-/** Installed .app bundles, so macOS gets the same "everything on this machine" list. */
-function scanMacApplications() {
-  const apps = {};
-  for (const dir of ['/Applications', '/System/Applications', join(os.homedir(), 'Applications')]) {
-    let entries = [];
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
-    for (const e of entries) {
-      if (!e.name.endsWith('.app')) continue;
-      const key = slugify(e.name.replace(/\.app$/, ''), '');
-      if (key && !apps[key]) apps[key] = join(dir, e.name);
-    }
-  }
-  return apps;
-}
+
 
 /** Resolve an executable on PATH synchronously (returns absolute path or ''). */
 function whichSync(name) {
@@ -4599,221 +4904,13 @@ function resolveHostExecutable(bin) {
   return { file: target, prefixArgs: [] };
 }
 
-/**
- * CLI tools the bot may RUN (not just open) via /api/host/exec — output is captured and
- * returned. Kept as a name→path allow-list, mirroring detectHostApps: the executable is fixed,
- * only allow-listed names run. Auto-detects Claude Code CLI; add more by editing
- * `.openclaw/host-control.json` → `commands`.
- */
-function detectHostCommands() {
-  const commands = {};
-  const claude = whichSync('claude');
-  if (claude) commands.claude = claude;
-  return commands;
-}
 
-/**
- * Extra capabilities the operator grants together with PC control: seeing the screen
- * (screenshot / screen recording) and running scripts through node or the Codex CLI.
- *
- * Kept out of detectHostCommands() on purpose. That one is the default list every project gets
- * as soon as the dashboard reads host-control state; these are only merged in when the operator
- * actually flips PC control on, so nothing is granted before they ask for it. `node` in
- * particular runs arbitrary code, which is why it takes an explicit act.
- */
-function detectHostCapabilityCommands() {
-  const commands = {};
-  // The installer is itself node, so this path is guaranteed to exist and to be the same
-  // interpreter the native bot runs under (the one macOS will attach the screen permission to).
-  commands.node = process.execPath;
-  for (const name of ['npx', 'codex', 'claude', 'ffmpeg']) {
-    const bin = whichSync(name);
-    if (bin) commands[name] = bin; // ffmpeg = screen recording on Linux/macOS
-  }
-  // The Codex CLI usually is not on PATH — it ships inside the desktop app. With it allow-listed
-  // the bot can hand a job to Codex headlessly (`codex exec "…"`) and read the answer back.
-  if (!commands.codex) {
-    const bundledCodex = resolveCodexCli(detectCodexApp());
-    if (bundledCodex) commands.codex = bundledCodex;
-  }
-  if (process.platform === 'darwin') {
-    // Both a screenshot (`-x`) and a screen recording (`-v -V <secs>`) tool.
-    if (existsSync('/usr/sbin/screencapture')) commands.screencapture = '/usr/sbin/screencapture';
-  } else if (process.platform === 'linux') {
-    for (const name of ['gnome-screenshot', 'spectacle', 'scrot', 'import']) {
-      const bin = whichSync(name);
-      if (bin) { commands.screenshot = bin; break; }
-    }
-  }
-  return commands;
-}
 
-/**
- * Merge the capability commands into the project's allow-list, and report what was added so the
- * dashboard can name it. Existing entries are left alone: an operator who pointed `node` at a
- * specific interpreter keeps that path.
- */
-function grantHostCapabilities(cfg) {
-  const detected = detectHostCapabilityCommands();
-  const added = [];
-  cfg.commands = cfg.commands || {};
-  for (const [name, bin] of Object.entries(detected)) {
-    if (!cfg.commands[name]) {
-      cfg.commands[name] = bin;
-      added.push(name);
-    }
-  }
-  // Desktop actions (/api/host/ui) come with the same grant: screenshot, pointer, keyboard,
-  // clipboard, windows. Built in, so they work on a machine with no Codex and no extra tools —
-  // on Linux they lean on xdotool/scrot, which the endpoint reports if missing.
-  if (cfg.ui !== true) {
-    cfg.ui = true;
-    added.push('desktop actions (screenshot/click/type)');
-  }
-  return added;
-}
 
-// Mouse/keyboard/screen control comes from the Codex desktop app's own `computer-use` plugin.
-// The bot reaches it by running `codex exec "<task>"`, which is a normal allow-listed command —
-// no OpenClaw-side harness, no second agent, no gateway restart. All this code has to do is make
-// sure the desktop app itself has computer-use installed and wired.
-//
-/** Where the desktop app that ships the Codex CLI + computer-use bundle lives. */
-function detectCodexApp() {
-  const candidates = process.platform === 'darwin'
-    ? [
-      { app: '/Applications/Codex.app', bundle: '/Applications/Codex.app/Contents/Resources/plugins/openai-bundled' },
-      { app: '/Applications/ChatGPT.app', bundle: '/Applications/ChatGPT.app/Contents/Resources/plugins/openai-bundled' },
-    ]
-    : process.platform === 'win32'
-      ? [
-        { app: join(process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local'), 'Programs', 'Codex'), bundle: '' },
-        { app: join(process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local'), 'Programs', 'ChatGPT'), bundle: '' },
-      ]
-      : [];
-  for (const candidate of candidates) {
-    if (existsSync(candidate.app)) {
-      return { present: true, app: candidate.app, bundle: candidate.bundle && existsSync(candidate.bundle) ? candidate.bundle : '' };
-    }
-  }
-  return { present: false, app: '', bundle: '' };
-}
 
-/**
- * Find a marketplace the Codex app-server has ALREADY registered that carries the computer-use
- * plugin, by reading its own `~/.codex/config.toml`.
- *
- * This matters because auto-install refuses to add new sources: pointing the plugin at a
- * marketplace directory it has not discovered fails with "auto-install only uses marketplaces
- * Codex app-server has already discovered … run /codex computer-use install". Naming a discovered
- * marketplace instead keeps provisioning fully automatic.
- */
-function detectCodexMarketplace() {
-  const codexHome = process.env.CODEX_HOME || join(getRealHomedir(), '.codex');
-  const configPath = join(codexHome, 'config.toml');
-  if (!existsSync(configPath)) return null;
-  let toml = '';
-  try {
-    toml = fs.readFileSync(configPath, 'utf8');
-  } catch (_) {
-    return null;
-  }
-  // Minimal line-based TOML read: [marketplaces.<name>] headers and their `source = "..."`. A full
-  // TOML parser is not worth pulling in for two fields of someone else's config.
-  let name = '';
-  for (const rawLine of toml.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    const header = line.match(/^\[([^\]]+)\]$/);
-    if (header) {
-      const section = header[1];
-      name = section.startsWith('marketplaces.') ? section.slice('marketplaces.'.length).replace(/^["']|["']$/g, '') : '';
-      continue;
-    }
-    if (!name) continue;
-    const source = (line.match(/^source\s*=\s*"([^"]+)"$/) || [])[1];
-    if (source && existsSync(join(source, 'plugins', 'computer-use'))) return { name, source };
-  }
-  return null;
-}
 
-/** The Codex CLI that ships inside the desktop app (or one on PATH). */
-function resolveCodexCli(app) {
-  const bundled = app && app.app ? join(app.app, 'Contents', 'Resources', 'codex') : '';
-  if (bundled && existsSync(bundled)) return bundled;
-  return whichSync('codex');
-}
 
-/**
- * Last mile on the Codex side: the OpenClaw plugin can only USE computer-use, it cannot install it
- * into the desktop app. Two things have to be true there, and both are fixable with the app's own
- * CLI (verified on a real machine):
- *  - the `computer-use` plugin is installed from a discovered marketplace, and
- *  - the `computer-use` MCP server points at that installed plugin. A stale global entry (left by
- *    an earlier manual attempt) shadows the plugin's own and exposes zero tools, which surfaces as
- *    the confusing "Computer Use is ready" with nothing behind it.
- */
-async function ensureCodexComputerUsePlugin(app, marketplace) {
-  const result = { cli: resolveCodexCli(app), pluginInstalled: false, installedNow: false, mcpRepaired: false };
-  if (!result.cli || !marketplace) return result;
-  const list = await runCapture(result.cli, ['plugin', 'list'], { shell: false }).catch(() => null);
-  if (!list) return result;
-  const ref = `computer-use@${marketplace.name}`;
-  const row = `${list.stdout || ''}\n${list.stderr || ''}`.split(/\r?\n/).find((line) => line.trim().startsWith(ref));
-  if (!row) return result;
-  result.pluginInstalled = /\binstalled\b/.test(row) && !/not installed/.test(row);
-  if (!result.pluginInstalled) {
-    sendLog(`[computer-use] Cài plugin ${ref} vào app Codex…`);
-    const add = await runCapture(result.cli, ['plugin', 'add', ref], { shell: false }).catch((err) => ({ code: 1, stderr: err.message }));
-    result.installedNow = add.code === 0;
-    if (!result.installedNow) result.error = (add.stderr || add.stdout || '').trim().split(/\r?\n/).slice(-2).join(' ');
-    else result.pluginInstalled = true;
-  }
-  // Repair the MCP registration only when it clearly is NOT the plugin's own (its cwd lives under
-  // the plugin cache). Removing the global entry lets the plugin-provided server take over.
-  const mcp = await runCapture(result.cli, ['mcp', 'get', 'computer-use'], { shell: false }).catch(() => null);
-  const mcpText = mcp ? `${mcp.stdout || ''}${mcp.stderr || ''}` : '';
-  if (mcpText && !/plugins\/cache\//.test(mcpText)) {
-    sendLog('[computer-use] Gỡ khai báo MCP computer-use cũ (trỏ sai chỗ) để dùng bản của plugin…');
-    const removed = await runCapture(result.cli, ['mcp', 'remove', 'computer-use'], { shell: false }).catch(() => ({ code: 1 }));
-    result.mcpRepaired = removed.code === 0;
-  }
-  return result;
-}
 
-/**
- * Drop a tiny wrapper next to each workspace so GUI hand-off is one fixed command.
- *
- * Relying on the model to remember `--sandbox danger-full-access` does not work: a running session
- * still holds the TOOLS.md it loaded at session start, so a bot mid-conversation keeps calling
- * plain `codex exec`, gets "Computer Use was not approved to use <app>", and then invents a reason
- * (observed twice: it told the operator to grant Screen Recording, which was already granted).
- * With the wrapper the flags live on disk instead of in the prompt.
- */
-async function writeCodexTaskScript(projectDir, cliPath) {
-  const openclawDir = join(projectDir, '.openclaw');
-  if (!existsSync(openclawDir) || !cliPath) return '';
-  const body = [
-    '#!/bin/sh',
-    '# Managed by create-openclaw-bot — hand a desktop/GUI job to Codex and print its answer.',
-    '# Usage: pc-task.sh "mở TeamViewer và đọc ID trên màn hình"',
-    '# The sandbox flag is REQUIRED: the default read-only sandbox makes Codex refuse computer-use',
-    '# with "Computer Use was not approved to use <app>".',
-    'if [ $# -eq 0 ]; then echo "usage: pc-task.sh \\"việc cần làm\\"" >&2; exit 2; fi',
-    `exec ${JSON.stringify(cliPath)} exec --skip-git-repo-check --sandbox danger-full-access "$@"`,
-    '',
-  ].join('\n');
-  let written = '';
-  for (const entry of await fsp.readdir(openclawDir).catch(() => [])) {
-    if (!entry.startsWith('workspace')) continue;
-    const binDir = join(openclawDir, entry, 'bin');
-    await fsp.mkdir(binDir, { recursive: true }).catch(() => {});
-    const path = join(binDir, 'pc-task.sh');
-    await fsp.writeFile(path, body, 'utf8').catch(() => {});
-    await fsp.chmod(path, 0o755).catch(() => {});
-    written = path;
-  }
-  return written;
-}
 
 /**
  * macOS/Windows privacy panes for the permissions PC control needs. The OS never lets an app
@@ -4869,6 +4966,13 @@ async function probeScreenPermission() {
   return { supported: true, granted };
 }
 
+/**
+ * The on/off record for PC control. That is all it is now.
+ *
+ * It used to carry a token, an app allow-list and a command allow-list for a local HTTP service.
+ * The service is gone (OpenClaw's own `computer`/`screen` tools replaced it), so those fields have
+ * nothing left to gate. Old files keep them harmlessly; nothing reads them.
+ */
 async function readHostControlConfig(projectDir) {
   const path = hostControlConfigPath(projectDir);
   let cfg = {};
@@ -4877,24 +4981,8 @@ async function readHostControlConfig(projectDir) {
   } catch (_) {
     cfg = {};
   }
-  let changed = false;
   if (typeof cfg.enabled !== 'boolean') {
     cfg.enabled = false;
-    changed = true;
-  }
-  if (!cfg.token) {
-    cfg.token = _require('crypto').randomBytes(24).toString('hex');
-    changed = true;
-  }
-  if (!cfg.apps || typeof cfg.apps !== 'object') {
-    cfg.apps = detectHostApps();
-    changed = true;
-  }
-  if (!cfg.commands || typeof cfg.commands !== 'object') {
-    cfg.commands = detectHostCommands();
-    changed = true;
-  }
-  if (changed) {
     await fsp.mkdir(dirname(path), { recursive: true }).catch(() => {});
     await fsp.writeFile(path, JSON.stringify(cfg, null, 2), 'utf8').catch(() => {});
   }
@@ -4908,59 +4996,7 @@ function spawnDetached(command, args) {
   child.unref();
 }
 
-function openHostApp(target) {
-  if (process.platform === 'win32') {
-    // `start` needs a shell; the empty "" is the window title cmd expects before the path.
-    spawnDetached('cmd', ['/c', 'start', '', target]);
-    return;
-  }
-  if (process.platform === 'darwin') {
-    spawnDetached('open', [target]);
-    return;
-  }
-  spawnDetached('xdg-open', [target]);
-}
 
-/**
- * Run an allow-listed CLI (e.g. Claude Code) and return its output. Unlike openHostApp this is
- * NOT detached: we wait for it, capture stdout/stderr (capped), and enforce a timeout. No shell
- * (shell:false) so args are literal — no injection; the executable is fixed by the allow-list.
- */
-function runHostCommand(res, name, bin, args, input, timeoutMs) {
-  const MAX_OUT = 200_000; // ~200 KB cap per stream, so a runaway process can't flood the reply
-  return new Promise((resolveP) => {
-    let out = '';
-    let err = '';
-    let settled = false;
-    const finish = (payload, status) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      json(res, payload, status);
-      resolveP();
-    };
-    let child;
-    try {
-      const target = resolveHostExecutable(bin);
-      child = spawn(target.file, [...target.prefixArgs, ...args], { shell: false, windowsHide: true });
-    } catch (e) {
-      return finish({ ok: false, error: e.message }, 500);
-    }
-    const timer = setTimeout(() => {
-      try { child.kill('SIGKILL'); } catch (_) {}
-      finish({ ok: false, error: `timeout after ${timeoutMs}ms`, timedOut: true, stdout: out.slice(0, MAX_OUT), stderr: err.slice(0, MAX_OUT) }, 504);
-    }, timeoutMs);
-    child.stdout?.on('data', (d) => { if (out.length < MAX_OUT) out += d.toString(); });
-    child.stderr?.on('data', (d) => { if (err.length < MAX_OUT) err += d.toString(); });
-    child.on('error', (e) => finish({ ok: false, error: e.message }, 500));
-    child.on('close', (code) => {
-      sendLog(`[host-control] Đã chạy "${name}" (exit ${code}).`);
-      finish({ ok: code === 0, command: name, code, stdout: out.slice(0, MAX_OUT), stderr: err.slice(0, MAX_OUT) }, 200);
-    });
-    if (input != null) { try { child.stdin.write(input); } catch (_) {} }
-    try { child.stdin.end(); } catch (_) {}
-  });
-}
 
 /**
  * Desktop actions for the bot: see the screen, move and click, type, read the clipboard, list and
@@ -5021,461 +5057,56 @@ async function hostUiScreenshotTarget(projectDir) {
   return { hostPath: join(dir, name), containerPath: `/home/node/project/.openclaw/media/host-ui/${name}` };
 }
 
-async function runHostUiWindows(projectDir, action, body, shot) {
-  const script = await ensureHostUiScript(projectDir);
-  const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, '-Action', action];
-  const push = (flag, value) => { if (value !== undefined && value !== null && value !== '') args.push(flag, String(value)); };
-  push('-X', body.x);
-  push('-Y', body.y);
-  push('-ToX', body.toX);
-  push('-ToY', body.toY);
-  push('-Amount', body.amount);
-  push('-Text', body.text);
-  push('-Button', body.button);
-  push('-Clicks', body.clicks);
-  push('-Title', body.title);
-  if (shot) push('-Path', shot.hostPath);
-  const r = await runCapture('powershell', args, { shell: false, timeout: 30000 });
-  const parsed = parseJsonText(String(r.stdout || '').trim(), null);
-  if (parsed) return parsed;
-  const err = String(r.stderr || r.stdout || '').trim();
-  if (/Win32Exception|CopyFromScreen|handle is invalid/i.test(err)) {
-    return { ok: false, error: 'no desktop session available. The installer must run in the logged-in desktop session (not over SSH) for screen capture and input to work.' };
-  }
-  return { ok: false, error: err.split('\n')[0] || `powershell exited ${r.code}` };
-}
 
-async function runHostUiMac(action, body, shot) {
-  const osa = (script) => runCapture('osascript', ['-e', script], { shell: false, timeout: 20000 });
-  const point = () => `{${Number(body.x) || 0}, ${Number(body.y) || 0}}`;
-  switch (action) {
-    case 'screenshot': {
-      const r = await runCapture('screencapture', ['-x', shot.hostPath], { shell: false, timeout: 20000 });
-      return r.code === 0 ? { ok: true, path: shot.hostPath } : { ok: false, error: String(r.stderr || 'screencapture failed').trim() };
-    }
-    case 'screen_size': {
-      const r = await osa('tell application "Finder" to get bounds of window of desktop');
-      const nums = String(r.stdout || '').trim().split(/\s*,\s*/).map(Number);
-      return nums.length === 4 ? { ok: true, width: nums[2], height: nums[3] } : { ok: false, error: 'could not read screen bounds' };
-    }
-    case 'mouse_move':
-    case 'click': {
-      // System Events can click at a point; a plain move has no equivalent, so a move is a click
-      // target set-up only. Accessibility permission is required (System Settings → Privacy).
-      const clicks = Math.max(1, Number(body.clicks) || 1);
-      if (action === 'mouse_move') return { ok: true, note: 'macOS has no pointer-move without a click; pass x/y to click instead', x: body.x, y: body.y };
-      for (let i = 0; i < clicks; i++) {
-        const r = await osa(`tell application "System Events" to click at ${point()}`);
-        if (r.code !== 0) return { ok: false, error: String(r.stderr || '').trim() || 'click failed (grant Accessibility permission)' };
-      }
-      return { ok: true, button: 'left', clicks };
-    }
-    case 'type': {
-      const text = String(body.text || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      const r = await osa(`tell application "System Events" to keystroke "${text}"`);
-      return r.code === 0 ? { ok: true, typed: String(body.text || '').length } : { ok: false, error: String(r.stderr || '').trim() };
-    }
-    case 'key': {
-      const map = { enter: 'return', esc: 'escape', pageup: 'page up', pagedown: 'page down' };
-      for (const combo of String(body.text || '').split(/\s+/).filter(Boolean)) {
-        const parts = combo.toLowerCase().split('+').map((p) => p.trim()).filter(Boolean);
-        const key = map[parts[parts.length - 1]] || parts[parts.length - 1];
-        const mods = parts.slice(0, -1).map((m) => ({ ctrl: 'control down', control: 'control down', cmd: 'command down', meta: 'command down', alt: 'option down', option: 'option down', shift: 'shift down' })[m]).filter(Boolean);
-        const using = mods.length ? ` using {${mods.join(', ')}}` : '';
-        const named = ['return', 'escape', 'tab', 'space', 'delete', 'up', 'down', 'left', 'right', 'home', 'end', 'page up', 'page down'];
-        const script = named.includes(key)
-          ? `tell application "System Events" to key code ${{ return: 36, escape: 53, tab: 48, space: 49, delete: 51, up: 126, down: 125, left: 123, right: 124, home: 115, end: 119, 'page up': 116, 'page down': 121 }[key]}${using}`
-          : `tell application "System Events" to keystroke "${key}"${using}`;
-        const r = await osa(script);
-        if (r.code !== 0) return { ok: false, error: String(r.stderr || '').trim() };
-      }
-      return { ok: true, keys: body.text };
-    }
-    case 'scroll': {
-      const amount = Number(body.amount) || 3;
-      const dir = amount < 0 ? 121 : 116; // page down / page up
-      for (let i = 0; i < Math.abs(amount); i++) await osa(`tell application "System Events" to key code ${dir}`);
-      return { ok: true, amount };
-    }
-    case 'clipboard_get': {
-      const r = await runCapture('pbpaste', [], { shell: false, timeout: 10000 });
-      return { ok: true, text: String(r.stdout || '') };
-    }
-    case 'clipboard_set': {
-      const r = await runCapture('sh', ['-c', 'pbcopy'], { shell: false, timeout: 10000, input: String(body.text || '') });
-      return r.code === 0 ? { ok: true, length: String(body.text || '').length } : { ok: false, error: 'pbcopy failed' };
-    }
-    case 'windows': {
-      const r = await osa('tell application "System Events" to get name of every process whose background only is false');
-      const list = String(r.stdout || '').trim().split(/\s*,\s*/).filter(Boolean).map((title) => ({ title, process: title }));
-      return { ok: true, windows: list };
-    }
-    case 'focus': {
-      const title = String(body.title || '').replace(/"/g, '');
-      if (!title) return { ok: false, error: 'focus needs a title' };
-      const r = await osa(`tell application "${title}" to activate`);
-      return r.code === 0 ? { ok: true, focused: title } : { ok: false, error: String(r.stderr || '').trim() || `no app named ${title}` };
-    }
-    default:
-      return { ok: false, error: `unsupported on macOS: ${action}` };
-  }
-}
 
-async function runHostUiLinux(action, body, shot) {
-  const xdo = whichSync('xdotool');
-  const need = (bin, hint) => ({ ok: false, error: `${hint} needs ${bin}; install it (e.g. apt install ${bin})` });
-  switch (action) {
-    case 'screenshot': {
-      const tool = firstExistingCommand(['gnome-screenshot', 'scrot', 'spectacle', 'import']);
-      if (!tool) return need('scrot', 'screenshot');
-      const argv = tool.name === 'gnome-screenshot' ? ['-f', shot.hostPath]
-        : tool.name === 'spectacle' ? ['-b', '-n', '-o', shot.hostPath]
-          : tool.name === 'import' ? ['-window', 'root', shot.hostPath]
-            : [shot.hostPath];
-      const r = await runCapture(tool.bin, argv, { shell: false, timeout: 20000 });
-      return r.code === 0 ? { ok: true, path: shot.hostPath, tool: tool.name } : { ok: false, error: String(r.stderr || 'capture failed').trim() };
-    }
-    case 'screen_size': {
-      if (!xdo) return need('xdotool', 'screen_size');
-      const r = await runCapture(xdo, ['getdisplaygeometry'], { shell: false, timeout: 10000 });
-      const [w, h] = String(r.stdout || '').trim().split(/\s+/).map(Number);
-      return w && h ? { ok: true, width: w, height: h } : { ok: false, error: 'could not read display geometry' };
-    }
-    case 'mouse_move':
-    case 'click':
-    case 'drag':
-    case 'scroll':
-    case 'type':
-    case 'key':
-    case 'windows':
-    case 'focus': {
-      if (!xdo) return need('xdotool', action);
-      const button = { left: 1, middle: 2, right: 3 }[String(body.button || 'left')] || 1;
-      const argvFor = {
-        mouse_move: ['mousemove', String(body.x ?? 0), String(body.y ?? 0)],
-        click: ['mousemove', String(body.x ?? 0), String(body.y ?? 0), 'click', '--repeat', String(Math.max(1, Number(body.clicks) || 1)), String(button)],
-        drag: ['mousemove', String(body.x ?? 0), String(body.y ?? 0), 'mousedown', '1', 'mousemove', String(body.toX ?? 0), String(body.toY ?? 0), 'mouseup', '1'],
-        scroll: ['click', '--repeat', String(Math.max(1, Math.abs(Number(body.amount) || 3))), (Number(body.amount) || 3) < 0 ? '5' : '4'],
-        type: ['type', '--delay', '12', '--', String(body.text || '')],
-        key: ['key', ...String(body.text || '').split(/\s+/).filter(Boolean)],
-        windows: ['search', '--onlyvisible', '--name', '.'],
-        focus: ['search', '--onlyvisible', '--name', String(body.title || ''), 'windowactivate'],
-      }[action];
-      const r = await runCapture(xdo, argvFor, { shell: false, timeout: 20000 });
-      if (action === 'windows') {
-        const ids = String(r.stdout || '').trim().split(/\s+/).filter(Boolean).slice(0, 40);
-        const titles = [];
-        for (const id of ids) {
-          const t = await runCapture(xdo, ['getwindowname', id], { shell: false, timeout: 5000 });
-          const title = String(t.stdout || '').trim();
-          if (title) titles.push({ title, id });
-        }
-        return { ok: true, windows: titles };
-      }
-      return r.code === 0 ? { ok: true, action } : { ok: false, error: String(r.stderr || '').trim() || `xdotool exited ${r.code}` };
-    }
-    case 'clipboard_get': {
-      const tool = firstExistingCommand(['wl-paste', 'xclip', 'xsel']);
-      if (!tool) return need('xclip', 'clipboard_get');
-      const argv = tool.name === 'xclip' ? ['-o', '-selection', 'clipboard'] : tool.name === 'xsel' ? ['-b', '-o'] : [];
-      const r = await runCapture(tool.bin, argv, { shell: false, timeout: 10000 });
-      return { ok: true, text: String(r.stdout || '') };
-    }
-    case 'clipboard_set': {
-      const tool = firstExistingCommand(['wl-copy', 'xclip', 'xsel']);
-      if (!tool) return need('xclip', 'clipboard_set');
-      const argv = tool.name === 'xclip' ? ['-selection', 'clipboard'] : tool.name === 'xsel' ? ['-b', '-i'] : [];
-      const r = await runCapture(tool.bin, argv, { shell: false, timeout: 10000, input: String(body.text || '') });
-      return r.code === 0 ? { ok: true, length: String(body.text || '').length } : { ok: false, error: `${tool.name} failed` };
-    }
-    default:
-      return { ok: false, error: `unsupported on Linux: ${action}` };
-  }
-}
 
-async function runHostUi(projectDir, body = {}) {
-  const action = String(body.action || '').trim();
-  if (!HOST_UI_ACTIONS.has(action)) {
-    return { status: 400, payload: { ok: false, error: `unknown action: ${action || '(none)'}`, actions: [...HOST_UI_ACTIONS] } };
-  }
-  const shot = action === 'screenshot' ? await hostUiScreenshotTarget(projectDir) : null;
-  let result;
-  try {
-    if (process.platform === 'win32') result = await runHostUiWindows(projectDir, action, body, shot);
-    else if (process.platform === 'darwin') result = await runHostUiMac(action, body, shot);
-    else result = await runHostUiLinux(action, body, shot);
-  } catch (err) {
-    result = { ok: false, error: err.message };
-  }
-  if (shot && result?.ok) {
-    // The project folder is bind-mounted into the container, so hand back the path the bot can
-    // actually open — otherwise it gets a Windows path it cannot read and reports failure.
-    result.path = shot.hostPath;
-    result.containerPath = shot.containerPath;
-    result.bytes = existsSync(shot.hostPath) ? (await fsp.stat(shot.hostPath)).size : 0;
-  }
-  sendLog(`[host-control] UI "${action}" → ${result?.ok ? 'ok' : `lỗi: ${result?.error || 'unknown'}`}`);
-  return { status: result?.ok ? 200 : 500, payload: result };
-}
 
-async function handleHostControl(req, res, projectDir) {
-  const cfg = await readHostControlConfig(projectDir);
-  const url = new URL(req.url, 'http://localhost');
-  const presented = req.headers['x-openclaw-token'] || url.searchParams.get('token') || '';
-  if (!cfg.enabled) return json(res, { ok: false, error: 'host control is disabled' }, 403);
-  if (presented !== cfg.token) return json(res, { ok: false, error: 'invalid token' }, 401);
-
-  if (url.pathname === '/api/browser/start-chrome' && req.method === 'POST') {
-    try {
-      return json(res, await startChromeDebug());
-    } catch (err) {
-      return json(res, { ok: false, error: err.message }, err.status || 500);
-    }
-  }
-  if (url.pathname === '/api/host/apps' && req.method === 'GET') {
-    return json(res, { ok: true, apps: Object.keys(cfg.apps || {}), commands: Object.keys(cfg.commands || {}), platform: process.platform });
-  }
-  if (url.pathname === '/api/host/ui' && req.method === 'POST') {
-    // Part of PC control, but its own switch: seeing the screen and moving the pointer is a bigger
-    // step than opening an app, so it only answers once the operator has granted capabilities.
-    if (cfg.ui !== true) {
-      return json(res, { ok: false, error: 'desktop actions are not granted. Ask the operator to press "Điều khiển máy" again in the dashboard (that writes ui:true).' }, 403);
-    }
-    const body = await readJson(req).catch(() => ({}));
-    const { status, payload } = await runHostUi(projectDir, body || {});
-    return json(res, payload, status);
-  }
-  if (url.pathname === '/api/host/exec' && req.method === 'POST') {
-    const body = await readJson(req).catch(() => ({}));
-    const name = String(body.command || '').trim().toLowerCase();
-    if (!name) return json(res, { ok: false, error: 'missing "command"' }, 400);
-    const bin = (cfg.commands || {})[name];
-    if (!bin) {
-      return json(res, {
-        ok: false,
-        error: `"${name}" is not in this machine's command list`,
-        commands: Object.keys(cfg.commands || {}),
-      }, 404);
-    }
-    // Args are passed literally (spawn with shell:false) so nothing in them is re-interpreted
-    // by a shell — the executable is fixed to the allow-listed path, callers cannot pick a
-    // different binary or inject a second command.
-    const args = Array.isArray(body.args) ? body.args.map((a) => String(a)) : [];
-    const input = body.input != null ? String(body.input) : null;
-    const timeoutMs = Math.min(Math.max(Number(body.timeoutMs) || 180000, 1000), 600000);
-    return runHostCommand(res, name, bin, args, input, timeoutMs);
-  }
-  if (url.pathname === '/api/host/open' && req.method === 'POST') {
-    const body = await readJson(req).catch(() => ({}));
-    const key = String(body.app || body.target || '').trim();
-    if (!key) return json(res, { ok: false, error: 'missing "app"' }, 400);
-    const path = (cfg.apps || {})[key.toLowerCase()];
-    if (!path) {
-      return json(res, {
-        ok: false,
-        error: `"${key}" is not in this machine's app list`,
-        apps: Object.keys(cfg.apps || {}),
-      }, 404);
-    }
-    openHostApp(path);
-    sendLog(`[host-control] Đã mở "${key}" trên máy (${path}).`);
-    return json(res, { ok: true, app: key, path });
-  }
-  return json(res, { ok: false, error: 'unknown endpoint' }, 404);
-}
 
 /**
- * Teach every bot in the project how to reach the host-control service, and hand it the
- * token. Written into TOOLS.md as a managed block so flipping the switch off removes it
- * again — a bot that still had the instructions would keep trying an endpoint that now
- * refuses. `host.docker.internal` resolves in the container on every OS because the
- * generated compose maps it to host-gateway.
+ * Teach every bot in the project how to drive the machine with OpenClaw's own `computer` tool.
+ *
+ * This used to describe a local HTTP service on port 18795 that the bot called with curl. That
+ * service is gone: OpenClaw ships the real thing, and a second half-capable path next to it only
+ * gave the bot a way to fail. `computer` sees the screen and moves the pointer; `screen` takes the
+ * snapshot. Both arrive once the operator presses "Điều khiển máy", which allows the tools, enables
+ * cua-computer and starts the node host.
+ *
+ * Written as a managed block so switching PC control off removes the instructions again - a bot
+ * still holding them would keep reaching for a tool it no longer has.
  */
 async function writeHostControlAccess(projectDir, cfg) {
   const openclawDir = join(projectDir, '.openclaw');
   if (!existsSync(openclawDir)) return;
-  const native = isNativeProject(projectDir);
-  // Native bots run on the host itself; host.docker.internal only resolves from inside a container,
-  // so a native bot curling it fails ("could not connect"). Use loopback there instead.
-  const base = native ? `http://127.0.0.1:${HOST_CONTROL_PORT}` : `http://host.docker.internal:${HOST_CONTROL_PORT}`;
-  const apps = Object.keys(cfg.apps || {});
-  const commands = Object.keys(cfg.commands || {});
-  const execBlock = commands.length ? [
-    '',
-    'Chạy một CLI trên máy chủ và LẤY KẾT QUẢ về (chỉ lệnh trong danh sách; trả `{ok,code,stdout,stderr}`).',
-    'Dùng để giao việc cho công cụ dòng lệnh, ví dụ Claude Code:',
-    '',
-    '```sh',
-    `curl -s -X POST ${base}/api/host/exec -H "x-openclaw-token: ${cfg.token}" \\`,
-    '  -H "content-type: application/json" -d \'{"command":"claude","args":["-p","tóm tắt repo hiện tại"]}\'',
-    '```',
-    '',
-    `Lệnh khả dụng: ${commands.map((c) => `\`${c}\``).join(', ')}. Lệnh mặc định timeout 180s, output tối đa ~200KB/luồng.`,
-  ] : [];
-  // Desktop actions: one endpoint, same JSON on every OS, so the bot does not need per-platform
-  // instructions. Screenshots land in the project folder, which the container already sees.
-  const uiBlock = cfg.ui === true ? [
-    '',
-    '### Thao tác trên màn hình chủ',
-    '',
-    'Một endpoint duy nhất cho mọi hệ điều hành. Cách làm đúng: **chụp màn hình trước, xem toạ độ, rồi mới click** —',
-    'đừng đoán vị trí. Toạ độ tính bằng pixel màn hình, gốc ở góc trên-trái.',
-    '',
-    '```sh',
-    `curl -s -X POST ${base}/api/host/ui -H "x-openclaw-token: ${cfg.token}" \\`,
-    '  -H "content-type: application/json" -d \'{"action":"screenshot"}\'',
-    '```',
-    '',
-    'Trả về `containerPath` — **đọc/gửi ảnh bằng đường dẫn đó** (nằm trong project nên bạn thấy được),',
-    'kèm `width`/`height` để biết màn hình bao lớn.',
-    '',
-    'Các action khác (cùng dạng `{"action":...}`):',
-    '',
-    '- `screen_size` — kích thước màn hình',
-    '- `mouse_move` + `x`,`y` — di chuột',
-    '- `click` + `x`,`y`, tuỳ chọn `button` (`left`/`right`/`middle`) và `clicks` (2 = double-click)',
-    '- `drag` + `x`,`y`,`toX`,`toY` — kéo thả',
-    '- `scroll` + `amount` (âm = xuống), tuỳ chọn `x`,`y`',
-    '- `type` + `text` — gõ chữ vào cửa sổ đang focus',
-    '- `key` + `text` — nhấn tổ hợp, ví dụ `"ctrl+c"`, `"enter"`, `"alt+tab"`; nhiều tổ hợp thì cách nhau bằng space',
-    '- `clipboard_get` / `clipboard_set` + `text` — đọc/ghi clipboard',
-    '- `windows` — liệt kê cửa sổ đang mở; `focus` + `title` — đưa cửa sổ lên trước',
-    '',
-    'Nếu trả về lỗi "no desktop session available" thì installer đang chạy ngoài phiên desktop —',
-    'nói chủ mở lại installer trong máy, đừng thử cách khác.',
-    'Trên Linux, thiếu `xdotool`/`scrot` thì endpoint nói rõ cần cài gì — báo lại cho chủ.',
-  ] : [];
-  // Screen capture / recording — only advertised when the operator granted the matching tool, so
-  // the bot never tries a binary that is not on this machine's allow-list.
-  // Windows has no capture binary to allow-list (PowerShell does it inline), so the section shows
-  // up there too — a native bot runs the command itself, the allow-list only gates the bridge.
-  const hasCapture = commands.includes('screencapture') || commands.includes('screenshot') || commands.includes('ffmpeg') || (native && process.platform === 'win32');
-  const captureBlock = hasCapture ? [
-    '',
-    '### Chụp / quay màn hình',
-    '',
-    ...(commands.includes('screencapture') ? [
-      '- Chụp: `screencapture -x /tmp/shot.png` (thêm `-R x,y,w,h` để chụp một vùng, `-l <windowid>` chụp 1 cửa sổ).',
-      '- Quay: `screencapture -v -V 10 /tmp/rec.mov` (quay 10 giây rồi tự dừng).',
-    ] : []),
-    ...(commands.includes('screenshot') ? ['- Chụp: dùng lệnh `screenshot` (công cụ chụp của desktop này) với đường dẫn file đầu ra.'] : []),
-    ...(native && process.platform === 'win32' ? [
-      '- Chụp (Windows): `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms,System.Drawing; $b=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bm=New-Object Drawing.Bitmap $b.Width,$b.Height; [Drawing.Graphics]::FromImage($bm).CopyFromScreen($b.Location,[Drawing.Point]::Empty,$b.Size); $bm.Save(\'C:\\Temp\\shot.png\')"` (tạo sẵn thư mục đích).',
-    ] : []),
-    ...(commands.includes('ffmpeg') ? ['- Quay bằng `ffmpeg` khi cần định dạng khác (macOS: `-f avfoundation`, Linux: `-f x11grab`, Windows: `-f gdigrab -i desktop`).'] : []),
-    '',
-    'Chụp xong thì ĐỌC file ảnh bằng tool đọc ảnh để phân tích, rồi xoá file tạm. Lần đầu macOS sẽ hỏi quyền **Screen Recording** cho `node`: nếu ảnh ra đen/rỗng hoặc lệnh lỗi quyền thì nhờ chủ bấm "Cấp quyền chụp/quay màn hình" trong dashboard, đừng thử vòng khác.',
-  ] : [];
-  const scriptCommands = commands.filter((c) => c === 'node' || c === 'npx' || c === 'codex' || c === 'claude');
-  const scriptBlock = scriptCommands.length ? [
-    '',
-    '### Chạy script & giao việc cho CLI khác',
-    '',
-    `Chủ đã cho phép: ${scriptCommands.map((c) => `\`${c}\``).join(', ')} — dùng cho việc tự động hoá nhỏ (ví dụ \`node -e "..."\`, \`node script.js\`).`,
-    ...(commands.includes('codex') ? [
-      '- Giao việc cho **Codex** (chạy ngầm, lấy kết quả text): `codex exec --skip-git-repo-check "việc cần làm"`. Việc cần nhìn/điều khiển màn hình thì thêm `--sandbox danger-full-access` (xem mục dưới). Lượt này tiêu quota gói ChatGPT của chủ, nên chỉ dùng khi chủ yêu cầu và mô tả việc gọn.',
-    ] : []),
-    ...(commands.includes('claude') ? [
-      '- Giao việc cho **Claude Code**: `claude -p "việc cần làm"` (một lượt, trả stdout).',
-    ] : []),
-    'Đây là quyền chạy mã tuỳ ý trên máy chủ: chỉ chạy khi chủ yêu cầu rõ, không cài thêm gì, không sửa file ngoài phạm vi được yêu cầu.',
-  ] : [];
   const startTag = '<!-- OPENCLAW:HOST_CONTROL:START -->';
   const endTag = '<!-- OPENCLAW:HOST_CONTROL:END -->';
-  // NATIVE: the bot runs directly on the host with `exec`, so it opens apps with the OS command —
-  // no bridge, no host.docker.internal (which doesn't resolve off-container anyway). DOCKER: the
-  // bot is in a container and can't see the desktop, so it must call the installer's host service.
-  const nativeBlock = [
+  const block = [
     startTag,
     '',
-    '## 🖥️ Điều khiển máy của chủ (host control — chế độ native)',
+    '## 🖥️ Điều khiển máy của chủ',
     '',
-    'Bạn chạy TRỰC TIẾP trên máy của chủ và có quyền `exec`, nên mở ứng dụng bằng lệnh hệ điều hành — KHÔNG cần service/bridge nào (đừng dùng host.docker.internal hay curl cổng 18795):',
+    'Chủ đã cho phép bạn dùng máy này. Bạn có hai công cụ dưới đây và hãy dùng THẲNG chúng - đừng',
+    'gọi HTTP, đừng tự dựng script PowerShell, đừng đi tìm dịch vụ phụ nào khác:',
     '',
-    '- macOS: `open -a "<Tên app>"` — ví dụ `open -a "TeamViewer"`',
-    '- Linux: `xdg-open <app|url>` hoặc chạy binary trực tiếp',
-    ...(process.platform === 'win32' ? [
-      '- Windows: **đừng** gọi `Start-Process <TênApp>` — tên app KHÔNG phải lệnh trên PATH, bạn sẽ nhận',
-      '  `The system cannot find the file specified`. Hãy tra shortcut trong Start Menu rồi mở nó:',
-      '',
-      '```sh',
-      'powershell -NoProfile -Command "$n=\'TeamViewer\'; $r=@(\"$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\",\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\"); $l=Get-ChildItem $r -Recurse -Filter \"*$n*.lnk\" -EA SilentlyContinue | Select -First 1; if($l){ Start-Process $l.FullName } else { \"khong tim thay $n\" }"',
-      '```',
-      '',
-      'Đổi `TeamViewer` thành tên app cần mở. Cách này đúng với MỌI app đã cài, kể cả app chủ mới cài hôm qua,',
-      'vì Windows luôn đặt shortcut vào Start Menu và `.lnk` tự biết đường dẫn thật.',
-    ] : ['- Windows: `cmd /c start "" "<app>"`']),
+    '- `screen` — chụp màn hình. Luôn chụp TRƯỚC khi định bấm hay gõ, để biết đang nhìn thấy gì.',
+    '- `computer` — rê chuột, bấm, gõ phím, kéo thả, cuộn, nhấn tổ hợp phím.',
     '',
-    apps.length ? `App có trên máy này: ${apps.map((a) => `\`${a}\``).join(', ')}.` : 'Chủ chưa liệt kê app — mở theo tên app có trên máy.',
-    ...captureBlock,
-    ...scriptBlock,
+    'Cách mở một ứng dụng, ví dụ TeamViewer: chụp màn hình → bấm nút Start → gõ `TeamViewer` →',
+    'nhấn Enter → chụp lại để xác nhận nó đã mở. Cách này dùng được với MỌI app đã cài trên máy,',
+    'kể cả app vừa cài hôm qua, vì bạn thao tác đúng như người ngồi trước máy.',
     '',
-    ...(commands.includes('codex') ? [
-      '### Điều khiển chuột/bàn phím & nhìn màn hình',
-      '',
-      'Bạn KHÔNG có tool điều khiển GUI. Việc đó giao cho **Codex** — nó có sẵn Computer Use. Dùng ĐÚNG script này (đã cài sẵn cờ cần thiết):',
-      '',
-      '```sh',
-      'bin/pc-task.sh "mở TeamViewer, đọc mật khẩu đang hiện trên màn hình rồi in ra"',
-      '```',
-      '',
-      '⚠️ **Đừng gọi `codex exec` trần.** Mặc định nó chạy sandbox read-only và tự từ chối computer-use với lỗi `Computer Use was not approved to use <app>` — KHÔNG phải do thiếu quyền Screen Recording, đừng bảo chủ đi cấp lại quyền. Script trên đã kèm `--sandbox danger-full-access` (mức `workspace-write` không đủ).',
-      '',
-      'Codex tự nhìn màn hình, click, gõ phím rồi trả kết quả text về cho bạn; bạn thuật lại cho chủ. Lưu ý:',
-      '',
-      '- Mô tả việc gọn nhưng đủ (mục tiêu + kết quả cần trả). Mỗi lượt tiêu quota gói ChatGPT của chủ, đừng gọi lung tung.',
-      '- Việc GUI có thể chạy lâu: đặt timeout rộng, đừng kết luận thất bại sớm.',
-      '- Computer Use từ chối vài app vì an toàn (Terminal, chính app ChatGPT/Codex): lỗi ghi rõ `not allowed to use the app ... for safety reasons` — báo chủ tự làm, đừng lách.',
-      '- Điều khiển chuột/bàn phím hiện chỉ chạy trên macOS. Trên Windows/Linux bạn vẫn mở app, chụp màn hình và chạy script được.',
-      '- Lỗi thật sự do thiếu quyền hệ điều hành sẽ nói về Screen Recording/Accessibility; chỉ khi đó mới nhờ chủ bấm nút cấp quyền trong dashboard. Luôn trích **nguyên văn** lỗi cho chủ thay vì đoán nguyên nhân.',
-      '',
-    ] : []),
-    'Chỉ mở app, chụp/quay màn hình hoặc điều khiển máy khi chủ yêu cầu rõ. Không tự ý chụp màn hình để "xem thử".',
+    '**Luôn kiểm chứng bằng mắt.** Sau mỗi bước quan trọng hãy chụp lại màn hình rồi mới nói đã xong.',
+    'Đừng báo "đã mở" khi chưa nhìn thấy cửa sổ của nó.',
+    '',
+    '**Khi không dùng được:** nếu công cụ báo lỗi, hãy trích **nguyên văn** câu lỗi cho chủ và nói rõ',
+    'bạn đang định làm gì. Đừng đoán nguyên nhân, và đừng đi tìm đường vòng khác - không có đường',
+    'nào khác. Thường chỉ cần chủ bấm lại nút "Điều khiển máy" trong bảng điều khiển.',
+    '',
+    'Chỉ dùng khi chủ yêu cầu rõ. Không tự chụp màn hình để "xem thử", không tự bấm vào thứ chủ',
+    'không nhắc tới, và không gõ mật khẩu hay thông tin thanh toán vào bất cứ đâu.',
     '',
     endTag,
     '',
   ].join('\n');
-  const dockerBlock = [
-    startTag,
-    '',
-    '## 🖥️ Điều khiển máy của chủ (host control)',
-    '',
-    'Bạn chạy trong container nên không thấy desktop của chủ. Muốn mở Chrome hay một ứng dụng trên máy thật thì gọi service của installer (chạy trên máy chủ) bằng `exec`:',
-    '',
-    '```sh',
-    `curl -s -X POST ${base}/api/browser/start-chrome -H "x-openclaw-token: ${cfg.token}"`,
-    '```',
-    '',
-    'Mở ứng dụng (chỉ những app có trong danh sách của máy):',
-    '',
-    '```sh',
-    `curl -s -X POST ${base}/api/host/open -H "x-openclaw-token: ${cfg.token}" \\`,
-    '  -H "content-type: application/json" -d \'{"app":"teamviewer"}\'',
-    '```',
-    '',
-    'Xem danh sách app đang được phép:',
-    '',
-    '```sh',
-    `curl -s ${base}/api/host/apps -H "x-openclaw-token: ${cfg.token}"`,
-    '```',
-    '',
-    apps.length ? `App khả dụng trên máy này: ${apps.map((a) => `\`${a}\``).join(', ')}.` : 'Máy này chưa khai báo app nào — nhờ chủ thêm vào `.openclaw/host-control.json`.',
-    ...execBlock,
-    ...uiBlock,
-    // Docker only: a screenshot taken on the host lands on the HOST filesystem, which this
-    // container cannot read — say so instead of letting the bot hunt for a missing file.
-    ...(hasCapture ? [
-      '',
-      'Chụp/quay màn hình chạy trên MÁY CHỦ nên file ảnh nằm ở ổ đĩa của chủ, container này KHÔNG đọc được. Chụp vào một thư mục đã mount cho bot (nếu có) hoặc nhờ chủ gửi ảnh; đừng đoán nội dung màn hình.',
-    ] : []),
-    '',
-    'Nếu trả về `host control is disabled` thì chủ chưa bật quyền này — nói chủ bật trong dashboard,',
-    'đừng cố tìm đường khác. Chỉ mở app hoặc chạy lệnh khi chủ yêu cầu rõ.',
-    '',
-    endTag,
-    '',
-  ].join('\n');
-  const block = native ? nativeBlock : dockerBlock;
   for (const entry of await fsp.readdir(openclawDir).catch(() => [])) {
     if (!entry.startsWith('workspace')) continue;
     const toolsMd = join(openclawDir, entry, 'TOOLS.md');
@@ -5499,46 +5130,6 @@ function removeManagedBlockFrom(content, blockId) {
   return `${content.substring(0, startIdx).trimEnd()}\n${content.substring(endIdx + endTag.length).trimStart()}`.trim() + '\n';
 }
 
-async function ensureHostControl(projectDir) {
-  // Point the service at the project being enabled (re-points a service already running for
-  // another project — the handler reads _hostControlProjectDir per request).
-  _hostControlProjectDir = projectDir;
-  const cfg = await readHostControlConfig(projectDir);
-  if (!cfg.enabled) return { ok: false, reason: 'disabled' };
-  // Desktop only. Opening TeamViewer or an app needs a GUI, so a headless server has nothing
-  // to control — and, more importantly, it is where 0.0.0.0 would be a real exposure (a VPS
-  // has a public IP). Refusing here means the service never binds on a headless box, so the
-  // public-exposure question does not arise. A rare VPS-with-desktop can override with
-  // OPENCLAW_HOST_CONTROL_ALLOW_HEADLESS=1.
-  if (isHeadlessServer() && process.env.OPENCLAW_HOST_CONTROL_ALLOW_HEADLESS !== '1') {
-    return { ok: false, reason: 'headless server — no desktop to control' };
-  }
-  if (_hostControlServer) return { ok: true, port: HOST_CONTROL_PORT };
-  const bridgeIp = await getDockerBridgeIp().catch(() => null);
-  const server = http.createServer((req, res) => {
-    // Read the CURRENTLY active project each request, so re-pointing takes effect live.
-    handleHostControl(req, res, _hostControlProjectDir || projectDir).catch((err) => json(res, { ok: false, error: err.message }, 500));
-  });
-  // Bind all interfaces: the container reaches the host by different addresses per platform —
-  // docker0 (172.17.0.1) on native Linux, the Docker Desktop gateway (host.docker.internal,
-  // e.g. 192.168.65.254) on macOS/Windows — and binding one misses the others. The token is
-  // the guard here, not the interface: every request needs it, and the service only exists
-  // while the operator has host control switched on.
-  const bindOk = await new Promise((resolveP) => {
-    server.once('error', () => resolveP(false));
-    server.listen(HOST_CONTROL_PORT, '0.0.0.0', () => resolveP(true));
-  });
-  if (!bindOk) return { ok: false, reason: `port ${HOST_CONTROL_PORT} in use` };
-  _hostControlServer = server;
-  sendLog(`[host-control] Nghe ở 0.0.0.0:${HOST_CONTROL_PORT} (cần token) — bot có thể mở Chrome/app trên máy này.`);
-  if (bridgeIp && process.platform === 'linux') {
-    // ufw's default-deny drops container→host traffic silently. Scope the allow rule to the
-    // private bridge address only, so opening the port here does not expose it to the LAN.
-    run('sh', ['-c', `command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active" && ufw allow in to ${bridgeIp} port ${HOST_CONTROL_PORT} proto tcp comment "openclaw host-control (docker bridge only)" || true`])
-      .catch(() => {});
-  }
-  return { ok: true, port: HOST_CONTROL_PORT, host: '0.0.0.0' };
-}
 
 async function ensureChromeRelay() {
   if (_chromeRelayServer) return true;
@@ -7418,25 +7009,18 @@ async function handler(req, res, rootProjectDir) {
       // start-chrome-debug is the old path; kept so an already-open dashboard keeps working.
       return json(res, await startChromeDebug());
     }
-    // Host control: read/flip the switch and see which apps this machine offers. The bot does
-    // not come through here (the dashboard is loopback-only) — it calls the bridge-bound
-    // service from ensureHostControl.
+    // PC control: read or flip the switch. There is no service behind it any more - enabling
+    // configures OpenClaw's own `computer`/`screen` tools and starts the node host that drives
+    // the screen.
     if (url.pathname === '/api/host/control' && req.method === 'GET') {
-      // Target the SELECTED project (not the launch root), so host-control provisions the bot
-      // the operator is actually looking at — a connected project can differ from rootProjectDir.
+      // Target the SELECTED project (not the launch root), so this provisions the bot the
+      // operator is actually looking at - a connected project can differ from rootProjectDir.
       const projectDir = await resolveProjectDir(rootProjectDir, {});
       const cfg = await readHostControlConfig(projectDir);
       return json(res, {
         ok: true,
         enabled: cfg.enabled,
-        port: HOST_CONTROL_PORT,
-        apps: Object.keys(cfg.apps || {}),
-        commands: Object.keys(cfg.commands || {}),
-        running: Boolean(_hostControlServer),
         native: isNativeProject(projectDir),
-        // What enabling will additionally grant, so the confirm dialog can spell it out.
-        grants: Object.keys(detectHostCapabilityCommands()),
-        codexApp: detectCodexApp(),
       });
     }
     if (url.pathname === '/api/host/control' && req.method === 'POST') {
@@ -7444,18 +7028,11 @@ async function handler(req, res, rootProjectDir) {
       const projectDir = await resolveProjectDir(rootProjectDir, body);
       const cfg = await readHostControlConfig(projectDir);
       if (typeof body.enabled === 'boolean') cfg.enabled = body.enabled;
-      if (body.apps && typeof body.apps === 'object') cfg.apps = body.apps;
-      if (body.commands && typeof body.commands === 'object') cfg.commands = body.commands;
-      // Turning PC control ON is the operator's explicit ask, so it is also where the screen
-      // capture / recording and node-script permissions get granted (opt out with grants:false).
-      const granted = cfg.enabled && body.grants !== false ? grantHostCapabilities(cfg) : [];
-      if (granted.length) sendLog(`[host-control] Đã cấp thêm quyền chạy: ${granted.join(', ')}.`);
-      // Pressing this button means "let the bot drive this machine", so it must deliver the real
-      // thing — OpenClaw's own `computer` tool (screenshot → click → type → drag), not just the
-      // ability to launch an app. That tool needs three separate pieces switched on together, and
-      // any one missing leaves the bot insisting it has no permission:
-      //   • the tool allowed for agents, • the cua-computer plugin (mandatory on Windows),
-      //   • a running node host advertising computer.act + screen.snapshot.
+      // Pressing this button means "let the bot drive this machine", and it delivers exactly that:
+      // OpenClaw's own `computer` tool (screenshot -> click -> type -> drag). That needs four
+      // things switched on together, and any one missing leaves the bot insisting it has no
+      // permission: the tools allowed for agents, the cua-computer plugin, those two node commands
+      // on the gateway's per-platform allowlist, and a node host advertising them.
       // Doing it here rather than in a side script matters: the node host must live in a real
       // interactive desktop session, and the operator pressing this button IS in one.
       const computerUse = await setComputerUse(projectDir, cfg.enabled).catch((e) => {
@@ -7463,34 +7040,16 @@ async function handler(req, res, rootProjectDir) {
         return { ok: false, error: e.message };
       });
       await fsp.writeFile(hostControlConfigPath(projectDir), JSON.stringify(cfg, null, 2), 'utf8');
-      let started = { ok: false, reason: 'disabled' };
-      if (cfg.enabled) started = await ensureHostControl(projectDir);
-      // Always rewrite the workspace guidance: enabling adds the block (with the token),
-      // disabling strips it so a bot never keeps instructions for an endpoint now refusing.
+      // Always rewrite the workspace guidance: enabling adds the block, disabling strips it so a
+      // bot never keeps instructions for a capability it no longer has.
       await writeHostControlAccess(projectDir, cfg).catch(() => {});
       sendLog(`[host-control] ${cfg.enabled ? 'Đã BẬT' : 'Đã TẮT'} quyền điều khiển máy cho bot.`);
       if (cfg.enabled && computerUse?.ok) sendLog('[host-control] Bot có thể chụp màn hình, click chuột, gõ phím trên máy này.');
-      // Make sure the Codex desktop app can actually do GUI work, so `codex exec` is enough for
-      // the bot: install computer-use into the app and repair its MCP registration. Nothing is
-      // installed into the OpenClaw project and the gateway never restarts.
-      let codex = null;
-      if (cfg.enabled && body.codex !== false && (cfg.commands || {}).codex) {
-        const app = detectCodexApp();
-        codex = await ensureCodexComputerUsePlugin(app, detectCodexMarketplace())
-          .then((r) => ({ ...r, app }))
-          .catch((err) => ({ error: err.message, app }));
-        // The wrapper carries the sandbox flag, so a bot cannot get the invocation wrong.
-        codex.taskScript = await writeCodexTaskScript(projectDir, (cfg.commands || {}).codex).catch(() => '');
-      }
       return json(res, {
         ok: true,
         enabled: cfg.enabled,
-        started,
-        apps: Object.keys(cfg.apps || {}),
-        commands: Object.keys(cfg.commands || {}),
-        granted,
         native: isNativeProject(projectDir),
-        codex,
+        computerUse,
       });
     }
     // Take the operator to the OS privacy pane PC control needs (screen recording, accessibility).
@@ -7947,9 +7506,6 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ensureReopenShortcut();
   if (openBrowser) openUrl(url);
   printRemoteAccessHint(port).catch(() => {});
-  // Bring the host-control service back up when the operator left it enabled, so the bot's
-  // saved instructions keep working across installer restarts.
-  ensureHostControl(projectDir).catch(() => {});
   // Warm the probes the first page load would otherwise wait on (project list, runtime versions,
   // public IP, Zalo status). They run while the browser is still starting, so the dashboard opens
   // against a warm cache instead of paying for docker and CLI round-trips on first paint.
@@ -7961,4 +7517,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
+export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };

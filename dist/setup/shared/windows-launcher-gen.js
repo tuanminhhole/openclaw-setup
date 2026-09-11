@@ -58,7 +58,32 @@ function build9RouterCmd({ projectDir, routerPort }) {
   );
 }
 
-/** Starts the gateway. Calls node directly — see the --task-supervisor note below. */
+/**
+ * The node host that gives the bot screen control.
+ *
+ * Two things here are not obvious and both cost a day:
+ *  - It runs against `<project>\.openclaw-node`, NOT the bot's state dir. Pointed at the bot's, it
+ *    loads the bot's plugins too, and zalo-mod's dashboard port is already held by the gateway, so
+ *    the node dies on `listen EADDRINUSE 127.0.0.1:18790` before publishing computer.act.
+ *  - It is launched as a .cmd through wscript like everything else on Windows. Spawning the
+ *    `openclaw.cmd` shim from Node with detached+shell fails outright with `spawn EINVAL`.
+ */
+function buildNodeHostCmd({ projectDir, gatewayPort, gatewayToken }) {
+  return CRLF(
+    '@echo off\n' +
+    'rem Node host cho tinh nang dieu khien may (tool computer/screen cua OpenClaw).\n' +
+    `cd /d ${projectDir}\n` +
+    'set "HOME=%USERPROFILE%"\n' +
+    `set "OPENCLAW_HOME=${projectDir}\\.openclaw-node"\n` +
+    `set "OPENCLAW_STATE_DIR=${projectDir}\\.openclaw-node"\n` +
+    (gatewayToken ? `set "OPENCLAW_GATEWAY_TOKEN=${gatewayToken}"\n` : '') +
+    '"%ProgramFiles%\\nodejs\\node.exe" ' +
+    '"%APPDATA%\\npm\\node_modules\\openclaw\\dist\\index.js" ' +
+    `node run --host 127.0.0.1 --port ${gatewayPort} --no-tls\n`,
+  );
+}
+
+/** Starts the gateway. Calls node directly - see the --task-supervisor note below. */
 function buildGatewayCmd({ projectDir, gatewayPort }) {
   return CRLF(
     '@echo off\n' +
@@ -177,12 +202,13 @@ function buildReadme({ projectDir, gatewayPort, routerPort, setupPort }) {
 }
 
 /** All launcher files for a native Windows project, as { relativeName: content }. */
-function buildWindowsLaunchers({ projectDir, gatewayPort = 18789, routerPort = 20128, setupPort = 51789 }) {
-  const opts = { projectDir, gatewayPort, routerPort, setupPort };
+function buildWindowsLaunchers({ projectDir, gatewayPort = 18789, routerPort = 20128, setupPort = 51789, gatewayToken = '' }) {
+  const opts = { projectDir, gatewayPort, routerPort, setupPort, gatewayToken };
   return {
     'run-hidden.vbs': buildRunHiddenVbs(),
     'start-9router.cmd': build9RouterCmd(opts),
     'gateway-start.cmd': buildGatewayCmd(opts),
+    'node-host.cmd': buildNodeHostCmd(opts),
     'setup-ui.cmd': buildSetupUiCmd(opts),
     '0 - DOC TRUOC.txt': buildReadme(opts),
     '1 - KHOI DONG BOT.cmd': buildStartBotCmd(opts),
