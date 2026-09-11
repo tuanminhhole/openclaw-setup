@@ -1,5 +1,5 @@
 const $ = (sel) => document.querySelector(sel);
-const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', tz: localStorage.getItem('openclaw-tz') || 'Asia/Ho_Chi_Minh', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'docker', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, featureLocked: {}, zaloBackend: '', zaloHealth: null, openDirs: {} };
+const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', tz: localStorage.getItem('openclaw-tz') || 'Asia/Ho_Chi_Minh', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'native', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, featureLocked: {}, zaloBackend: '', zaloHealth: null, openDirs: {} };
 const SVG_CDN = 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons';
 const OS_OPTIONS = [
   { id: 'win', title: 'Windows', subtitle: 'Auto-detected desktop', icon: `${SVG_CDN}/windows/default.svg`, badge: 'Desktop' },
@@ -212,19 +212,24 @@ function installModal() {
   const sys = state.system || {};
   const draft = refreshInstallDraft();
   const os = draft.os || state.os || sys?.os || 'win';
-  const mode = draft.mode || state.installTab || state.mode || sys?.recommendedMode || 'docker';
+  const mode = draft.mode || state.installTab || 'native';
   const pathExample = os === 'win' ? 'C:\\openclaw-setup' : os === 'macos' ? '/Users/you/openclaw-setup' : '/home/you/openclaw-setup';
   const osChoices = OS_OPTIONS.map(o => [o.id, t(o.title, o.title), trChoice(o).subtitle]);
+  // Docker is closed for NEW projects: openclaw >=2026.9 writes config through fs-safe, which
+  // fstat()s the file after an atomic rename \u2014 a check that cannot pass through a Docker Desktop
+  // bind mount on Windows, so the first image rebuild after that takes the gateway down for good
+  // (measured on win_kha, 09/09/2026). Existing docker projects keep running and move to native on
+  // their next update; the tile stays visible but disabled so the reason is on screen.
   const modeChoices = [
-    ['docker', 'Docker', t('\u0043ontainer c\u00f4 l\u1eadp, an to\u00e0n nh\u1ea5t', 'Isolated containers, safest default')],
-    ['native', 'Native', t('Ch\u1ea1y th\u1eb3ng tr\u00ean m\u00e1y n\u00e0y \u2014 kh\u00f4ng c\u1ea7n Docker, \u0111i\u1ec1u khi\u1ec3n \u0111\u01b0\u1ee3c app', 'Runs on this machine \u2014 no Docker, can drive desktop apps')],
+    ['native', 'Native', t('Ch\u1ea1y th\u1eb3ng tr\u00ean m\u00e1y n\u00e0y \u2014 kh\u00f4ng c\u1ea7n Docker, \u0111i\u1ec1u khi\u1ec3n \u0111\u01b0\u1ee3c app', 'Runs on this machine \u2014 no Docker, can drive desktop apps'), false],
+    ['docker', 'Docker', t('\u0110\u00e3 ng\u1eebng \u2014 OpenClaw 2026.9 kh\u00f4ng ghi \u0111\u01b0\u1ee3c c\u1ea5u h\u00ecnh qua Docker tr\u00ean Windows', 'Retired \u2014 OpenClaw 2026.9 cannot write config through Docker on Windows'), true],
   ];
   return `<div class="modal-backdrop install-backdrop" data-install-modal="close">
     <section class="donate-modal install-modal" role="dialog" aria-modal="true" aria-label="${t('T\u1ea1o Project','Create Project')}" onclick="event.stopPropagation()">
       <button class="modal-x" data-install-modal="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       <div class="donate-head"><span aria-hidden="true">+</span><div><p>${t('T\u1ea1o Project','Create Project')}</p><h2>${t('T\u1ea1o Project','Create Project')}</h2><small>${t('Ch\u1ecdn s\u1eb5n ch\u1ebf \u0111\u1ed9 \u1edf tab tr\u00ean. B\u00ean d\u01b0\u1edbi ch\u1ec9 c\u1ea7n ch\u1ecdn OS v\u00e0 nh\u1eadp ho\u1eb7c ch\u1ecdn \u0111\u01b0\u1eddng d\u1eabn project.','Mode stays in the tabs above. Below, choose OS and enter or pick the project path.')}</small></div></div>
       <form id="install-form" class="install-form">
-        <div class="install-tabs">${modeChoices.map(([id,label,desc]) => `<button type="button" class="install-tab ${mode===id?'is-active':''}" data-install-set="mode" data-value="${id}"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(desc)}</small></button>`).join('')}</div>
+        <div class="install-tabs">${modeChoices.map(([id,label,desc,locked]) => `<button type="button" class="install-tab ${mode===id?'is-active':''}${locked?' is-locked':''}" data-install-set="mode" data-value="${id}"${locked?' disabled aria-disabled="true"':''}><strong>${escapeHtml(label)}${locked?' 🔒':''}</strong><small>${escapeHtml(desc)}</small></button>`).join('')}</div>
         <div class="install-grid install-grid--compact">
           <div class="field wide"><span>${t('H\u1ec7 \u0111i\u1ec1u h\u00e0nh','Operating system')}</span>${pillGroup('os', os, osChoices)}<small>${t('\u0110\u00e3 ch\u1ecdn s\u1eb5n theo m\u00e1y \u0111ang ch\u1ea1y','Preselected from the current machine')}</small></div>
           <label class="field wide"><span>${t('Đường dẫn project','Project path')}</span><input name="projectDir" placeholder="${escapeHtml(pathExample)}" value="${escapeHtml(draft.projectDir || pathExample)}" /><small>${t('Ví dụ: C:\\openclaw-setup hoặc /home/you/openclaw-setup. Bạn có thể tự sửa tên folder bot thành tên bất kỳ.','Example: C:\\openclaw-setup or /home/you/openclaw-setup. You can rename folder bot to any name.')}</small></label>
@@ -1546,7 +1551,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
   });
   $('#install')?.addEventListener('click', () => {
     state.installModalOpen = true;
-    state.installTab = document.querySelector('input[name=mode]:checked')?.value || state.mode || state.system?.recommendedMode || 'docker';
+    state.installTab = document.querySelector('input[name=mode]:checked')?.value || 'native';
     const os = document.querySelector('input[name=os]:checked')?.value || state.os || state.system?.os || 'win';
     const defaultDir = os === 'win' ? 'E:\\bot' : os === 'macos' ? '/Users/you/openclaw-bot' : '/home/you/openclaw-bot';
     

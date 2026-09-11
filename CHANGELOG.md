@@ -1,6 +1,28 @@
 # Changelog (English)
 
 
+## [5.17.0] - 2026-09-11
+### 🖥️ Bots now run directly on your machine, and can actually use it
+
+**Docker is gone.** Bots run natively from now on, on Windows, macOS and Linux alike. If your bot
+is on Docker today, pressing Update moves it across for you: every bot, every workspace file and
+every Zalo login comes with it. Your containers are stopped but kept, so there is a way back.
+
+Why the change: OpenClaw 2026.9 cannot write its own settings through a Docker shared folder on
+Windows. One image rebuild and the bot was down for good, with an error that pointed nowhere
+useful. Running directly on the machine removes that whole class of problem.
+
+- **Your bot can use the computer now.** Press "Control PC" once and it can take a screenshot,
+  move the mouse, click, type and drag. Not just launch an app, actually operate it.
+- **It can open anything you have installed.** The app list is read from your real Start Menu
+  instead of a short hand-written list, so software you installed yesterday is already there.
+- **Node.js installs itself** if your machine does not have it, or has a version OpenClaw cannot use.
+- **Windows gets click-to-run files** on the Desktop: start the bot, open the dashboard, stop the
+  bot. No commands to remember, and no black window you can close by accident.
+- **The dashboard stops lying.** It used to report OFFLINE while the bot was answering, list one
+  project twice, and mark a logged-in Zalo account as not logged in. All three are fixed.
+
+
 ## [5.16.9] — 2026-09-07
 
 ### 🩹 Three failures found while putting a bot onto a machine that already ran OpenClaw

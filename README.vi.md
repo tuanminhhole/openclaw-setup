@@ -4,10 +4,10 @@
 
 ### Một **giao diện Web** để tạo, triển khai & vận hành trợ lý AI đa bot miễn phí — không cần gõ terminal
 
-*Chạy một lệnh → mở dashboard → bot lên sóng. Windows · macOS · Linux · VPS — chạy trên Docker, tự cài giúp bạn.*
+*Chạy một lệnh, mở dashboard, bot lên sóng. Windows, macOS, Linux, VPS. Bot chạy thẳng trên máy, không cần Docker.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.16.9-0EA5E9?style=for-the-badge" alt="Version 5.16.9" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.0-0EA5E9?style=for-the-badge" alt="Version 5.17.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,7 +37,7 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.16.9
+## 🆕 Có gì mới trong v5.17.0
 
 - 🩹 **Cài native trên OpenClaw 2026.8 mượt từ phát đầu** - đợt này vá nốt chuỗi lỗi đo được khi dựng máy khách mới: cấu hình sinh ra sạch 100% với bộ soát khắt khe của OpenClaw mới, các bước cài tự chạy đúng thứ tự, và mọi thao tác khởi động lại/cài plugin không còn bị chặn giữa chừng.
 - 🔑 **Đăng nhập 9Router hoạt động trên Docker**: bản 9Router mới chặn mật khẩu mặc định với truy cập "từ xa" - mà trong Docker thì mọi truy cập đều bị tính là từ xa, nên trước đây không cách nào vào được bằng 123456. Giờ đăng nhập bình thường (vào rồi vẫn nên đổi mật khẩu).
@@ -246,9 +246,10 @@ Bấm nút **Cập nhật** ở **góc trên bên phải giao diện Setup**. H�
 
 ## 📋 Yêu cầu hệ thống
 
-- **Node.js 24 LTS** (bắt buộc) — wizard Setup chạy bằng Node, nên cần cho **cả** chế độ Docker lẫn Native. [Tải Node.js](https://nodejs.org/).
+- **Node.js 24 LTS** (bắt buộc). Cả trình cài đặt lẫn bot đều chạy bằng Node. [Tải Node.js](https://nodejs.org/).
+  Máy chưa có Node thì trình cài đặt tự cài giúp bạn.
 - **Git**: Đã cài đặt và có trong biến môi trường PATH.
-- **Docker Desktop** (khuyên dùng, để chạy bot): hỗ trợ Docker Compose V2. [Tải Docker](https://www.docker.com/products/docker-desktop/).
+- **Không cần Docker nữa.** Từ bản 5.17.0 bot chạy thẳng trên máy.
 
 ---
 
@@ -258,9 +259,8 @@ Bấm nút **Cập nhật** ở **góc trên bên phải giao diện Setup**. H�
 
 **1. Mở giao diện Setup** — chạy lệnh cài ở trên, dashboard sẽ mở trên trình duyệt.
 
-**2. Chọn Hệ điều hành & Chế độ chạy** — cài [Node.js 24 LTS](https://nodejs.org/) trước (wizard chạy bằng Node — cần cho **cả 2** chế độ). Rồi vào tab **Cài đặt**, chọn hệ điều hành và chế độ chạy:
-- **Docker** (khuyên dùng) — chạy cách ly và **tạo được nhiều project/bot**. Cài thêm [Docker Desktop](https://www.docker.com/products/docker-desktop/).
-- **Native** — nhẹ hơn, chạy bot thẳng trên máy (không cần Docker).
+**2. Chọn Hệ điều hành** rồi bấm tiếp. Chế độ chạy giờ chỉ còn **Native**, tức bot chạy thẳng trên máy bạn.
+Ô Docker vẫn hiện nhưng đã khoá, bấm không được. Lý do ghi ngay trên màn hình.
 
 **3. Nhập đường dẫn & tên project** — nhập đường dẫn thư mục và tên project (ví dụ tên: `bot`), rồi bấm **Cài đặt**. Ví dụ đường dẫn:
 - Windows: `D:\bot`

@@ -1,6 +1,28 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.17.0] - 2026-09-11
+### 🖥️ Bot chạy thẳng trên máy, và điều khiển được máy
+
+**Bỏ Docker.** Từ bản này bot chạy thẳng trên máy, cả Windows, macOS lẫn Linux. Máy nào đang chạy
+Docker thì bấm Cập nhật là tự chuyển: giữ nguyên toàn bộ bot, toàn bộ tệp trong thư mục làm việc và
+cả phiên đăng nhập Zalo. Container cũ được dừng nhưng không xoá, để còn đường quay lui.
+
+Lý do bỏ: OpenClaw 2026.9 không ghi được cấu hình của chính nó qua thư mục chia sẻ của Docker trên
+Windows. Chỉ cần dựng lại image một lần là bot chết hẳn, mà báo lỗi thì chẳng chỉ vào đâu. Chạy
+thẳng trên máy thì hết cả nhóm lỗi đó.
+
+- **Bot dùng được máy tính.** Bấm nút "Điều khiển máy" một lần là bot chụp được màn hình, rê chuột,
+  bấm chuột, gõ phím, kéo thả. Không chỉ mở app, mà thao tác được thật.
+- **Mở được mọi app đang có trên máy.** Danh sách app đọc thẳng từ Start Menu chứ không phải vài cái
+  liệt kê sẵn, nên phần mềm bạn mới cài hôm qua cũng dùng được ngay.
+- **Tự cài Node.js** nếu máy chưa có, hoặc đang có bản OpenClaw không chạy được.
+- **Windows có bộ tệp bấm đúp** đặt sẵn ngoài Desktop: bật bot, mở giao diện, tắt bot. Không cần nhớ
+  lệnh, và không còn cửa sổ đen nào để lỡ tay đóng.
+- **Bảng điều khiển hết báo sai.** Trước đây nó báo OFFLINE trong khi bot vẫn trả lời, hiện một
+  project thành hai, và báo "chưa đăng nhập" dù tài khoản Zalo đang hoạt động. Cả ba đã sửa.
+
+
 ## [5.16.9] — 2026-09-07
 
 ### 🩹 Ba lỗi lộ ra khi dựng bot trên máy vốn đã chạy OpenClaw

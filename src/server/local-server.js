@@ -17,6 +17,7 @@ const { buildWorkspaceFileMap, buildCronjobSkillMd, buildInfographicGeneratorSki
 const { buildOpenclawJson, buildEnvFileContent, buildExecApprovalsJson, buildZaloConnectChannelConfig } = loadSharedModule('../setup/shared/bot-config-gen.js', '__openclawBotConfig');
 const { buildDockerArtifacts, contextDefaultsScript } = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
 const { HOST_UI_PS1, HOST_UI_PS1_VERSION } = loadSharedModule('../setup/shared/host-ui-ps1.js', '__openclawHostUiPs1');
+const { buildWindowsLaunchers, WINDOWS_DESKTOP_LAUNCHERS } = loadSharedModule('../setup/shared/windows-launcher-gen.js', '__openclawWindowsLaunchers');
 const { OPENCLAW_NPM_SPEC, NINE_ROUTER_NPM_SPEC, ZALO_CHANNEL_ID, ZALO_PLUGIN_ID, ZALO_CONNECT_VERSION, ZALO_CONNECT_PLUGIN_SPEC, build9RouterProviderConfig, get9RouterBaseUrl } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
 
@@ -1213,7 +1214,12 @@ async function detectRuntime(projectDir) {
     routerPort,
     gatewayUrl: `http://127.0.0.1:${gatewayPort}`,
     routerUrl: `http://127.0.0.1:${routerPort}`,
-    mode: existsSync(join(projectDir || '', 'docker', 'openclaw', 'docker-compose.yml')) ? 'docker' : 'native',
+    // Ask projectDeployMode, don't re-derive from the compose file: a project migrated to native
+    // KEEPS its docker/ folder on purpose (that is the way back), so "compose file exists" stops
+    // meaning "runs on docker" the moment migration lands. Getting this wrong made the dashboard
+    // report OpenClaw and 9Router OFFLINE on a machine whose native gateway was answering 200 —
+    // it was probing the stopped containers. Seen on win_kha, 10/09/2026.
+    mode: projectDeployMode(projectDir),
     cliGatewayStatus,
     syncSource,
   };
@@ -2770,14 +2776,33 @@ async function computeZaloHealth(projectDir) {
           textStatus = `${r.stdout || ''}\n${r.stderr || ''}`;
         } catch {}
       }
-      // zalo-connect writes credentials under the project's .openclaw (OPENCLAW_HOME); fall
-      // back to the real home dir in case the plugin used os.homedir() instead.
+      // Where the Zalo session file lives depends on the plugin version, and getting this wrong
+      // makes a perfectly logged-in bot show as "chưa đăng nhập":
+      //   <=3.1.4  <home>/.openclaw/zalo-connect-credentials[-<account>].json
+      //   >=3.1.5  <state>/credentials/zalo-connect/credentials[-<account>].json
+      // 3.1.5 MOVES the old file on first run and leaves a *.migrated stub behind, so a scan that
+      // only knows the old shape finds nothing at all. Look in the new layout first, then fall
+      // back, and normalise the new names to the old ones so the caller's lookup keeps working.
+      // Measured on win_kha after the zalo-connect upgrade, 10/09/2026.
       const credRe = /^zalo-connect-credentials(?:-[^.]+)?\.json$/i;
-      for (const dir of [join(projectDir, '.openclaw'), join(os.homedir(), '.openclaw')]) {
+      const newCredRe = /^credentials(?:-[^.]+)?\.json$/i;
+      const toLegacyName = (n) => n.replace(/^credentials/, 'zalo-connect-credentials');
+      for (const dir of [
+        join(projectDir, '.openclaw', 'credentials', 'zalo-connect'),
+        join(os.homedir(), '.openclaw', 'credentials', 'zalo-connect'),
+      ]) {
         try {
-          const names = (await fsp.readdir(dir)).filter((n) => credRe.test(n));
-          if (names.length) { credentialNames = names; break; }
+          const names = (await fsp.readdir(dir)).filter((n) => newCredRe.test(n));
+          if (names.length) { credentialNames = names.map(toLegacyName); break; }
         } catch {}
+      }
+      if (!credentialNames || !credentialNames.length) {
+        for (const dir of [join(projectDir, '.openclaw'), join(os.homedir(), '.openclaw')]) {
+          try {
+            const names = (await fsp.readdir(dir)).filter((n) => credRe.test(n));
+            if (names.length) { credentialNames = names; break; }
+          } catch {}
+        }
       }
     }
   } else {
@@ -3546,6 +3571,286 @@ async function prepareNativeStateHome(projectDir) {
 }
 
 /**
+ * Turn OpenClaw's real computer-use on or off for a project.
+ *
+ * Three pieces must line up, and a bot with only two of them reports "I don't have permission"
+ * without saying which one is missing — that ambiguity cost a whole debugging session:
+ *   1. `computer` (+ `screen`) allowed in tools.alsoAllow — otherwise the agent never receives
+ *      the tool at all, no matter what else is configured;
+ *   2. the `cua-computer` plugin, which is MANDATORY on Windows and ships disabled. It also has
+ *      to be on plugins.allow, or enabling is refused with "blocked by allowlist";
+ *   3. a node host process advertising `computer.act` + `screen.snapshot`. The tool is only the
+ *      model-facing surface; the node is what actually touches the screen, which is why a
+ *      correctly configured tool still does nothing on its own.
+ *
+ * The node host must run inside a real interactive desktop session — started from a service or
+ * an SSH session it either dies with the session or cannot see a desktop at all. Launching it
+ * from here works because the operator pressing the button is sitting at that desktop.
+ */
+async function setComputerUse(projectDir, enable) {
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  if (!existsSync(cfgPath)) return { ok: false, error: 'openclaw.json not found' };
+  const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
+
+  cfg.tools = (cfg.tools && typeof cfg.tools === 'object') ? cfg.tools : {};
+  const allow = new Set(Array.isArray(cfg.tools.alsoAllow) ? cfg.tools.alsoAllow : []);
+  cfg.plugins = (cfg.plugins && typeof cfg.plugins === 'object') ? cfg.plugins : {};
+  cfg.plugins.allow = Array.isArray(cfg.plugins.allow) ? cfg.plugins.allow : [];
+  cfg.plugins.entries = (cfg.plugins.entries && typeof cfg.plugins.entries === 'object') ? cfg.plugins.entries : {};
+
+  if (enable) {
+    allow.add('computer');
+    allow.add('screen');
+    if (!cfg.plugins.allow.includes('cua-computer')) cfg.plugins.allow.push('cua-computer');
+    cfg.plugins.entries['cua-computer'] = { ...(cfg.plugins.entries['cua-computer'] || {}), enabled: true };
+  } else {
+    allow.delete('computer');
+    allow.delete('screen');
+    if (cfg.plugins.entries['cua-computer']) cfg.plugins.entries['cua-computer'].enabled = false;
+  }
+  cfg.tools.alsoAllow = [...allow];
+  await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
+
+  if (!enable) {
+    await stopNodeHost().catch(() => {});
+    sendLog('[computer-use] Đã tắt: gỡ tool computer/screen và dừng node điều khiển.');
+    return { ok: true, enabled: false };
+  }
+
+  sendLog('[computer-use] Đã bật tool computer + plugin cua-computer. Đang khởi động node điều khiển...');
+  const meta = readNativeMeta(projectDir) || {};
+  const port = meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT;
+  await startNodeHost(projectDir, port);
+  return { ok: true, enabled: true, gatewayPort: port };
+}
+
+/** Run `openclaw node run` detached so it outlives this request but stays in this desktop session. */
+async function startNodeHost(projectDir, gatewayPort) {
+  if (await nodeHostRunning()) { sendLog('[computer-use] Node điều khiển đã chạy sẵn.'); return; }
+  const a = ocArgv(projectDir, ['node', 'run', '--host', '127.0.0.1', '--port', String(gatewayPort)]);
+  const child = spawn(a.cmd, a.args, { ...a.opts, detached: true, stdio: 'ignore', windowsHide: true });
+  child.on('error', (err) => sendLog(`[computer-use] không chạy được node host: ${err.message}`));
+  child.unref();
+  // Confirm instead of assuming: a node host that failed to start looks exactly like one that
+  // started, until the bot says it has no permission.
+  for (let i = 0; i < 15; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    if (await nodeHostRunning()) { sendLog('[computer-use] Node điều khiển đã kết nối.'); return; }
+  }
+  sendLog('[computer-use] Node điều khiển chưa lên sau 30s — kiểm tra lại bằng `openclaw node status`.');
+}
+
+async function nodeHostRunning() {
+  if (process.platform === 'win32') {
+    const r = await runCapture('powershell', ['-NoProfile', '-Command',
+      "(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*node*run*--host*' } | Measure-Object).Count"], { shell: false, timeout: 8000 });
+    return Number(String(r.stdout || '0').trim()) > 0;
+  }
+  const r = await runCapture('sh', ['-c', "ps ax | grep -c '[n]ode run --host'"], { shell: false, timeout: 8000 });
+  return Number(String(r.stdout || '0').trim()) > 0;
+}
+
+async function stopNodeHost() {
+  if (process.platform === 'win32') {
+    await runCapture('powershell', ['-NoProfile', '-Command',
+      "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*node*run*--host*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue }"], { shell: false, timeout: 10000 });
+    return;
+  }
+  await runCapture('sh', ['-c', "pkill -f 'node run --host' || true"], { shell: false, timeout: 10000 });
+}
+
+/**
+ * Write the double-click launchers into the project and copy the operator-facing ones to the
+ * Desktop. Safe to re-run: it overwrites, so a fixed launcher reaches machines on the next
+ * install or update instead of leaving the customer pressing a stale copy.
+ */
+async function writeWindowsLaunchers(projectDir, gatewayPort, routerPort) {
+  const files = buildWindowsLaunchers({ projectDir, gatewayPort, routerPort, setupPort: activeUiPort || 51789 });
+  for (const [name, content] of Object.entries(files)) {
+    await fsp.writeFile(join(projectDir, name), content, 'utf8');
+  }
+  const desktop = join(os.homedir(), 'Desktop');
+  if (existsSync(desktop)) {
+    for (const name of WINDOWS_DESKTOP_LAUNCHERS) {
+      await fsp.writeFile(join(desktop, name), files[name], 'utf8').catch(() => {});
+    }
+    sendLog(`[native] Đã đặt ${WINDOWS_DESKTOP_LAUNCHERS.length} tệp bấm-đúp lên Desktop.`);
+  }
+}
+
+/**
+ * Move a running docker project onto native, keeping every bot and every workspace file.
+ *
+ * Why this exists: openclaw >=2026.9 writes files through @openclaw/fs-safe, which fstat()s the
+ * file after an atomic rename. That check cannot pass through a Docker Desktop bind mount on
+ * Windows, so the moment a docker image is rebuilt onto 2026.9.x the gateway can no longer write
+ * its own config: every boot is unclean, the restart-loop breaker trips, and the bot is down with
+ * a misleading "ENOENT: fstat". Measured end to end on win_kha, 09/09/2026 — native on the very
+ * same NTFS path works, so the fault is the bind-mount layer, not the disk.
+ *
+ * The data lives in two different places and only one of them is visible on the host:
+ * bind-mounted paths are already on disk, but named volumes are not — state (the sqlite DB with
+ * every session), the plugin tree, and 9router's login live inside volumes. Copy those out FIRST;
+ * everything after this point is reversible, the containers and image are left untouched.
+ */
+async function migrateDockerProjectToNative(projectDir, { osChoice = '' } = {}) {
+  const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
+  if (!existsSync(composeFile)) return false;
+  sendLog('[migrate] Chuyển project từ Docker sang native...');
+
+  // 1. Stop the containers so nothing writes while we copy. Never `down -v` — that deletes the
+  //    very volumes holding the customer's sessions.
+  await run('docker', ['compose', '-f', composeFile, 'stop']).catch(() => {});
+  // Stopping is not enough: the containers carry a restart policy, so the next reboot brings them
+  // back and they grab 18789/18790 before the native gateway can bind — the native process then
+  // dies with EADDRINUSE seconds after reporting "ready", which reads like a random crash.
+  // Measured on win_kha after its first reboot, 10/09/2026. Clear the policy, keep the containers.
+  const psAll = await runCapture('docker', ['compose', '-f', composeFile, 'ps', '-a', '--format', '{{.Name}}'], { shell: false });
+  const names = String(psAll.stdout || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+  if (names.length) await run('docker', ['update', '--restart=no', ...names]).catch(() => {});
+
+  // 2. Copy every named volume out to the host path it maps to. Read the mapping from the
+  //    containers themselves rather than guessing volume names: compose prefixes them with the
+  //    project name, which differs per machine.
+  const psOut = await runCapture('docker', ['compose', '-f', composeFile, 'ps', '-a', '--format', '{{.Name}}'], { shell: false });
+  const containers = String(psOut.stdout || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  const CONTAINER_HOME = '/home/node/project';
+  let copied = 0;
+  for (const name of containers) {
+    const insp = await runCapture('docker', ['inspect', name, '--format', '{{range .Mounts}}{{.Type}}|{{.Name}}|{{.Destination}}\n{{end}}'], { shell: false });
+    for (const line of String(insp.stdout || '').split(/\r?\n/)) {
+      const [type, volName, dest] = line.split('|').map((s) => (s || '').trim());
+      if (type !== 'volume' || !volName || !dest) continue;
+      // Map the in-container path back onto the project on disk.
+      let hostDir = null;
+      if (dest.startsWith(`${CONTAINER_HOME}/`)) hostDir = join(projectDir, dest.slice(CONTAINER_HOME.length + 1));
+      else if (dest === '/root/.9router' || dest.endsWith('/.9router')) hostDir = join(projectDir, '.9router');
+      if (!hostDir) { sendLog(`[migrate] bỏ qua volume ${volName} (${dest}) — không map được về project`); continue; }
+      await fsp.mkdir(hostDir, { recursive: true });
+      // Copy with a throwaway container: the volume has no host path we can read directly.
+      const r = await runCapture('docker', [
+        'run', '--rm', '-v', `${volName}:/__src:ro`, '-v', `${hostDir}:/__dst`,
+        'node:22-slim', 'sh', '-c', 'cp -a /__src/. /__dst/ 2>/dev/null; ls -A /__dst | head -1',
+      ], { shell: false });
+      if (r.stdout && r.stdout.trim()) { copied++; sendLog(`[migrate] ${volName} → ${hostDir}`); }
+      else sendLog(`[migrate] ${volName} rỗng hoặc không chép được — kiểm tra tay: ${hostDir}`);
+    }
+  }
+  sendLog(`[migrate] đã đưa ${copied} volume xuống đĩa.`);
+
+  // 3. Rewrite what only made sense inside the container.
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  if (existsSync(cfgPath)) {
+    const before = await fsp.readFile(cfgPath, 'utf8');
+    await fsp.writeFile(`${cfgPath}.bak-truoc-native`, before, 'utf8');
+    let cfg = null;
+    try { cfg = JSON.parse(before); } catch { cfg = null; }
+    if (cfg) {
+      // 3a. Container-absolute workspace paths. On Windows these become "C:\home\node\..." and
+      //     every plugin fails its install-dir check.
+      const projPosix = join(projectDir, '.openclaw').replace(/\\/g, '/');
+      let text = JSON.stringify(cfg, null, 2).split(`${CONTAINER_HOME}/.openclaw`).join(projPosix);
+      cfg = JSON.parse(text);
+      // 3a-ter. RELATIVE workspace paths. Inside the container the process always ran from
+      //     /home/node/project so ".openclaw/workspace-x" resolved correctly. Native has no such
+      //     guarantee: the customer double-clicks a launcher from wherever they filed it, and the
+      //     agent then looks for its workspace under THAT folder and dies with WORKSPACE_VANISHED
+      //     — while agents that happen to carry an absolute path keep working, so only some bots
+      //     break. Exactly what happened when the launchers were moved into a Desktop subfolder
+      //     (win_kha 10/09/2026). Pin every workspace to the project.
+      {
+        const ag = cfg.agents || {};
+        const list = ag.entries && typeof ag.entries === 'object' ? Object.entries(ag.entries)
+          : Array.isArray(ag.list) ? ag.list.map((a) => [a && a.id, a]) : [];
+        for (const [aid, meta] of list) {
+          if (!meta || typeof meta.workspace !== 'string') continue;
+          const w = meta.workspace;
+          if (/^[a-zA-Z]:[\\/]/.test(w) || w.startsWith('/')) continue; // already absolute
+          meta.workspace = join(projectDir, w.replace(/^\.[\\/]/, '')).replace(/\\/g, '/');
+          sendLog(`[migrate] workspace ${aid}: "${w}" → "${meta.workspace}" (đường tương đối phụ thuộc chỗ bấm tệp)`);
+        }
+      }
+      text = JSON.stringify(cfg, null, 2);
+
+      // 3a-bis. Docker-only HOSTNAMES. `http://9router:20128` resolves through compose's internal
+      //     DNS and nowhere else, so on native every model call dies with
+      //     `getaddrinfo ENOTFOUND 9router` — the bot still reacts (that is the channel, no model
+      //     needed) but can never reply, which reads as "bot ignores me". Same story for
+      //     host.docker.internal and the 192.168.65.x Desktop bridge. Measured win_kha 10/09/2026.
+      text = text
+        .split('http://9router:20128').join('http://127.0.0.1:20128')
+        .split('http://host.docker.internal:20128').join('http://127.0.0.1:20128')
+        .replace(/http:\/\/192\.168\.65\.\d+:(\d+)/g, 'http://127.0.0.1:$1');
+      cfg = JSON.parse(text);
+      // 3b. bind. Inside docker, 0.0.0.0 was safe because the port was published to loopback only.
+      //     Native binds the host directly, so the same value would expose the gateway to the LAN.
+      cfg.gateway = (cfg.gateway && typeof cfg.gateway === 'object') ? cfg.gateway : {};
+      if (cfg.gateway.bind !== 'loopback') {
+        cfg.gateway.bind = 'loopback';
+        delete cfg.gateway.customBindHost;
+        if (cfg.gateway.controlUi) {
+          cfg.gateway.controlUi.allowedOrigins = ['http://localhost:' + (cfg.gateway.port || NATIVE_DEFAULT_GATEWAY_PORT), 'http://127.0.0.1:' + (cfg.gateway.port || NATIVE_DEFAULT_GATEWAY_PORT)];
+        }
+        sendLog('[migrate] gateway.bind → loopback (native bind thẳng lên host, 0.0.0.0 là mở ra mạng)');
+      }
+      // 3c. The browser-automation plugin rewrites the browser block on every boot, so simply
+      //     deleting the bad key below is not enough — it grows back and the config is invalid
+      //     again by the next restart (same shape as the old toolResultMaxChars reinfection).
+      //     Take the pen away from it; patchDocker is pointless here now too.
+      const baEntry = cfg.plugins && cfg.plugins.entries && cfg.plugins.entries['browser-automation'];
+      if (baEntry && typeof baEntry === 'object') {
+        baEntry.config = (baEntry.config && typeof baEntry.config === 'object') ? baEntry.config : {};
+        baEntry.config.manageBrowserConfig = false;
+        baEntry.config.patchDocker = false;
+        sendLog('[migrate] tắt browser-automation.manageBrowserConfig (nó ghi lại khoá 2026.9 từ chối mỗi lần boot)');
+      }
+      // 3d. browser profile colour: required up to 2026.8, rejected outright by 2026.9.
+      const profiles = (cfg.browser && cfg.browser.profiles) || null;
+      if (profiles && typeof profiles === 'object') {
+        for (const key of Object.keys(profiles)) {
+          if (profiles[key] && typeof profiles[key] === 'object' && profiles[key].color !== undefined) {
+            delete profiles[key].color;
+            sendLog(`[migrate] gỡ browser.profiles.${key}.color (2026.9 không nhận)`);
+          }
+        }
+      }
+      await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
+    }
+  }
+
+  // 4. Backup folders sitting inside extensions/ are still scanned as real plugins — that is where
+  //    the long-standing "duplicate plugin id" warnings came from. A leading dot does NOT hide them
+  //    on Windows, so move them out of the tree entirely.
+  const extDir = join(projectDir, '.openclaw', 'extensions');
+  if (existsSync(extDir)) {
+    const parked = join(projectDir, '_plugin-backups');
+    for (const entry of await fsp.readdir(extDir).catch(() => [])) {
+      if (!/\.(bak|broken|old)[-.]|^\.openclaw-install-backups$/i.test(entry)) continue;
+      await fsp.mkdir(parked, { recursive: true });
+      await fsp.rename(join(extDir, entry), join(parked, entry.replace(/^\./, ''))).catch(() => {});
+      sendLog(`[migrate] dời bản sao lưu plugin ra khỏi extensions/: ${entry}`);
+    }
+  }
+
+  // 5. zalo-connect wrote its Zalo sessions next to the container's HOME, which was itself
+  //    <project>/.openclaw — leaving them one level too deep. Lift them so 3.1.5's one-time
+  //    migration finds them; without this every account comes back "not authenticated".
+  const nested = join(projectDir, '.openclaw', '.openclaw');
+  if (existsSync(nested)) {
+    for (const entry of await fsp.readdir(nested).catch(() => [])) {
+      if (!/^zalo-connect-credentials.*\.json$/.test(entry)) continue;
+      const target = join(projectDir, '.openclaw', entry);
+      if (existsSync(target)) continue;
+      await fsp.copyFile(join(nested, entry), target).catch(() => {});
+      sendLog(`[migrate] nâng phiên Zalo lên đúng chỗ: ${entry}`);
+    }
+  }
+
+  sendLog('[migrate] Xong phần dữ liệu. Container và image giữ nguyên để còn quay lui.');
+  return true;
+}
+
+/**
  * Bring a native project up end to end: 9router → smart-route sync → resolve its API key into
  * openclaw.json → install the gateway as a managed service. Order matters: the gateway must boot
  * after 9router is reachable and after the key is on disk, or its first turn has no model.
@@ -3561,6 +3866,15 @@ async function startNativeRuntime({ projectDir, osChoice = '', gatewayPort, rout
     JSON.stringify({ mode: 'native', gatewayPort: gwPort, routerPort: rtPort, osChoice, label }, null, 2),
     'utf8',
   );
+
+  // Windows has no usable service story for this (see windows-launcher-gen.js): the Scheduled
+  // Task openclaw installs is bound to a login session, so it dies with the SSH session and is
+  // refused outright when set to run at boot. Give the owner double-click launchers instead —
+  // the same shape as the .command files on macOS — and put the three they actually press on
+  // the Desktop where they can find them.
+  if (process.platform === 'win32') {
+    await writeWindowsLaunchers(projectDir, gwPort, rtPort).catch((e) => sendLog(`[native] launcher: ${e.message}`));
+  }
 
   await startNative9Router(projectDir);
 
@@ -3829,6 +4143,30 @@ async function updateRuntime(target, projectDir) {
     await syncRuntimeState(projectDir, { full: true }).catch(() => {});
     probeCacheClear();
     return { ok: true, target, spec, mode: 'native' };
+  }
+  // A docker project asked to update is a docker project about to rebuild its image — which is
+  // exactly the step that lands it on openclaw >=2026.9 and breaks writing through the bind mount
+  // (see migrateDockerProjectToNative). So the update IS the migration: move the data onto native
+  // first, then update the native way. Doing it here rather than on every page load keeps it a
+  // deliberate act by the customer, not something that reshapes their machine behind their back.
+  if (!isNativeProject(projectDir) && projectDir && existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'))) {
+    sendLog('[update] Project đang chạy Docker — chuyển sang native trước khi cập nhật.');
+    await ensureNodeInstalled();
+    await migrateDockerProjectToNative(projectDir, { osChoice: state.os || '' });
+    await run('npm', ['install', '-g', OPENCLAW_NPM_SPEC]);
+    invalidateHostOpenclawVersion();
+    await run('npm', ['install', '-g', NINE_ROUTER_NPM_SPEC]);
+    const meta = readNativeMeta(projectDir) || {};
+    await startNativeRuntime({
+      projectDir,
+      osChoice: state.os || '',
+      gatewayPort: meta.gatewayPort || state.gatewayPort,
+      routerPort: meta.routerPort || state.routerPort,
+    });
+    await syncRuntimeState(projectDir, { full: true }).catch(() => {});
+    probeCacheClear();
+    sendLog('[update] Đã chuyển sang native. Container Docker được giữ nguyên (đã dừng) để còn quay lui.');
+    return { ok: true, target, spec, mode: 'native', migratedFromDocker: true };
   }
   if (state.mode === 'docker' && projectDir) {
     const dockerDir = join(projectDir, 'docker', 'openclaw');
@@ -4143,11 +4481,63 @@ function detectHostApps() {
     add('zalo', [join(local, 'Programs', 'Zalo', 'Zalo.exe'), join(local, 'Zalo', 'Zalo.exe')]);
     add('explorer', ['C:\\Windows\\explorer.exe']);
     add('notepad', ['C:\\Windows\\System32\\notepad.exe']);
+    // A hand-written shortlist only covers what WE thought of. Every customer machine has its
+    // own software, and the bot is useless the moment it is asked for something not on the list —
+    // "mở TeamViewer" fails not because the app is missing but because nobody enumerated it.
+    // The Start Menu is the one place Windows guarantees an entry per installed app, and a .lnk
+    // launches correctly without knowing where the .exe actually lives. Scanning it turns the
+    // list from "5 apps we guessed" into "everything this machine has", and it stays correct
+    // when the customer installs something new. Measured on win_kha: 5 → 182 apps.
+    Object.assign(apps, scanWindowsStartMenuApps(), apps); // hand-written entries win
   } else if (process.platform === 'darwin') {
     add('teamviewer', ['/Applications/TeamViewer.app']);
     add('chrome', ['/Applications/Google Chrome.app']);
     add('zalo', ['/Applications/Zalo.app']);
     add('finder', ['/System/Library/CoreServices/Finder.app']);
+    // Same idea as Windows: enumerate what is really installed instead of guessing.
+    Object.assign(apps, scanMacApplications(), apps);
+  }
+  return apps;
+}
+
+/** Every .lnk under both Start Menu trees, keyed by a slug of its name. */
+function scanWindowsStartMenuApps() {
+  const apps = {};
+  // Uninstallers and doc links are not apps; opening one by accident is worse than not having it.
+  const SKIP = /(uninstall|gỡ cài đặt|go cai dat|readme|help|documentation|website|release notes|license|repair|modify)/i;
+  const roots = [
+    join(process.env.ProgramData || 'C:\\ProgramData', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+    join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+  ];
+  const walk = (dir, depth = 0) => {
+    if (depth > 4) return;
+    let entries = [];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) { walk(p, depth + 1); continue; }
+      if (!/\.lnk$/i.test(e.name)) continue;
+      const name = e.name.replace(/\.lnk$/i, '');
+      if (SKIP.test(name)) continue;
+      const key = slugify(name, '');
+      if (key && !apps[key]) apps[key] = p;
+    }
+  };
+  for (const r of roots) if (r) walk(r);
+  return apps;
+}
+
+/** Installed .app bundles, so macOS gets the same "everything on this machine" list. */
+function scanMacApplications() {
+  const apps = {};
+  for (const dir of ['/Applications', '/System/Applications', join(os.homedir(), 'Applications')]) {
+    let entries = [];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+    for (const e of entries) {
+      if (!e.name.endsWith('.app')) continue;
+      const key = slugify(e.name.replace(/\.app$/, ''), '');
+      if (key && !apps[key]) apps[key] = join(dir, e.name);
+    }
   }
   return apps;
 }
@@ -5004,9 +5394,19 @@ async function writeHostControlAccess(projectDir, cfg) {
     '',
     '- macOS: `open -a "<Tên app>"` — ví dụ `open -a "TeamViewer"`',
     '- Linux: `xdg-open <app|url>` hoặc chạy binary trực tiếp',
-    '- Windows: `cmd /c start "" "<app>"`',
+    ...(process.platform === 'win32' ? [
+      '- Windows: **đừng** gọi `Start-Process <TênApp>` — tên app KHÔNG phải lệnh trên PATH, bạn sẽ nhận',
+      '  `The system cannot find the file specified`. Hãy tra shortcut trong Start Menu rồi mở nó:',
+      '',
+      '```sh',
+      'powershell -NoProfile -Command "$n=\'TeamViewer\'; $r=@(\"$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\",\"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\"); $l=Get-ChildItem $r -Recurse -Filter \"*$n*.lnk\" -EA SilentlyContinue | Select -First 1; if($l){ Start-Process $l.FullName } else { \"khong tim thay $n\" }"',
+      '```',
+      '',
+      'Đổi `TeamViewer` thành tên app cần mở. Cách này đúng với MỌI app đã cài, kể cả app chủ mới cài hôm qua,',
+      'vì Windows luôn đặt shortcut vào Start Menu và `.lnk` tự biết đường dẫn thật.',
+    ] : ['- Windows: `cmd /c start "" "<app>"`']),
     '',
-    apps.length ? `App chủ gợi ý: ${apps.map((a) => `\`${a}\``).join(', ')}.` : 'Chủ chưa liệt kê app — mở theo tên app có trên máy.',
+    apps.length ? `App có trên máy này: ${apps.map((a) => `\`${a}\``).join(', ')}.` : 'Chủ chưa liệt kê app — mở theo tên app có trên máy.',
     ...captureBlock,
     ...scriptBlock,
     '',
@@ -5308,6 +5708,79 @@ async function waitForDockerDaemon(timeoutMs) {
   }
 }
 
+// OpenClaw's own engines range, copied verbatim from its package.json:
+//   ">=22.22.3 <23 || >=24.15.0 <25 || >=25.9.0"
+// The gaps matter — Node 23.x and 25.0–25.8 are NOT usable — so "install the latest Node" is the
+// wrong instinct here. When we have to install, we install 24 LTS, which sits inside a supported
+// window and is what every working host in the fleet already runs.
+const NODE_TARGET_MAJOR = 24;
+function nodeVersionSupported(raw) {
+  const m = String(raw || '').match(/v?(\d+)\.(\d+)\.(\d+)/);
+  if (!m) return false;
+  const [maj, min, pat] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const atLeast = (a, b, c) => maj > a || (maj === a && (min > b || (min === b && pat >= c)));
+  if (maj === 22) return atLeast(22, 22, 3);
+  if (maj === 24) return atLeast(24, 15, 0);
+  if (maj >= 25) return maj > 25 || atLeast(25, 9, 0);
+  return false;
+}
+
+// Native mode runs openclaw straight off the host, so the host's Node IS the runtime — unlike
+// docker mode, where the image carried its own. A customer machine that never needed Node before
+// (or carries one outside openclaw's supported range) must get a usable one before anything else,
+// otherwise the install dies deep inside `npm i -g openclaw` with an unreadable engine error.
+async function ensureNodeInstalled() {
+  const current = await commandExists('node', ['--version']);
+  if (current.ok && nodeVersionSupported(current.output)) {
+    sendLog(`[node] Node ${current.output.trim()} hợp lệ.`);
+    return;
+  }
+  const why = current.ok
+    ? `Node ${current.output.trim()} nằm ngoài dải OpenClaw hỗ trợ`
+    : 'Máy chưa có Node';
+  sendLog(`[node] ${why} — đang cài Node ${NODE_TARGET_MAJOR} LTS...`);
+
+  if (process.platform === 'linux') {
+    const root = typeof process.getuid === 'function' && process.getuid() === 0;
+    const sudo = root ? '' : 'sudo ';
+    // NodeSource covers deb/rpm and pins the major, so we land inside the supported window
+    // instead of whatever "latest" happens to be that week.
+    await run('sh', ['-c',
+      `curl -fsSL https://deb.nodesource.com/setup_${NODE_TARGET_MAJOR}.x | ${sudo}bash - && ${sudo}apt-get install -y nodejs`,
+    ]).catch(async () => {
+      sendLog('[node] apt không dùng được — thử nvm...');
+      await run('sh', ['-c',
+        `export NVM_DIR="$HOME/.nvm"; curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && . "$NVM_DIR/nvm.sh" && nvm install ${NODE_TARGET_MAJOR} && nvm alias default ${NODE_TARGET_MAJOR}`,
+      ]);
+    });
+  } else if (process.platform === 'darwin') {
+    const brew = await commandExists('brew', ['--version']);
+    if (!brew.ok) throw httpError(400, 'macOS: cần Homebrew để tự cài Node. Cài tại https://brew.sh rồi thử lại.');
+    await run('brew', ['install', `node@${NODE_TARGET_MAJOR}`]);
+    await run('brew', ['link', '--overwrite', '--force', `node@${NODE_TARGET_MAJOR}`]).catch(() => {});
+  } else if (process.platform === 'win32') {
+    const winget = await commandExists('winget', ['--version']);
+    const choco = await commandExists('choco', ['--version']);
+    if (winget.ok) {
+      await run('winget', ['install', '-e', '--id', `OpenJS.NodeJS.LTS`, '--accept-source-agreements', '--accept-package-agreements']);
+    } else if (choco.ok) {
+      await run('choco', ['install', 'nodejs-lts', '-y']);
+    } else {
+      throw httpError(400, `Windows: cần winget hoặc Chocolatey để tự cài Node (hoặc cài Node ${NODE_TARGET_MAJOR} LTS thủ công tại https://nodejs.org) rồi thử lại.`);
+    }
+  } else {
+    throw httpError(400, `Hệ điều hành không tự cài Node được. Hãy cài Node ${NODE_TARGET_MAJOR} LTS thủ công rồi thử lại.`);
+  }
+
+  // A fresh install lands on a PATH this process never picked up, so re-check through a new shell
+  // rather than trusting our own env.
+  const after = await commandExists('node', ['--version']);
+  if (!after.ok || !nodeVersionSupported(after.output)) {
+    throw httpError(500, `Đã cài Node nhưng phiên bản hiện tại (${after.output || 'không đọc được'}) vẫn ngoài dải OpenClaw hỗ trợ. Mở lại cửa sổ dòng lệnh (hoặc đăng xuất/đăng nhập lại) để PATH cập nhật, rồi cài lại.`);
+  }
+  sendLog(`[node] Node ${after.output.trim()} đã sẵn sàng.`);
+}
+
 // Ensure Docker (engine + compose) is available before a docker-mode install, auto-installing the
 // latest version appropriate for the host OS when it is missing:
 //   • Linux → Docker's official convenience script (get.docker.com; auto-detects the distro) + start daemon
@@ -5407,7 +5880,10 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
     // Make sure Docker is present (auto-install on Linux/VPS) before doing any work — fail fast
     // with a clear message rather than deep inside `docker compose up`. Native mode has no
     // container, so it skips this entirely (that is much of the point of choosing it).
-    if (mode !== 'native') await ensureDockerInstalled(osChoice);
+    // Native has no image to carry a runtime, so the host's Node IS the runtime — get a supported
+    // one on the machine before npm touches anything. Docker still needs the daemon instead.
+    if (mode === 'native') await ensureNodeInstalled();
+    else await ensureDockerInstalled(osChoice);
     await writeCoreProject({ projectDir, osChoice, mode, gatewayPort, routerPort, userTimezone });
     await run('npm', ['install', '-g', OPENCLAW_NPM_SPEC]);
     // The global runtime just changed — every version gate after this point (notably
@@ -5632,6 +6108,34 @@ async function discoverDockerBotProjectRoots() {
 // dir symlinked to it — without this filter the account home shows up as a phantom "root"
 // project tab after every refresh (measured on vps_c-thu). The native marker's `label` was
 // written from the ORIGINAL project dir, so a mismatch identifies the phantom.
+/**
+ * Two paths can be the same project: a native install links the account home and the project dir
+ * together, so `~/.openclaw` and `<project>/.openclaw` resolve to one directory on disk. Scanning
+ * finds both and the dashboard then lists the SAME bots twice under two project names (seen on
+ * win_kha as "bot" and "VT 2025", 4 identical bots online in each — 10/09/2026).
+ *
+ * Dedupe on where `.openclaw` really lands, and keep the entry that IS the real directory: the
+ * link side is an artefact of the install layout, not somewhere the customer put a project.
+ * Works whichever way the link points, which matters because the direction differs between a
+ * fresh native install and one migrated over from docker.
+ */
+function dedupeProjectsByRealState(dirs) {
+  const byReal = new Map();
+  for (const dir of dirs) {
+    if (!dir) continue;
+    const statePath = join(dir, '.openclaw');
+    let real = statePath;
+    let isLink = false;
+    try { real = fs.realpathSync(statePath); } catch {}
+    try { isLink = fs.lstatSync(statePath).isSymbolicLink(); } catch {}
+    const key = resolve(real).toLowerCase();
+    const prev = byReal.get(key);
+    // First one wins, unless we already kept a link and now meet the real directory.
+    if (!prev || (prev.isLink && !isLink)) byReal.set(key, { dir, isLink });
+  }
+  return [...byReal.values()].map((v) => v.dir);
+}
+
 function isPhantomStateDirProject(dir) {
   try {
     const meta = readNativeMeta(dir);
@@ -5663,7 +6167,7 @@ async function discoverNativeProjectRoots(rootProjectDir) {
   if (rootProjectDir && existsSync(nativeMarkerPath(rootProjectDir)) && existsSync(join(rootProjectDir, '.openclaw', 'openclaw.json'))) {
     roots.add(resolve(rootProjectDir));
   }
-  return [...roots].filter((dir) => !isPhantomStateDirProject(dir));
+  return dedupeProjectsByRealState([...roots].filter((dir) => !isPhantomStateDirProject(dir)));
 }
 
 async function findLatestProject(rootProjectDir) {
@@ -5718,7 +6222,10 @@ async function findLatestProject(rootProjectDir) {
     candidates.push({ dir: dr, mtimeMs: (st?.mtimeMs || 0) + 1e15 });
   }
   candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
-  return candidates[0]?.dir || null;
+  // Drop the linked twin before picking a winner, or the account-home view of the same project
+  // can outrank the project itself purely on mtime.
+  const keep = new Set(dedupeProjectsByRealState(candidates.map((c) => c.dir)));
+  return candidates.find((c) => keep.has(c.dir))?.dir || candidates[0]?.dir || null;
 }
 
 async function ensureProjectsLoaded(rootProjectDir) {
@@ -5729,7 +6236,10 @@ async function ensureProjectsLoaded(rootProjectDir) {
     try {
       const saved = JSON.parse(await fsp.readFile(file, 'utf8'));
       if (Array.isArray(saved?.projects)) {
-        state.projects = saved.projects;
+        // Filter on the way IN: a linked twin already written to the state file would otherwise
+        // survive every later dedupe, because the dashboard reads state.projects directly.
+        const keep = new Set(dedupeProjectsByRealState(saved.projects.map((p) => p && p.projectDir)));
+        state.projects = saved.projects.filter((p) => p && keep.has(p.projectDir));
       }
     } catch {}
   }
@@ -5774,6 +6284,11 @@ async function computeDiscoverProjects(rootProjectDir) {
   // Drop phantom state-dir "projects" that slipped into the saved list (e.g. the account
   // home after a 2026.8.x native state move) — and keep them out of the persisted state.
   state.projects = state.projects.filter((p) => !isPhantomStateDirProject(p.projectDir));
+  // The label check above only catches projects that carry a marker with a mismatched label.
+  // A linked twin without one still slips through and the dashboard shows the same bots under
+  // two project names, both "online" — collapse those onto the real directory.
+  const keepDirs = new Set(dedupeProjectsByRealState(state.projects.map((p) => p.projectDir)));
+  state.projects = state.projects.filter((p) => keepDirs.has(p.projectDir));
 
   // In parallel: each buildProjectMeta runs runtime detection (docker calls, port probes), so a
   // handful of projects turned into seconds of dashboard load when this was a sequential loop.
@@ -6935,6 +7450,18 @@ async function handler(req, res, rootProjectDir) {
       // capture / recording and node-script permissions get granted (opt out with grants:false).
       const granted = cfg.enabled && body.grants !== false ? grantHostCapabilities(cfg) : [];
       if (granted.length) sendLog(`[host-control] Đã cấp thêm quyền chạy: ${granted.join(', ')}.`);
+      // Pressing this button means "let the bot drive this machine", so it must deliver the real
+      // thing — OpenClaw's own `computer` tool (screenshot → click → type → drag), not just the
+      // ability to launch an app. That tool needs three separate pieces switched on together, and
+      // any one missing leaves the bot insisting it has no permission:
+      //   • the tool allowed for agents, • the cua-computer plugin (mandatory on Windows),
+      //   • a running node host advertising computer.act + screen.snapshot.
+      // Doing it here rather than in a side script matters: the node host must live in a real
+      // interactive desktop session, and the operator pressing this button IS in one.
+      const computerUse = await setComputerUse(projectDir, cfg.enabled).catch((e) => {
+        sendLog(`[host-control] computer-use: ${e.message}`);
+        return { ok: false, error: e.message };
+      });
       await fsp.writeFile(hostControlConfigPath(projectDir), JSON.stringify(cfg, null, 2), 'utf8');
       let started = { ok: false, reason: 'disabled' };
       if (cfg.enabled) started = await ensureHostControl(projectDir);
@@ -6942,6 +7469,7 @@ async function handler(req, res, rootProjectDir) {
       // disabling strips it so a bot never keeps instructions for an endpoint now refusing.
       await writeHostControlAccess(projectDir, cfg).catch(() => {});
       sendLog(`[host-control] ${cfg.enabled ? 'Đã BẬT' : 'Đã TẮT'} quyền điều khiển máy cho bot.`);
+      if (cfg.enabled && computerUse?.ok) sendLog('[host-control] Bot có thể chụp màn hình, click chuột, gõ phím trên máy này.');
       // Make sure the Codex desktop app can actually do GUI work, so `codex exec` is enough for
       // the bot: install computer-use into the app and repair its MCP registration. Nothing is
       // installed into the OpenClaw project and the gateway never restarts.
@@ -7433,4 +7961,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
+export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, runHostCommand, detectHostCommands, detectHostCapabilityCommands, grantHostCapabilities, detectCodexApp, detectCodexMarketplace, resolveCodexCli, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
