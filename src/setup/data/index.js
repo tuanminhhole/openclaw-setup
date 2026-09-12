@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * setup/data/index.js — Shared data for CLI + Wizard
+ * setup/data/index.js - Shared data for CLI + Wizard
  *
  * Provides CLI-compatible views of PROVIDERS, SKILLS, CHANNELS, and OLLAMA_MODELS.
  * The wizard uses these via IIFE concatenation (providers.js, skills.js, channels.js).

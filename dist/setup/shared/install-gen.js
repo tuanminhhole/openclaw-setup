@@ -1,5 +1,5 @@
 // @ts-nocheck
-// install-gen.js — Build install/runtime artifacts (Chrome debug, uninstall, skill catalog)
+// install-gen.js - Build install/runtime artifacts (Chrome debug, uninstall, skill catalog)
 // Workspace .md files are in workspace-gen.js (single source of truth).
 (function (root) {
   function buildSkillCatalogMarkdown(options = {}) {
@@ -366,7 +366,7 @@ fi
   
   function buildUpgradePs1() {
   return [
-    "# OpenClaw Upgrade Script — Windows (PowerShell)",
+    "# OpenClaw Upgrade Script - Windows (PowerShell)",
     "# Cach dung:",
     "#   Nhan dup upgrade.ps1 hoac: .\\upgrade.ps1",
     "#   irm https://raw.githubusercontent.com/tuanminhhole/openclaw-setup/main/upgrade.ps1 | iex",
@@ -396,7 +396,7 @@ fi
     "foreach ($l in $logo) { Write-Host $l -ForegroundColor Red }",
     "Write-Host \"\"",
     "",
-    "# Box — node render (handles emoji visual width correctly on all terminals)",
+    "# Box - node render (handles emoji visual width correctly on all terminals)",
     "$env:L1 = \"  🦞 OpenClaw Setup$VER_STR | Upgrade Script\"",
     "$env:L2 = \"  Windows (PowerShell)\"",
     "node -e @\"\nconst RED='\\x1b[0;31m',NC='\\x1b[0m';\nfunction vw(s){let w=0;for(const c of[...s]){const cp=c.codePointAt(0);w+=(cp>=0x1F000&&cp<=0x1FFFF?2:1);}return w;}\nconst L1=process.env.L1,L2=process.env.L2;\nconst INNER=Math.max(vw(L1),vw(L2))+2;\nconst D='─'.repeat(INNER);const pad=s=>' '.repeat(Math.max(0,INNER-vw(s)));\nconsole.log(RED+'╭'+D+'╮'+NC);\nconsole.log(RED+'│'+NC+L1+pad(L1)+RED+'│'+NC);\nconsole.log(RED+'│'+NC+L2+pad(L2)+RED+'│'+NC);\nconsole.log(RED+'╰'+D+'╯'+NC);\n\"@",
@@ -426,7 +426,7 @@ fi
     "",
     "# ── 3. Chay upgrade ──────────────────────────────────────────────────────────",
     "Write-Host \"  🔄 Dang lay CLI moi nhat va chay upgrade...\" -ForegroundColor Cyan",
-    "Write-Host \"     npx luon tai create-openclaw-bot@latest — khong can cap nhat tay\" -ForegroundColor DarkGray",
+    "Write-Host \"     npx luon tai create-openclaw-bot@latest - khong can cap nhat tay\" -ForegroundColor DarkGray",
     "Write-Host \"\"",
     "",
     "try {",
@@ -442,7 +442,7 @@ fi
     "    Write-Host \"  🎉 Upgrade hoan tat!\" -ForegroundColor Green",
     "    Write-Host \"     Dashboard: http://localhost:18789\" -ForegroundColor Cyan",
     "} else {",
-    "    Write-Host \"  ⚠️  Ma loi: $exitCode — xem log o tren.\" -ForegroundColor Yellow",
+    "    Write-Host \"  ⚠️  Ma loi: $exitCode - xem log o tren.\" -ForegroundColor Yellow",
     "}",
     "Write-Host \"\"",
     "Read-Host \"Nhan Enter de dong\"",
@@ -452,7 +452,7 @@ fi
   function buildUpgradeSh() {
   return [
     "#!/bin/bash",
-    "# OpenClaw Upgrade Script — Linux / macOS / Ubuntu",
+    "# OpenClaw Upgrade Script - Linux / macOS / Ubuntu",
     "# Cach dung:",
     "#   bash upgrade.sh",
     "#   curl -fsSL https://raw.githubusercontent.com/tuanminhhole/openclaw-setup/main/upgrade.sh | bash",
@@ -484,7 +484,7 @@ fi
     "echo '   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝'",
     "echo -e \"${NC}\"",
     "",
-    "# Box — node render (handles emoji visual width correctly on all terminals)",
+    "# Box - node render (handles emoji visual width correctly on all terminals)",
     "L1=\"  🦞 OpenClaw Setup${VER_STR} | Upgrade Script\"",
     "L2=\"  Linux / macOS / Ubuntu\"",
     "L1=\"$L1\" L2=\"$L2\" node -e \"\nconst RED='\\x1b[0;31m',NC='\\x1b[0m';\nfunction vw(s){let w=0;for(const c of[...s]){const cp=c.codePointAt(0);w+=(cp>=0x1F000&&cp<=0x1FFFF?2:1);}return w;}\nconst L1=process.env.L1,L2=process.env.L2;\nconst INNER=Math.max(vw(L1),vw(L2))+2;\nconst D='─'.repeat(INNER);const pad=s=>' '.repeat(Math.max(0,INNER-vw(s)));\nconsole.log(RED+'╭'+D+'╮'+NC);\nconsole.log(RED+'│'+NC+L1+pad(L1)+RED+'│'+NC);\nconsole.log(RED+'│'+NC+L2+pad(L2)+RED+'│'+NC);\nconsole.log(RED+'╰'+D+'╯'+NC);\n\"",
@@ -520,7 +520,7 @@ fi
     "",
     "# ── 3. Chay upgrade ──────────────────────────────────────────────────────────",
     "echo -e \"${CYAN}  🔄 Dang lay CLI moi nhat va chay upgrade...${NC}\"",
-    "echo -e \"${GRAY}     npx luon tai create-openclaw-bot@latest — khong can cap nhat tay${NC}\"",
+    "echo -e \"${GRAY}     npx luon tai create-openclaw-bot@latest - khong can cap nhat tay${NC}\"",
     "echo \"\"",
     "",
     "npx create-openclaw-bot@latest upgrade",
@@ -531,7 +531,7 @@ fi
     "    echo -e \"${GREEN}  🎉 Upgrade hoan tat!${NC}\"",
     "    echo -e \"${CYAN}     Dashboard: http://localhost:18789${NC}\"",
     "else",
-    "    echo -e \"${YELLOW}  ⚠️  Ma loi: $EXIT_CODE — xem log o tren.${NC}\"",
+    "    echo -e \"${YELLOW}  ⚠️  Ma loi: $EXIT_CODE - xem log o tren.${NC}\"",
     "fi",
     "echo \"\"",
     ""

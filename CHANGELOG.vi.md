@@ -1,6 +1,29 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.17.2] - 2026-09-12
+### 📦 Còn chạy Docker? Bảng điều khiển sẽ mời bạn chuyển
+
+Bấm Cập nhật vốn đã là chuyển sang native, nhưng không chỗ nào nói vậy nên nhiều máy cứ nằm mãi
+trên Docker. Nay mở bảng điều khiển trên một project Docker là nó hỏi, đúng một lần, kèm lý do rõ
+ràng: bot điều khiển được máy tính, tránh được lỗi làm chết bot Docker trên Windows, chạy nhẹ hơn,
+và riêng tư y như cũ. Bấm một nút là chuyển; toàn bộ bot, tệp trong thư mục làm việc và phiên đăng
+nhập Zalo đi theo, container cũ chỉ dừng chứ không xoá nên vẫn có đường quay lui. Chọn "Để sau"
+thì nó thôi không hỏi nữa.
+
+### 🩹 Ba lỗi khiến máy Windows trông như hỏng
+
+- **Bảng điều khiển không mở được sau khi có bản mới.** Trình khởi động nhờ npm tải bản cập nhật,
+  npm dừng lại hỏi "Ok to proceed?" trong cửa sổ ẩn không ai bấm được, thế là nó đợi mãi. Giờ không
+  hỏi nữa.
+- **Điều khiển máy tắt sau mỗi lần khởi động lại**, trong khi bảng điều khiển vẫn báo ĐANG BẬT.
+  Nay bấm "1 - KHOI DONG BOT" là nó tự bật lại cùng với bot.
+- **Bảng điều khiển có thể biến mất khỏi địa chỉ quen thuộc.** Windows tự giữ từng dải cổng mạng
+  cho riêng nó và bốc lại mỗi lần khởi động máy; khi một dải nuốt mất cổng của bảng điều khiển, nó
+  âm thầm chuyển đi chỗ khác và mọi đường dẫn đã lưu đều hỏng. Nay nó nói rõ chuyện gì đã xảy ra và
+  in đúng một lệnh để giữ chỗ cổng đó vĩnh viễn.
+
+
 ## [5.17.1] - 2026-09-12
 ### 🛟 Một bot lỗi không còn kéo sập cả dàn, và nút "Điều khiển máy" chạy thật
 
@@ -65,18 +88,18 @@ thẳng trên máy thì hết cả nhóm lỗi đó.
   project thành hai, và báo "chưa đăng nhập" dù tài khoản Zalo đang hoạt động. Cả ba đã sửa.
 
 
-## [5.16.9] — 2026-09-07
+## [5.16.9] - 2026-09-07
 
 ### 🩹 Ba lỗi lộ ra khi dựng bot trên máy vốn đã chạy OpenClaw
 
 Mọi mục dưới đây đo trên máy thật hôm nay, không suy đoán.
 
-- **Bot mới khởi động được trên máy vốn đã có OpenClaw bản cũ.** Trình cài có nâng OpenClaw lên, nhưng vẫn đọc theo số phiên bản lúc máy mới bật, nên bỏ qua một bước bắt buộc rồi dừng với lỗi "non-default state dir or config path" — bot cài xong mà không bao giờ chạy. Máy sạch không dính lỗi này; máy đã có bot sẵn thì lần nào cũng dính.
-- **Nâng lên OpenClaw 2026.9 không còn để lại quả bom hẹn giờ.** Bản 2026.9 bỏ một thiết lập trình duyệt mà các bản trước *bắt buộc* phải có. Bot còn giữ thiết lập đó vẫn trả lời như thường nhờ bản nạp sẵn trong bộ nhớ, nhưng âm thầm từ chối mọi câu lệnh và mọi lần nạp lại cấu hình — rồi tắt hẳn ở lần khởi động sau. Nay thiết lập đó được gỡ ngay lúc nâng cấp, và chỉ gỡ trên bản đã bỏ nó.
-- **Bot mới tách riêng tin nhắn của từng người thành từng cuộc trò chuyện.** Mặc định của OpenClaw dồn mọi người nhắn riêng cho bot vào chung một cuộc — chính OpenClaw gọi đó là lỗ bảo mật. Hệ quả kèm theo: tin nhắn riêng không hiện trong màn hình quản trị, và cuộc chung ấy phình lên tới lúc bot trả lời bằng thông báo lỗi. Bot đang chạy giữ nguyên: đổi thiết lập này là mất mạch trò chuyện cũ, nên phải là quyết định có chủ ý.
+- **Bot mới khởi động được trên máy vốn đã có OpenClaw bản cũ.** Trình cài có nâng OpenClaw lên, nhưng vẫn đọc theo số phiên bản lúc máy mới bật, nên bỏ qua một bước bắt buộc rồi dừng với lỗi "non-default state dir or config path" - bot cài xong mà không bao giờ chạy. Máy sạch không dính lỗi này; máy đã có bot sẵn thì lần nào cũng dính.
+- **Nâng lên OpenClaw 2026.9 không còn để lại quả bom hẹn giờ.** Bản 2026.9 bỏ một thiết lập trình duyệt mà các bản trước *bắt buộc* phải có. Bot còn giữ thiết lập đó vẫn trả lời như thường nhờ bản nạp sẵn trong bộ nhớ, nhưng âm thầm từ chối mọi câu lệnh và mọi lần nạp lại cấu hình - rồi tắt hẳn ở lần khởi động sau. Nay thiết lập đó được gỡ ngay lúc nâng cấp, và chỉ gỡ trên bản đã bỏ nó.
+- **Bot mới tách riêng tin nhắn của từng người thành từng cuộc trò chuyện.** Mặc định của OpenClaw dồn mọi người nhắn riêng cho bot vào chung một cuộc - chính OpenClaw gọi đó là lỗ bảo mật. Hệ quả kèm theo: tin nhắn riêng không hiện trong màn hình quản trị, và cuộc chung ấy phình lên tới lúc bot trả lời bằng thông báo lỗi. Bot đang chạy giữ nguyên: đổi thiết lập này là mất mạch trò chuyện cũ, nên phải là quyết định có chủ ý.
 
 
-## [5.16.8] — 2026-09-07
+## [5.16.8] - 2026-09-07
 
 ### 🚀 Đưa bot lên OpenClaw 2026.9.2 - và chữa nút Cập nhật bấm hoài không lên
 
@@ -90,7 +113,7 @@ Mọi mục dưới đây đo được khi nâng cấp máy khách thật hôm n
 - **Nút Cập nhật ghi rõ sẽ lên bản nào**, thay cho chữ "Cập nhật" trơ trọi trông như một nút chỉnh giao diện.
 
 
-## [5.16.7] — 2026-09-07
+## [5.16.7] - 2026-09-07
 
 ### 🛡️ Bot giữ được não, giữ được riêng tư, và giữ được nhịp tim
 
@@ -104,18 +127,18 @@ Tìm ra khi soát một máy khách đang chạy với bản OpenClaw mới nh�
 - **Thêm lưới an toàn cho file cấu hình đời cũ** để máy không đứng hình khi nâng cấp nền tảng.
 
 
-## [5.16.6] — 2026-09-05
+## [5.16.6] - 2026-09-05
 
 ### 🩹 Bot thả cảm xúc được trên mọi bản Zalo, và hết con bot lạ thứ hai
 
 Ba lỗi đo trực tiếp trên máy khách đang chạy (vps_tracy-hong, 03-04/09).
 
-- **Trái tim thả được trên mọi bản Zalo Connect.** Bot mới giờ báo đã nhận tin bằng trái tim có sẵn của Zalo. Con tôm hùm trước đây đi đường cảm xúc *tuỳ chỉnh*, chỉ bản Zalo Connect 3.0.15 trở lên mới hiểu — bản cũ hơn thì im lặng bỏ qua, khách nhìn tưởng bot chết cho tới lúc câu trả lời hiện ra. Máy đang chạy tự nâng ở lần khởi động kế tiếp; cảm xúc anh chị tự chọn thì giữ nguyên.
-- **Không còn con bot thứ hai lạ hoắc trong màn hình quản trị.** Với project chạy Docker, nền tảng tự tạo trợ lý mặc định của nó ngay lúc project chưa có con bot nào, rồi con đó nằm chình ình cạnh bot thật — khách hỏi con nào mới là của mình là đúng. Nó vẫn nằm nguyên trong cấu hình của nền tảng, chỉ là màn hình quản trị nay chỉ hiện những bot anh chị tự tạo. Bot thật sự được đặt tên "main" thì vẫn hiện bình thường.
-- **Quét QR Zalo hết lỗi "không rõ ai làm chủ".** Khi project có nhiều hơn một trợ lý, nền tảng từ chối mọi thao tác kênh không nói rõ trợ lý nào đứng tên — nên bấm quét QR là chết trước cả khi mã hiện ra. Trình cài giờ tự gắn kênh Zalo vào đúng bot thật trước khi mở QR. Thiết lập sẵn có không bao giờ bị ghi đè.
+- **Trái tim thả được trên mọi bản Zalo Connect.** Bot mới giờ báo đã nhận tin bằng trái tim có sẵn của Zalo. Con tôm hùm trước đây đi đường cảm xúc *tuỳ chỉnh*, chỉ bản Zalo Connect 3.0.15 trở lên mới hiểu - bản cũ hơn thì im lặng bỏ qua, khách nhìn tưởng bot chết cho tới lúc câu trả lời hiện ra. Máy đang chạy tự nâng ở lần khởi động kế tiếp; cảm xúc anh chị tự chọn thì giữ nguyên.
+- **Không còn con bot thứ hai lạ hoắc trong màn hình quản trị.** Với project chạy Docker, nền tảng tự tạo trợ lý mặc định của nó ngay lúc project chưa có con bot nào, rồi con đó nằm chình ình cạnh bot thật - khách hỏi con nào mới là của mình là đúng. Nó vẫn nằm nguyên trong cấu hình của nền tảng, chỉ là màn hình quản trị nay chỉ hiện những bot anh chị tự tạo. Bot thật sự được đặt tên "main" thì vẫn hiện bình thường.
+- **Quét QR Zalo hết lỗi "không rõ ai làm chủ".** Khi project có nhiều hơn một trợ lý, nền tảng từ chối mọi thao tác kênh không nói rõ trợ lý nào đứng tên - nên bấm quét QR là chết trước cả khi mã hiện ra. Trình cài giờ tự gắn kênh Zalo vào đúng bot thật trước khi mở QR. Thiết lập sẵn có không bao giờ bị ghi đè.
 
 
-## [5.16.5] — 2026-09-03
+## [5.16.5] - 2026-09-03
 
 ### 🩹 Cài native trên OpenClaw 2026.8 - mượt từ lần chạy đầu tiên
 
@@ -129,17 +152,17 @@ Ba lỗi đo trực tiếp trên máy khách đang chạy (vps_tracy-hong, 03-04
 - **Máy native tự cài plugin tìm kiếm DuckDuckGo kèm xác nhận quyền** - thiếu nó gateway từ chối báo sẵn sàng và khởi động vòng lặp.
 
 
-## [5.16.4] — 2026-09-02
+## [5.16.4] - 2026-09-02
 
 ### 🔧 Sửa: nút "Cập nhật setup" chạy được trên bản cài npm-global
 
 - Khuôn host mới cài create-openclaw-bot global và chạy UI như systemd user service. Endpoint tự cập nhật trước đây chỉ xử kiểu git-clone và `npx github:`, nên trên các host này bấm nút chỉ restart bản CŨ mà vẫn báo thành công. Giờ nó nhận diện bản cài npm global (loại trừ cache npx), chạy `npm i -g create-openclaw-bot@latest` tại chỗ, rồi để service manager kéo tiến trình dậy trên bản dist mới.
-- Nói dễ hiểu: **từ bản này, bấm nút Cập nhật trong giao diện là setup tự lên bản mới** — trước đây trên máy chủ cài kiểu chuẩn, nút này chỉ khởi động lại bản cũ mà vẫn báo thành công.
+- Nói dễ hiểu: **từ bản này, bấm nút Cập nhật trong giao diện là setup tự lên bản mới** - trước đây trên máy chủ cài kiểu chuẩn, nút này chỉ khởi động lại bản cũ mà vẫn báo thành công.
 
 
-## [5.16.3] — 2026-09-02
+## [5.16.3] - 2026-09-02
 
-### 🚑 Cập nhật lớn theo OpenClaw 2026.8.1 — bản setup cũ đã lỗi thời, bản này chữa hết một lượt
+### 🚑 Cập nhật lớn theo OpenClaw 2026.8.1 - bản setup cũ đã lỗi thời, bản này chữa hết một lượt
 
 OpenClaw (nền tảng chạy bot) vừa nâng cấp lớn lên **2026.8.1** và đổi nhiều "luật chơi": file cấu
 hình bị soát khắt khe hơn (gặp mục lạ là từ chối chạy), chỗ lưu dữ liệu dời đi, vài lệnh cài đặt
@@ -148,100 +171,100 @@ hình bị soát khắt khe hơn (gặp mục lạ là từ chối chạy), ch�
 bot vẫn sống, thậm chí mọc thêm project lạ tên "root". Toàn bộ đã được phát hiện trên hai máy
 khách thật và gom sửa trong một bản:
 
-- **Cài mới chạy mượt trên OpenClaw 2026.8.1** — đủ Docker lẫn native, Windows/macOS/Linux.
+- **Cài mới chạy mượt trên OpenClaw 2026.8.1** - đủ Docker lẫn native, Windows/macOS/Linux.
 - **Máy cũ tự được chữa khi nâng cấp**: hệ thống tự dọn cấu hình lỗi thời, tự dời dữ liệu sang
   chỗ mới, tự gỡ file cũ từng khiến bot "câm" hoàn toàn.
-- **Màn hình quản trị hiện đúng bot** — hết cảnh 0 bot, hết project "root" lạ tự mọc.
+- **Màn hình quản trị hiện đúng bot** - hết cảnh 0 bot, hết project "root" lạ tự mọc.
 - **Bot hết chối "không thấy file"**: file khách gửi qua chat giờ được chỉ đường tận nơi cho AI,
   kể cả model yếu cũng tìm được.
 - **9Router (bộ định tuyến model AI) tự sống lại** sau khi máy chủ khởi động lại hay giao diện
-  bảo trì — trước đây nó có thể chết im mà không ai hay, bot mất não.
-- **Một bản setup quản được cả máy đời cũ (2026.7) lẫn đời mới (2026.8)** — lệnh nào đổi tên thì
+  bảo trì - trước đây nó có thể chết im mà không ai hay, bot mất não.
+- **Một bản setup quản được cả máy đời cũ (2026.7) lẫn đời mới (2026.8)** - lệnh nào đổi tên thì
   tự thử tên mới rồi lùi về tên cũ, không bắt khách nâng cấp gấp.
 
-## [5.16.2] — 2026-08-31
+## [5.16.2] - 2026-08-31
 
-### 🔧 Sửa lỗi: gom nốt mọi cạnh sắc còn lại của việc lên OpenClaw 2026.8.x — một lượt
+### 🔧 Sửa lỗi: gom nốt mọi cạnh sắc còn lại của việc lên OpenClaw 2026.8.x - một lượt
 
-Hoàn tất phần 5.16.1 mở ra. 5.16.1 sửa cơ chế làm chết bot khi update (ghim version, config bị tái nhiễm, doctor-on-upgrade); bản này đóng nốt ba ca còn lại — đo trên một ca cứu hộ thật — để cài mới (có hay không có web search) lẫn project cũ đa agent đều tự lên:
+Hoàn tất phần 5.16.1 mở ra. 5.16.1 sửa cơ chế làm chết bot khi update (ghim version, config bị tái nhiễm, doctor-on-upgrade); bản này đóng nốt ba ca còn lại - đo trên một ca cứu hộ thật - để cài mới (có hay không có web search) lẫn project cũ đa agent đều tự lên:
 
-- **Bot có web search boot được trên OpenClaw ≥ 2026.8.** Config sinh ra khai provider `duckduckgo`, nhưng 2026.8 đã tách nó thành plugin ngoài kèm phê duyệt capability — gateway vì thế từ chối ready. Entrypoint nay tự cài `@openclaw/duckduckgo-plugin` (kèm consent) trước khi start gateway mỗi khi config cần; cài hỏng chỉ mất tool tìm kiếm, không bao giờ chặn boot.
-- **Project đa agent được tự set `agents.ownership: "explicit"`** trên 2026.8+ — bản đó bắt buộc có mới chịu boot roster nhiều hơn một agent.
-- **Session store cũ theo agent được tự cất đi.** 2026.8 thay `agents/*/sessions/sessions.json` và từ chối chạy khi file còn đó, nhưng `doctor --fix` lại tự hoãn vòng quanh chính nó. Script migration nay đổi tên file thành `.bak-legacy-<ts>` (khôi phục được; file chỉ giữ con trỏ phiên đang mở) — CHỈ trên 2026.8+, vì với 2026.7 đó là store đang sống.
-- **Vá an toàn nhánh không đọc được version:** khi `openclaw --version` không đọc được, migration nay không đổi bất cứ gì — bản gate đầu trong 5.16.1 vẫn có thể xoá nhầm `toolResultMaxChars` ở trạng thái đó.
+- **Bot có web search boot được trên OpenClaw ≥ 2026.8.** Config sinh ra khai provider `duckduckgo`, nhưng 2026.8 đã tách nó thành plugin ngoài kèm phê duyệt capability - gateway vì thế từ chối ready. Entrypoint nay tự cài `@openclaw/duckduckgo-plugin` (kèm consent) trước khi start gateway mỗi khi config cần; cài hỏng chỉ mất tool tìm kiếm, không bao giờ chặn boot.
+- **Project đa agent được tự set `agents.ownership: "explicit"`** trên 2026.8+ - bản đó bắt buộc có mới chịu boot roster nhiều hơn một agent.
+- **Session store cũ theo agent được tự cất đi.** 2026.8 thay `agents/*/sessions/sessions.json` và từ chối chạy khi file còn đó, nhưng `doctor --fix` lại tự hoãn vòng quanh chính nó. Script migration nay đổi tên file thành `.bak-legacy-<ts>` (khôi phục được; file chỉ giữ con trỏ phiên đang mở) - CHỈ trên 2026.8+, vì với 2026.7 đó là store đang sống.
+- **Vá an toàn nhánh không đọc được version:** khi `openclaw --version` không đọc được, migration nay không đổi bất cứ gì - bản gate đầu trong 5.16.1 vẫn có thể xoá nhầm `toolResultMaxChars` ở trạng thái đó.
 
 Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi lần boot) và native (mỗi lần restart gateway) hành xử y hệt nhau.
 
 
-## [5.16.1] — 2026-08-31
+## [5.16.1] - 2026-08-31
 
 ### 🔧 Sửa lỗi: update openclaw không còn làm chết bot
 
-- **Ghim version OpenClaw trong Dockerfile sinh ra** (trước là `openclaw@latest`). Một lần rebuild image bình thường có thể âm thầm nhảy nguyên một thế hệ OpenClaw — schema config chặt hơn + state DB đòi migration — và gateway từ chối boot. Ca thật: bot khách chết 26 giờ, 66 lần restart, sau một lần rebuild kéo 2026.8.1 về đè lên config thời 2026.7. Từ nay nâng OpenClaw là việc CHỦ ĐÍCH, đi kèm một bản phát hành setup.
-- **Entrypoint không còn tái nhiễm `toolResultMaxChars` vào config.** OpenClaw ≥ 2026.8 bỏ key này khỏi schema và từ chối boot khi thấy nó — nhưng entrypoint cũ THÊM LẠI mỗi lần container start, nên xoá tay kiểu gì cũng vô ích. Giờ backfill được gate theo `openclaw --version` thật trong container: bản cũ giữ backfill, ≥ 2026.8 thì GỠ key (tự chữa project đã nhiễm), không đọc được version thì không đụng gì.
-- **Doctor-on-upgrade:** entrypoint nhớ version OpenClaw của lần boot trước (`.openclaw-last-version`); version đổi là tự chạy `openclaw doctor --fix` hai lượt TRƯỚC khi start gateway — đúng khoảnh khắc gateway đang tắt mà doctor cần.
-- **Cài native không còn bị systemd bỏ rơi giữa migration.** Boot đầu giữ lease state ~5 phút; boot va vào lease thì exit ngay, 5 lần trong 30 giây là systemd khai tử unit trong khi installer ngồi đợi một cổng không bao giờ trả lời. Nay unit có drop-in bỏ start limit, unit đang "failed" được reset trước khi start, health chờ lâu hơn lease (420s), và khi chờ quá lâu installer TỰ NÓI lý do — kể cả gọi đúng tên vụ `ssh -L` tự-loop chiếm cổng gateway.
-- **Sửa `spawn openclaw ENOENT` khi bấm cài skill/plugin từ Setup UI.** UI chạy bằng Node hệ thống trong khi openclaw nằm trong nvm thì CLI vô hình. Nay lệnh trần được tìm qua PATH → các bin nvm theo version (mới nhất trước) → prefix npm global, và thư mục của binary tìm được được nhét vào PATH của tiến trình con để `#!/usr/bin/env node` chọn đúng runtime — áp cho cả 5 chỗ spawn.
+- **Ghim version OpenClaw trong Dockerfile sinh ra** (trước là `openclaw@latest`). Một lần rebuild image bình thường có thể âm thầm nhảy nguyên một thế hệ OpenClaw - schema config chặt hơn + state DB đòi migration - và gateway từ chối boot. Ca thật: bot khách chết 26 giờ, 66 lần restart, sau một lần rebuild kéo 2026.8.1 về đè lên config thời 2026.7. Từ nay nâng OpenClaw là việc CHỦ ĐÍCH, đi kèm một bản phát hành setup.
+- **Entrypoint không còn tái nhiễm `toolResultMaxChars` vào config.** OpenClaw ≥ 2026.8 bỏ key này khỏi schema và từ chối boot khi thấy nó - nhưng entrypoint cũ THÊM LẠI mỗi lần container start, nên xoá tay kiểu gì cũng vô ích. Giờ backfill được gate theo `openclaw --version` thật trong container: bản cũ giữ backfill, ≥ 2026.8 thì GỠ key (tự chữa project đã nhiễm), không đọc được version thì không đụng gì.
+- **Doctor-on-upgrade:** entrypoint nhớ version OpenClaw của lần boot trước (`.openclaw-last-version`); version đổi là tự chạy `openclaw doctor --fix` hai lượt TRƯỚC khi start gateway - đúng khoảnh khắc gateway đang tắt mà doctor cần.
+- **Cài native không còn bị systemd bỏ rơi giữa migration.** Boot đầu giữ lease state ~5 phút; boot va vào lease thì exit ngay, 5 lần trong 30 giây là systemd khai tử unit trong khi installer ngồi đợi một cổng không bao giờ trả lời. Nay unit có drop-in bỏ start limit, unit đang "failed" được reset trước khi start, health chờ lâu hơn lease (420s), và khi chờ quá lâu installer TỰ NÓI lý do - kể cả gọi đúng tên vụ `ssh -L` tự-loop chiếm cổng gateway.
+- **Sửa `spawn openclaw ENOENT` khi bấm cài skill/plugin từ Setup UI.** UI chạy bằng Node hệ thống trong khi openclaw nằm trong nvm thì CLI vô hình. Nay lệnh trần được tìm qua PATH → các bin nvm theo version (mới nhất trước) → prefix npm global, và thư mục của binary tìm được được nhét vào PATH của tiến trình con để `#!/usr/bin/env node` chọn đúng runtime - áp cho cả 5 chỗ spawn.
 
 ### ⚙️ Thay đổi: cửa sổ ngữ cảnh smart-route 131072 → 1.048.576
 
-- Model `smart-route` của 9router nay khai cửa sổ 1M (Kent chốt 01/09/2026); project hiện hữu được nâng ở lần container start / native restart kế tiếp — chỉ đúng hai giá trị setup từng ghi (200000/131072) bị nâng, tinh chỉnh tay giữ nguyên. Đánh đổi: combo nào còn route sang upstream 128k thì phiên dài vẫn có thể tràn ở đó — sửa combo, đừng hạ window nữa.
+- Model `smart-route` của 9router nay khai cửa sổ 1M (Kent chốt 01/09/2026); project hiện hữu được nâng ở lần container start / native restart kế tiếp - chỉ đúng hai giá trị setup từng ghi (200000/131072) bị nâng, tinh chỉnh tay giữ nguyên. Đánh đổi: combo nào còn route sang upstream 128k thì phiên dài vẫn có thể tràn ở đó - sửa combo, đừng hạ window nữa.
 
 
-## [5.16.0] — 2026-08-03
+## [5.16.0] - 2026-08-03
 
 ### ✨ Mới: Trạng thái bot theo thời gian thực
 
-- **Badge Kết nối/Đăng nhập giờ tự cập nhật.** Khi card bot Zalo đang hiện trên màn hình, dashboard tự đọc lại health snapshot mỗi ~10 giây (server cache sẵn kết quả probe nên rất nhẹ) và vá badge tại chỗ — không vẽ lại cả trang, nên không giật focus khỏi form bạn đang gõ. Sự kiện đăng nhập/restart trong log trực tiếp làm badge đổi trong ~2 giây. Nút "Làm mới" vẫn còn đó; nhưng hiếm khi cần bấm nữa.
+- **Badge Kết nối/Đăng nhập giờ tự cập nhật.** Khi card bot Zalo đang hiện trên màn hình, dashboard tự đọc lại health snapshot mỗi ~10 giây (server cache sẵn kết quả probe nên rất nhẹ) và vá badge tại chỗ - không vẽ lại cả trang, nên không giật focus khỏi form bạn đang gõ. Sự kiện đăng nhập/restart trong log trực tiếp làm badge đổi trong ~2 giây. Nút "Làm mới" vẫn còn đó; nhưng hiếm khi cần bấm nữa.
 
 ### 🔧 Sửa lỗi
 
-- **Phiên Zalo đã chết không còn hiện "Đã kết nối" xanh.** Sửa ở hai nửa: openclaw-zalo-connect (≥ 3.1.1) giờ báo lỗi listener lên gateway thay vì lặng lẽ retry, và dashboard cho lỗi được báo thắng cờ `running` — bot kẹt ở "Đăng nhập thất bại" hiện "Mất kết nối", badge Đăng nhập ghi "Phiên hết hạn" thay vì "Đã đăng nhập".
-- **Sửa bot không còn bật nhầm modal quét QR.** Luồng QR chỉ thuộc về việc tạo bot mới; bấm lưu khi đổi tên từng mở modal đó vô cớ — endpoint sửa bot không hề khởi động đăng nhập.
-- **Session đầy không còn kẹt cứng trên smart-route.** Config sinh ra khai cửa sổ ngữ cảnh 200k, nhưng smart-route phân phối qua nhiều model free và cửa sổ NHỎ NHẤT trong nhóm mới là trần thật. Session phình quá trần đó thì đến cả lệnh tóm tắt để nén cũng không chạy nổi — mọi lượt chat đều lỗi "auto-compaction could not recover this turn" cho tới khi `/new`. Bản cài mới khai 131072 (độ dài câu trả lời KHÔNG đổi — đó là `maxTokens`); project cũ tự migrate ở lần rebuild container kế tiếp, và chỉ giá trị mặc định 200000 bị ghi lại nên tinh chỉnh riêng của bạn được giữ nguyên.
+- **Phiên Zalo đã chết không còn hiện "Đã kết nối" xanh.** Sửa ở hai nửa: openclaw-zalo-connect (≥ 3.1.1) giờ báo lỗi listener lên gateway thay vì lặng lẽ retry, và dashboard cho lỗi được báo thắng cờ `running` - bot kẹt ở "Đăng nhập thất bại" hiện "Mất kết nối", badge Đăng nhập ghi "Phiên hết hạn" thay vì "Đã đăng nhập".
+- **Sửa bot không còn bật nhầm modal quét QR.** Luồng QR chỉ thuộc về việc tạo bot mới; bấm lưu khi đổi tên từng mở modal đó vô cớ - endpoint sửa bot không hề khởi động đăng nhập.
+- **Session đầy không còn kẹt cứng trên smart-route.** Config sinh ra khai cửa sổ ngữ cảnh 200k, nhưng smart-route phân phối qua nhiều model free và cửa sổ NHỎ NHẤT trong nhóm mới là trần thật. Session phình quá trần đó thì đến cả lệnh tóm tắt để nén cũng không chạy nổi - mọi lượt chat đều lỗi "auto-compaction could not recover this turn" cho tới khi `/new`. Bản cài mới khai 131072 (độ dài câu trả lời KHÔNG đổi - đó là `maxTokens`); project cũ tự migrate ở lần rebuild container kế tiếp, và chỉ giá trị mặc định 200000 bị ghi lại nên tinh chỉnh riêng của bạn được giữ nguyên.
 
 
-## [5.15.6] — 2026-07-30
+## [5.15.6] - 2026-07-30
 
 ### 🔧 Sửa lỗi: Thư mục staging plugin bỏ dở
 
-- **Sửa: lần cài plugin bị ngắt giữa đường không còn che plugin thật.** `openclaw plugins install` giải nén vào `extensions/.openclaw-install-stage-XXXXXX` rồi xoá khi xong. Cài bị ngắt thì bản copy đó nằm lại — và nó vẫn mang manifest plugin, nên mỗi lần boot gateway lại in `duplicate plugin id detected`, trong khi một bản build cũ tranh cùng plugin id. Gặp thật trên máy production: thư mục staging zalo-connect **3.0.7** nằm cạnh 3.0.17 suốt một tuần. Ở thời điểm entrypoint chạy thì không có lần cài nào đang diễn ra, nên mọi staging dir tìm thấy ở đó đều là đồ bỏ — nay được xoá: entrypoint container lo cho Docker, còn bản native (không có entrypoint) dọn ở bước bootstrap plugin.
+- **Sửa: lần cài plugin bị ngắt giữa đường không còn che plugin thật.** `openclaw plugins install` giải nén vào `extensions/.openclaw-install-stage-XXXXXX` rồi xoá khi xong. Cài bị ngắt thì bản copy đó nằm lại - và nó vẫn mang manifest plugin, nên mỗi lần boot gateway lại in `duplicate plugin id detected`, trong khi một bản build cũ tranh cùng plugin id. Gặp thật trên máy production: thư mục staging zalo-connect **3.0.7** nằm cạnh 3.0.17 suốt một tuần. Ở thời điểm entrypoint chạy thì không có lần cài nào đang diễn ra, nên mọi staging dir tìm thấy ở đó đều là đồ bỏ - nay được xoá: entrypoint container lo cho Docker, còn bản native (không có entrypoint) dọn ở bước bootstrap plugin.
 
 
-## [5.15.5] — 2026-07-28
+## [5.15.5] - 2026-07-28
 
 ### 🔧 Sửa lỗi: Bot không đọc được file gửi vào
 
-- **Sửa: service đã có `OPENCLAW_HOME`**: `openclaw daemon install` chỉ đưa một phần biến môi trường vào service nó sinh ra — `OPENCLAW_STATE_DIR` thì có, `OPENCLAW_HOME` thì không (đã kiểm chứng trên cả unit systemd thật *và* env-wrapper launchd thật). Mọi thứ resolve đường dẫn từ biến đó rơi về `~/.openclaw` và ghi **ra ngoài project**: zalo-connect lưu file gửi vào ở chỗ workspace của agent không với tới (gửi PDF cho bot thì nhận lại "em chưa trích xuất được nội dung"), và giữ session Zalo ở một home khác với config đang mô tả nó. Nay service được bù đủ mọi biến mà project cần, cho cả systemd và launchd.
-- **Sửa: nhận lại file đã ghi sai chỗ**: media và credentials Zalo nằm ở `~/.openclaw` được copy về project **trước khi** `OPENCLAW_HOME` mới có hiệu lực — nếu ngược thứ tự, bản vừa sửa sẽ tìm session trong project, không thấy, và đòi quét QR lại. State sqlite lạc thì cố tình không đụng: hai database không merge được bằng copy.
+- **Sửa: service đã có `OPENCLAW_HOME`**: `openclaw daemon install` chỉ đưa một phần biến môi trường vào service nó sinh ra - `OPENCLAW_STATE_DIR` thì có, `OPENCLAW_HOME` thì không (đã kiểm chứng trên cả unit systemd thật *và* env-wrapper launchd thật). Mọi thứ resolve đường dẫn từ biến đó rơi về `~/.openclaw` và ghi **ra ngoài project**: zalo-connect lưu file gửi vào ở chỗ workspace của agent không với tới (gửi PDF cho bot thì nhận lại "em chưa trích xuất được nội dung"), và giữ session Zalo ở một home khác với config đang mô tả nó. Nay service được bù đủ mọi biến mà project cần, cho cả systemd và launchd.
+- **Sửa: nhận lại file đã ghi sai chỗ**: media và credentials Zalo nằm ở `~/.openclaw` được copy về project **trước khi** `OPENCLAW_HOME` mới có hiệu lực - nếu ngược thứ tự, bản vừa sửa sẽ tìm session trong project, không thấy, và đòi quét QR lại. State sqlite lạc thì cố tình không đụng: hai database không merge được bằng copy.
 - Cả hai bước sửa cũng chạy ở mỗi lần restart, nên project cài trước bản này tự khỏi.
-- **Sửa: lệnh tunnel forward cả dashboard Zalo Mod**: khung "Mở từ máy khác" hardcode cổng 18790 thay vì lấy gateway+1, nên project nào gateway không ở 18789 sẽ nhận lệnh thiếu cổng dashboard — mở ra không được mà log không có gì để lần.
+- **Sửa: lệnh tunnel forward cả dashboard Zalo Mod**: khung "Mở từ máy khác" hardcode cổng 18790 thay vì lấy gateway+1, nên project nào gateway không ở 18789 sẽ nhận lệnh thiếu cổng dashboard - mở ra không được mà log không có gì để lần.
 
 
-## [5.15.4] — 2026-07-28
+## [5.15.4] - 2026-07-28
 
 ### 🔧 Sửa lỗi: Chế độ native trên Linux VPS
 
 - **Sửa: bản native tự cài plugin của nó**: container cài lại plugin thiếu mỗi lần boot (`ensure_plugin`), nhưng native không có phần tương ứng nên `zalo-connect` và `learning-memory` chưa bao giờ được ghi xuống đĩa dù config đã khai cả hai. Đăng nhập Zalo lỗi `Unsupported channel "zalo-connect"`, và bot chạy âm thầm mà không có context engine cho memory.
-- **Sửa: kiểm tra channel không còn đọc nhầm cảnh báo config**: OpenClaw in banner "Config warnings" ở mọi lệnh CLI, trong đó trích nguyên tên key sai — nên project thiếu plugin lại có chữ `zalo-connect` trong output của bất kỳ lệnh nào, và hàm kiểm tra pass đúng lúc plugin KHÔNG có. Nay lọc bỏ cảnh báo trước khi so khớp và kiểm tra thẳng thư mục plugin.
+- **Sửa: kiểm tra channel không còn đọc nhầm cảnh báo config**: OpenClaw in banner "Config warnings" ở mọi lệnh CLI, trong đó trích nguyên tên key sai - nên project thiếu plugin lại có chữ `zalo-connect` trong output của bất kỳ lệnh nào, và hàm kiểm tra pass đúng lúc plugin KHÔNG có. Nay lọc bỏ cảnh báo trước khi so khớp và kiểm tra thẳng thư mục plugin.
 - **Sửa: restart không còn đụng lease migration lúc boot đầu**: restart ngay sau khi tạo bot bị exit 1 (`startup migrations are already running`) và có thể làm systemd bỏ luôn service. Nay chờ `/health` trước, và tôn trọng mốc thời gian CLI báo được thử lại.
-- **Sửa: bot sống sót khi đóng SSH và khi reboot trên VPS**: `daemon install` ghi systemd *user* unit, vốn bị dẹp khi session cuối của user kết thúc — trên desktop không thấy, qua SSH thì chết bot. Bản native Linux nay bật `loginctl` linger.
+- **Sửa: bot sống sót khi đóng SSH và khi reboot trên VPS**: `daemon install` ghi systemd *user* unit, vốn bị dẹp khi session cuối của user kết thúc - trên desktop không thấy, qua SSH thì chết bot. Bản native Linux nay bật `loginctl` linger.
 - **Sửa: Linux headless được nhận là VPS**: kiểm tra cũ có hai nhánh giống hệt nhau nên server luôn bị coi là desktop.
-- **Bảo mật: gateway native không bao giờ bind `0.0.0.0`**: Docker cần bind trong container và chỉ publish ra `127.0.0.1`, còn native không có lớp đó — bind 0.0.0.0 là đưa control plane HTTP thô ra mặt internet của VPS. Native giữ loopback; vào bằng SSH tunnel.
+- **Bảo mật: gateway native không bao giờ bind `0.0.0.0`**: Docker cần bind trong container và chỉ publish ra `127.0.0.1`, còn native không có lớp đó - bind 0.0.0.0 là đưa control plane HTTP thô ra mặt internet của VPS. Native giữ loopback; vào bằng SSH tunnel.
 - **Sửa: native dùng port mặc định**: gateway `18789` và 9Router `20128`, chỉ nhảy sang cặp trống kế tiếp khi máy đã có ai giữ. Trước đây native cộng thêm một trăm vô điều kiện nên máy trống trơn vẫn ra `18889`/`20228`.
 
 
-## [5.15.3] — 2026-07-28
+## [5.15.3] - 2026-07-28
 
 ### Thêm mới
 
-- **Bot làm việc được trên màn hình của bạn, không chỉ mở app.** Quyền điều khiển máy có thêm một endpoint thao tác desktop, **cùng một dạng JSON cho mọi hệ điều hành**: chụp màn hình, lấy kích thước màn hình, di chuột, click (trái/phải/giữa, double), kéo thả, scroll, gõ chữ, nhấn tổ hợp (`ctrl+c`, `alt+tab`, …), đọc/ghi clipboard, liệt kê cửa sổ và đưa cửa sổ lên trước. Không cần cài thêm gì: Windows dùng một file PowerShell tự sinh (user32 + SendKeys + System.Drawing), macOS dùng `screencapture` + System Events, Linux dùng `xdotool` với `scrot`/`gnome-screenshot`/`import` — và nếu máy Linux thiếu công cụ thì endpoint nói rõ cần cài gói nào chứ không lỗi âm thầm. Ảnh chụp được ghi vào trong project nên bot chạy trong container nhận đúng đường dẫn nó đọc được và gửi thẳng ảnh vào chat. Danh sách action là allow-list, mọi lệnh đều được ghi log, và chỉ hoạt động sau khi bạn bấm "Điều khiển máy" (nút này giờ cũng ghi `ui: true`).
+- **Bot làm việc được trên màn hình của bạn, không chỉ mở app.** Quyền điều khiển máy có thêm một endpoint thao tác desktop, **cùng một dạng JSON cho mọi hệ điều hành**: chụp màn hình, lấy kích thước màn hình, di chuột, click (trái/phải/giữa, double), kéo thả, scroll, gõ chữ, nhấn tổ hợp (`ctrl+c`, `alt+tab`, …), đọc/ghi clipboard, liệt kê cửa sổ và đưa cửa sổ lên trước. Không cần cài thêm gì: Windows dùng một file PowerShell tự sinh (user32 + SendKeys + System.Drawing), macOS dùng `screencapture` + System Events, Linux dùng `xdotool` với `scrot`/`gnome-screenshot`/`import` - và nếu máy Linux thiếu công cụ thì endpoint nói rõ cần cài gói nào chứ không lỗi âm thầm. Ảnh chụp được ghi vào trong project nên bot chạy trong container nhận đúng đường dẫn nó đọc được và gửi thẳng ảnh vào chat. Danh sách action là allow-list, mọi lệnh đều được ghi log, và chỉ hoạt động sau khi bạn bấm "Điều khiển máy" (nút này giờ cũng ghi `ui: true`).
 
 ### Sửa lỗi
 
-- **Lệnh CLI trong allow-list giờ chạy thật trên Windows.** `where claude` trả về shim npm không đuôi trước tiên — một shell script mà Windows không spawn được — nên bot nhận `spawn …\npm\claude ENOENT` dù tool đã cài và đã được cho phép. Nay phần dò chọn đúng file thực thi, và shim `.cmd`/`.bat` được đọc để giải ra thứ nó gói bên trong (một `.exe`, hoặc node kèm `cli.js`), nên lệnh vẫn chạy mà không cần shell.
+- **Lệnh CLI trong allow-list giờ chạy thật trên Windows.** `where claude` trả về shim npm không đuôi trước tiên - một shell script mà Windows không spawn được - nên bot nhận `spawn …\npm\claude ENOENT` dù tool đã cài và đã được cho phép. Nay phần dò chọn đúng file thực thi, và shim `.cmd`/`.bat` được đọc để giải ra thứ nó gói bên trong (một `.exe`, hoặc node kèm `cli.js`), nên lệnh vẫn chạy mà không cần shell.
 
-## [5.15.2] — 2026-07-28
+## [5.15.2] - 2026-07-28
 
 ### Sửa lỗi
 
@@ -250,87 +273,87 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 
 ### Thay đổi
 
-- **Chrome cho bot không còn khởi động bằng bản sao profile của bạn.** Nó mở một profile điều khiển trống và bạn đăng nhập một lần trong cửa sổ vừa hiện; không nhân bản gì của bạn, và các cửa sổ Chrome đang mở không bị đóng. Nếu muốn dùng sẵn đăng nhập đang có thì chạy kèm `OPENCLAW_CHROME_SEED_PROFILE=1` — việc đó chép cookie, đăng nhập, lịch sử, extension và phải đóng Chrome để chép, nên giờ nó nói rõ trước.
+- **Chrome cho bot không còn khởi động bằng bản sao profile của bạn.** Nó mở một profile điều khiển trống và bạn đăng nhập một lần trong cửa sổ vừa hiện; không nhân bản gì của bạn, và các cửa sổ Chrome đang mở không bị đóng. Nếu muốn dùng sẵn đăng nhập đang có thì chạy kèm `OPENCLAW_CHROME_SEED_PROFILE=1` - việc đó chép cookie, đăng nhập, lịch sử, extension và phải đóng Chrome để chép, nên giờ nó nói rõ trước.
 - **Cổng debug chỉ mở ở loopback.** Bỏ `--remote-allow-origins=*`: client CDP viết bằng Node không gửi header Origin, nên cờ đó không đem lại gì mà chỉ nới rộng ai điều khiển được trình duyệt.
-- **Cài plugin trình duyệt từ dashboard sẽ bật sẵn các công tắc của nó.** Plugin ship với patch Docker, chạy JavaScript trong trang và upload file đều tắt; khi cài từ dashboard, `patchDocker`, `allowPageScripting`, `allowFileUpload` được ghi vào config project — bấm một lần là duyệt web chạy được, mà công tắc vẫn nằm đó cho ai muốn tắt.
+- **Cài plugin trình duyệt từ dashboard sẽ bật sẵn các công tắc của nó.** Plugin ship với patch Docker, chạy JavaScript trong trang và upload file đều tắt; khi cài từ dashboard, `patchDocker`, `allowPageScripting`, `allowFileUpload` được ghi vào config project - bấm một lần là duyệt web chạy được, mà công tắc vẫn nằm đó cho ai muốn tắt.
 
 
-## [5.15.1] — 2026-07-28
+## [5.15.1] - 2026-07-28
 
 ### Sửa lỗi
 
-- **"Mở Chrome" giờ tới được mọi project.** Một số project Docker để `.openclaw/extensions` trong named volume, nên file của plugin chỉ nằm trong container. File mở Chrome trước đây chỉ được ghi lại theo đường dẫn trên máy host — chỗ đó rỗng nên không có gì thay đổi: bot vẫn nhận file cũ (bản mà Chrome 136+ từ chối mở cổng debug) dù bạn cập nhật bao nhiêu lần. Nay file giao vào từng workspace được ghi trực tiếp, và bản của plugin được đẩy vào trong container.
+- **"Mở Chrome" giờ tới được mọi project.** Một số project Docker để `.openclaw/extensions` trong named volume, nên file của plugin chỉ nằm trong container. File mở Chrome trước đây chỉ được ghi lại theo đường dẫn trên máy host - chỗ đó rỗng nên không có gì thay đổi: bot vẫn nhận file cũ (bản mà Chrome 136+ từ chối mở cổng debug) dù bạn cập nhật bao nhiêu lần. Nay file giao vào từng workspace được ghi trực tiếp, và bản của plugin được đẩy vào trong container.
 
 ### Thay đổi
 
 - **Nút trên card trình duyệt đổi thành "Mở Chrome cho bot".** Tên cũ là "Mở Chrome debug", đọc lên như thứ chỉ dân lập trình mới bấm. Nút cũng nói rõ chuyện gì xảy ra: cửa sổ mới chạy bản sao profile Chrome của bạn nên đã đăng nhập sẵn, và Chrome thường của bạn không bị đóng. Lệnh copy-paste cho VPS không màn hình dùng đúng thư mục profile riêng như nút và như file script.
 
 
-## [5.15.0] — 2026-07-27
+## [5.15.0] - 2026-07-27
 
 ### Thêm mới
 
-- **Chế độ cài "Native" — chạy bot thẳng trên máy này, không cần Docker.** Chọn Native khi tạo project thì OpenClaw + 9Router chạy trực tiếp trên máy bạn dưới dạng dịch vụ được quản lý (launchd trên macOS, systemd trên Linux, Scheduled Task trên Windows): tự khởi động cùng máy và tự bật lại nếu chết. Không phải cài Docker, bot thấy sẵn file trên máy, và đây là chế độ **duy nhất** bot điều khiển được ứng dụng trên desktop. Project native dùng cổng riêng (gateway 18889, 9Router 20228) nên chạy song song với project Docker — hoặc với SSH tunnel tới bot ở xa — mà không đụng nhau; mỗi project có dịch vụ riêng nên chạy được nhiều project cùng lúc. Docker vẫn là mặc định và không đổi gì.
-- **"Điều khiển máy" — cho bot mở Chrome & ứng dụng trên máy của bạn.** Nút trên thẻ mỗi bot (cạnh "Cấp quyền ổ đĩa"): bật lên là bot mở được Chrome hoặc app trong danh sách cho phép (TeamViewer, Zalo, …) trên máy đang chạy bot. **Mặc định TẮT**, cần token, và chỉ giới hạn trong danh sách bạn khai. Chỉ dùng trên máy có màn hình — VPS headless không có gì để mở nên tự vô hiệu.
-- **Bot chạy được công cụ CLI trong danh sách cho phép trên máy bạn (vd Claude Code) và lấy kết quả về.** Endpoint host-control cho phép bot chạy một lệnh bạn đã cho phép — như `claude -p "..."` — trên máy đang chạy bot rồi đọc lại output, để giao việc cho Claude Code ngay từ chat. Có token, chỉ chạy lệnh trong danh sách (executable cố định), không qua shell (args không chèn lệnh được), timeout 180s và giới hạn output. Thêm công cụ ở mục `commands` trong `.openclaw/host-control.json`; tự dò Claude Code khi có `claude` trên PATH. Chỉ máy có màn hình. (Antigravity và app GUI khác vẫn chỉ "mở" — không có CLI headless để giao việc.)
-- **Tự phát hiện project native.** Launcher nay tự dò bản cài native qua marker `.openclaw/native.json` và liệt kê cạnh các project Docker — giống như cách nó tự hiện bot Docker đang chạy — nên bạn không cần trỏ launcher vào thư mục trước mới thấy.
+- **Chế độ cài "Native" - chạy bot thẳng trên máy này, không cần Docker.** Chọn Native khi tạo project thì OpenClaw + 9Router chạy trực tiếp trên máy bạn dưới dạng dịch vụ được quản lý (launchd trên macOS, systemd trên Linux, Scheduled Task trên Windows): tự khởi động cùng máy và tự bật lại nếu chết. Không phải cài Docker, bot thấy sẵn file trên máy, và đây là chế độ **duy nhất** bot điều khiển được ứng dụng trên desktop. Project native dùng cổng riêng (gateway 18889, 9Router 20228) nên chạy song song với project Docker - hoặc với SSH tunnel tới bot ở xa - mà không đụng nhau; mỗi project có dịch vụ riêng nên chạy được nhiều project cùng lúc. Docker vẫn là mặc định và không đổi gì.
+- **"Điều khiển máy" - cho bot mở Chrome & ứng dụng trên máy của bạn.** Nút trên thẻ mỗi bot (cạnh "Cấp quyền ổ đĩa"): bật lên là bot mở được Chrome hoặc app trong danh sách cho phép (TeamViewer, Zalo, …) trên máy đang chạy bot. **Mặc định TẮT**, cần token, và chỉ giới hạn trong danh sách bạn khai. Chỉ dùng trên máy có màn hình - VPS headless không có gì để mở nên tự vô hiệu.
+- **Bot chạy được công cụ CLI trong danh sách cho phép trên máy bạn (vd Claude Code) và lấy kết quả về.** Endpoint host-control cho phép bot chạy một lệnh bạn đã cho phép - như `claude -p "..."` - trên máy đang chạy bot rồi đọc lại output, để giao việc cho Claude Code ngay từ chat. Có token, chỉ chạy lệnh trong danh sách (executable cố định), không qua shell (args không chèn lệnh được), timeout 180s và giới hạn output. Thêm công cụ ở mục `commands` trong `.openclaw/host-control.json`; tự dò Claude Code khi có `claude` trên PATH. Chỉ máy có màn hình. (Antigravity và app GUI khác vẫn chỉ "mở" - không có CLI headless để giao việc.)
+- **Tự phát hiện project native.** Launcher nay tự dò bản cài native qua marker `.openclaw/native.json` và liệt kê cạnh các project Docker - giống như cách nó tự hiện bot Docker đang chạy - nên bạn không cần trỏ launcher vào thư mục trước mới thấy.
 
 ### Thay đổi
 
-- **Duyệt web chạy được ngay trên mọi hệ điều hành.** Trên máy để bàn, bot dùng **Chrome thật** của bạn (profile đã đăng nhập, không phải profile tạm nên web ít nghi là bot); trên server, bot tự mở Chromium headless. Hết cảnh "không có trình duyệt" chỉ vì chưa mở Chrome — và bot dùng đúng công cụ browser đọc được nội dung/link của trang.
-- **Nút bấm khớp với chế độ đang chạy.** Project native sẽ ẩn các nút chỉ dành cho container: "Rebuild" (không có image — dùng Update để cài lại gói và khởi động lại dịch vụ) và "Cấp quyền ổ đĩa" (bot vốn đã thấy toàn bộ file trên máy).
+- **Duyệt web chạy được ngay trên mọi hệ điều hành.** Trên máy để bàn, bot dùng **Chrome thật** của bạn (profile đã đăng nhập, không phải profile tạm nên web ít nghi là bot); trên server, bot tự mở Chromium headless. Hết cảnh "không có trình duyệt" chỉ vì chưa mở Chrome - và bot dùng đúng công cụ browser đọc được nội dung/link của trang.
+- **Nút bấm khớp với chế độ đang chạy.** Project native sẽ ẩn các nút chỉ dành cho container: "Rebuild" (không có image - dùng Update để cài lại gói và khởi động lại dịch vụ) và "Cấp quyền ổ đĩa" (bot vốn đã thấy toàn bộ file trên máy).
 
 ### Sửa lỗi
 
-- **"Điều khiển máy" giờ cấp quyền đúng bot đang chọn.** Trước đây bật host-control luôn ghi token + hướng dẫn vào project gốc lúc khởi động installer, nên bot ở project (kết nối) khác không nhận được — nút hiện "bật" mà bot không làm gì được. Nay nó ghi đúng project đang chọn và re-point service đang chạy mà không cần restart.
+- **"Điều khiển máy" giờ cấp quyền đúng bot đang chọn.** Trước đây bật host-control luôn ghi token + hướng dẫn vào project gốc lúc khởi động installer, nên bot ở project (kết nối) khác không nhận được - nút hiện "bật" mà bot không làm gì được. Nay nó ghi đúng project đang chọn và re-point service đang chạy mà không cần restart.
 - **Khởi động lại gateway native trên Windows.** Windows không gửi được tín hiệu mà lệnh restart thường dùng, nên tiến trình cũ vẫn sống và plugin vừa cài không bao giờ được nạp, lại không báo lỗi gì. Nay trên Windows, restart native sẽ dừng rồi chạy lại dịch vụ.
-- **Đăng nhập Zalo QR chạy trong chế độ Native.** Đăng nhập tài khoản Zalo không còn đòi phải có container Docker đang chạy ("Zalo login cần project Docker"). Trên project native, mã QR do gateway trên máy sinh ra, đọc thẳng từ ổ đĩa lên modal, và dịch vụ tự nạp lại sau khi đăng nhập thành công — cùng luồng như Docker mà không cần container.
+- **Đăng nhập Zalo QR chạy trong chế độ Native.** Đăng nhập tài khoản Zalo không còn đòi phải có container Docker đang chạy ("Zalo login cần project Docker"). Trên project native, mã QR do gateway trên máy sinh ra, đọc thẳng từ ổ đĩa lên modal, và dịch vụ tự nạp lại sau khi đăng nhập thành công - cùng luồng như Docker mà không cần container.
 - **Cài plugin và skill chạy trong chế độ Native.** Cài skill, cài plugin Zalo Connect, và bước nạp lại sau khi cài nay chạy trên dịch vụ trên máy thay vì mặc định phải có container, nên thêm plugin/skill cho bot native áp dụng gọn thay vì lỗi vì thiếu container.
-- **Bot native nạp đúng persona thay vì bản mặc định trắng.** Đường workspace của agent native bị lưu thành đường container (`/home/node/project/…`) nên trên máy thật bot lỗi mỗi lượt (`mkdir /home/node`); khi để tương đối thì lại trỏ vào thư mục rỗng bị gấp đôi — bot trả lời như trợ lý vừa online chưa có tên. Nay đường workspace được chuẩn hoá thành đường tuyệt đối của project, bot đọc IDENTITY/SOUL/AGENTS ngay từ tin đầu.
+- **Bot native nạp đúng persona thay vì bản mặc định trắng.** Đường workspace của agent native bị lưu thành đường container (`/home/node/project/…`) nên trên máy thật bot lỗi mỗi lượt (`mkdir /home/node`); khi để tương đối thì lại trỏ vào thư mục rỗng bị gấp đôi - bot trả lời như trợ lý vừa online chưa có tên. Nay đường workspace được chuẩn hoá thành đường tuyệt đối của project, bot đọc IDENTITY/SOUL/AGENTS ngay từ tin đầu.
 - **Thẻ bot Zalo hiển thị đúng trạng thái kết nối ở chế độ Native.** Trước đây trạng thái chỉ đọc qua Docker nên bot native khoẻ vẫn hiện "Đang kết nối / Chưa đăng nhập". Nay đọc thẳng gateway trên máy.
 - **Nút "Mở web" bám theo project đang chọn.** Nút dashboard của Zalo Mod trước mở cổng mặc định cố định thay vì cổng gateway của project + 1 (nên hụt cổng 18890 của project native). Nay tính cổng theo đúng project đang chọn.
-- **"Điều khiển máy" chạy được cho bot native.** Bot native chạy thẳng trên máy với quyền `exec` nên nay mở ứng dụng trực tiếp (macOS `open -a`, Linux `xdg-open`, Windows `start`) thay vì bị bảo gọi cầu host-control kiểu Docker (`host.docker.internal:18795`) mà nó không với tới được. Điều khiển chuột/bàn phím/màn hình đầy đủ vẫn có qua Computer Use (Codex) của OpenClaw — cần cài Codex.app + bật `computerUse.autoInstall`.
+- **"Điều khiển máy" chạy được cho bot native.** Bot native chạy thẳng trên máy với quyền `exec` nên nay mở ứng dụng trực tiếp (macOS `open -a`, Linux `xdg-open`, Windows `start`) thay vì bị bảo gọi cầu host-control kiểu Docker (`host.docker.internal:18795`) mà nó không với tới được. Điều khiển chuột/bàn phím/màn hình đầy đủ vẫn có qua Computer Use (Codex) của OpenClaw - cần cài Codex.app + bật `computerUse.autoInstall`.
 - **Xoá bot cuối cùng của một kênh sẽ gỡ luôn kênh đó.** Trước đây kênh đang bật (vd Telegram) có thể còn sót lại không tài khoản, hiện dòng "chưa cấu hình" lỗi trong trạng thái.
 
-## [5.14.1] — 2026-07-25
+## [5.14.1] - 2026-07-25
 
 ### Thêm mới
 
-- **Bot Zalo thả reaction báo đã nhận tin.** Một icon 🦞 xuất hiện ngay trên tin bạn vừa gửi, nên bạn biết bot đã nhận trong khi nó còn đang viết câu trả lời. Việc này chạy ở tầng kênh chat — không hỏi AI nên **không tốn token**. Bật mặc định cho bot Zalo mới, bot cũ tự nhận khi cập nhật; muốn đổi icon hay tắt thì sửa `messages.ackReaction` trong `openclaw.json` (để trống là tắt). Cần Zalo Connect 3.0.15 trở lên.
+- **Bot Zalo thả reaction báo đã nhận tin.** Một icon 🦞 xuất hiện ngay trên tin bạn vừa gửi, nên bạn biết bot đã nhận trong khi nó còn đang viết câu trả lời. Việc này chạy ở tầng kênh chat - không hỏi AI nên **không tốn token**. Bật mặc định cho bot Zalo mới, bot cũ tự nhận khi cập nhật; muốn đổi icon hay tắt thì sửa `messages.ackReaction` trong `openclaw.json` (để trống là tắt). Cần Zalo Connect 3.0.15 trở lên.
 
 ### Thay đổi
 
-- **Bot Zalo không còn tự thả reaction trong DM.** Đã có reaction tự động ở trên, nên phần dặn bot tự thả reaction được bỏ khỏi `TOOLS.md` — nó tốn token cho việc mà kênh chat giờ làm miễn phí. Các kênh khác không đổi.
+- **Bot Zalo không còn tự thả reaction trong DM.** Đã có reaction tự động ở trên, nên phần dặn bot tự thả reaction được bỏ khỏi `TOOLS.md` - nó tốn token cho việc mà kênh chat giờ làm miễn phí. Các kênh khác không đổi.
 
 
-## [5.14.0] — 2026-07-25
-
-### Thêm mới
-
-- **Bot tự tạo skill cho chính nó.** Nhờ bot làm một kỹ năng dùng lại ("tạo cho anh skill X") là nó viết xong và dùng được ngay trong cùng câu trả lời — không cần bước chờ duyệt, không phải sửa cấu hình. Skill được lưu vào `skills/<tên>/SKILL.md` trong workspace của bot và tự nạp. Bot cũ tự nhận khi cập nhật.
-
-
-## [5.13.9] — 2026-07-24
+## [5.14.0] - 2026-07-25
 
 ### Thêm mới
 
-- **Trí nhớ always-on cho mọi bot (learning-memory).** Plugin context-engine mới nạp `MEMORY.md` + `USER.md` đã chắt lọc vào **MỌI lượt** — kể cả trong nhóm (điều mà recall mặc định của OpenClaw bỏ qua). Bot không còn quên ngữ cảnh/quy tắc theo thời gian: hết "nói leo" khi không được gọi, hết hỏi lại điều bạn đã dặn. Tự cài + bật cho bot mới, và có card 1-chạm trên dashboard.
+- **Bot tự tạo skill cho chính nó.** Nhờ bot làm một kỹ năng dùng lại ("tạo cho anh skill X") là nó viết xong và dùng được ngay trong cùng câu trả lời - không cần bước chờ duyệt, không phải sửa cấu hình. Skill được lưu vào `skills/<tên>/SKILL.md` trong workspace của bot và tự nạp. Bot cũ tự nhận khi cập nhật.
+
+
+## [5.13.9] - 2026-07-24
+
+### Thêm mới
+
+- **Trí nhớ always-on cho mọi bot (learning-memory).** Plugin context-engine mới nạp `MEMORY.md` + `USER.md` đã chắt lọc vào **MỌI lượt** - kể cả trong nhóm (điều mà recall mặc định của OpenClaw bỏ qua). Bot không còn quên ngữ cảnh/quy tắc theo thời gian: hết "nói leo" khi không được gọi, hết hỏi lại điều bạn đã dặn. Tự cài + bật cho bot mới, và có card 1-chạm trên dashboard.
 
 ### Thay đổi
 
 - **Bỏ plugin TencentDB Agent Memory**, thay bằng engine learning-memory always-on ở trên (không cần dịch vụ ngoài hay tầng SQLite). Bot cũ được **tự migrate khi cập nhật**: *skill* learning-memory cũ và plugin TencentDB được gỡ tự động.
 
 
-## [5.13.8] — 2026-07-22
+## [5.13.8] - 2026-07-22
 
 ### Sửa lỗi
 
-- **Trả lời bị double trong group Zalo.** Agent có thể gửi câu trả lời hai lần — một qua tool `message` (send) và một qua native reply, kèm lộ câu trạng thái nội bộ ("đã xử lý xong…", `NO_REPLY`). AGENTS.md nay yêu cầu agent chỉ trả lời bằng text thường (gửi đúng 1 lần, kèm mention/quote), KHÔNG tự gọi send để trả lời và KHÔNG viết câu trạng thái/`NO_REPLY`.
-- **Nhiều tài khoản Zalo mỗi project.** Tạo bot Zalo thứ 2 trở lên trong cùng project nay hoạt động — mỗi bot Zalo thêm có account riêng (theo agent id) với QR login riêng, thay vì bị chặn. zalo-connect (fork ≥3.0) hỗ trợ đa tài khoản thật.
+- **Trả lời bị double trong group Zalo.** Agent có thể gửi câu trả lời hai lần - một qua tool `message` (send) và một qua native reply, kèm lộ câu trạng thái nội bộ ("đã xử lý xong…", `NO_REPLY`). AGENTS.md nay yêu cầu agent chỉ trả lời bằng text thường (gửi đúng 1 lần, kèm mention/quote), KHÔNG tự gọi send để trả lời và KHÔNG viết câu trạng thái/`NO_REPLY`.
+- **Nhiều tài khoản Zalo mỗi project.** Tạo bot Zalo thứ 2 trở lên trong cùng project nay hoạt động - mỗi bot Zalo thêm có account riêng (theo agent id) với QR login riêng, thay vì bị chặn. zalo-connect (fork ≥3.0) hỗ trợ đa tài khoản thật.
 - **Lệch phiên bản cache Launcher**: tự phát hiện khi launcher đang chạy (qua `npx`) khác bản cache trong `~/.openclaw-setup` và tự nâng cấp cho khớp.
 
 
-## [5.13.4] — 2026-07-22
+## [5.13.4] - 2026-07-22
 
 ### Thêm mới
 - **Trang Cài đặt trong dashboard.** Mục "Cài đặt" mới (ở sidebar và thanh điều hướng mobile) để chọn giao diện (nút gạt Sáng/Tối), ngôn ngữ (VI/EN) và múi giờ. Múi giờ đã chọn được áp cho bot tạo mới.
@@ -339,14 +362,14 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Lịch & cron chạy đúng giờ địa phương.** Bot tạo mới nhận `userTimezone` rõ ràng nên agent hiểu "hôm nay / tối nay / ngày mai" theo giờ địa phương thay vì UTC. Trước đây đặt lịch quanh nửa đêm có thể lệch 1 ngày (rơi vào quá khứ) và thất bại âm thầm. Kèm siết lại skill lập lịch: dùng giờ local + múi giờ (không tự quy đổi UTC), phần gửi bắt buộc điền kênh + người nhận, và ID nhóm dùng dạng thô (không thêm tiền tố).
 
 
-## [5.13.3] — 2026-07-21
+## [5.13.3] - 2026-07-21
 
 ### 🔧 Sửa lỗi: Tự động cập nhật phiên bản Launcher
 
 - **Sửa lỗi: Lệch phiên bản cache Launcher**: Tự động phát hiện nếu launcher đang chạy (tải qua `npx`) có phiên bản mới hơn hoặc khác với bản đang cache trong `~/.openclaw-setup` và tự nâng cấp tương ứng.
 
 
-## [5.13.0] — 2026-07-19
+## [5.13.0] - 2026-07-19
 
 ### Thêm
 - **Xem nhanh sức khỏe từng bot Zalo.** Mỗi thẻ bot Zalo cá nhân hiển thị riêng trạng thái kết nối, trạng thái đăng nhập và badge sẵn sàng gọn gàng.
@@ -356,7 +379,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Điều khiển Zalo gọn hơn.** Làm mới và Đăng nhập lại được gom phía trên danh sách, để mỗi thẻ chỉ tập trung vào trạng thái riêng của bot.
 
 
-## [5.12.0] — 2026-07-17
+## [5.12.0] - 2026-07-17
 
 ### Thêm
 - **OpenClaw Zalo Connect trở thành trải nghiệm Zalo cá nhân mặc định.** Khi tạo bot Zalo hoặc bấm Đăng nhập Zalo trên dashboard, Setup tự chuẩn bị channel khi cần rồi hiển thị luồng quét QR ngay trong giao diện.
@@ -366,20 +389,20 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Hệ Zalo gọn và ổn định hơn.** Mention nhóm, reaction và quản trị dùng chung một Zalo runtime được duy trì; các luồng Zalo cũ cùng tiện ích Sticker đã được gỡ khỏi Setup.
 
 
-## [5.11.1] — 2026-07-15
+## [5.11.1] - 2026-07-15
 
 ### Thêm
 - **Workspace mặc định dựng lại theo bộ file chuẩn của OpenClaw.** Bot tạo mới nhận đủ 7 file workspace gốc của OpenClaw (`AGENTS` / `BOOTSTRAP` / `HEARTBEAT` / `IDENTITY` / `SOUL` / `TOOLS` / `USER.md`) làm khung chuẩn, các quy tắc riêng của dự án (bảo mật, gửi file, alias relay, reaction DM…) được gắn thành mục bổ sung đánh dấu rõ. Đủ tiếng Việt + tiếng Anh, đủ mọi kiểu bot (single/relay/zalo/telegram). Chỉ áp dụng cho bot tạo mới.
 
 ### Sửa lỗi
-- **SQLite "disk I/O error" trên Docker Desktop (macOS / Windows).** `docker-compose.yml` sinh ra giờ lưu `.openclaw/state` vào named volume (`openclaw-state`) thay vì bind mount — cơ chế khóa WAL của SQLite không sống nổi qua virtiofs/gRPC-FUSE. Linux/VPS vẫn giữ bind mount như cũ.
-- **Gói npm bắt kịp bản GitHub.** Bản `5.11.0` trên npm được publish trước đợt amend cuối nên thiếu workspace defaults, fix SQLite và các fix Chrome-debug/trình sửa file — `5.11.1` là bản đầy đủ.
+- **SQLite "disk I/O error" trên Docker Desktop (macOS / Windows).** `docker-compose.yml` sinh ra giờ lưu `.openclaw/state` vào named volume (`openclaw-state`) thay vì bind mount - cơ chế khóa WAL của SQLite không sống nổi qua virtiofs/gRPC-FUSE. Linux/VPS vẫn giữ bind mount như cũ.
+- **Gói npm bắt kịp bản GitHub.** Bản `5.11.0` trên npm được publish trước đợt amend cuối nên thiếu workspace defaults, fix SQLite và các fix Chrome-debug/trình sửa file - `5.11.1` là bản đầy đủ.
 
 
-## [5.11.0] — 2026-07-09
+## [5.11.0] - 2026-07-09
 
 ### Thêm
-- **Facebook Messenger — cài plugin 1 chạm.** Plugin `fb-messenger` đã public trên ClawHub và cài ngay trên dashboard: tạo bot Messenger, mở **Bot → Plugins**, bấm **Cài** ở thẻ `openclaw-fb-messenger` (webhook + Graph API, tự đổi User→Page token, xác minh chữ ký HMAC). Bỏ luôn thông báo cũ "plugin riêng tư — liên hệ để nhận".
+- **Facebook Messenger - cài plugin 1 chạm.** Plugin `fb-messenger` đã public trên ClawHub và cài ngay trên dashboard: tạo bot Messenger, mở **Bot → Plugins**, bấm **Cài** ở thẻ `openclaw-fb-messenger` (webhook + Graph API, tự đổi User→Page token, xác minh chữ ký HMAC). Bỏ luôn thông báo cũ "plugin riêng tư - liên hệ để nhận".
 
 ### Thay đổi
 - **Chỉ còn Docker.** Loại bỏ kiểu cài native (không Docker) để tập trung cho luồng Docker chạy hoàn hảo & ổn định trên Windows / macOS / Linux / VPS (kèm tự cài Docker đa hệ điều hành).
@@ -389,25 +412,25 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Trình sửa file bot** lưu được cả file text không phải `.md` (và hiển thị đúng đường dẫn workspace).
 
 
-## [5.10.1] — 2026-07-04
+## [5.10.1] - 2026-07-04
 
 ### Sửa lỗi
-- **Update plugin không còn làm mất port dashboard zalo-mod.** Khi tạo lại `docker-compose.yml` (lúc update/rebuild plugin), port UI của zalo-mod (port gateway + 1) được thêm lại đúng — trước đây regex không khớp dòng port có tiền tố `127.0.0.1:` nên port bị mất âm thầm.
+- **Update plugin không còn làm mất port dashboard zalo-mod.** Khi tạo lại `docker-compose.yml` (lúc update/rebuild plugin), port UI của zalo-mod (port gateway + 1) được thêm lại đúng - trước đây regex không khớp dòng port có tiền tố `127.0.0.1:` nên port bị mất âm thầm.
 - **Ổ đĩa/thư mục đã cấp quyền không bị mất khi rebuild.** Các mount `/mnt/*` do người dùng thêm được giữ lại khi regen compose, nên bot vẫn truy cập được sau khi update. Cấp nguyên ổ đĩa Windows (vd `D:\`) giờ tạo bind hợp lệ (`D:/` thay vì `D:` lỗi).
 
 
-## [5.10.0] — 2026-07-02
+## [5.10.0] - 2026-07-02
 
 ### Thêm mới
-- **Tự khởi động lại tiến trình (native):** cài native giờ đăng ký gateway + 9router thành service hệ điều hành (macOS launchd, Linux systemd, Windows detached), tự chạy lại khi crash/reboot — giống `restart: always` của Docker. Best-effort, lỗi thì fallback về chạy detached bình thường.
+- **Tự khởi động lại tiến trình (native):** cài native giờ đăng ký gateway + 9router thành service hệ điều hành (macOS launchd, Linux systemd, Windows detached), tự chạy lại khi crash/reboot - giống `restart: always` của Docker. Best-effort, lỗi thì fallback về chạy detached bình thường.
 - **UI dashboard gọn hơn:** nút tắt Bot/Cài đặt ở hero, badge version plugin, layout toggle tính năng, responsive/mobile, bỏ tiêu đề trùng ở tab dashboard.
 
 ### Sửa
 - **Auto-sync 9router lần đầu cài:** `sync.js` không còn tắt vĩnh viễn "Require login". Nó đăng nhập bằng mật khẩu mặc định `123456` của 9router, tạo combo `smart-route` từ model của các provider đang active **một lần** rồi dừng (không lặp vô hạn, không ép tắt login). Require login giữ ON với mật khẩu mặc định (user đổi sau). Model-call `/v1` không bị ảnh hưởng (xác thực bằng API-key, tách biệt login dashboard).
 - **Đường dẫn workspace (native):** `workspace` của agent giờ là đường dẫn tương đối, để persona/memory/skills nằm đúng chỗ khi cài native (trước là đường dẫn tuyệt đối kiểu container → trỏ sai trên host).
-- **Khối `meta` trong config:** không tự seed nữa (OpenClaw tự quản) — tránh lỗi parse config do `lastTouchedVersion` là dải version.
+- **Khối `meta` trong config:** không tự seed nữa (OpenClaw tự quản) - tránh lỗi parse config do `lastTouchedVersion` là dải version.
 
-## [5.9.0] — 2026-06-28
+## [5.9.0] - 2026-06-28
 
 ### 🚀 Mới: chạy thẳng từ GitHub
 - Khởi động wizard bằng một lệnh, không cần publish lên npm (chạy trên macOS, Linux & Windows; Node.js ≥ 22):
@@ -417,36 +440,36 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
   CLI tự nhận biết server đi kèm (`dist/`) và chạy dashboard local trực tiếp.
 
 ### 🔧 Sửa lỗi
-- **zalo-mod lấy lại được Zalo API (Sync Account / quản lý group chạy).** Entrypoint giờ expose map `globalThis.__zcaApiByProfile` của zalouser **trước khi gateway import zalouser**, nên `openclaw-zalo-mod` thấy API live. Trước đây zalo-mod chỉ patch lúc plugin-load — sau khi zalouser đã import — nên map shared không bao giờ được set trên module đang chạy, dashboard báo "ZCA API unavailable".
+- **zalo-mod lấy lại được Zalo API (Sync Account / quản lý group chạy).** Entrypoint giờ expose map `globalThis.__zcaApiByProfile` của zalouser **trước khi gateway import zalouser**, nên `openclaw-zalo-mod` thấy API live. Trước đây zalo-mod chỉ patch lúc plugin-load - sau khi zalouser đã import - nên map shared không bao giờ được set trên module đang chạy, dashboard báo "ZCA API unavailable".
 - **Không cài lại zalouser khi đã có sẵn (hết plugin trùng).** Cả entrypoint container lẫn luồng QR-login giờ coi `extensions/zalouser` có sẵn là đã cài, nên không `npm install @openclaw/zalouser` đè lên nữa. zalouser bị trùng (2 bản/2 version) làm hỏng shared ZCA API map mà `zalo-mod` dùng (Sync Account → "ZCA API unavailable").
 - **Reaction DM Telegram nhắm đúng tin mới nhất.** TOOLS.md sinh ra giờ hướng dẫn bot Telegram reaction mà **không truyền `messageId`** (Telegram tự reaction vào tin inbound hiện tại của user) thay vì tự đoán id rồi reaction nhầm tin cũ. Zalo (cần message id rõ ràng) giữ nguyên.
 - **Không bao giờ ghi đè `docker-compose.yml` đã tuỳ biến.** Trước đây cơ chế auto-sync infra regenerate toàn bộ compose khi đổi version, xoá mất reverse-proxy/Traefik labels, network ngoài, hay port publish thêm (có thể âm thầm làm chết webhook đang chạy). Giờ nó nhận diện compose đã tuỳ biến (Traefik labels / external network / marker `# openclaw-setup: custom`) và **không đụng vào** infra của bạn. Nút "Mở web" của zalo-mod trỏ tới dashboard ở `:18790/dashboard`.
-- **Truy cập từ xa dễ dàng cho bản VPS/headless.** Trên server không có trình duyệt, CLI giờ in sẵn **lệnh SSH-tunnel** (tự điền IP public + các port dashboard/OpenClaw/9Router/zalo-mod), và dashboard có panel **"Mở từ máy khác"** (copy 1 chạm) — để bất kỳ user nào cũng mở được UI từ máy mình mà không cần biết cách tạo tunnel. Các **nút "Mở web" giờ theo host đang xem dashboard** (hết nhầm với localhost máy mình khi truy cập từ máy khác), và **card plugin zalo-mod có nút "Mở web" riêng**.
-- **Sửa định tuyến Zalo (zalouser) đa tài khoản.** Thêm bot Zalo thứ 2 trở đi giờ tự tạo `channels.zalouser.accounts.<id>` riêng + binding theo `accountId` riêng với profile đăng nhập riêng — nên không còn bị xếp nhầm vào Telegram trong UI, và QR login lưu đúng profile của nó thay vì đè lên bot đầu. Binding zalouser kiểu catch-all cũ được tự nâng cấp thành account-specific.
-- **Tự nhận diện project có bot đang chạy.** Trên mọi máy/OS, lần chạy mới giờ tự tìm project có bot đang chạy trong Docker (thay vì mặc định thư mục rỗng `~/openclaw-setup`) — nên chạy `npx` trên server đã có bot sẽ trỏ đúng thư mục, Restart/Cập nhật tác động đúng bot thật.
-- **Nút Cập nhật không còn làm treo UI.** Bấm **Cập nhật** áp dụng bản mới và **tự khởi động lại dashboard trên đúng port** — tab tự kết nối lại. Tự thích ứng theo cách chạy: systemd thoát để supervisor bật lại; `npx`/GitHub kéo lại bản mới khi relaunch; git clone thì `git pull` và dùng `dist/` đã commit.
-- **Nút Cập nhật nhận biết phiên bản**: đọc bản mới nhất từ **GitHub** (nguồn phát hành thật, không phải npm cũ) và chỉ hiện khi có bản mới hơn thật sự (đúng semver) — hết cảnh đang ở bản mới nhất mà vẫn báo "Cập nhật".
+- **Truy cập từ xa dễ dàng cho bản VPS/headless.** Trên server không có trình duyệt, CLI giờ in sẵn **lệnh SSH-tunnel** (tự điền IP public + các port dashboard/OpenClaw/9Router/zalo-mod), và dashboard có panel **"Mở từ máy khác"** (copy 1 chạm) - để bất kỳ user nào cũng mở được UI từ máy mình mà không cần biết cách tạo tunnel. Các **nút "Mở web" giờ theo host đang xem dashboard** (hết nhầm với localhost máy mình khi truy cập từ máy khác), và **card plugin zalo-mod có nút "Mở web" riêng**.
+- **Sửa định tuyến Zalo (zalouser) đa tài khoản.** Thêm bot Zalo thứ 2 trở đi giờ tự tạo `channels.zalouser.accounts.<id>` riêng + binding theo `accountId` riêng với profile đăng nhập riêng - nên không còn bị xếp nhầm vào Telegram trong UI, và QR login lưu đúng profile của nó thay vì đè lên bot đầu. Binding zalouser kiểu catch-all cũ được tự nâng cấp thành account-specific.
+- **Tự nhận diện project có bot đang chạy.** Trên mọi máy/OS, lần chạy mới giờ tự tìm project có bot đang chạy trong Docker (thay vì mặc định thư mục rỗng `~/openclaw-setup`) - nên chạy `npx` trên server đã có bot sẽ trỏ đúng thư mục, Restart/Cập nhật tác động đúng bot thật.
+- **Nút Cập nhật không còn làm treo UI.** Bấm **Cập nhật** áp dụng bản mới và **tự khởi động lại dashboard trên đúng port** - tab tự kết nối lại. Tự thích ứng theo cách chạy: systemd thoát để supervisor bật lại; `npx`/GitHub kéo lại bản mới khi relaunch; git clone thì `git pull` và dùng `dist/` đã commit.
+- **Nút Cập nhật nhận biết phiên bản**: đọc bản mới nhất từ **GitHub** (nguồn phát hành thật, không phải npm cũ) và chỉ hiện khi có bản mới hơn thật sự (đúng semver) - hết cảnh đang ở bản mới nhất mà vẫn báo "Cập nhật".
 - **Bỏ nhánh tự cập nhật hỏng** vốn chạy `npm install create-openclaw-bot@latest` (chưa publish → `ETARGET`).
 
 ### 🔒 Bảo mật
 - **Port host của Gateway & 9Router giờ bind `127.0.0.1`** thay vì `0.0.0.0`. Lớp điều khiển không lộ ra internet; reverse proxy vẫn vào container qua mạng Docker. Đồng thời sửa lỗi dashboard báo **OFFLINE** sai khi bot chạy sau proxy.
 
-### 🧠 Mới: TencentDB Agent Memory — cài 1 chạm ngay trên UI
-- **Plugin bộ nhớ mới**: Cài **TencentDB Agent Memory** thẳng trong bảng Skills & Plugins. Bộ nhớ phân tầng 4 lớp (L0–L3) kèm nén ngữ cảnh — giữ session dài mạch lạc và tiết kiệm tới ~61% token. Chạy hoàn toàn local (SQLite + sqlite-vec) — không cần API key, hoạt động trong Docker.
+### 🧠 Mới: TencentDB Agent Memory - cài 1 chạm ngay trên UI
+- **Plugin bộ nhớ mới**: Cài **TencentDB Agent Memory** thẳng trong bảng Skills & Plugins. Bộ nhớ phân tầng 4 lớp (L0-L3) kèm nén ngữ cảnh - giữ session dài mạch lạc và tiết kiệm tới ~61% token. Chạy hoàn toàn local (SQLite + sqlite-vec) - không cần API key, hoạt động trong Docker.
 
 ### ⚡ Mới: Cấu hình tiết kiệm token mặc định cho mọi bot mới
 - **Tối ưu ngân sách ngữ cảnh sẵn sàng dùng ngay**: Bot mới giờ tự có `contextPruning: { mode: "cache-ttl", ttl: "5m" }` + `compaction: safeguard`. System prompt ổn định vẫn được cache, còn tool-result cũ bị cắt trước khi hết cache → hội thoại dài rẻ hơn và sắc nét hơn, không cần chỉnh tay.
 
 ### 🎯 Cải tiến: Skills/Plugins theo từng bot & từng kênh
 - **Skill theo từng bot**: Cài/bật/tắt skill giờ chỉ áp dụng cho **đúng bot đó** (theo workspace), không còn lan sang mọi bot trong project.
-- **Bảng lọc theo kênh**: Giao diện Skills & Plugins chỉ hiển thị thứ phù hợp với kênh của bot — helper Zalo ở Zalo, plugin Facebook ở Messenger, v.v.
+- **Bảng lọc theo kênh**: Giao diện Skills & Plugins chỉ hiển thị thứ phù hợp với kênh của bot - helper Zalo ở Zalo, plugin Facebook ở Messenger, v.v.
 
 ### 📤 Cải tiến: Gửi file ổn định trên Zalo & Telegram
-- **Hướng dẫn gửi file nhúng sẵn vào AGENTS.md**: Bot sinh ra đã biết quy trình đúng — xuất file, copy vào `.openclaw/media/outbound/`, rồi gửi qua tool `message` — khắc phục lỗi "không gửi được file" do sandbox Zalo.
-- **Chuẩn định dạng**: Bot được hướng dẫn dùng định dạng hiện đại (`.xlsx`, `.pdf`, `.png`) và tránh `.xls` đời cũ — thứ bị OpenClaw chặn vì không xác thực được loại nội dung (buffer-verified).
+- **Hướng dẫn gửi file nhúng sẵn vào AGENTS.md**: Bot sinh ra đã biết quy trình đúng - xuất file, copy vào `.openclaw/media/outbound/`, rồi gửi qua tool `message` - khắc phục lỗi "không gửi được file" do sandbox Zalo.
+- **Chuẩn định dạng**: Bot được hướng dẫn dùng định dạng hiện đại (`.xlsx`, `.pdf`, `.png`) và tránh `.xls` đời cũ - thứ bị OpenClaw chặn vì không xác thực được loại nội dung (buffer-verified).
 
-### 🐳 Mới: Nút điều khiển Docker 1 chạm — không cần gõ lệnh
-- **Nút Restart & Rebuild** trong tab Bot: khởi động lại container bot, hoặc rebuild + recreate (`docker compose up -d --build --force-recreate`) ngay trên dashboard — khỏi dùng dòng lệnh.
+### 🐳 Mới: Nút điều khiển Docker 1 chạm - không cần gõ lệnh
+- **Nút Restart & Rebuild** trong tab Bot: khởi động lại container bot, hoặc rebuild + recreate (`docker compose up -d --build --force-recreate`) ngay trên dashboard - khỏi dùng dòng lệnh.
 - **Nút cấp quyền ổ đĩa**: trỏ bot tới thư mục/ổ đĩa bất kỳ trên host; nó được mount vào container tại `/mnt/<tên>` (đa OS, kể cả Windows `C:/…` nhờ long-form bind), container tự recreate để áp dụng, và AGENTS.md của từng bot được cập nhật để bot biết được phép dùng. Mặc định theo project (mọi bot dùng chung).
 
 ### ✨ Cải tiến: UX tab Bot & tải trang nhanh hơn
@@ -458,19 +481,19 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Hiển thị đúng version plugin**: Version plugin (vd `zalo-mod`) được đọc từ volume extensions trong container, hiển thị version thật thay vì giá trị fallback chung chung.
 - **Extensions đồng bộ ra host**: Trên macOS/Linux, `.openclaw/extensions` được giữ trên bind-mount host (Windows vẫn dùng named volume để đảm bảo quyền file), nên plugin cài từ ClawHub lại hiển thị & sửa được trên host.
 - **Dọn `bot-meta.json`**: `appId` chỉ ghi cho bot Facebook Messenger, không còn dính vào bot Zalo/Telegram.
-- **Hết crash container do `meta.lastTouchedVersion`**: Config sinh ra không còn ghi `lastTouchedVersion` sai (là dải phiên bản npm / `latest`, không phải version thật) gây crash container lúc khởi động — OpenClaw tự ghi đúng `{ lastTouchedVersion, lastTouchedAt }`.
+- **Hết crash container do `meta.lastTouchedVersion`**: Config sinh ra không còn ghi `lastTouchedVersion` sai (là dải phiên bản npm / `latest`, không phải version thật) gây crash container lúc khởi động - OpenClaw tự ghi đúng `{ lastTouchedVersion, lastTouchedAt }`.
 - **Tăng timeout cho lượt agent**: `timeoutSeconds` mặc định tăng từ 120 → 900s để các lượt nhiều bước (OCR, tạo file, chuỗi tool dài) không bị cắt giữa chừng.
 - **Gửi file chắc tay hơn & dọn SOUL.md**: rule gửi file trong AGENTS.md nay `mkdir -p` thư mục `media/outbound` trước khi copy (hết lỗi "copy failed" lúc thư mục chưa có); SOUL.md bỏ giới hạn cứng 200 ký tự và bỏ khối silent-mode Zalo.
 
 
-## [5.8.24] — 2026-06-24
+## [5.8.24] - 2026-06-24
 
 ### 🔧 Sửa lỗi: Tự động cập nhật phiên bản Launcher
 
 - **Sửa lỗi: Lệch phiên bản cache Launcher**: Tự động phát hiện nếu launcher đang chạy (tải qua `npx`) có phiên bản mới hơn hoặc khác với bản đang cache trong `~/.openclaw-setup` và tự nâng cấp tương ứng.
 
 
-## [5.8.23] — 2026-06-24
+## [5.8.23] - 2026-06-24
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tự học & Siêu Trí Nhớ Dài Hạn (learning-memory)
 
@@ -480,12 +503,12 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
   - Hỗ trợ chạy tự động script cài đặt (postinstall) mượt mà trên mọi nền tảng (Docker, Windows, macOS, Linux) ngay sau khi cài từ ClawHub.
 - **Mới: Quản lý Skill trên UI**: Thêm nút bật/tắt và quản lý cài đặt skill "Siêu Trí Nhớ Dài Hạn" trực tiếp trên giao diện quản trị Web UI Setup.
 
-## [5.8.22] — 2026-06-16
+## [5.8.22] - 2026-06-16
 
 - Cải tiến browser-automation
 - Cải tiến bản cài đặt cho VPS
 
-## [5.8.17] — 2026-06-08
+## [5.8.17] - 2026-06-08
 
 ### 🚀 Sửa lỗi & Tối ưu hóa: Phân giải đường dẫn Docker Workspace, Bộ cài NPM rút gọn và Tự động Cập nhật trên UI
 
@@ -494,7 +517,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Mới: Tự động cập nhật Setup Wizard từ UI**: Cải tiến cơ chế cập nhật, tự động cài đặt phiên bản mới nhất vào thư mục `~/.openclaw-setup` và khởi động lại cổng Setup Wizard mượt mà ngay trên giao diện web.
 - **Thẩm mỹ: Căn chỉnh Logo CLI**: Thiết kế lại và cân đối khung Logo góc tròn kèm hai emoji tôm hùm 🦞 đối xứng thẳng hàng ở terminal.
 
-## [5.8.15] — 2026-06-07
+## [5.8.15] - 2026-06-07
 
 ### 🚀 Sửa lỗi & Tối ưu hóa: Phân giải đường dẫn Docker Workspace, Bộ cài NPM rút gọn và Tự động Cập nhật trên UI
 
@@ -503,7 +526,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Mới: Tự động cập nhật Setup Wizard từ UI**: Cải tiến cơ chế cập nhật, tự động cài đặt phiên bản mới nhất vào thư mục `~/.openclaw-setup` và khởi động lại cổng Setup Wizard mượt mà ngay trên giao diện web.
 - **Thẩm mỹ: Căn chỉnh Logo CLI**: Thiết kế lại và cân đối khung Logo góc tròn kèm hai emoji tôm hùm 🦞 đối xứng thẳng hàng ở terminal.
 
-## [5.8.14] — 2026-06-07
+## [5.8.14] - 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
@@ -516,7 +539,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
 
-## [5.8.13] — 2026-06-07
+## [5.8.13] - 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
@@ -529,7 +552,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
 
-## [5.8.12] — 2026-06-07
+## [5.8.12] - 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
@@ -542,7 +565,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
 
-## [5.8.11] — 2026-06-07
+## [5.8.11] - 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
@@ -555,7 +578,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
 
-## [5.8.10] — 2026-06-07
+## [5.8.10] - 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
@@ -568,7 +591,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
 
-## [5.8.9] — 2026-06-07
+## [5.8.9] - 2026-06-07
 
 ### 🚀 Tính năng mới: Tích hợp sâu Skill Tạo ảnh Infographic, Skill Sticker & Auto-Tag (Zalo) cùng Tối ưu hóa Workspace Docs
 
@@ -581,35 +604,35 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Tối ưu hóa: Đơn giản hóa sinh file TOOLS.md**: Điều chỉnh generator của `TOOLS.md` để sinh ra nội dung tĩnh gọn gàng, tập trung định hướng Agent đọc chi tiết các tài liệu hướng dẫn skill tương ứng nằm trong thư mục `./skills/`, loại bỏ các logic sinh danh sách động dựa trên plugin cũ.
 - **Tối ưu hóa: Chuẩn hóa danh sách Tài liệu tham chiếu trong AGENTS.md**: Cập nhật danh sách tài liệu tham chiếu được tạo trong file `AGENTS.md` (cho cả 2 chế độ single/relay và cả tiếng Việt/tiếng Anh) để khớp chính xác cấu trúc mới gồm đúng 9 tài liệu cốt lõi, loại bỏ các file không còn phù hợp (`TEAMS.md` cho single-bot, `BROWSER.md`) và chuẩn hóa phần mô tả.
 
-## [5.8.8] — 2026-06-04
+## [5.8.8] - 2026-06-04
 
 ### 🔧 Sửa lỗi: Gọi tiến trình 9Router an toàn và ngăn chặn crash trên môi trường Sudo/NVM
 
 - **Sửa lỗi: Sập tiến trình khi gọi lệnh lỗi**: Bổ sung bộ lắng nghe lỗi (error handler) cho các tiến trình chạy nền (như 9Router và OpenClaw gateway) được gọi bởi installer. Nếu một lệnh bị thiếu hoặc không nằm trong PATH, Setup Wizard sẽ ghi lại cảnh báo trong log thay vì làm crash toàn bộ server Node.js với lỗi ngoại lệ 'error' không thể bắt.
 - **Sửa lỗi: Phân giải đường dẫn thực thi trên môi trường NVM/Sudo**: Tự động tìm kiếm file thực thi (như `9router` và `openclaw`) trong thư mục chứa file chạy Node.js đang hoạt động và thư mục bin của node_modules cục bộ. Điều này giải quyết triệt để lỗi `ENOENT` khi chạy với quyền sudo trong môi trường dùng NVM (nơi đường dẫn bin tùy chỉnh của user không nằm trong secure_path của sudo).
 
-## [5.8.7] — 2026-06-04
+## [5.8.7] - 2026-06-04
 
 ### 🔧 Sửa lỗi: Tự động phát hiện dự án trên Linux/WSL khi chạy quyền sudo
 
 - **Sửa lỗi: Quét thư mục người dùng thực tế**: Tự động giải quyết và quét thư mục home thực tế của người dùng gọi lệnh (ví dụ: `/home/username`) thay vì quét thư mục `/root` khi chạy Setup Wizard dưới quyền sudo trên Linux/WSL.
 - **Sửa lỗi: Bỏ qua thư mục hệ thống và giới hạn quét thư mục home**: Đưa các thư mục ảo và hệ thống Linux (như `/usr`, `/var`, `/proc`, `/sys`, `/dev`,...) vào danh sách đen để không quét sâu, đồng thời giới hạn việc quét thư mục `/home` chỉ trong phạm vi thư mục home của người dùng hiện tại, ngăn ngừa treo hệ thống, hết thời gian chờ hoặc lỗi phân quyền.
 
-## [5.8.6] — 2026-06-04
+## [5.8.6] - 2026-06-04
 
 ### 🔧 Sửa lỗi: Treo Phiên Bản & Quét Dự Án Ổ C Windows
 
 - **Sửa lỗi: Treo số phiên bản v...**: Tách biệt luồng fetch phiên bản từ NPM registry trong `/api/system` thành tiến trình chạy nền không đồng bộ (non-blocking). Setup Wizard giờ đây khởi chạy tức thì và không bị nghẽn do mạng.
 - **Sửa lỗi: Quét an toàn ổ C và tìm thấy project trong thư mục người dùng**: Tối ưu hóa chức năng quét project, tự động bỏ qua các thư mục hệ thống Windows và thư mục của user khác (`C:\Users\*`). Thêm trực tiếp thư mục Home và Documents của user hiện tại vào danh sách quét, giúp phát hiện ngay lập tức project nằm trong ổ C mà không lo bị nghẽn quyền truy cập.
 
-## [5.8.5] — 2026-06-04
+## [5.8.5] - 2026-06-04
 
 ### 🔧 Sửa lỗi: Treo Phiên Bản & Quét Dự Án Ổ C Windows
 
 - **Sửa lỗi: Treo số phiên bản v...**: Tách biệt luồng fetch phiên bản từ NPM registry trong `/api/system` thành tiến trình chạy nền không đồng bộ (non-blocking). Setup Wizard giờ đây khởi chạy tức thì và không bị nghẽn do mạng.
 - **Sửa lỗi: Quét an toàn ổ C và tìm thấy project trong thư mục người dùng**: Tối ưu hóa chức năng quét project, tự động bỏ qua các thư mục hệ thống Windows và thư mục của user khác (`C:\Users\*`). Thêm trực tiếp thư mục Home và Documents của user hiện tại vào danh sách quét, giúp phát hiện ngay lập tức project nằm trong ổ C mà không lo bị nghẽn quyền truy cập.
 
-## [5.8.4] — 2026-06-04
+## [5.8.4] - 2026-06-04
 
 ### 🚀 Nâng Cấp Skill, Tự Động Chọn Model & Tự Khởi Động Lại Setup Wizard
 
@@ -620,7 +643,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Cải tiến: Cron / Lên Lịch Nhắc Nhở**: Hoàn thiện hành vi lập lịch nhắc nhở, hỗ trợ múi giờ (`tz`), chạy isolated session và chuẩn hóa tiền tố `g:` khi gửi tin nhắn nhóm Zalo.
 - **Cải tiến: Giao Diện UI/UX**: Tối ưu hiển thị log stream, trạng thái cài đặt plugin và giao diện điều khiển.
 
-## [5.8.3] — 2026-06-02
+## [5.8.3] - 2026-06-02
 
 ### 🔍 Quét Toàn Bộ Ổ Đĩa & Sửa Lỗi Hiển Thị Version Sidebar
 
@@ -628,7 +651,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Blacklist thư mục hệ thống**: Thêm danh sách 17+ thư mục hệ thống Windows (Windows, Program Files, $Recycle.Bin, ProgramData...) để tránh quét chậm hoặc lỗi permission khi duyệt gốc ổ đĩa.
 - **Version sidebar động**: Sửa lỗi version trên sidebar bị fix cứng giá trị fallback. Giờ version được cập nhật tự động sau khi API system trả về, hiển thị đúng version đang chạy.
 
-## [5.8.2] — 2026-05-31
+## [5.8.2] - 2026-05-31
 
 ### 🚀 Nút Cập Nhật Giao Diện Tự Động & Hợp Nhất Hệ Thống Kiểm Thử
 
@@ -636,7 +659,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Mới: Tự Động Phát Hiện Phiên Bản**: Hệ thống tự động truy vấn không đồng bộ đến npm registry để so sánh phiên bản hiện tại với bản mới nhất trên npm (`create-openclaw-bot/latest`). Nút cập nhật sẽ **chỉ hiển thị** khi phát hiện có phiên bản mới hơn.
 - **Mới: Nâng Cấp Tự Động & Stream Log Trực Tiếp**: Tích hợp endpoint `/api/setup/update` xử lý nâng cấp thông minh: tự động chạy `git pull && npm install && npm run build` nếu cài từ mã nguồn Git, hoặc chạy `npm install -g` nếu cài từ npm. Quá trình nâng cấp được stream log thời gian thực về khung Nhật ký trên giao diện giúp theo dõi trực quan.
 
-## [5.8.1] — 2026-05-30
+## [5.8.1] - 2026-05-30
 
 ### 🚀 Tích Hợp Sâu Trình Tìm Kiếm & Tự Động Hóa Trình Duyệt Trực Quan
 
@@ -647,7 +670,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Mới: Tự chẩn đoán và khắc phục môi trường (Self-Guided)**: Tự động chạy giả lập màn hình ảo Xvfb trong môi trường Docker container; đồng thời tự động phát hiện, báo cáo và in ra các dòng lệnh copy-paste để cài đặt Chromium/thư viện hệ thống khi chạy native trên VPS/Ubuntu cực kỳ thông minh.
 - **Cải tiến: Bảo mật và an toàn dữ liệu cài đặt tuyệt đối**: Trình cài đặt tự động di chuyển thư mục lưu trữ UI setup sang thư mục ẩn của người dùng (`~/.openclaw-setup`), đảm bảo **hoàn toàn cô lập**, không bao giờ can thiệp hay ghi đè lên bất kỳ dữ liệu dự án hoặc cấu hình bot nào hiện có của người dùng trong thư mục hiện tại.
 
-## [5.8.0] — 2026-05-28
+## [5.8.0] - 2026-05-28
 
 ### 🚀 Giao Diện Quản Trị Web UI Setup & Quản Lý Tiến Trình
 
@@ -660,7 +683,7 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Cải tiến: Khắc phục lỗi quyền NTFS Windows**: Sử dụng đặt tên volume độc lập `openclaw-plugins` trong Docker Compose để tránh lỗi `EACCES` khi cài đặt plugin trên Windows.
 - **Dọn dẹp**: Xóa bỏ hoàn toàn các file giao diện tĩnh Wizard cũ (`index.html`, `style.css`) và các tài liệu hướng dẫn lỗi thời trong thư mục `docs/`.
 
-## [5.7.10] — 2026-05-06
+## [5.7.10] - 2026-05-06
 
 ### 🚀 Cập nhật Tính năng & Tài liệu
 
@@ -668,24 +691,24 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Chuẩn hóa Agent Workspace**: Cập nhật generator của `AGENTS.md` để tham chiếu đúng và đầy đủ tất cả các file `.md` được sinh ra (`BROWSER.md`, `BOOT.md`, `SOUL.md`, `DREAMS.md`, `HEARTBEAT.md`, `USER.md`).
 - **Dọn dẹp Tools Guide**: Xóa bỏ phần hướng dẫn Zalo Group Slash Commands đã lỗi thời khỏi quá trình tạo `TOOLS.md`.
 
-## [5.7.9] — 2026-05-05
+## [5.7.9] - 2026-05-05
 
 ### 🔧 Cập nhật tên Plugin Zalo
 
-- **Sửa: Đổi tên `zalo-mod` thành `openclaw-zalo-mod`** — Cập nhật các tham chiếu chuỗi nội bộ trong `workspace-gen.js`, `bot-config-gen.js`, và test suites để đồng bộ với định danh package NPM mới của plugin Zalo (`openclaw-zalo-mod`).
+- **Sửa: Đổi tên `zalo-mod` thành `openclaw-zalo-mod`** - Cập nhật các tham chiếu chuỗi nội bộ trong `workspace-gen.js`, `bot-config-gen.js`, và test suites để đồng bộ với định danh package NPM mới của plugin Zalo (`openclaw-zalo-mod`).
 
-## [5.7.8] — 2026-05-05
+## [5.7.8] - 2026-05-05
 
 ### 🧹 Dọn dẹp: Gỡ bỏ Auto-Install Zalo Mod
 
-- **Sửa: Gỡ auto-inject `zalo-mod` khỏi config Zalo Personal** — `plugins.entries['zalo-mod']` không còn được tự điền bởi `bot-config-gen.js`, `output.js`, hay `native-helpers-gen.js`. Plugin này gây ra vòng lặp cài đặt liên tục và xung đột quyền trong Docker. Người dùng cần cài `openclaw-zalo-mod` thủ công qua ClawHub sau khi setup.
-- **Sửa: Gỡ `zalo-mod` khỏi lệnh runtime trong Docker** — Xóa `ensure_plugin zalo-mod openclaw-zalo-mod` khỏi `runtimeCommandParts` trong entrypoint Docker. OpenClaw phiên bản bundled đã xử lý channel này trực tiếp.
-- **Sửa: Gỡ `openclaw-zalo-mod` khỏi danh sách allPlugins khi build Docker** — Tránh plugin bị nhúng vào Docker image trong quá trình `docker build`, vốn thừa và gây xung đột.
-- **Chore: Cập nhật smoke tests và test-matrix** — Cập nhật assertions để xác nhận `zalo-mod` KHÔNG được auto-inject vào config và KHÔNG có trong lệnh install runtime của Docker.
-- **Chore: Đồng bộ ARCHITECTURE.md** — Ghi rõ `zalo-mod` phải cài thủ công qua ClawHub; `hasZaloMod` trong workspace-gen chỉ ảnh hưởng nội dung docs, không liên quan config generation.
-- **Chore: Thêm `.agent/workflows/update.md`** — Tài liệu workflow release chuẩn hóa cho repo này.
+- **Sửa: Gỡ auto-inject `zalo-mod` khỏi config Zalo Personal** - `plugins.entries['zalo-mod']` không còn được tự điền bởi `bot-config-gen.js`, `output.js`, hay `native-helpers-gen.js`. Plugin này gây ra vòng lặp cài đặt liên tục và xung đột quyền trong Docker. Người dùng cần cài `openclaw-zalo-mod` thủ công qua ClawHub sau khi setup.
+- **Sửa: Gỡ `zalo-mod` khỏi lệnh runtime trong Docker** - Xóa `ensure_plugin zalo-mod openclaw-zalo-mod` khỏi `runtimeCommandParts` trong entrypoint Docker. OpenClaw phiên bản bundled đã xử lý channel này trực tiếp.
+- **Sửa: Gỡ `openclaw-zalo-mod` khỏi danh sách allPlugins khi build Docker** - Tránh plugin bị nhúng vào Docker image trong quá trình `docker build`, vốn thừa và gây xung đột.
+- **Chore: Cập nhật smoke tests và test-matrix** - Cập nhật assertions để xác nhận `zalo-mod` KHÔNG được auto-inject vào config và KHÔNG có trong lệnh install runtime của Docker.
+- **Chore: Đồng bộ ARCHITECTURE.md** - Ghi rõ `zalo-mod` phải cài thủ công qua ClawHub; `hasZaloMod` trong workspace-gen chỉ ảnh hưởng nội dung docs, không liên quan config generation.
+- **Chore: Thêm `.agent/workflows/update.md`** - Tài liệu workflow release chuẩn hóa cho repo này.
 
-## [5.7.7] — 2026-05-03
+## [5.7.7] - 2026-05-03
 
 ### 🛠️ Ổn Định Infrastructure & Zalo Bot
 
@@ -695,123 +718,123 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 - **Đồng Bộ 9Router**: Tự động lấy danh sách model từ các provider đang kết nối và đồng bộ vào combo `smart-route` mỗi khi gateway khởi động.
 - **Chuẩn Hoá Cấu Hình Zalo**: Hợp nhất logic sinh cấu hình để đảm bảo plugin `zalo-mod` luôn xuất ra schema chuẩn xác nhất.
 
-## [5.7.6] — 2026-05-03
+## [5.7.6] - 2026-05-03
 
 ### Sửa lỗi: Docker Bind-Mount State Directory
 
-- **Sửa: `OPENCLAW_STATE_DIR` giờ nằm trong thư mục bind-mount của project** — Thay đổi `OPENCLAW_STATE_DIR` từ `/var/lib/openclaw-state` (volume độc lập) sang `/root/project/.openclaw`, khớp với thư mục project đã bind-mount. Đảm bảo state (sessions, memory, plugins) tồn tại qua các lần restart container mà không cần named volume riêng.
-- **Sửa: CLI volume mount giờ bind toàn bộ thư mục project** — Đổi `volumeMount` từ `../../.openclaw:/root/project/.openclaw` thành `../..:/root/project`, giúp container thấy toàn bộ cây thư mục project trên host. Khắc phục lỗi path mismatch khi bot không tìm được file config nằm bên cạnh `.openclaw`.
-- **Sửa: Xóa named volume `openclaw-state` lỗi thời** — Loại bỏ logic inject `openclaw-state:/var/lib/openclaw-state` khỏi `docker-gen.js`. State directory giờ được quản lý hoàn toàn qua bind-mount của project.
-- **Chore: Cập nhật smoke tests** — Bổ sung assertions kiểm tra strategy bind-mount mới (`../..:/root/project`, `OPENCLAW_STATE_DIR=/root/project/.openclaw`) và xác nhận named volume `openclaw-state` vắng mặt trong compose output được generate.
-- **Chore: Cập nhật `lastTouchedVersion` trong docs** — Ví dụ config trong `SETUP.md` và `SETUP.vi.md` giờ hiển thị `"lastTouchedVersion": "latest"` thay vì version cụ thể.
+- **Sửa: `OPENCLAW_STATE_DIR` giờ nằm trong thư mục bind-mount của project** - Thay đổi `OPENCLAW_STATE_DIR` từ `/var/lib/openclaw-state` (volume độc lập) sang `/root/project/.openclaw`, khớp với thư mục project đã bind-mount. Đảm bảo state (sessions, memory, plugins) tồn tại qua các lần restart container mà không cần named volume riêng.
+- **Sửa: CLI volume mount giờ bind toàn bộ thư mục project** - Đổi `volumeMount` từ `../../.openclaw:/root/project/.openclaw` thành `../..:/root/project`, giúp container thấy toàn bộ cây thư mục project trên host. Khắc phục lỗi path mismatch khi bot không tìm được file config nằm bên cạnh `.openclaw`.
+- **Sửa: Xóa named volume `openclaw-state` lỗi thời** - Loại bỏ logic inject `openclaw-state:/var/lib/openclaw-state` khỏi `docker-gen.js`. State directory giờ được quản lý hoàn toàn qua bind-mount của project.
+- **Chore: Cập nhật smoke tests** - Bổ sung assertions kiểm tra strategy bind-mount mới (`../..:/root/project`, `OPENCLAW_STATE_DIR=/root/project/.openclaw`) và xác nhận named volume `openclaw-state` vắng mặt trong compose output được generate.
+- **Chore: Cập nhật `lastTouchedVersion` trong docs** - Ví dụ config trong `SETUP.md` và `SETUP.vi.md` giờ hiển thị `"lastTouchedVersion": "latest"` thay vì version cụ thể.
 
-## [5.7.5] — 2026-05-03
+## [5.7.5] - 2026-05-03
 
 ### Hotfix: Sửa CLI Crash & Lỗi Encoding Tiếng Việt
 
-- **Sửa: `ReferenceError: channelKey is not defined` trong `writeWorkspaceFiles()`** — Thêm `channelKey` làm tham số tường minh (mặc định `'telegram'`) và truyền từ cả 2 call site (single-bot và multi-bot relay). Lỗi này ảnh hưởng mọi nền tảng (Telegram, Zalo) ngay khi bắt đầu ghi workspace files.
-- **Sửa: Tính toàn vẹn UTF-8 trong `cli.src.js`** — Khôi phục encoding UTF-8 đúng bằng cách dùng Python I/O cho mọi thao tác file, ngăn double-encoding ký tự tiếng Việt do PowerShell Windows gây ra.
+- **Sửa: `ReferenceError: channelKey is not defined` trong `writeWorkspaceFiles()`** - Thêm `channelKey` làm tham số tường minh (mặc định `'telegram'`) và truyền từ cả 2 call site (single-bot và multi-bot relay). Lỗi này ảnh hưởng mọi nền tảng (Telegram, Zalo) ngay khi bắt đầu ghi workspace files.
+- **Sửa: Tính toàn vẹn UTF-8 trong `cli.src.js`** - Khôi phục encoding UTF-8 đúng bằng cách dùng Python I/O cho mọi thao tác file, ngăn double-encoding ký tự tiếng Việt do PowerShell Windows gây ra.
 
-## [5.7.4] — 2026-05-02
+## [5.7.4] - 2026-05-02
 
-### Hotfix: CLI crash trên mọi cấu hình — `channelKey is not defined`
+### Hotfix: CLI crash trên mọi cấu hình - `channelKey is not defined`
 
-- **Sửa: `ReferenceError: channelKey is not defined` trong `writeWorkspaceFiles()`** — Hàm này tham chiếu biến `channelKey` từ scope ngoài (`main()`) nhưng không khai báo trong danh sách tham số của chính nó. Đã thêm `channelKey = 'telegram'` làm tham số với giá trị mặc định an toàn, đồng thời truyền tường minh từ cả 2 call site (single-bot và multi-bot relay). Lỗi này ảnh hưởng mọi nền tảng (Telegram, Zalo) ngay khi bắt đầu ghi workspace files.
+- **Sửa: `ReferenceError: channelKey is not defined` trong `writeWorkspaceFiles()`** - Hàm này tham chiếu biến `channelKey` từ scope ngoài (`main()`) nhưng không khai báo trong danh sách tham số của chính nó. Đã thêm `channelKey = 'telegram'` làm tham số với giá trị mặc định an toàn, đồng thời truyền tường minh từ cả 2 call site (single-bot và multi-bot relay). Lỗi này ảnh hưởng mọi nền tảng (Telegram, Zalo) ngay khi bắt đầu ghi workspace files.
 
-## [5.7.3] — 2026-04-29
+## [5.7.3] - 2026-04-29
 
 ### Ổn định Gateway Docker & Luồng đăng nhập Zalo
 
-- **Fix: Gateway crash loop do thiếu `gateway.mode`** — Entrypoint config trong Docker giờ tự set `gateway.mode` (mặc định `local`), ngăn lỗi `Gateway start blocked: existing config is missing gateway.mode` gây restart vô hạn trên OpenClaw 2026.4.26+.
-- **Fix: Plugin zalouser từ ClawHub ghi đè bản bundled** — Entrypoint tải `@openclaw/zalouser@2026.3.22` từ ClawHub (không hỗ trợ `channels login`). Đã bỏ install plugin runtime trong entrypoint, dùng trực tiếp bản bundled trong OpenClaw.
-- **Fix: Đúng tên npm package `openclaw-zalo-mod`** — Cập nhật `output.js` và `native-helpers-gen.js` dùng `openclaw-zalo-mod` cho lệnh cài plugin, khớp tên package thực trên npm registry.
-- **Improve: Dừng gateway trước khi đăng nhập Zalo** — Script tải (Windows/macOS) giờ dừng gateway trước khi chạy login Zalo, tránh xung đột WebSocket khi xác thực channel.
+- **Fix: Gateway crash loop do thiếu `gateway.mode`** - Entrypoint config trong Docker giờ tự set `gateway.mode` (mặc định `local`), ngăn lỗi `Gateway start blocked: existing config is missing gateway.mode` gây restart vô hạn trên OpenClaw 2026.4.26+.
+- **Fix: Plugin zalouser từ ClawHub ghi đè bản bundled** - Entrypoint tải `@openclaw/zalouser@2026.3.22` từ ClawHub (không hỗ trợ `channels login`). Đã bỏ install plugin runtime trong entrypoint, dùng trực tiếp bản bundled trong OpenClaw.
+- **Fix: Đúng tên npm package `openclaw-zalo-mod`** - Cập nhật `output.js` và `native-helpers-gen.js` dùng `openclaw-zalo-mod` cho lệnh cài plugin, khớp tên package thực trên npm registry.
+- **Improve: Dừng gateway trước khi đăng nhập Zalo** - Script tải (Windows/macOS) giờ dừng gateway trước khi chạy login Zalo, tránh xung đột WebSocket khi xác thực channel.
 
-## [5.7.2] — 2026-04-28
+## [5.7.2] - 2026-04-28
 
 ### Sửa lỗi cài đặt Plugin Zalo và Rebuild UI
 
-- **Fix: Tên cài đặt plugin zalo-mod** — Cập nhật lệnh cài đặt plugin trong CLI từ `openclaw-zalo-mod` thành `zalo-mod` để khớp với tên package trên ClawHub, sửa lỗi cảnh báo "plugin not found" khi khởi động.
-- **Fix: Cài đặt zalo-mod trong Docker** — Đưa `zalo-mod` vào danh sách `allPlugins` khi chọn kênh Zalo Personal ở chế độ Docker, giúp quá trình build image tải đúng plugin về.
-- **Fix: Rebuild Setup Wizard UI** — Chạy lại script build (`build.mjs`) để đóng gói các bản sửa lỗi gần đây vào file `dist/setup.js`. Khắc phục lỗi file `.bat` và `.sh` tải về từ giao diện Web Wizard không có dòng hướng dẫn đăng nhập Zalo đã được thêm trước đó.
+- **Fix: Tên cài đặt plugin zalo-mod** - Cập nhật lệnh cài đặt plugin trong CLI từ `openclaw-zalo-mod` thành `zalo-mod` để khớp với tên package trên ClawHub, sửa lỗi cảnh báo "plugin not found" khi khởi động.
+- **Fix: Cài đặt zalo-mod trong Docker** - Đưa `zalo-mod` vào danh sách `allPlugins` khi chọn kênh Zalo Personal ở chế độ Docker, giúp quá trình build image tải đúng plugin về.
+- **Fix: Rebuild Setup Wizard UI** - Chạy lại script build (`build.mjs`) để đóng gói các bản sửa lỗi gần đây vào file `dist/setup.js`. Khắc phục lỗi file `.bat` và `.sh` tải về từ giao diện Web Wizard không có dòng hướng dẫn đăng nhập Zalo đã được thêm trước đó.
 
-## [5.7.1] — 2026-04-28
+## [5.7.1] - 2026-04-28
 
 ### Chuẩn hóa Đăng nhập Zalo QR & Tích hợp Workspace
 
-- **Cải thiện: Chuẩn hóa đăng nhập Zalo QR trên mọi nền tảng** — Tất cả mục tiêu triển khai (Docker, Windows, macOS, Linux, VPS) đều dùng chung luồng đăng nhập dựa trên file QR: ảnh QR được lưu tại `/tmp/openclaw/openclaw-zalouser-qr-default.png`, người dùng tự lấy file QR (qua Docker Desktop tab Files, `docker cp`, `scp`, hoặc mở trực tiếp). Thay thế hướng dẫn quét QR qua terminal bằng hướng dẫn từng bước cho mỗi nền tảng.
-- **Cải thiện: Docker login dùng `docker exec` thay vì `docker compose exec`** — Hướng dẫn sau cài đặt và download scripts giờ dùng `docker exec -it <container>` và `docker cp` trực tiếp, ổn định hơn trên các phiên bản Docker Compose.
-- **Cải thiện: Download scripts Wizard tự động chạy Zalo login** — Cả Windows (PowerShell) và Unix (bash) download scripts do Wizard tạo giờ tự đợi container khởi động và chạy lệnh đăng nhập Zalo, bỏ bước thủ công sau cài đặt.
-- **Cải thiện: VPS setup chèn Zalo login trước khi start gateway** — Script cài VPS giờ chèn luồng đăng nhập Zalo (qua `generateZaloLoginSh()`) trước khi PM2 khởi động gateway, đảm bảo session được thiết lập ngay lần deploy đầu.
-- **Cải thiện: Workspace docs tích hợp zalo-mod** — `TOOLS.md` và `SOUL.md` giờ bao gồm tài liệu plugin zalo-mod (slash commands `/rules`, `/noi-quy`, `/menu`, `/groupid`, `/report` và hành vi xử lý media) khi `hasZaloMod = true`.
-- **Sửa: Escape đường dẫn Windows BAT** — Sửa lỗi escape backslash trong `win-bat.js` gây hỏng đường dẫn `PROJECT_DIR`, `OPENCLAW_HOME`, `DATA_DIR` và script khởi động gateway PowerShell.
-- **Sửa: Script đăng nhập Zalo trên VPS/Linux** — `zalo-login-gen.js` giờ chạy trực tiếp lệnh login và hướng dẫn lấy QR qua file thay vì yêu cầu user mở terminal riêng.
-- **Chore: Đồng bộ ARCHITECTURE.md** — Bổ sung tài liệu `bot-config-gen.js`, `test-matrix.mjs`, cập nhật lệnh `npm test`, ghi chú tham số `hasZaloMod` và mục Zalo QR Login Protocol.
+- **Cải thiện: Chuẩn hóa đăng nhập Zalo QR trên mọi nền tảng** - Tất cả mục tiêu triển khai (Docker, Windows, macOS, Linux, VPS) đều dùng chung luồng đăng nhập dựa trên file QR: ảnh QR được lưu tại `/tmp/openclaw/openclaw-zalouser-qr-default.png`, người dùng tự lấy file QR (qua Docker Desktop tab Files, `docker cp`, `scp`, hoặc mở trực tiếp). Thay thế hướng dẫn quét QR qua terminal bằng hướng dẫn từng bước cho mỗi nền tảng.
+- **Cải thiện: Docker login dùng `docker exec` thay vì `docker compose exec`** - Hướng dẫn sau cài đặt và download scripts giờ dùng `docker exec -it <container>` và `docker cp` trực tiếp, ổn định hơn trên các phiên bản Docker Compose.
+- **Cải thiện: Download scripts Wizard tự động chạy Zalo login** - Cả Windows (PowerShell) và Unix (bash) download scripts do Wizard tạo giờ tự đợi container khởi động và chạy lệnh đăng nhập Zalo, bỏ bước thủ công sau cài đặt.
+- **Cải thiện: VPS setup chèn Zalo login trước khi start gateway** - Script cài VPS giờ chèn luồng đăng nhập Zalo (qua `generateZaloLoginSh()`) trước khi PM2 khởi động gateway, đảm bảo session được thiết lập ngay lần deploy đầu.
+- **Cải thiện: Workspace docs tích hợp zalo-mod** - `TOOLS.md` và `SOUL.md` giờ bao gồm tài liệu plugin zalo-mod (slash commands `/rules`, `/noi-quy`, `/menu`, `/groupid`, `/report` và hành vi xử lý media) khi `hasZaloMod = true`.
+- **Sửa: Escape đường dẫn Windows BAT** - Sửa lỗi escape backslash trong `win-bat.js` gây hỏng đường dẫn `PROJECT_DIR`, `OPENCLAW_HOME`, `DATA_DIR` và script khởi động gateway PowerShell.
+- **Sửa: Script đăng nhập Zalo trên VPS/Linux** - `zalo-login-gen.js` giờ chạy trực tiếp lệnh login và hướng dẫn lấy QR qua file thay vì yêu cầu user mở terminal riêng.
+- **Chore: Đồng bộ ARCHITECTURE.md** - Bổ sung tài liệu `bot-config-gen.js`, `test-matrix.mjs`, cập nhật lệnh `npm test`, ghi chú tham số `hasZaloMod` và mục Zalo QR Login Protocol.
 
-## [5.7.0] — 2026-04-27
+## [5.7.0] - 2026-04-27
 
 ### Kiến trúc Config Tập trung & Bộ Test Ma trận
 
-- **Refactor: Tập trung bot-config-gen.js** — Dồn toàn bộ logic tạo `openclaw.json`, `.env`, và `exec-approvals.json` vào module duy nhất (`src/setup/shared/bot-config-gen.js`). Cả Web Wizard (IIFE) và CLI (CJS) đều dùng chung cùng một builder, loại bỏ triệt để sai lệch config giữa 2 bề mặt.
-- **Refactor: Phiên bản rolling `@latest`** — Tất cả script cài đặt (Windows BAT, macOS/Linux/VPS SH) và trình tạo config giờ dùng `openclaw@latest` thay vì version cố định (ví dụ `openclaw@2026.4.14`). Trường `lastTouchedVersion` dùng hằng `OPENCLAW_NPM_SPEC` để phân giải động.
-- **Sửa: Xóa `autoReply` khỏi Zalo Personal** — Trường `autoReply: true` gây crash gateway khi khởi động đã bị loại bỏ vĩnh viễn khỏi mọi generator (`config-gen.js`, `cli.src.js`, `bot-config-gen.js`).
-- **Sửa: Chuẩn hóa config Zalo Personal** — Kênh `zalouser` giờ tạo ra config khớp production với `groups`, `groupPolicy: 'allowlist'`, `historyLimit: 50`, `bindings` đúng chuẩn, và `zalo-mod` plugin đã đăng ký sẵn.
-- **Sửa: Tạo gateway token** — Tất cả môi trường (Wizard + CLI) giờ dùng `crypto.randomUUID()` cho auth token gateway, thay thế dummy token cũ trong CLI.
-- **Mới: Bộ test ma trận toàn diện** — Thêm `test-matrix.mjs` với 422 test phủ tất cả tổ hợp OS × Deploy Mode × Channel × Số bot, kèm exec-approvals, tạo .env, sandbox Wizard IIFE, kiểm tra cấu trúc CLI, và kiểm tra tính toàn vẹn config production đa kênh.
-- **Dọn dẹp: Xóa file test cũ** — Loại bỏ `test-vps-install.mjs` E2E test, đã được thay thế bởi bộ test ma trận.
+- **Refactor: Tập trung bot-config-gen.js** - Dồn toàn bộ logic tạo `openclaw.json`, `.env`, và `exec-approvals.json` vào module duy nhất (`src/setup/shared/bot-config-gen.js`). Cả Web Wizard (IIFE) và CLI (CJS) đều dùng chung cùng một builder, loại bỏ triệt để sai lệch config giữa 2 bề mặt.
+- **Refactor: Phiên bản rolling `@latest`** - Tất cả script cài đặt (Windows BAT, macOS/Linux/VPS SH) và trình tạo config giờ dùng `openclaw@latest` thay vì version cố định (ví dụ `openclaw@2026.4.14`). Trường `lastTouchedVersion` dùng hằng `OPENCLAW_NPM_SPEC` để phân giải động.
+- **Sửa: Xóa `autoReply` khỏi Zalo Personal** - Trường `autoReply: true` gây crash gateway khi khởi động đã bị loại bỏ vĩnh viễn khỏi mọi generator (`config-gen.js`, `cli.src.js`, `bot-config-gen.js`).
+- **Sửa: Chuẩn hóa config Zalo Personal** - Kênh `zalouser` giờ tạo ra config khớp production với `groups`, `groupPolicy: 'allowlist'`, `historyLimit: 50`, `bindings` đúng chuẩn, và `zalo-mod` plugin đã đăng ký sẵn.
+- **Sửa: Tạo gateway token** - Tất cả môi trường (Wizard + CLI) giờ dùng `crypto.randomUUID()` cho auth token gateway, thay thế dummy token cũ trong CLI.
+- **Mới: Bộ test ma trận toàn diện** - Thêm `test-matrix.mjs` với 422 test phủ tất cả tổ hợp OS × Deploy Mode × Channel × Số bot, kèm exec-approvals, tạo .env, sandbox Wizard IIFE, kiểm tra cấu trúc CLI, và kiểm tra tính toàn vẹn config production đa kênh.
+- **Dọn dẹp: Xóa file test cũ** - Loại bỏ `test-vps-install.mjs` E2E test, đã được thay thế bởi bộ test ma trận.
 
-## [5.6.14] — 2026-04-25
+## [5.6.14] - 2026-04-25
 
 ### Dọn dẹp Tích hợp Plugin Zalo
 
-- **Cải thiện: Đồng nhất config plugin Zalo** — Đăng ký plugin trong `config-gen.js` và `output.js` vẫn tự điền `plugins.entries['zalo-mod']` cho kênh Zalo Personal, đảm bảo tích hợp liền mạch không cần patch sau cài đặt.
+- **Cải thiện: Đồng nhất config plugin Zalo** - Đăng ký plugin trong `config-gen.js` và `output.js` vẫn tự điền `plugins.entries['zalo-mod']` cho kênh Zalo Personal, đảm bảo tích hợp liền mạch không cần patch sau cài đặt.
 
-## [5.6.13] — 2026-04-22
+## [5.6.13] - 2026-04-22
 
 ### Ổn định luồng Deploy Native/PM2 trên VPS
 
-- **Sửa: Khởi tạo biến môi trường trên Native** — Quy trình khởi động PM2 cho cài đặt Native đã được viết lại sử dụng một bash wrapper chuyên dụng (`start-gateway.sh`) thay vì lệnh `sh -c` trực tiếp lỏng lẻo. Thay đổi này đảm bảo các biến môi trường quan trọng như `OPENCLAW_HOME` và `OPENCLAW_STATE_DIR` luôn được nạp đầy đủ khi gateway khởi chạy, khắc phục triệt để lỗi gateway ngừng hoạt động ngầm (silent failures) và sai lệch đường dẫn sau khi khởi động lại shell.
-- **Sửa: Lỗi shell injection trong script** — Dọn dẹp lại lệnh PM2 để sử dụng đồng nhất tham số `--interpreter` khi chạy các tiến trình phụ, tránh lỗi shell-injection chuẩn POSIX trong kiến trúc đa bot (multi-bot).
-- **Cải thiện: Truy cập dashboard từ xa** — Giao diện cấu hình binding cho Gateway nay đã được tối ưu để lưu IPv4 `0.0.0.0` ngay lập tức nếu được triển khai trên môi trường `VPS/Ubuntu`. Cấu hình dashboard và proxy nay đã hỗ trợ kết nối mạng ngoài / WAN / SSH-tunnel an toàn mà không làm rò rỉ dữ liệu của bản cài đặt dạng Desktop-Native vào mạng LAN nội bộ nội bộ (local area network).
+- **Sửa: Khởi tạo biến môi trường trên Native** - Quy trình khởi động PM2 cho cài đặt Native đã được viết lại sử dụng một bash wrapper chuyên dụng (`start-gateway.sh`) thay vì lệnh `sh -c` trực tiếp lỏng lẻo. Thay đổi này đảm bảo các biến môi trường quan trọng như `OPENCLAW_HOME` và `OPENCLAW_STATE_DIR` luôn được nạp đầy đủ khi gateway khởi chạy, khắc phục triệt để lỗi gateway ngừng hoạt động ngầm (silent failures) và sai lệch đường dẫn sau khi khởi động lại shell.
+- **Sửa: Lỗi shell injection trong script** - Dọn dẹp lại lệnh PM2 để sử dụng đồng nhất tham số `--interpreter` khi chạy các tiến trình phụ, tránh lỗi shell-injection chuẩn POSIX trong kiến trúc đa bot (multi-bot).
+- **Cải thiện: Truy cập dashboard từ xa** - Giao diện cấu hình binding cho Gateway nay đã được tối ưu để lưu IPv4 `0.0.0.0` ngay lập tức nếu được triển khai trên môi trường `VPS/Ubuntu`. Cấu hình dashboard và proxy nay đã hỗ trợ kết nối mạng ngoài / WAN / SSH-tunnel an toàn mà không làm rò rỉ dữ liệu của bản cài đặt dạng Desktop-Native vào mạng LAN nội bộ nội bộ (local area network).
 
-## [5.6.12] — 2026-04-22
+## [5.6.12] - 2026-04-22
 
 ### Hotfix: PM2 gateway process thiếu biến môi trường OPENCLAW_HOME
 
-- **Sửa: PM2 env forwarding** — Process gateway PM2 trên VPS/Ubuntu bị fail im lặng do `OPENCLAW_HOME` và `OPENCLAW_STATE_DIR` không được chuyển tiếp đến child process. Tất cả lệnh PM2 khởi động gateway (`vps-sh.js`, script restart `install-gen.js`) giờ dùng `sh -c "export OPENCLAW_HOME=... && openclaw gateway run"` để đảm bảo môi trường được kế thừa đúng.
+- **Sửa: PM2 env forwarding** - Process gateway PM2 trên VPS/Ubuntu bị fail im lặng do `OPENCLAW_HOME` và `OPENCLAW_STATE_DIR` không được chuyển tiếp đến child process. Tất cả lệnh PM2 khởi động gateway (`vps-sh.js`, script restart `install-gen.js`) giờ dùng `sh -c "export OPENCLAW_HOME=... && openclaw gateway run"` để đảm bảo môi trường được kế thừa đúng.
 
-## [5.6.11] — 2026-04-21
+## [5.6.11] - 2026-04-21
 
 ### Hotfix: Sửa lỗi CLI crash khi setup Telegram 1 bot
 
-- **Sửa: `loopBotToken is not defined`** — Luồng setup Telegram 1 bot thiếu khai báo biến `loopBotToken`, gây `ReferenceError` ngay sau khi tạo cấu hình. Đã bổ sung biến bị thiếu cùng với `loopBotName`, `loopBotDesc`, và `loopBotPersona`.
+- **Sửa: `loopBotToken is not defined`** - Luồng setup Telegram 1 bot thiếu khai báo biến `loopBotToken`, gây `ReferenceError` ngay sau khi tạo cấu hình. Đã bổ sung biến bị thiếu cùng với `loopBotName`, `loopBotDesc`, và `loopBotPersona`.
 
-## [5.6.10] — 2026-04-21
+## [5.6.10] - 2026-04-21
 
 ### Hotfix: Ổn định Smart-Route 9Router
 
-- **Sửa: smart-route crash null** — Đổi API provider 9Router từ `openai-responses` về lại `openai-completions`. Khi `smart-route` route qua provider non-Codex (Gemini, Claude, v.v.), việc convert sang Responses format tạo ra null output items, gây crash `Cannot read properties of null (reading 'type')`. Format completions hoạt động ổn định với mọi provider.
-- **Sửa: thiếu sync smart-route trong script restart** — `start-bot.bat` và `start-bot.sh` không khởi động tiến trình `9router-smart-route-sync.js` khi restart. Điều này khiến provider được bật trong 9Router dashboard sau lần setup đầu (ví dụ Gemini) không được thêm vào combo `smart-route`. Sync script nay được chạy cùng 9Router mỗi lần restart.
+- **Sửa: smart-route crash null** - Đổi API provider 9Router từ `openai-responses` về lại `openai-completions`. Khi `smart-route` route qua provider non-Codex (Gemini, Claude, v.v.), việc convert sang Responses format tạo ra null output items, gây crash `Cannot read properties of null (reading 'type')`. Format completions hoạt động ổn định với mọi provider.
+- **Sửa: thiếu sync smart-route trong script restart** - `start-bot.bat` và `start-bot.sh` không khởi động tiến trình `9router-smart-route-sync.js` khi restart. Điều này khiến provider được bật trong 9Router dashboard sau lần setup đầu (ví dụ Gemini) không được thêm vào combo `smart-route`. Sync script nay được chạy cùng 9Router mỗi lần restart.
 
 ## [5.6.9] - 2026-04-21
 
 ### Sửa lỗi: Tương thích Provider OpenAI Codex & Config Zalo Personal
 
-- **Sửa: Danh sách model Codex** — Cập nhật registry model Codex cho phù hợp với API hiện tại của OpenAI. Loại bỏ các model đã bị dừng (`gpt-5.3-codex-high`, `gpt-5.2-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex`, `gpt-5.1`, `gpt-5-codex`), giữ lại 4 model đang hoạt động: `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.4-mini`.
-- **Sửa: Chế độ API 9Router** — Chuyển config provider 9Router từ `openai-completions` sang `openai-responses` cho khớp với Responses API mới của OpenAI.
-- **Mới: Script tự động patch 9Router** — Thêm `patch-9router.js` tự động vá source files 9Router (providerModels, codex executor, self-test) để tương thích với thay đổi API Codex. Patch chạy tự động khi setup, upgrade và trước mỗi lần khởi động 9Router.
-- **Sửa: Hiển thị model Codex** — Config 9Router nay hiển thị từng model Codex riêng (`cx/gpt-5.4`, `cx/gpt-5.3-codex`, `cx/gpt-5.2`, `cx/gpt-5.4-mini`) bên cạnh `smart-route` để người dùng có thể chọn model cụ thể.
-- **Cải thiện: Config kênh Zalo Personal** — Bổ sung `defaultAccount`, `groupAllowFrom`, `historyLimit`, config wildcard cho groups và `autoReply` vào cấu hình Zalo Personal được generate, giúp xử lý nhóm tốt hơn ngay từ đầu.
+- **Sửa: Danh sách model Codex** - Cập nhật registry model Codex cho phù hợp với API hiện tại của OpenAI. Loại bỏ các model đã bị dừng (`gpt-5.3-codex-high`, `gpt-5.2-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex`, `gpt-5.1`, `gpt-5-codex`), giữ lại 4 model đang hoạt động: `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.4-mini`.
+- **Sửa: Chế độ API 9Router** - Chuyển config provider 9Router từ `openai-completions` sang `openai-responses` cho khớp với Responses API mới của OpenAI.
+- **Mới: Script tự động patch 9Router** - Thêm `patch-9router.js` tự động vá source files 9Router (providerModels, codex executor, self-test) để tương thích với thay đổi API Codex. Patch chạy tự động khi setup, upgrade và trước mỗi lần khởi động 9Router.
+- **Sửa: Hiển thị model Codex** - Config 9Router nay hiển thị từng model Codex riêng (`cx/gpt-5.4`, `cx/gpt-5.3-codex`, `cx/gpt-5.2`, `cx/gpt-5.4-mini`) bên cạnh `smart-route` để người dùng có thể chọn model cụ thể.
+- **Cải thiện: Config kênh Zalo Personal** - Bổ sung `defaultAccount`, `groupAllowFrom`, `historyLimit`, config wildcard cho groups và `autoReply` vào cấu hình Zalo Personal được generate, giúp xử lý nhóm tốt hơn ngay từ đầu.
 
 ## [5.6.8] - 2026-04-17
 
 ### Sửa lỗi: 9Router Sync & Config Ubuntu Native
 
-- **Sửa: DATA_DIR mismatch trên native Linux/Mac** — `resolveNative9RouterDesktopLaunch()` nay truyền `DATA_DIR: getNative9RouterDataDir()` vào PM2, đảm bảo 9router lưu dữ liệu đúng vào `~/.9router/` (Linux) / `%APPDATA%/9router` (Windows).
-- **Sửa: dbPath sync script** — `writeNative9RouterSyncScript()` nay dùng `getNative9RouterDataDir()` thay vì `getProject9RouterDataDir()`, xóa hoàn toàn xung đột khi sync ghi vào `projectDir/.9router/` còn 9router lại đọc từ `~/.9router/`.
-- **Sửa: openclaw.json home dir** — Khi cài native, CLI nay cũng ghi `openclaw.json` và `auth-profiles.json` vào `~/.openclaw/` vì binary openclaw trên Linux đọc từ đó, không đọc từ thư mục project.
-- **Sửa: OPENCLAW_HOME trong ecosystem.config.js** — Thêm `OPENCLAW_HOME` và `OPENCLAW_STATE_DIR` vào env PM2 để multi-bot native tìm đúng config.
-- **Sửa: Bảng MODEL_PRIORITY thiếu provider** — Đồng bộ bảng mapping provider → model của sync script PM2 với `native-helpers-gen.js`, bổ sung 20+ provider còn thiếu: `codex`, `github`, `cursor`, `claude-code`, `iflow`, `kiro`, `kilo`, `gemini-cli`, `ollama`, v.v.
+- **Sửa: DATA_DIR mismatch trên native Linux/Mac** - `resolveNative9RouterDesktopLaunch()` nay truyền `DATA_DIR: getNative9RouterDataDir()` vào PM2, đảm bảo 9router lưu dữ liệu đúng vào `~/.9router/` (Linux) / `%APPDATA%/9router` (Windows).
+- **Sửa: dbPath sync script** - `writeNative9RouterSyncScript()` nay dùng `getNative9RouterDataDir()` thay vì `getProject9RouterDataDir()`, xóa hoàn toàn xung đột khi sync ghi vào `projectDir/.9router/` còn 9router lại đọc từ `~/.9router/`.
+- **Sửa: openclaw.json home dir** - Khi cài native, CLI nay cũng ghi `openclaw.json` và `auth-profiles.json` vào `~/.openclaw/` vì binary openclaw trên Linux đọc từ đó, không đọc từ thư mục project.
+- **Sửa: OPENCLAW_HOME trong ecosystem.config.js** - Thêm `OPENCLAW_HOME` và `OPENCLAW_STATE_DIR` vào env PM2 để multi-bot native tìm đúng config.
+- **Sửa: Bảng MODEL_PRIORITY thiếu provider** - Đồng bộ bảng mapping provider → model của sync script PM2 với `native-helpers-gen.js`, bổ sung 20+ provider còn thiếu: `codex`, `github`, `cursor`, `claude-code`, `iflow`, `kiro`, `kilo`, `gemini-cli`, `ollama`, v.v.
 
 ## [5.6.6] - 2026-04-17
 
@@ -833,211 +856,211 @@ Cả ba migration nằm trong script dùng chung, nên Docker (entrypoint, mỗi
 
 - Hotfix: Sửa lỗi ReferenceError modelsPrimary is not defined khi chạy CLI lúc tạo bot.
 
-## [5.6.0] — 2026-04-16
+## [5.6.0] - 2026-04-16
 
 - Bật sẵn `memory`, `memory-core` dreaming và thêm `DREAMS.md` cho workspace mới.
 - Cải thiện UX relay Telegram và cập nhật hướng dẫn trong `TOOLS.md`, `TEAMS.md`.
 - Sửa luồng sinh tài liệu tiếng Việt để giữ UTF-8 ổn định.
 
-## [5.5.0] — 2026-04-15
+## [5.5.0] - 2026-04-15
 
 - Đồng bộ luồng sinh workspace docs giữa Wizard và CLI qua shared scaffold builders.
 - Chuẩn hóa bộ tài liệu tạo ra quanh `AGENTS.md`, `TOOLS.md`, `MEMORY.md`, `TEAMS.md` và tài liệu browser.
 - Nâng mốc OpenClaw lên `2026.4.14` và bỏ hẳn file agent `.yaml` cũ.
 
-## [5.4.2] — 2026-04-14
+## [5.4.2] - 2026-04-14
 
 - Sửa lỗi cài relay plugin bị lặp trong script native được generate.
 
-## [5.4.1] — 2026-04-14
+## [5.4.1] - 2026-04-14
 
 - Khôi phục hỗ trợ browser trong Docker và sửa CORS cho control UI Docker.
 - Bổ sung script gỡ cài đặt cho cả Docker và native.
 
-## [5.4.0] — 2026-04-14
+## [5.4.0] - 2026-04-14
 
 - Gỡ kênh `telegram+zalo-personal` khỏi Wizard và CLI.
 - Đơn giản hóa luồng multi-bot về một cờ `isMultiBot` và dọn phần generate config.
 - Chuẩn hóa đường dẫn agent/workspace tương đối và siết quy tắc cross-workspace trong `AGENTS.md`.
 
-## [5.3.5] — 2026-04-12
+## [5.3.5] - 2026-04-12
 
 - Sửa lỗi sinh tài liệu workspace liên quan đến `MEMORY.md`.
 - Ghi sẵn script uninstall ngay trong thư mục project được tạo.
 
-## [5.3.4] — 2026-04-12
+## [5.3.4] - 2026-04-12
 
 - Tăng độ ổn định cho gateway Windows native và đặt tên workspace theo từng agent.
 - Mở rộng `TOOLS.md` / `AGENTS.md` cho cả workspace Zalo và Telegram.
 
-## [5.3.3] — 2026-04-11
+## [5.3.3] - 2026-04-11
 
 - Thêm script uninstall vào luồng tải file từ Wizard.
 
-## [5.3.2] — 2026-04-11
+## [5.3.2] - 2026-04-11
 
 - Ổn định quá trình khởi động 9Router native trên desktop và pre-seed dữ liệu 9Router theo project.
 
-## [5.3.1] — 2026-04-10
+## [5.3.1] - 2026-04-10
 
 - Chuyển mặc định DM của Zalo Personal sang `open`.
 
-## [5.3.0] — 2026-04-11
+## [5.3.0] - 2026-04-11
 
 - Thêm luồng combo Telegram + Zalo Personal đầu tiên.
 - Tự bật plugin Zalo Personal và cải thiện cold-start Docker.
 
-## [5.2.4] — 2026-04-10
+## [5.2.4] - 2026-04-10
 
 - Tăng tốc luồng upgrade bằng cách tận dụng cache Docker tốt hơn.
 - Thêm tooling theo dõi bản cập nhật OpenClaw mới.
 
-## [5.2.3] — 2026-04-10
+## [5.2.3] - 2026-04-10
 
 - Sửa các lỗi state/validation của wizard multi-bot.
 - Cải thiện thông báo khi thiếu dữ liệu và an toàn encoding cho script.
 
-## [5.2.2] — 2026-04-10
+## [5.2.2] - 2026-04-10
 
 - Sửa bind/CORS gateway trong Docker và giảm rebuild Docker không cần thiết.
 - Sửa đường dẫn PM2 native để bám theo `.openclaw` trong project.
 
-## [5.2.1] — 2026-04-09
+## [5.2.1] - 2026-04-09
 
 - Sửa nhiều lỗi cài native Ubuntu/VPS liên quan PM2, 9Router, runtime packages và đường dẫn project-local.
 - Cải thiện hướng dẫn đăng nhập Zalo Personal và thư mục credentials.
 
-## [5.2.0] — 2026-04-09
+## [5.2.0] - 2026-04-09
 
 - Thêm luồng upgrade 1 lệnh qua CLI, `upgrade.ps1` và `upgrade.sh`.
 - Giữ nguyên dữ liệu người dùng khi cập nhật OpenClaw và artifact phụ trợ.
 
-## [5.1.15] — 2026-04-08
+## [5.1.15] - 2026-04-08
 
 - Đồng bộ native Windows với hành vi Docker tốt hơn.
 - Sửa runtime path theo project, sync provider và luồng browser install.
 
-## [5.1.14] — 2026-04-08
+## [5.1.14] - 2026-04-08
 
 - Pin OpenClaw về bản ổn định hơn và sửa lỗi generate Docker trên Windows.
 - Bổ sung khuyến nghị version Node.js tương thích.
 
-## [5.1.13] — 2026-04-08
+## [5.1.13] - 2026-04-08
 
 - Sửa generate script cài đặt trên macOS, luồng Docker startup và cài npm global native.
 - Sửa lỗi state Wizard liên quan persona và điều hướng step.
 
-## [5.1.12] — 2026-04-07
+## [5.1.12] - 2026-04-07
 
 - Mở rộng danh sách skills tích hợp và cải thiện auto-select relay plugin cho multi-bot.
 - Cập nhật mặc định Zalo Personal và sửa một số điểm validate trong Wizard.
 
-## [5.1.11] — 2026-04-07
+## [5.1.11] - 2026-04-07
 
 - Cập nhật hành vi DM và onboarding mặc định cho Zalo Personal.
 
-## [5.1.10] — 2026-04-07
+## [5.1.10] - 2026-04-07
 
 - Thêm auto-approve cho luồng đăng nhập/ghép thiết bị Zalo trên native VPS.
 
-## [5.1.9] — 2026-04-07
+## [5.1.9] - 2026-04-07
 
 - Khôi phục schema chặt hơn và cải thiện UX liên quan WebCrypto.
 
-## [5.1.8] — 2026-04-07
+## [5.1.8] - 2026-04-07
 
 - Sửa lỗi kết nối dashboard trên VPS và đăng nhập bằng token.
 
-## [5.1.7] — 2026-04-07
+## [5.1.7] - 2026-04-07
 
 - Sửa CORS của Control UI và đường dẫn 9Router native.
 
-## [5.1.6] — 2026-04-07
+## [5.1.6] - 2026-04-07
 
 - Khắc phục lỗi `SIGKILL` của PM2 khi cài native trên VPS.
 
-## [5.1.5] — 2026-04-06
+## [5.1.5] - 2026-04-06
 
 - Sửa lỗi PM2 khởi động 9Router trên native.
 
-## [5.1.4] — 2026-04-06
+## [5.1.4] - 2026-04-06
 
 - Sửa lỗi BOM làm CLI không khởi động và cải thiện patch timeout cho Docker.
 
-## [5.1.3] — 2026-04-06
+## [5.1.3] - 2026-04-06
 
 - Sửa lỗi rò biến nội suy trong Docker Compose.
 
-## [5.1.2] — 2026-04-06
+## [5.1.2] - 2026-04-06
 
 - Gia cố script sync trước lỗi shell injection bằng cách chuyển sang Base64.
 
-## [5.1.1] — 2026-04-06
+## [5.1.1] - 2026-04-06
 
 - Ổn định đồng bộ smart-route của 9Router qua provider API.
 - Thêm auto-approve Zalo pairing và làm output Docker CLI gọn hơn.
 
-## [5.1.0] — 2026-04-07
+## [5.1.0] - 2026-04-07
 
 - Cải thiện luồng đăng nhập Zalo Personal và xử lý QR.
 
-## [5.0.9] — 2026-04-06
+## [5.0.9] - 2026-04-06
 
 - Bổ sung chế độ cài native không cần Docker.
 - Cập nhật Gemma 4, multi-bot Telegram và tinh chỉnh UI/setup.
 
-## [5.0.0] — 2026-04-04
+## [5.0.0] - 2026-04-04
 
 - Thêm hỗ trợ Gemma 4 và tài liệu yêu cầu phần cứng.
 
-## [4.1.4] — 2026-04-03
+## [4.1.4] - 2026-04-03
 
 - Cải thiện chung về độ ổn định và trải nghiệm.
 
-## [4.1.3] — 2026-04-02
+## [4.1.3] - 2026-04-02
 
 - Cải thiện chung về độ ổn định và trải nghiệm.
 
-## [4.1.2] — 2026-04-01
+## [4.1.2] - 2026-04-01
 
 - Sửa lỗi trong nhánh v4.1.
 
-## [4.1.0] — 2026-04-01
+## [4.1.0] - 2026-04-01
 
 - Ổn định smart routing của 9Router.
 
-## [4.0.9] — 2026-04-01
+## [4.0.9] - 2026-04-01
 
 - Thêm đồng bộ smart-route theo thời gian thực và luồng tự cài Docker.
 
-## [4.0.8] — 2026-03-31
+## [4.0.8] - 2026-03-31
 
 - Cải thiện độ ổn định 9Router, hỗ trợ Ollama cloud và dọn luồng setup đa nền tảng.
 
-## [4.0.1] — 2026-03-31
+## [4.0.1] - 2026-03-31
 
 - Tăng mức tự động hóa khi tạo thư mục cài đặt và dùng npm CLI.
 
-## [4.0.0] — 2026-03-30
+## [4.0.0] - 2026-03-30
 
 - Phát hành đợt nâng cấp lớn của nhánh v4.
 
-## [3.0.2] — 2026-03-29
+## [3.0.2] - 2026-03-29
 
 - Mở rộng hỗ trợ smart proxy của 9Router.
 
-## [3.0.1] — 2026-03-29
+## [3.0.1] - 2026-03-29
 
 - Bổ sung đợt cập nhật nối tiếp cho tính năng, sửa lỗi, UI và phần kỹ thuật của v3.
 
-## [3.0.0] — 2026-03-28
+## [3.0.0] - 2026-03-28
 
 - Giới thiệu luồng generate mới của v3, làm mới UI, tài liệu và phần kỹ thuật.
 
-## [2.0.0] — 2026-03-27
+## [2.0.0] - 2026-03-27
 
 - Giới thiệu trải nghiệm setup v2 với cải thiện về giao diện, tài liệu và bảo mật.
 
-## [1.0.0] — 2026-03-26
+## [1.0.0] - 2026-03-26
 
 - Bản phát hành đầu tiên.

@@ -10,7 +10,7 @@ const OS_OPTIONS = [
 // Two deploy modes. Docker isolates the bot in a container; native runs openclaw + 9router
 // straight on this machine as a managed service (launchd/systemd/schtasks). Native needs no
 // Docker install, sees the host filesystem directly, and is the only mode where the bot can
-// drive apps on the desktop — at the cost of the container's isolation.
+// drive apps on the desktop - at the cost of the container's isolation.
 const MODE_OPTIONS = [
   { id: 'docker', title: 'Docker', subtitle: 'Isolated containers, safest default', icon: `${SVG_CDN}/docker/default.svg`, badge: 'Recommended' },
   { id: 'native', title: 'Native', subtitle: 'Runs on this machine, controls apps', icon: `${SVG_CDN}/gnubash/default.svg`, badge: 'Desktop' },
@@ -177,7 +177,7 @@ function confirmModal() {
       <button class="modal-x" data-confirm-action="cancel" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       <div class="donate-head"><span aria-hidden="true">${escapeHtml(m.icon || '⚠')}</span><div><p>${escapeHtml(m.eyebrow || t('Xác nhận','Confirm'))}</p><h2>${escapeHtml(m.title)}</h2><small>${escapeHtml(m.message || '')}</small></div></div>
       ${m.bodyHtml ? `<div class="confirm-body">${m.bodyHtml}</div>` : ''}
-      <div class="confirm-actions">${m.hideCancel ? '' : `<button class="secondary" data-confirm-action="cancel">${t('Hủy','Cancel')}</button>`}<button class="primary ${m.okDanger === false ? '' : 'danger'}" data-confirm-action="ok">${escapeHtml(m.okText || t('Xóa','Delete'))}</button></div>
+      <div class="confirm-actions">${m.hideCancel ? '' : `<button class="secondary" data-confirm-action="cancel">${escapeHtml(m.cancelText || t('Hủy','Cancel'))}</button>`}<button class="primary ${m.okDanger === false ? '' : 'danger'}" data-confirm-action="ok">${escapeHtml(m.okText || t('Xóa','Delete'))}</button></div>
     </section>
   </div>`;
 }
@@ -321,7 +321,7 @@ function openPathModal({ title, message, value = '', placeholder = '', field2 = 
 }
 /**
  * Shown right after PC control is granted on a native install: what the bot can now do, and the
- * one thing only the operator can do — grant the OS screen permissions from the system settings.
+ * one thing only the operator can do - grant the OS screen permissions from the system settings.
  */
 function openComputerUseModal(r = {}) {
   const cu = r.computerUse || {};
@@ -362,13 +362,85 @@ function openComputerUseModal(r = {}) {
       ${permBlock}
       <p class="cu-note">${t('Cách dùng: nhắn bot bình thường, ví dụ “chụp màn hình cho anh xem” hoặc “mở TeamViewer rồi đọc mật khẩu trên màn hình”.','How to use it: just ask your bot normally, e.g. "take a screenshot" or "open TeamViewer and read the password on screen".')}</p>
       <p class="cu-note">${t('Chỉ dùng được trên máy có màn hình. Máy chủ VPS không màn hình thì không áp dụng. Tắt nút này là thu hồi lại toàn bộ quyền trên.','Only works on a machine with a screen. A headless VPS cannot use this. Turning the switch off revokes all of it.')}</p>
-      <p class="cu-note">${t('<b>Sau khi khởi động lại máy hoặc đăng xuất Windows, phần điều khiển máy sẽ tắt.</b> Mở lại giao diện này và bật lại nút là xong. Bot vẫn chat bình thường, chỉ riêng phần nhìn và điều khiển màn hình là cần bật lại.','<b>Restarting or signing out of Windows turns computer control off.</b> Open this screen and switch it back on. Chat keeps working meanwhile; only seeing and driving the screen needs re-enabling.')}</p>
+      <p class="cu-note">${t('Sau khi khởi động lại máy, bấm <b>"1 - KHOI DONG BOT"</b> là phần điều khiển máy cũng tự bật lại cùng bot.','After restarting the machine, pressing <b>"1 - KHOI DONG BOT"</b> brings computer control back up along with the bot.')}</p>
     `,
     okText: t('Đã hiểu','Got it'),
     okDanger: false,
     hideCancel: true,
     onConfirm: () => { state.confirmModal = null; render(); },
   };
+}
+
+/**
+ * Offer the move off Docker, once, when we can see the project is still on it.
+ *
+ * Relying on the operator to press "Update" does not work: nothing on screen says that Update is
+ * ALSO the migration, so a machine sits on Docker indefinitely. And it cannot sit there safely -
+ * OpenClaw 2026.9 cannot write its own settings through a Docker shared folder on Windows, so the
+ * next image rebuild takes the bot down for good. Say that plainly, show what is gained, and make
+ * the move one button.
+ *
+ * Asked once per project, then remembered: a prompt that returns on every page load is a prompt
+ * people learn to dismiss without reading.
+ */
+function maybeOfferNativeMigration() {
+  const s = state.install || {};
+  if (s.deployMode !== 'docker') return;
+  const dir = s.projectDir || '';
+  if (!dir) return;
+  const key = 'openclaw-native-offer:' + dir;
+  try { if (localStorage.getItem(key)) return; } catch (_) { /* private window: just ask */ }
+  if (state.confirmModal) return;          // never stack on top of another dialog
+  const rows = [
+    ['🖥️', t('Bot điều khiển được máy này', 'Your bot can drive this machine'),
+      t('Chụp màn hình, rê chuột, bấm, gõ phím. Bản Docker không làm được vì bot nằm trong container, không thấy màn hình.',
+        'Screenshots, mouse, clicks, typing. Docker cannot do this: the bot sits in a container and never sees your screen.')],
+    ['🛡️', t('Tránh được lỗi làm chết bot', 'Avoids the fault that kills bots'),
+      t('OpenClaw bản mới không ghi được cấu hình qua thư mục chia sẻ của Docker trên Windows. Cứ dựng lại image một lần là bot chết hẳn.',
+        'Recent OpenClaw cannot write its settings through a Docker shared folder on Windows. One image rebuild and the bot is gone.')],
+    ['⚡', t('Nhẹ và nhanh hơn', 'Lighter and faster'),
+      t('Không cần Docker Desktop chạy nền, bot khởi động nhanh hơn và ăn ít RAM hơn.',
+        'No Docker Desktop running in the background, faster start-up and less RAM.')],
+    ['🔒', t('An toàn như cũ', 'Just as safe'),
+      t('Bot vẫn chỉ nghe trên máy này, không mở ra ngoài internet. Quyền điều khiển máy vẫn mặc định TẮT.',
+        'The bot still listens on this machine only, never the open internet. Computer control stays OFF by default.')],
+  ];
+  state.confirmModal = {
+    icon: '📦',
+    eyebrow: t('Chuyển sang chạy thẳng trên máy', 'Move off Docker'),
+    title: t('Bot đang chạy trong Docker', 'This bot still runs in Docker'),
+    message: t('Chuyển sang chạy thẳng trên máy được không? Toàn bộ bot, tệp trong thư mục làm việc và phiên đăng nhập Zalo giữ nguyên.',
+               'Move it to run directly on this machine? Every bot, every workspace file and every Zalo login comes with it.'),
+    bodyHtml: `
+      <ul class="cu-status grant-list">${rows.map(([i, ttl, d]) =>
+        `<li><span aria-hidden="true">${i}</span><div><b>${ttl}</b><br>${d}</div></li>`).join('')}</ul>
+      <p class="cu-note">${t('Mất khoảng 2-5 phút, bot ngừng trả lời trong lúc đó. Container cũ chỉ được <b>dừng</b> chứ không xoá, nên vẫn có đường quay lui.',
+                             'Takes about 2-5 minutes, during which the bot stops replying. The old containers are <b>stopped</b>, not deleted, so there is a way back.')}</p>`,
+    okText: t('Chuyển ngay', 'Move now'),
+    cancelText: t('Để sau', 'Later'),
+    onCancel: () => {
+      // "Later" means later, not never - but stop asking on this machine.
+      try { localStorage.setItem(key, String(Date.now())); } catch (_) {}
+      state.confirmModal = null;
+      render();
+    },
+    onConfirm: async () => {
+      try { localStorage.setItem(key, String(Date.now())); } catch (_) {}
+      state.confirmModal = null;
+      render();
+      showToast(t('Đang chuyển sang chạy thẳng trên máy', 'Moving off Docker'),
+                t('Giữ cửa sổ này mở. Xem tiến trình ở tab Nhật ký.', 'Keep this window open. Watch the Log tab for progress.'));
+      try {
+        await api('/api/runtime/update', { method: 'POST', body: { projectDir: dir, target: 'openclaw' } });
+        await loadStatus(true);
+        showToast(t('Đã chuyển xong', 'Moved'), t('Bot giờ chạy thẳng trên máy này.', 'The bot now runs directly on this machine.'));
+      } catch (err) {
+        showToast(t('Chuyển không xong', 'Move failed'), err.message, 'error');
+      }
+      render();
+    },
+  };
+  render();
 }
 
 async function pickFolderPathShared() {
@@ -404,7 +476,7 @@ function isVersionNewer(a, b) {
 }
 
 // Build a URL on the SAME host the dashboard is currently viewed from, so "Open" works
-// whether you reached it via a localhost tunnel, the server's IP, or a domain — and never
+// whether you reached it via a localhost tunnel, the server's IP, or a domain - and never
 // points at the viewer's own localhost when browsing from another machine. Port comes from
 // the backend-provided URL (which carries the right port) or the fallback.
 function sameHostUrl(rawUrl, fallbackPort) {
@@ -415,7 +487,7 @@ function sameHostUrl(rawUrl, fallbackPort) {
   return `${proto}//${host}:${port}`;
 }
 
-// "Open from another machine" helper — builds a ready SSH-tunnel command (auto-filled
+// "Open from another machine" helper - builds a ready SSH-tunnel command (auto-filled
 // with the server's public IP + the dashboard/gateway/9router/zalo-mod ports) so any user
 // on a VPS can reach the web UIs from their own computer without knowing how to set it up.
 function remoteAccessPanel(s = {}) {
@@ -424,7 +496,7 @@ function remoteAccessPanel(s = {}) {
   const host = r.host || '<your-server-ip>';
   const user = r.user || 'root';
   const portOf = (raw, def) => { try { return new URL(raw).port || def; } catch { return def; } };
-  // zalo-mod's dashboard is gateway port + 1, not a fixed 18790 — the same rule the plugin card's
+  // zalo-mod's dashboard is gateway port + 1, not a fixed 18790 - the same rule the plugin card's
   // "Open" button uses. Hardcoding it meant any project whose gateway is not on 18789 got a tunnel
   // command missing the dashboard port, and the dashboard then simply failed to load with no clue why.
   const gwPort = Number(portOf(s.gatewayUrl, 18789));
@@ -432,7 +504,7 @@ function remoteAccessPanel(s = {}) {
   const cmd = `ssh ${ports.map((p) => `-L ${p}:127.0.0.1:${p}`).join(' ')} ${user}@${host}`;
   return `<details class="card" style="margin-top:12px;" ${r.headless ? 'open' : ''}>
     <summary style="cursor:pointer; font-weight:600;">🌐 ${t('Mở từ máy khác (VPS/server)', 'Open from another machine (VPS/server)')}</summary>
-    <p class="lead" style="margin-top:8px;">${t('Server không có trình duyệt — trên MÁY của bạn chạy lệnh này rồi mở', 'No browser on the server — on YOUR computer run this, then open')} <code>http://localhost:${r.uiPort || 51789}</code>:</p>
+    <p class="lead" style="margin-top:8px;">${t('Server không có trình duyệt - trên MÁY của bạn chạy lệnh này rồi mở', 'No browser on the server - on YOUR computer run this, then open')} <code>http://localhost:${r.uiPort || 51789}</code>:</p>
     <div style="display:flex; gap:8px;">
       <input readonly value="${escapeHtml(cmd)}" onclick="this.select()" style="flex:1; font-family:ui-monospace,monospace; font-size:12px; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.03); color:inherit;" />
       <button class="secondary icon-btn2" type="button" data-copy="${escapeHtml(cmd)}">${actionIcon('link')}<span>${t('Copy', 'Copy')}</span></button>
@@ -444,7 +516,7 @@ function remoteAccessPanel(s = {}) {
 function topbarActionsHtml() {
   const setupVer = state.system?.versions?.setup;
   const latestSetupVer = state.system?.versions?.latestSetup;
-  // Only offer the update when the remote is genuinely newer (not merely different —
+  // Only offer the update when the remote is genuinely newer (not merely different -
   // a local/dev build can be ahead of what's published).
   const hasNewVersion = !!(setupVer && latestSetupVer && isVersionNewer(latestSetupVer, setupVer));
   return `
@@ -466,7 +538,7 @@ function topbarActionsHtml() {
       <button class="seg__btn ${state.lang==='en'?'is-active':''}" data-pref="lang" data-value="en">EN</button>
     </div>
     ${hasNewVersion ? `
-    <button class="topbar__btn seg__btn" data-update-setup title="${t('Đang dùng', 'Currently on')} ${setupVer} — ${t('bấm để lên', 'click to upgrade to')} ${latestSetupVer}" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--ok); background: rgba(46, 230, 166, 0.08); color: var(--ok); font-weight: 600; cursor: pointer; transition: background 0.2s;">
+    <button class="topbar__btn seg__btn" data-update-setup title="${t('Đang dùng', 'Currently on')} ${setupVer} - ${t('bấm để lên', 'click to upgrade to')} ${latestSetupVer}" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--ok); background: rgba(46, 230, 166, 0.08); color: var(--ok); font-weight: 600; cursor: pointer; transition: background 0.2s;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
       <span>${t('Cập nhật', 'Update')} ${latestSetupVer}</span>
     </button>
@@ -640,13 +712,13 @@ function wireSkillsHandlers(scope = document) {
     try {
       const r = await api('/api/browser/start-chrome', { method: 'POST', body: {} });
       if (r.headless) {
-        // VPS has no display — guide the user to run Chrome on THEIR machine + a reverse tunnel.
+        // VPS has no display - guide the user to run Chrome on THEIR machine + a reverse tunnel.
         state.confirmModal = {
           icon: '🌐',
           eyebrow: t('Chrome debug', 'Chrome debug'),
           title: t('Dùng Chrome trên máy của bạn', 'Use Chrome on your computer'),
-          message: t('VPS không có màn hình nên không mở Chrome tại đây. Chạy 2 lệnh dưới trên máy của bạn và GIỮ chúng chạy — bot sẽ tự dùng Chrome đó (cổng 9222). Không làm cũng không sao: bot vẫn có trình duyệt ẩn (headless) sẵn trong container.', 'This VPS has no display. Run the two commands below on YOUR computer and keep them running — the bot will use that Chrome (port 9222). Optional: the bot already has a built-in headless browser.'),
-          bodyHtml: `<p class="guide-step">1. ${t('Mở Chrome debug trên máy bạn — macOS:', 'Start Chrome debug on your machine — macOS:')}</p><code class="cmd">${escapeHtml(r.chromeCmdMac)}</code><p class="guide-step">${t('Hoặc Windows:', 'Or Windows:')}</p><code class="cmd">${escapeHtml(r.chromeCmdWin)}</code><p class="guide-step">2. ${t('Tạo tunnel về VPS (cửa sổ terminal khác):', 'Create the reverse tunnel (another terminal):')}</p><code class="cmd">${escapeHtml(r.tunnelCmd)}</code>`,
+          message: t('VPS không có màn hình nên không mở Chrome tại đây. Chạy 2 lệnh dưới trên máy của bạn và GIỮ chúng chạy - bot sẽ tự dùng Chrome đó (cổng 9222). Không làm cũng không sao: bot vẫn có trình duyệt ẩn (headless) sẵn trong container.', 'This VPS has no display. Run the two commands below on YOUR computer and keep them running - the bot will use that Chrome (port 9222). Optional: the bot already has a built-in headless browser.'),
+          bodyHtml: `<p class="guide-step">1. ${t('Mở Chrome debug trên máy bạn - macOS:', 'Start Chrome debug on your machine - macOS:')}</p><code class="cmd">${escapeHtml(r.chromeCmdMac)}</code><p class="guide-step">${t('Hoặc Windows:', 'Or Windows:')}</p><code class="cmd">${escapeHtml(r.chromeCmdWin)}</code><p class="guide-step">2. ${t('Tạo tunnel về VPS (cửa sổ terminal khác):', 'Create the reverse tunnel (another terminal):')}</p><code class="cmd">${escapeHtml(r.tunnelCmd)}</code>`,
           okText: t('Đã hiểu', 'Got it'),
           okDanger: false,
           hideCancel: true,
@@ -654,10 +726,10 @@ function wireSkillsHandlers(scope = document) {
         };
         render();
       } else {
-        // The profile is a copy of the operator's own, so their normal Chrome can stay open —
+        // The profile is a copy of the operator's own, so their normal Chrome can stay open -
         // say so, because the old flow required closing every Chrome window first.
         showToast(t('Đã mở Chrome cho bot', 'Chrome opened for the bot'),
-          `${t('Cổng', 'Port')} ${r.port} — ${t('cửa sổ Chrome mới này dùng bản sao profile của bạn (đã đăng nhập sẵn); Chrome thường của bạn cứ để nguyên.', 'the new window runs a copy of your profile (already signed in); your normal Chrome can stay open.')}`, 'success');
+          `${t('Cổng', 'Port')} ${r.port} - ${t('cửa sổ Chrome mới này dùng bản sao profile của bạn (đã đăng nhập sẵn); Chrome thường của bạn cứ để nguyên.', 'the new window runs a copy of your profile (already signed in); your normal Chrome can stay open.')}`, 'success');
       }
     } catch (err) {
       showToast(t('Thất bại', 'Failed'), err.message, 'error');
@@ -679,7 +751,7 @@ function content() {
     return `<div class="log-toolbar"><button class="copy-log" data-copy-log type="button" aria-label="Copy logs">${copyIcon()} ${t('Copy log','Copy log')}</button></div><div class="terminal big">${state.logs.map(l=>`<p>${escapeHtml(l)}</p>`).join('')}</div>`;
 }
 
-// Danh sách múi giờ phổ biến (IANA) cho dropdown pill. Gọn — đủ dùng cho khu vực chính.
+// Danh sách múi giờ phổ biến (IANA) cho dropdown pill. Gọn - đủ dùng cho khu vực chính.
 const TZ_OPTIONS = [
   ['Asia/Ho_Chi_Minh', 'Việt Nam (UTC+7)'],
   ['Asia/Bangkok', 'Bangkok (UTC+7)'],
@@ -1041,7 +1113,7 @@ function botListPanel(bots) {
 function statusBadge(v) { return `<span class="runtime-badge ${v === 'online' ? 'ok' : v === 'unknown' ? 'warn' : 'bad'}">${v || 'offline'}</span>`; }
 function credentialField({ id, label, value = '', editable = false, placeholder = '' }) {
   const empty = !String(value || '').trim();
-  return `<label class="cred-field ${empty ? 'is-empty' : ''}"><span>${label}</span><div class="cred-input-wrap"><input id="${id}" name="${id}" type="password" ${editable ? '' : 'readonly'} autocomplete="off" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}"/><button class="secondary cred-toggle" type="button" data-toggle-secret="${id}">${t('Hiện','Show')}</button></div>${empty && editable ? `<small>${t('Đang trống — nhập key rồi lưu.', 'Empty — enter key then save.')}</small>` : ''}</label>`;
+  return `<label class="cred-field ${empty ? 'is-empty' : ''}"><span>${label}</span><div class="cred-input-wrap"><input id="${id}" name="${id}" type="password" ${editable ? '' : 'readonly'} autocomplete="off" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}"/><button class="secondary cred-toggle" type="button" data-toggle-secret="${id}">${t('Hiện','Show')}</button></div>${empty && editable ? `<small>${t('Đang trống - nhập key rồi lưu.', 'Empty - enter key then save.')}</small>` : ''}</label>`;
 }
 function botStatusPanel(s) {
   const c = s.credentials || {};
@@ -1076,7 +1148,7 @@ function joinDisplayPath(root = '', child = '') {
 function projectPathLine(bot = currentBot(), fileName = '') {
   const s = state.install || {};
   // Legacy configs stored the container-absolute workspace; show it relative to the project root
-  // (new configs are already relative — see bot-config-gen).
+  // (new configs are already relative - see bot-config-gen).
   const workspace = String(bot?.workspace || '').replace(/^\/home\/node\/project\/?/, '');
   const relFile = fileName ? String(fileName).replace(/^\.openclaw[\\/][^\\/]+[\\/]?/, '') : '';
   const full = workspace ? joinDisplayPath(s.projectDir || '', relFile ? `${workspace}/${relFile}` : workspace) : (s.projectDir || '-');
@@ -1128,16 +1200,16 @@ function filesView() { return `<div class="files">${state.files.map(f=>`<article
 function botSkillsPanel() {
   const flags = state.featureFlags || {};
   const skills = [
-    { id: 'cron', title: 'Cron', desc: 'Native scheduler (SQLite) — cron guide in TOOLS.md' },
+    { id: 'cron', title: 'Cron', desc: 'Native scheduler (SQLite) - cron guide in TOOLS.md' },
     { id: 'image-gen', title: 'Tạo ảnh Infographic', desc: 'Tạo ảnh infographic, poster tự động qua 9Router' },
     { id: 'web-search', title: 'Web Search', desc: 'Tìm kiếm web thời gian thực (DuckDuckGo)' },
   ];
   const plugins = [
-    { id: 'zalo-connect', title: 'OpenClaw Zalo Connect', desc: t('Kênh Zalo cá nhân (zca-js) — BẮT BUỘC cho bot Zalo. Tự cài khi tạo bot Zalo đầu tiên; bấm Cập nhật để lên bản mới nhất.', 'Personal Zalo channel (zca-js) — REQUIRED for Zalo bots. Auto-installed with your first Zalo bot; click Update for the latest version.'), channels: ['zalo-personal'] },
-    { id: 'learning-memory', title: 'Siêu Trí Nhớ Dài Hạn (learning-memory)', desc: t('Bộ nhớ always-on: nạp MEMORY.md + USER.md đã chắt lọc vào MỌI lượt — kể cả trong nhóm — nên bot không quên ngữ cảnh/quy tắc. Tự cài khi tạo bot.', 'Always-on memory: injects a curated MEMORY.md + USER.md into every turn — including group chats — so the bot stops forgetting context and rules. Auto-installed on bot creation.') },
+    { id: 'zalo-connect', title: 'OpenClaw Zalo Connect', desc: t('Kênh Zalo cá nhân (zca-js) - BẮT BUỘC cho bot Zalo. Tự cài khi tạo bot Zalo đầu tiên; bấm Cập nhật để lên bản mới nhất.', 'Personal Zalo channel (zca-js) - REQUIRED for Zalo bots. Auto-installed with your first Zalo bot; click Update for the latest version.'), channels: ['zalo-personal'] },
+    { id: 'learning-memory', title: 'Siêu Trí Nhớ Dài Hạn (learning-memory)', desc: t('Bộ nhớ always-on: nạp MEMORY.md + USER.md đã chắt lọc vào MỌI lượt - kể cả trong nhóm - nên bot không quên ngữ cảnh/quy tắc. Tự cài khi tạo bot.', 'Always-on memory: injects a curated MEMORY.md + USER.md into every turn - including group chats - so the bot stops forgetting context and rules. Auto-installed on bot creation.') },
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },
     { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers', channels: ['zalo-personal'], openWebPort: 18790, openWebPath: '/dashboard' },
-    { id: 'openclaw-fb-messenger', title: 'openclaw-fb-messenger', desc: t('Kênh Facebook Messenger — webhook + Graph API (bắt buộc cho bot Messenger)', 'Facebook Messenger channel — webhook + Graph API (required for Messenger bots)'), channels: ['fb-messenger'] },
+    { id: 'openclaw-fb-messenger', title: 'openclaw-fb-messenger', desc: t('Kênh Facebook Messenger - webhook + Graph API (bắt buộc cho bot Messenger)', 'Facebook Messenger channel - webhook + Graph API (required for Messenger bots)'), channels: ['fb-messenger'] },
     { id: 'openclaw-facebook-crawler', title: 'openclaw-facebook-crawler', desc: 'Facebook crawler automation', channels: ['fb-messenger'] },
     { id: 'openclaw-n8n-facebook-poster', title: 'openclaw-n8n-facebook-poster', desc: 'Facebook post automation (n8n)', channels: ['fb-messenger'] },
   ];
@@ -1165,10 +1237,10 @@ function botSkillsPanel() {
     let toggleHtml = '';
     const secs = [];
     if (isInstalled) {
-      toggleHtml = `<label class="feature-switch" title="${locked ? t('Bắt buộc cho bot Zalo — không thể tắt','Required for Zalo bots — cannot be disabled') : ''}"${locked ? ' style="opacity:.4;pointer-events:none;cursor:not-allowed;"' : ''}><input type="checkbox" data-feature-toggle="${key}" ${(flags[key] || locked) ? 'checked' : ''} ${(loading || locked) ? 'disabled' : ''}/><span></span></label>`;
+      toggleHtml = `<label class="feature-switch" title="${locked ? t('Bắt buộc cho bot Zalo - không thể tắt','Required for Zalo bots - cannot be disabled') : ''}"${locked ? ' style="opacity:.4;pointer-events:none;cursor:not-allowed;"' : ''}><input type="checkbox" data-feature-toggle="${key}" ${(flags[key] || locked) ? 'checked' : ''} ${(loading || locked) ? 'disabled' : ''}/><span></span></label>`;
       if (item.openWebPort) {
         // zalo-mod's dashboard is always gateway port + 1 (docker 18790, native 18890, or whatever
-        // the SELECTED project's gateway runs on) — never the hardcoded default. Derive it from the
+        // the SELECTED project's gateway runs on) - never the hardcoded default. Derive it from the
         // active project's gatewayUrl so every project opens its own dashboard.
         let gwPort = 0;
         try { gwPort = parseInt(new URL(state.install?.gatewayUrl).port, 10) || 0; } catch {}
@@ -1249,7 +1321,11 @@ function wireTab() {
   document.querySelectorAll('[data-confirm-action]').forEach(el => el.onclick = () => withButtonLoading(el, async () => {
     const action = el.dataset.confirmAction;
     const m = state.confirmModal;
-    if (action === 'cancel' || !m) { state.confirmModal = null; render(); return; }
+    if (action === 'cancel' || !m) {
+      // Declining can be meaningful - "ask me later" has to remember that it was asked.
+      if (m && typeof m.onCancel === 'function') { await m.onCancel(); return; }
+      state.confirmModal = null; render(); return;
+    }
     if (action === 'ok' && typeof m.onConfirm === 'function') await m.onConfirm();
   }));
   // Screen-recording / accessibility grants: only the OS can give these, so the button opens the
@@ -1258,7 +1334,7 @@ function wireTab() {
     const kind = btn.dataset.hostPerm;
     try {
       const r = await api('/api/host/permissions', { method: 'POST', body: { kind, projectDir: activeProjectDir() } });
-      if (!r.opened) return showToast(t('Không mở được','Could not open'), t('Hệ điều hành này không có bảng cài đặt đó — cấp quyền thủ công.','This OS has no such settings pane — grant it manually.'), 'error');
+      if (!r.opened) return showToast(t('Không mở được','Could not open'), t('Hệ điều hành này không có bảng cài đặt đó - cấp quyền thủ công.','This OS has no such settings pane - grant it manually.'), 'error');
       const granted = r.screen && r.screen.supported ? r.screen.granted : null;
       showToast(t('Đã mở cài đặt quyền','Opened settings'),
         granted === true ? t('Quyền chụp/quay màn hình: đã có. Bật thêm Accessibility nếu cần gõ/click.','Screen recording: already granted. Also enable Accessibility for typing/clicking.')
@@ -1311,7 +1387,7 @@ function wireTab() {
       state.install = { ...(state.install || {}), ...result };
       autoSwitchBotChannel();
       render();
-      // Background: full refresh (versions, files, flags) — UI already shows the new project.
+      // Background: full refresh (versions, files, flags) - UI already shows the new project.
       await loadSystem(true);
       await loadStatus(true);
       autoSwitchBotChannel();
@@ -1396,9 +1472,9 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
   }));
   document.querySelectorAll('[data-bot-add-mount]').forEach(btn => btn.onclick = () => openPathModal({
     title: t('Cấp quyền ổ đĩa/thư mục','Grant disk/folder access'),
-    message: t('Nhập đường dẫn host (vd /Users/ban/Documents hoặc D:/data). Mount cho MỌI bot trong project rồi tự recreate container để áp dụng (mất ~10–20s).','Enter a host path (e.g. /Users/you/Documents or D:/data). Mounts for ALL bots in this project, then auto-recreates the container to apply (~10–20s).'),
+    message: t('Nhập đường dẫn host (vd /Users/ban/Documents hoặc D:/data). Mount cho MỌI bot trong project rồi tự recreate container để áp dụng (mất ~10-20s).','Enter a host path (e.g. /Users/you/Documents or D:/data). Mounts for ALL bots in this project, then auto-recreates the container to apply (~10-20s).'),
     placeholder: '/Users/ban/Documents',
-    field2: { label: t('Tên mount (tùy chọn) — sẽ thành /mnt/<tên>. Bỏ trống = tự lấy theo tên thư mục.','Mount name (optional) — becomes /mnt/<name>. Empty = derived from folder name.'), placeholder: 'baocao' },
+    field2: { label: t('Tên mount (tùy chọn) - sẽ thành /mnt/<tên>. Bỏ trống = tự lấy theo tên thư mục.','Mount name (optional) - becomes /mnt/<name>. Empty = derived from folder name.'), placeholder: 'baocao' },
     onConfirm: async (val, name) => {
       const hostPath = String(val || '').trim();
       if (!hostPath) return;
@@ -1619,7 +1695,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
   $('#bot-create')?.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     // Facebook Messenger needs the fb-messenger plugin (public on ClawHub). We don't block
-    // creation — the heads-up modal on channel-select tells the user to install it from the
+    // creation - the heads-up modal on channel-select tells the user to install it from the
     // bot's Plugins section afterwards (installable via the openclaw-fb-messenger card).
     const submitBtn = ev.currentTarget.querySelector('button[type="submit"]');
     if (submitBtn?.classList.contains('is-loading')) return;
@@ -1630,7 +1706,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     body.channel = state.botChannel || 'telegram';
     body.userTimezone = state.tz;
     // Only the CREATE flow starts a Zalo QR login (the server kicks it off and sets
-    // loginStarted). Editing a bot (rename, persona...) must never pop the QR modal —
+    // loginStarted). Editing a bot (rename, persona...) must never pop the QR modal -
     // the session is already saved and the PUT endpoint starts no login.
     if (body.channel === 'zalo-personal' && !state.botEditId) {
       state.botModalOpen = false;
@@ -1644,7 +1720,7 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
       const url = isEdit ? `/api/bot/${encodeURIComponent(state.botEditId)}` : '/api/bot/create';
       const method = isEdit ? 'PUT' : 'POST';
       const result = await api(url, { method, body });
-      state.botMessage = `✅ ${isEdit ? t('Đã cập nhật','Updated') : t('Đã tạo','Created')} ${result.agentId}${result.warning ? ' — ' + result.warning : ''}`;
+      state.botMessage = `✅ ${isEdit ? t('Đã cập nhật','Updated') : t('Đã tạo','Created')} ${result.agentId}${result.warning ? ' - ' + result.warning : ''}`;
       showToast(isEdit ? t('Đã cập nhật', 'Updated') : t('Đã tạo bot', 'Bot created'), `${isEdit ? t('Đã cập nhật','Updated') : t('Đã tạo','Created')} bot ${result.agentId} thành công!`, 'success');
       state.botChannel = body.channel;
       state.botEditId = '';
@@ -1689,6 +1765,9 @@ async function loadStatus(silent=false){
   state.install = install;
   if (!state.selectedProjectDir && state.install?.projectDir) state.selectedProjectDir = state.install.projectDir;
   if (!silent) render();
+  // Status is the first place we can actually see which runtime this project uses, so this is
+  // where the Docker project gets told there is a better place to be.
+  maybeOfferNativeMigration();
 }
 function autoSwitchBotChannel() {
   const bots = state.install?.bots || [];
@@ -1771,7 +1850,7 @@ function updateZaloHealthDom() {
   });
 }
 // Live status: poll the health endpoint while Zalo bots are on screen (the server caches
-// the ~3s CLI probe with a short TTL, so this stays cheap) and patch the badges in place —
+// the ~3s CLI probe with a short TTL, so this stays cheap) and patch the badges in place -
 // no more pressing "Làm mới" to see a bot drop or come back.
 const ZALO_HEALTH_POLL_MS = 10000;
 let zaloHealthPollBusy = false;

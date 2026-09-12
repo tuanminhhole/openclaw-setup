@@ -2,7 +2,7 @@
 /* eslint-disable no-undef, no-unused-vars */
 /**
  * @fileoverview Part of the OpenClaw Setup Wizard IIFE bundle.
- * This file is concatenated (not imported) — globals are shared via setup.js IIFE scope.
+ * This file is concatenated (not imported) - globals are shared via setup.js IIFE scope.
  * Do NOT add import/export statements. Edit, then run: node build.mjs
  *
  * @global {object}  state       - Wizard UI state
@@ -53,18 +53,18 @@
       },
       pluginInstall: '',
     },
-    // 'telegram+zalo-personal' — Combo mode tạm ngưng, nghiên cứu thêm.
+    // 'telegram+zalo-personal' - Combo mode tạm ngưng, nghiên cứu thêm.
     'zalo-personal': {
-      name: 'Zalo cá nhân — OpenClaw Zalo Connect',
+      name: 'Zalo cá nhân - OpenClaw Zalo Connect',
       hasZaloPersonal: true,
       envKeys: [],
       envExtra: '',
       credSteps: [
-        { textVi: '⚠️ Zalo cá nhân chạy qua <strong>OpenClaw Zalo Connect (unofficial, zca-js)</strong> — tự động hoá tài khoản cá nhân có thể vi phạm điều khoản Zalo và khiến tài khoản bị hạn chế. <strong>Chỉ nên dùng tài khoản phụ.</strong>', textEn: '⚠️ Personal Zalo runs on <strong>OpenClaw Zalo Connect (unofficial, zca-js)</strong> — automating a personal account may violate Zalo terms and can get the account restricted. <strong>Use a secondary account.</strong>' },
+        { textVi: '⚠️ Zalo cá nhân chạy qua <strong>OpenClaw Zalo Connect (unofficial, zca-js)</strong> - tự động hoá tài khoản cá nhân có thể vi phạm điều khoản Zalo và khiến tài khoản bị hạn chế. <strong>Chỉ nên dùng tài khoản phụ.</strong>', textEn: '⚠️ Personal Zalo runs on <strong>OpenClaw Zalo Connect (unofficial, zca-js)</strong> - automating a personal account may violate Zalo terms and can get the account restricted. <strong>Use a secondary account.</strong>' },
         { textVi: 'Sau khi tạo bot, bấm <strong>Đăng nhập Zalo</strong> để quét QR ngay trong giao diện. Nếu cần chạy thủ công: <code>openclaw channels login --channel zalo-connect --account default</code>.', textEn: 'After creating the bot, click <strong>Zalo Login</strong> to scan the QR right in the UI. Manual fallback: <code>openclaw channels login --channel zalo-connect --account default</code>.' },
         { textVi: 'Sau khi quét QR, bot nhận được tin nhắn xác nhận Owner ngay; bạn có thể siết lại DM/nhóm sau trong cấu hình.', textEn: 'After QR login, the bot can receive the initial Owner confirmation immediately; you can tighten DM/group access later in config.' },
       ],
-      // Mirrors buildZaloConnectChannelConfig() in bot-config-gen.js — keys validated
+      // Mirrors buildZaloConnectChannelConfig() in bot-config-gen.js - keys validated
       // against OpenClaw Zalo Connect 3.0.1's strict channel schema.
       channelConfig: {
         'zalo-connect': {
@@ -111,7 +111,7 @@
 
   // ========== Default Security Rules ==========
   const DEFAULT_SECURITY_RULES = {
-    vi: `## 🔐 Quy Tắc Bảo Mật — BẮT BUỘC
+    vi: `## 🔐 Quy Tắc Bảo Mật - BẮT BUỘC
 
 ### File & thư mục hệ thống
 - ❌ KHÔNG đọc, sao chép, hoặc truy cập bất kỳ file nào ngoài thư mục project
@@ -138,7 +138,7 @@
 - ❌ KHÔNG mount nguyên ổ đĩa (C:/ hoặc D:/)
 - ❌ KHÔNG chạy container với --privileged
 - ✅ Giới hạn port expose (chỉ 38789)`,
-    en: `## 🔐 Security Rules — MANDATORY
+    en: `## 🔐 Security Rules - MANDATORY
 
 ### System files & directories
 - ❌ DO NOT read, copy, or access any file outside the project folder

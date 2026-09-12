@@ -11,9 +11,9 @@ const __dirname = path.dirname(__filename);
 // `--version` / `--help` phải TRẢ LỜI RỒI THOÁT, đứng trước mọi thứ khác.
 //
 // Trước đây CLI không biết hai cờ này: gõ `create-openclaw-bot --version` là nó lờ đi rồi chạy
-// tiếp như thường — tạo thư mục project, dựng Setup UI, **chiếm cổng 51789 và treo vĩnh viễn**.
+// tiếp như thường - tạo thư mục project, dựng Setup UI, **chiếm cổng 51789 và treo vĩnh viễn**.
 // Đo trên vps_minh-thu 07/09: hai tiến trình `cli.js --version` nằm đó từ 02/09 giữ cổng, nên
-// systemd relaunch bản mới xong không bind được cổng — bấm "Cập nhật" thành công mà giao diện
+// systemd relaunch bản mới xong không bind được cổng - bấm "Cập nhật" thành công mà giao diện
 // vẫn là bản cũ, không ai hiểu vì sao.
 {
   const rawArgs = process.argv.slice(2);
@@ -27,7 +27,7 @@ const __dirname = path.dirname(__filename);
   }
   if (rawArgs.includes('--help') || rawArgs.includes('-h')) {
     console.log([
-      'create-openclaw-bot — trình cài đặt OpenClaw Bot',
+      'create-openclaw-bot - trình cài đặt OpenClaw Bot',
       '',
       'Cách dùng: create-openclaw-bot [tuỳ chọn]',
       '',
@@ -78,7 +78,7 @@ function isLocalRepo() {
 
 // True when the full server code is bundled next to this CLI (dist build, npm/global
 // install, or `npx github:...`). In that case run it directly instead of bootstrapping
-// the published package — works even though `files` ships only `dist/` (no `src/`).
+// the published package - works even though `files` ships only `dist/` (no `src/`).
 function hasBundledServer() {
   return [
     path.join(__dirname, 'server', 'local-server.js'),

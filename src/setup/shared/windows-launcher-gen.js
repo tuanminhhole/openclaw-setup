@@ -9,7 +9,7 @@
  *   • anything started over SSH dies the moment the session closes (LastTaskResult 0xC000013A);
  *   • a task set to run at boot is refused outright, because "at startup" and "only while
  *     someone is logged in" contradict each other (0x800710E0).
- * Making it run without a login needs the account password stored in the task — Task Scheduler
+ * Making it run without a login needs the account password stored in the task - Task Scheduler
  * rejected that too ("The user account is unknown, the password is incorrect"). So the owner
  * drives it by hand, exactly like the .command files on macOS.
  *
@@ -17,21 +17,21 @@
  *
  *  1. `.cmd` MUST be CRLF. LF-only files break on Windows.
  *  2. Never name a launcher after the command it calls. `9router.cmd` in the project dir plus
- *     `cd /d <project>` makes `call 9router` re-enter the same file — BATCH RECURSION, and the
+ *     `cd /d <project>` makes `call 9router` re-enter the same file - BATCH RECURSION, and the
  *     process dies before doing anything.
  *  3. Never append to a fixed log file. 9router holds its log open for its whole lifetime, so
  *     the SECOND run cannot open it and exits with "The process cannot access the file because
- *     it is being used by another process" — invisible on the first run, which is why it is easy
+ *     it is being used by another process" - invisible on the first run, which is why it is easy
  *     to ship broken.
  *  4. 9router shows a `Choose Interface` menu when its stdout looks like a real console. Started
  *     hidden, nobody can answer it, so it hangs and never opens its port. `> NUL` is what tells
  *     it to run unattended. Symptom without it: works when run by hand, silently dead in the
- *     background — same command.
+ *     background - same command.
  *  5. `Start-Process -WindowStyle Hidden` does NOT hide a console a .cmd opens for itself. Only
  *     WScript.Shell.Run(..., 0, False) truly hides it. Leaving a visible window is not cosmetic:
  *     it IS the bot, and closing it kills the bot.
  *  6. Anchor the working directory. Agents may carry relative workspace paths, which resolve
- *     against the launcher's cwd — move the files into a folder and those bots die with
+ *     against the launcher's cwd - move the files into a folder and those bots die with
  *     WORKSPACE_VANISHED while the others keep working.
  */
 
@@ -45,7 +45,7 @@ function buildRunHiddenVbs() {
   );
 }
 
-/** Starts 9router. Named start-9router.cmd on purpose — see trap 2. */
+/** Starts 9router. Named start-9router.cmd on purpose - see trap 2. */
 function build9RouterCmd({ projectDir, routerPort }) {
   return CRLF(
     '@echo off\n' +
@@ -89,7 +89,7 @@ function buildGatewayCmd({ projectDir, gatewayPort }) {
     '@echo off\n' +
     'rem Goi thang node, KHONG qua gateway.cmd cua openclaw: tep do chay kem --task-supervisor,\n' +
     'rem no di tim Scheduled Task de ban giao; khong co task thi no de them tien trinh + cua so.\n' +
-    'rem Khong redirect ra tep co dinh (xem trap 3) — openclaw tu ghi nhat ky trong %TEMP%\\openclaw.\n' +
+    'rem Khong redirect ra tep co dinh (xem trap 3) - openclaw tu ghi nhat ky trong %TEMP%\\openclaw.\n' +
     `cd /d ${projectDir}\n` +
     'set "HOME=%USERPROFILE%"\n' +
     `set "OPENCLAW_GATEWAY_PORT=${gatewayPort}"\n` +
@@ -105,7 +105,12 @@ function buildSetupUiCmd({ projectDir, setupPort }) {
     'rem Ten tep nhat ky kem gio, de lan chay sau khong dung vao tep dang bi giu (trap 3).\n' +
     `cd /d ${projectDir}\n` +
     'for /f "tokens=1-4 delims=/: " %%a in ("%TIME%") do set "T=%%a%%b%%c"\n' +
-    `call npx create-openclaw-bot --host=127.0.0.1 --port=${setupPort} --no-open --project-dir=${projectDir}` +
+    // `--yes` is not optional. Whenever the installed version differs from what npx resolves - which
+    // is EVERY time a new version is published - npx stops at "Need to install the following
+    // packages ... Ok to proceed? (y)". The launcher runs hidden, so nobody can answer it: the
+    // window sits there forever and the dashboard simply never opens. Measured on a customer
+    // machine, where it looked like the tunnel was broken rather than a prompt waiting offscreen.
+    `call npx --yes create-openclaw-bot --host=127.0.0.1 --port=${setupPort} --no-open --project-dir=${projectDir}` +
     ` > "${projectDir}\\setup-ui-%T%.log" 2>&1\n`,
   );
 }
@@ -131,6 +136,15 @@ function buildStartBotCmd({ projectDir, gatewayPort, routerPort }) {
     'echo   Cho bot san sang (co the mat 30-60 giay)...\n' +
     'echo.\n' +
     `powershell -NoProfile -Command "$ok=$false; for($i=0;$i -lt 40;$i++){ try{ Invoke-WebRequest 'http://127.0.0.1:${gatewayPort}/health' -UseBasicParsing -TimeoutSec 3 | Out-Null; $ok=$true; break } catch { Start-Sleep -Seconds 3 } }; if($ok){ Write-Host '   [OK] Bot da chay.' -ForegroundColor Green } else { Write-Host '   [LOI] Bot chua len.' -ForegroundColor Red }"\n` +
+    // Bring screen control back up too. The node host dies with the login session like everything
+    // else, and nothing else restarts it: PC control would quietly stop working after every logout
+    // or reboot, with the dashboard still showing it as ON. Only start it when .openclaw-node
+    // exists - that directory is written when the operator turns PC control on, so a project that
+    // never enabled it starts nothing extra.
+    `if exist "${projectDir}\\.openclaw-node\\openclaw.json" (\n` +
+    '  echo   Dang bat dieu khien may...\n' +
+    `  powershell -NoProfile -Command "if (-not (Get-CimInstance Win32_Process -Filter \\"Name='node.exe'\\" | Where-Object { $_.CommandLine -like '*node*run*--host*' })) { Start-Process wscript -ArgumentList '${projectDir}\\run-hidden.vbs','${projectDir}\\node-host.cmd' -WindowStyle Hidden }" >nul 2>&1\n` +
+    ')\n' +
     'echo.\n' +
     'echo   --- Trang thai ---\n' +
     `powershell -NoProfile -Command "foreach($x in @(@('Bot (gateway)','http://127.0.0.1:${gatewayPort}/health'),@('9Router','http://127.0.0.1:${routerPort}/'),@('Bang dieu khien Zalo','http://127.0.0.1:${dashPort}/dashboard'))){ try{ (Invoke-WebRequest $x[1] -UseBasicParsing -TimeoutSec 6) | Out-Null; Write-Host ('   {0,-22} DANG CHAY' -f $x[0]) -ForegroundColor Green } catch { Write-Host ('   {0,-22} TAT' -f $x[0]) -ForegroundColor Red } }"\n` +

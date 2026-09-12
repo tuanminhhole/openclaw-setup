@@ -68,7 +68,7 @@ Sau khi hoàn tất, bạn có thể kiểm soát hoàn toàn vòng đời của
 
 ---
 
-## 🐳 Docker hay Native — khác nhau ở đâu
+## 🐳 Docker hay Native - khác nhau ở đâu
 
 |  | Docker _(khuyên dùng)_ | Native |
 |---|---|---|
@@ -94,12 +94,12 @@ trên desktop thì Docker vẫn là lựa chọn an toàn hơn.
 | `20128` | 9Router | định tuyến model AI |
 
 Cả Docker và Native đều dùng đúng bộ cổng mặc định này. Máy nào đã có gì chiếm cổng thì Setup **hỏi
-chính máy** rồi nhảy sang cặp cổng trống kế tiếp — nên project thứ hai trên cùng máy vẫn chạy song
+chính máy** rồi nhảy sang cặp cổng trống kế tiếp - nên project thứ hai trên cùng máy vẫn chạy song
 song được. Muốn biết chắc project nào đang ở cổng nào thì xem `gateway.port` trong `openclaw.json`,
 hoặc cột **Trạng thái** trên tab Bot.
 
 Docker publish cổng ra **`127.0.0.1`** (không phải `0.0.0.0`), nên container bind `0.0.0.0` bên trong
-vẫn không lộ ra internet. Native cũng luôn nghe loopback, kể cả khi bạn chọn **Linux VPS** — xem phần
+vẫn không lộ ra internet. Native cũng luôn nghe loopback, kể cả khi bạn chọn **Linux VPS** - xem phần
 dưới.
 
 ---
@@ -109,19 +109,19 @@ dưới.
 Có mấy điểm khác biệt đáng biết khi cài native trên server:
 
 - **Gateway là systemd _user_ unit.** `openclaw daemon install` không có cờ `--system`, nên service
-  nằm ở `~/.config/systemd/user/`. User manager bị dẹp khi session cuối của user kết thúc — trên
+  nằm ở `~/.config/systemd/user/`. User manager bị dẹp khi session cuối của user kết thúc - trên
   desktop không sao vì có session đồ hoạ, còn qua SSH thì **bot chết lúc bạn đóng terminal**. Setup
   tự bật `loginctl enable-linger` để service sống độc lập với session và tự lên lại sau reboot. Nếu
   log báo không bật được, chạy tay: `sudo loginctl enable-linger <user>`.
 - **Gateway chỉ nghe `127.0.0.1`.** Chọn **Linux VPS** không mở bind ra ngoài: gateway nói HTTP/WS
-  thô (token đi dạng chữ), và một VPS mới thường chưa có firewall — phơi control plane ra internet
+  thô (token đi dạng chữ), và một VPS mới thường chưa có firewall - phơi control plane ra internet
   là đánh đổi rất lệch. Muốn xem giao diện thì mở SSH tunnel (phần kế tiếp).
 - **Plugin được cài tự động.** Bản native tự đặt `zalo-connect` (khi bot có kênh Zalo) và
-  `learning-memory` vào `<project>/.openclaw/extensions` **trước** khi gateway boot lần đầu — đúng
+  `learning-memory` vào `<project>/.openclaw/extensions` **trước** khi gateway boot lần đầu - đúng
   việc mà entrypoint của container vẫn làm. Trước v5.15.4 native không làm bước này, nên đăng nhập
   Zalo báo `Unsupported channel "zalo-connect"` và bot chạy mà không có context engine.
 - **Service được bù đủ biến môi trường.** `openclaw daemon install` chỉ đưa một phần biến vào service
-  nó sinh ra — `OPENCLAW_STATE_DIR` thì có, `OPENCLAW_HOME` thì không. Thiếu biến đó, plugin ghi file
+  nó sinh ra - `OPENCLAW_STATE_DIR` thì có, `OPENCLAW_HOME` thì không. Thiếu biến đó, plugin ghi file
   ra `~/.openclaw` thay vì vào project: file gửi cho bot nằm ngoài vùng workspace nên agent **không
   đọc được**, và session Zalo nằm ở home khác với config. Từ v5.15.5 Setup tự bù đủ biến (systemd và
   launchd) và tự nhận lại file đã ghi sai chỗ, kể cả với project cài từ trước.
@@ -133,7 +133,7 @@ Có mấy điểm khác biệt đáng biết khi cài native trên server:
 Server không có browser, mà mọi giao diện chỉ nghe trên `127.0.0.1`. Cách vào là mở **đường hầm SSH**
 từ máy bạn rồi truy cập qua `localhost`.
 
-Trong tab Bot, mở khung **🌐 Mở từ máy khác (VPS/server)** và bấm **Copy** — lệnh đã điền sẵn đúng
+Trong tab Bot, mở khung **🌐 Mở từ máy khác (VPS/server)** và bấm **Copy** - lệnh đã điền sẵn đúng
 cổng của project đang chọn (kể cả cổng dashboard zalo-mod, vốn là gateway + 1):
 
 ```bash
@@ -146,7 +146,7 @@ Dashboard chạy được, vì chúng trỏ tới cùng số cổng ở `localho
 
 > **Nếu máy bạn đã có project OpenClaw khác** (nhất là bản Docker) thì các cổng đó **đang bị chiếm ở
 > máy bạn**, và `ssh -L` sẽ báo `bind: Address already in use`. Tắt project local đó trước khi mở
-> tunnel — hoặc forward sang cổng local khác (`-L 28789:127.0.0.1:18789`), nhưng lúc đó nút "Mở web"
+> tunnel - hoặc forward sang cổng local khác (`-L 28789:127.0.0.1:18789`), nhưng lúc đó nút "Mở web"
 > sẽ trỏ sai vì nó dùng đúng số cổng của server.
 
 ---
@@ -159,5 +159,5 @@ Dashboard chạy được, vì chúng trỏ tới cùng số cổng ở `localho
 | Đăng nhập Zalo báo `Unsupported channel "zalo-connect"` | Plugin chưa có trên đĩa. Cập nhật Setup lên ≥ v5.15.4, hoặc bấm **Cập nhật** trên card `OpenClaw Zalo Connect`. |
 | Bot chết khi đóng SSH / không lên lại sau reboot | systemd user unit chưa bật linger → `sudo loginctl enable-linger <user>`. |
 | Mở dashboard zalo-mod ra trang trắng hoặc không kết nối được | Tunnel chưa forward cổng đó. Dashboard là **gateway + 1**, không phải một cổng cố định. |
-| Bot nói không đọc được file/ảnh bạn gửi | Service thiếu `OPENCLAW_HOME` nên file bị lưu ngoài project. Cập nhật Setup lên ≥ v5.15.5 rồi restart bot — Setup tự bù biến và nhận lại file. |
+| Bot nói không đọc được file/ảnh bạn gửi | Service thiếu `OPENCLAW_HOME` nên file bị lưu ngoài project. Cập nhật Setup lên ≥ v5.15.5 rồi restart bot - Setup tự bù biến và nhận lại file. |
 | `Config warnings … plugin not found` in ở mọi lệnh | Config khai plugin chưa được cài. Đây là cảnh báo, không phải lỗi chặn; cài plugin (hoặc `openclaw doctor --fix` để xoá khai báo cũ) là hết. |

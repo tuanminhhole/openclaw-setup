@@ -2,7 +2,7 @@
 /* eslint-disable no-undef, no-unused-vars */
 /**
  * @fileoverview Part of the OpenClaw Setup Wizard IIFE bundle.
- * This file is concatenated (not imported) — globals are shared via setup.js IIFE scope.
+ * This file is concatenated (not imported) - globals are shared via setup.js IIFE scope.
  * Do NOT add import/export statements. Edit, then run: node build.mjs
  *
  * @global {object}  state       - Wizard UI state
@@ -92,10 +92,10 @@
       free: true,
       isLocal: true,
       models: [
-        { id: 'ollama/gemma4:e2b', name: 'Gemma 4 E2B',   descVi: '🟢 Nhẹ nhất (~4-6 GB RAM) — Edge, laptop, test nhanh', descEn: '🟢 Lightest (~4-6 GB RAM) — Edge, laptop, fastest startup', badge: '🆕 Apr 2 2026' },
-        { id: 'ollama/gemma4:e4b', name: 'Gemma 4 E4B',   descVi: '🟡 Cân bằng (~8-10 GB RAM) — Khuyên dùng', descEn: '🟡 Balanced (~8-10 GB RAM) — Recommended', badge: '🆕 Apr 2 2026' },
-        { id: 'ollama/gemma4:26b', name: 'Gemma 4 26B',   descVi: '🟠 Mạnh (~18-24 GB RAM/VRAM) — Máy mạnh', descEn: '🟠 Powerful (~18-24 GB RAM/VRAM) — High-end machine', badge: '🆕 Apr 2 2026' },
-        { id: 'ollama/gemma4:31b', name: 'Gemma 4 31B',   descVi: '🔴 Mạnh nhất (~24+ GB RAM/VRAM) — Workstation/GPU', descEn: '🔴 Most powerful (~24+ GB RAM/VRAM) — Workstation/GPU', badge: '🆕 Apr 2 2026' },
+        { id: 'ollama/gemma4:e2b', name: 'Gemma 4 E2B',   descVi: '🟢 Nhẹ nhất (~4-6 GB RAM) - Edge, laptop, test nhanh', descEn: '🟢 Lightest (~4-6 GB RAM) - Edge, laptop, fastest startup', badge: '🆕 Apr 2 2026' },
+        { id: 'ollama/gemma4:e4b', name: 'Gemma 4 E4B',   descVi: '🟡 Cân bằng (~8-10 GB RAM) - Khuyên dùng', descEn: '🟡 Balanced (~8-10 GB RAM) - Recommended', badge: '🆕 Apr 2 2026' },
+        { id: 'ollama/gemma4:26b', name: 'Gemma 4 26B',   descVi: '🟠 Mạnh (~18-24 GB RAM/VRAM) - Máy mạnh', descEn: '🟠 Powerful (~18-24 GB RAM/VRAM) - High-end machine', badge: '🆕 Apr 2 2026' },
+        { id: 'ollama/gemma4:31b', name: 'Gemma 4 31B',   descVi: '🔴 Mạnh nhất (~24+ GB RAM/VRAM) - Workstation/GPU', descEn: '🔴 Most powerful (~24+ GB RAM/VRAM) - Workstation/GPU', badge: '🆕 Apr 2 2026' },
         { id: 'ollama/qwen3:8b', name: 'Qwen 3 8B', descVi: 'Đa ngôn ngữ, nhẹ', descEn: 'Multi-lingual, lightweight', badge: '🏠 Local' },
         { id: 'ollama/deepseek-r1:8b', name: 'DeepSeek R1 8B', descVi: 'Suy luận, code', descEn: 'Reasoning, code', badge: '🏠 Local' },
         { id: 'ollama/llama3.3:8b', name: 'Llama 3.3 8B', descVi: 'Meta, đa năng', descEn: 'Meta, versatile', badge: '🏠 Local' },
@@ -110,11 +110,11 @@
       envKey: null,
       envLabel: null,
       envLink: 'https://github.com/decolua/9router',
-      envInstructionsVi: '9Router chạy cùng Docker — <strong>không cần API key</strong>. Sau khi <code>docker compose up</code>, mở <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> → đăng nhập OAuth.<br>✅ <b>Mới v0.3.75:</b> Claude Code, Codex, Gemini CLI và Antigravity có thể dùng 9Router làm endpoint trực tiếp.<br><span style="color:var(--danger)">⚠️ <b>CẢNH BÁO:</b> TUYỆT ĐỐI KHÔNG chọn Provider <b>Antigravity</b> khi đăng nhập OAuth trên dashboard 9Router (nguy cơ bị ban Google Account vĩnh viễn).</span>', envInstructionsEn: '9Router runs with Docker — <strong>no API key needed</strong>. After <code>docker compose up</code>, open <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> and OAuth login.<br>✅ <b>New in v0.3.75:</b> Claude Code, Codex, Gemini CLI, and Antigravity can use 9Router as their endpoint directly.<br><span style="color:var(--danger)">⚠️ <b>WARNING:</b> Do NOT select <b>Antigravity</b> as your OAuth Provider when logging into the 9Router dashboard (high risk of permanent Google Account ban).</span>',
+      envInstructionsVi: '9Router chạy cùng Docker - <strong>không cần API key</strong>. Sau khi <code>docker compose up</code>, mở <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> → đăng nhập OAuth.<br>✅ <b>Mới v0.3.75:</b> Claude Code, Codex, Gemini CLI và Antigravity có thể dùng 9Router làm endpoint trực tiếp.<br><span style="color:var(--danger)">⚠️ <b>CẢNH BÁO:</b> TUYỆT ĐỐI KHÔNG chọn Provider <b>Antigravity</b> khi đăng nhập OAuth trên dashboard 9Router (nguy cơ bị ban Google Account vĩnh viễn).</span>', envInstructionsEn: '9Router runs with Docker - <strong>no API key needed</strong>. After <code>docker compose up</code>, open <a href="http://localhost:20128/dashboard" target="_blank">localhost:20128/dashboard</a> and OAuth login.<br>✅ <b>New in v0.3.75:</b> Claude Code, Codex, Gemini CLI, and Antigravity can use 9Router as their endpoint directly.<br><span style="color:var(--danger)">⚠️ <b>WARNING:</b> Do NOT select <b>Antigravity</b> as your OAuth Provider when logging into the 9Router dashboard (high risk of permanent Google Account ban).</span>',
       free: true,
       isProxy: true,
       models: [
-        { id: '9router/smart-route', name: 'Smart Proxy (Auto Route)', descVi: 'Tự động luân chuyển FREE models — không tốn xu', descEn: 'Auto-routing across FREE providers — zero cost', badgeVi: '🌟 Khuyên dùng', badgeEn: '🌟 Recommended' }
+        { id: '9router/smart-route', name: 'Smart Proxy (Auto Route)', descVi: 'Tự động luân chuyển FREE models - không tốn xu', descEn: 'Auto-routing across FREE providers - zero cost', badgeVi: '🌟 Khuyên dùng', badgeEn: '🌟 Recommended' }
       ],
     },
   };

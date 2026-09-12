@@ -1,11 +1,11 @@
 // @ts-nocheck
 /**
- * @fileoverview Centralized bot configuration builders — single source of truth.
+ * @fileoverview Centralized bot configuration builders - single source of truth.
  *
  * Generates openclaw.json, auth-profiles.json, exec-approvals.json, and .env content.
  * Used by BOTH the Wizard (IIFE bundle) and CLI (CJS require).
  *
- * Pattern: same as common-gen.js / workspace-gen.js — IIFE + CJS dual export.
+ * Pattern: same as common-gen.js / workspace-gen.js - IIFE + CJS dual export.
  */
 (function (root) {
 
@@ -35,7 +35,7 @@
 
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // buildOpenclawJson — the ONE function that generates the full openclaw.json
+  // buildOpenclawJson - the ONE function that generates the full openclaw.json
   // ═══════════════════════════════════════════════════════════════════════════════
   /**
    * @param {object} opts
@@ -99,7 +99,7 @@
     }));
 
     const cfg = {
-      // NOTE: do NOT seed a `meta` block here. `meta` is owned by OpenClaw — it stamps
+      // NOTE: do NOT seed a `meta` block here. `meta` is owned by OpenClaw - it stamps
       // `{ lastTouchedVersion, lastTouchedAt }` itself on first run and adds the block if
       // missing. Writing our own fields into it (osChoice/deployMode), or seeding
       // `lastTouchedVersion` from OPENCLAW_NPM_SPEC which is a range/`latest`
@@ -118,16 +118,16 @@
           // cost on long sessions AND keeps a heavy multi-step turn (deep research +
           // file/PDF gen) from piling up tool output that overflows the model window
           // mid tool-loop. These bots run on 9router (no Anthropic prompt cache), so a
-          // short 2m TTL lets pruning engage sooner inside a long turn — no cache
+          // short 2m TTL lets pruning engage sooner inside a long turn - no cache
           // downside. The stable system prompt (AGENTS.md/SOUL.md…) is never pruned.
           contextPruning: { mode: 'cache-ttl', ttl: '2m' },
-          // Compress vision inputs — these bots are image-heavy (infographics, PDF
+          // Compress vision inputs - these bots are image-heavy (infographics, PDF
           // charts, screenshots). "efficient" keeps vision-token cost down so an
           // image-rich turn is far less likely to blow past the context window.
           imageQuality: 'efficient',
           // Downscale image payloads when sanitizing transcript/tool-result content
           // (OpenClaw default is 1200px). Verified failure mode: the bot generated 4K
-          // infographics for a PDF and then read them back with the image tool — each
+          // infographics for a PDF and then read them back with the image tool - each
           // read landed a ~100KB base64 blob in the transcript, and the overflow
           // precheck counts that base64 as plain text (~14k tokens per image). Eight of
           // them in one turn = 214k estimated tokens against a 180k budget → abort with
@@ -137,16 +137,16 @@
           // Cap each persisted tool result. The model-context auto default is huge
           // (64k chars/result at 200k tokens), so one heavy turn (e.g. deep research
           // with 40+ web fetches) can pile up 200k+ tokens of tool output in a SINGLE
-          // unsplittable turn — which then can't be compacted ("nothing to compact")
+          // unsplittable turn - which then can't be compacted ("nothing to compact")
           // and poisons the session until a manual reset. 12k chars (~3k tokens) per
           // result keeps per-source content substantial while making that runaway
           // impossible. Applies to persisted results + overflow recovery.
           // No contextLimits.toolResultMaxChars: openclaw 2026.8.x strict schema rejects the
-          // key outright (measured on a fresh native install, 03/09/2026) — the runaway-turn
+          // key outright (measured on a fresh native install, 03/09/2026) - the runaway-turn
           // protection it provided is handled by the 2026.8 runtime itself.
           // Agent-TURN budget (seconds). 120 was too short for multi-step cloud turns (OCR +
           // file gen + tool calls). 900 = OpenClaw's own native default and the practical max
-          // we use. This is the turn budget — a DIFFERENT layer from 9router's per-request
+          // we use. This is the turn budget - a DIFFERENT layer from 9router's per-request
           // timeout, so raising it does not conflict with / overrun 9router.
           timeoutSeconds: 900,
           // Đổi model trong Control UI KHÔNG được ghi vào config. OpenClaw mặc định "dính" lựa
@@ -155,11 +155,11 @@
           // giữ lựa chọn trong phiên đang chat. Khoá có từ OpenClaw 2026.8 (setup cài 2026.8.1).
           modelSelectionScope: 'session',
           // Nhiều agent mà không khai chủ thì OpenClaw TẮT heartbeat và chỉ ghi một dòng log:
-          // "[heartbeat] disabled — multi-agent config has no ambient heartbeat owner". Bot mất
+          // "[heartbeat] disabled - multi-agent config has no ambient heartbeat owner". Bot mất
           // nhịp tự kiểm tra mà không ai hay. Chủ là bot THẬT đầu tiên, không phải agent `main`.
           // Roster nhiều agent mà không khai chủ thì hỏng ba chỗ, đo được từng cái trên máy thật:
-          //   • [heartbeat] disabled — bot mất nhịp tự kiểm tra, không báo gì
-          //   • cron.list ✗ "Agent-less cron job has no resolvable owner" — VỠ CẢ TRANG Automations
+          //   • [heartbeat] disabled - bot mất nhịp tự kiểm tra, không báo gì
+          //   • cron.list ✗ "Agent-less cron job has no resolvable owner" - VỠ CẢ TRANG Automations
           //     trong Control UI, vì job hệ thống (memory-dreaming…) không gắn agent nào
           //   • talk.catalog ✗ "Talk session ownership has no explicit owner"
           // Chủ là bot THẬT đầu tiên, không phải agent `main` của gateway chat.
@@ -207,7 +207,7 @@
 
     // ── messages (ack reaction) ───────────────────────────────────────────────
     // Drop a reaction on inbound messages so people can see the bot registered theirs
-    // before the reply lands. This happens in the channel transport — the model is never
+    // before the reply lands. This happens in the channel transport - the model is never
     // involved, so it costs no tokens.
     //
     // Zalo-only, and deliberately so: zalo-connect reads this GLOBAL key (it has no
@@ -218,14 +218,14 @@
     //
     // `/-heart` is one of Zalo's 55 BUILT-IN reactions, so every zalo-connect version can
     // send it. The previous default (🦞) went out as a Zalo *custom* reaction (emoji as
-    // rIcon + a hash as rType), which needs zalo-connect ≥3.0.15 — on anything older it was
+    // rIcon + a hash as rType), which needs zalo-connect ≥3.0.15 - on anything older it was
     // dropped silently and the bot looked unresponsive until the reply landed.
     // Scope "all" covers DMs and groups; in a mention-gated group the plugin still only
     // reacts to messages that address the bot, since non-addressed ones are buffered as
     // passive context before the reaction step.
     if (isZaloPersonal(channelKey)) {
       // KHÔNG khai `removeAckAfterReply`: OpenClaw 2026.9 bỏ khoá này và schema chặt từ chối
-      // khoá lạ — máy nâng lên 2026.9.2 sẽ chết với "messages: Unrecognized key" (đo trên
+      // khoá lạ - máy nâng lên 2026.9.2 sẽ chết với "messages: Unrecognized key" (đo trên
       // vps_thuy-le 07/09, gateway không khởi động được cho tới khi gỡ khoá ra).
       cfg.messages = { ackReaction: '/-heart', ackReactionScope: 'all' };
     }
@@ -238,12 +238,12 @@
     // Two things go wrong in practice, both measured on vps_thuy-le 07/09/2026: the Control
     // UI shows no DM session at all (there is nothing per-peer to list, so only groups
     // appear), and the one shared session grows without bound until the model answers with
-    // an empty turn — "incomplete turn … payloads=0 tools=0" surfacing to the user as
+    // an empty turn - "incomplete turn … payloads=0 tools=0" surfacing to the user as
     // "⚠️ Agent couldn't generate a response".
     // per-channel-peer (not per-peer) is the vendor's own wording and is the right split for
     // a bot wired to several channels: the same person on Zalo and on Telegram stays apart.
     // The key exists since 2026.7, so this is safe on every runtime setup installs.
-    // Only NEW configs get it — existing customer bots keep their current scope until
+    // Only NEW configs get it - existing customer bots keep their current scope until
     // someone changes it deliberately, because splitting sessions drops the old context.
     cfg.session = { ...(cfg.session || {}), dmScope: 'per-channel-peer' };
 
@@ -279,7 +279,7 @@
     cfg.tools = {
       profile: 'full',
       exec: { host: 'gateway', security: 'full', ask: 'off' },
-      // Mặc định của OpenClaw là "all" — nguyên văn schema: "any session on the Gateway, including
+      // Mặc định của OpenClaw là "all" - nguyên văn schema: "any session on the Gateway, including
       // other agents and users". Máy khách hay chạy nhiều bot cho nhiều người, để nguyên là bot này
       // đọc được hội thoại của bot kia qua sessions_history/sessions_search. "agent" giới hạn trong
       // đúng agent của mình. (Khoá có ở cả 2026.7 lẫn 2026.8.)
@@ -304,7 +304,7 @@
     }
     // Hide OpenClaw's native `browser` tool: browsing goes through the browser-automation
     // plugin's own CLI (skills/browser-automation/browser-tool.js), which adds the page-
-    // reading commands the native tool lacks (get_text, get_links) — that is the whole
+    // reading commands the native tool lacks (get_text, get_links) - that is the whole
     // point of shipping the plugin. Left visible, the model reaches for the native tool
     // instead and asks it for the container-local "openclaw" profile, which has no browser
     // behind it, then reports "no browser available" while the real one sits unused.
@@ -333,14 +333,14 @@
     // ── gateway ──────────────────────────────────────────────────────────────
     // Docker MUST bind 0.0.0.0 inside the container to be reachable at all, but that is contained:
     // compose publishes the port as `127.0.0.1:<port>:<port>` (docker-gen), so the host still only
-    // answers on loopback. A NATIVE gateway has no port mapping to hide behind — 0.0.0.0 there puts
+    // answers on loopback. A NATIVE gateway has no port mapping to hide behind - 0.0.0.0 there puts
     // it straight on the VPS's public interface, with the auth token crossing the wire in plaintext
     // (the gateway speaks plain HTTP/WS) and, on a fresh VPS, no firewall in front of it. The
     // `osChoice === 'vps'` clause predates native mode; keep native on loopback and reach it through
     // an SSH tunnel, which is what docker-on-a-VPS effectively does too.
     const openGatewayBind = deployMode === 'docker' || (osChoice === 'vps' && deployMode !== 'native');
     // Talk (thoại) cũng cần chủ khi có nhiều agent: "Multiple agents are configured, but Talk
-    // session ownership has no explicit owner. Set talk.agentId…" — không khai là talk.catalog
+    // session ownership has no explicit owner. Set talk.agentId…" - không khai là talk.catalog
     // lỗi ngay lúc mở Control UI.
     if (agentMetas.length > 1 && agentMetas[0]?.agentId) {
       cfg.talk = { ...(cfg.talk || {}), agentId: agentMetas[0].agentId };
@@ -363,14 +363,14 @@
 
     // ── skills ───────────────────────────────────────────────────────────────
     const skillEntries = buildSkillsEntries(skills, selectedSkills);
-    // NOTE: the "zalo-actions" skill was removed — its guidance now lives in the `zalo-connect`
+    // NOTE: the "zalo-actions" skill was removed - its guidance now lives in the `zalo-connect`
     // tool description itself (fork ≥ v3.0.2), so no per-bot skill entry is needed anymore.
     //
     // Skill Workshop `approvalPolicy: "auto"` lets the assistant author its own
     // workspace skills end-to-end when the user asks ("tạo skill X"): create the
     // proposal AND apply it in one turn, without a separate operator approval.
     // Apply is still scanner-gated + workspace-scoped + rollback-tracked, so this
-    // stays safe. Workspace SKILL.md files auto-load via the skills watcher — no
+    // stays safe. Workspace SKILL.md files auto-load via the skills watcher - no
     // per-skill openclaw.json entry is needed. `autonomous.enabled` stays false so
     // the bot only creates skills on explicit request, never spontaneously.
     cfg.skills = { workshop: { approvalPolicy: 'auto' } };
@@ -405,7 +405,7 @@
 
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // buildChannelConfig — returns the full `channels: { ... }` object
+  // buildChannelConfig - returns the full `channels: { ... }` object
   // ═══════════════════════════════════════════════════════════════════════════════
   function buildChannelConfig(opts) {
     const { channelKey, isMultiBot, groupId, agentMetas = [], botName, agentId } = opts;
@@ -427,7 +427,7 @@
       };
 
       if (isMultiBot) {
-        // Multiple accounts — each bot gets its own account keyed by accountId
+        // Multiple accounts - each bot gets its own account keyed by accountId
         telegramConfig.accounts = {};
         for (const meta of agentMetas) {
           telegramConfig.accounts[meta.accountId || 'default'] = {
@@ -454,7 +454,7 @@
       // First-run defaults keep owner confirmation reachable immediately after QR:
       // DMs are open to every sender and groups are enabled without requiring a mention.
       // Every key below is validated against OpenClaw Zalo Connect 3.0.1's schema
-      // (`additionalProperties: false`) — do NOT add keys (e.g. historyLimit,
+      // (`additionalProperties: false`) - do NOT add keys (e.g. historyLimit,
       // groupAllowFrom) without re-checking `openclaw.plugin.json` first, an unknown
       // key crashes the gateway on boot.
       channels['zalo-connect'] = buildZaloConnectChannelConfig();
@@ -467,7 +467,7 @@
 
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // buildZaloConnectChannelConfig — secure-default channels['zalo-connect'] block
+  // buildZaloConnectChannelConfig - secure-default channels['zalo-connect'] block
   // ═══════════════════════════════════════════════════════════════════════════════
   function buildZaloConnectChannelConfig() {
     return {
@@ -487,14 +487,14 @@
 
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // buildPluginsConfig — returns { plugins: { ... } }
+  // buildPluginsConfig - returns { plugins: { ... } }
   // ═══════════════════════════════════════════════════════════════════════════════
   function buildPluginsConfig(opts) {
     const { channelKey, selectedSkills = [], botName = 'Bot', agentId = 'bot', hasBrowser = false } = opts;
 
     const entries = {};
 
-    // memory-core with dreaming — always present
+    // memory-core with dreaming - always present
     entries['memory-core'] = {
       config: {
         dreaming: {
@@ -545,7 +545,7 @@
 
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // buildSkillsEntries — returns { slug: { enabled: true } } map
+  // buildSkillsEntries - returns { slug: { enabled: true } } map
   // ═══════════════════════════════════════════════════════════════════════════════
   function buildSkillsEntries(skills, selectedSkillIds) {
     const entries = {};
@@ -554,7 +554,7 @@
     for (const skill of skills) {
       const skillId = skill.value || skill.id;
       if (!selectedSkillIds.includes(skillId)) continue;
-      // Skills without a slug are native (browser, scheduler) — not in skills.entries
+      // Skills without a slug are native (browser, scheduler) - not in skills.entries
       const slug = skill.slug;
       if (!slug) continue;
       // Skip browser-automation slug (handled by browser config)
@@ -567,7 +567,7 @@
 
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // buildExecApprovalsJson — exec-approvals.json content
+  // buildExecApprovalsJson - exec-approvals.json content
   // ═══════════════════════════════════════════════════════════════════════════════
   function buildExecApprovalsJson(opts) {
     const { agentMetas = [] } = opts;
@@ -585,7 +585,7 @@
 
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // buildEnvFileContent — .env file content for a single bot
+  // buildEnvFileContent - .env file content for a single bot
   // ═══════════════════════════════════════════════════════════════════════════════
   /**
    * @param {object} opts

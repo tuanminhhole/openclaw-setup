@@ -196,17 +196,17 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
 
   // Idempotent config upgrade replayed on every runtime start. Docker embeds it in the container
   // entrypoint; the native runtime (local-server.js) runs it via `node -e` before every gateway
-  // (re)start — one script, both deploy modes, so native bots stop missing config fixes like the
+  // (re)start - one script, both deploy modes, so native bots stop missing config fixes like the
   // smart-route contextWindow 200000/131072 → 1048576 (Kent chot 01/09/2026; chi dung den DUNG
   // hai gia tri setup tung ghi, custom tuning giu nguyen). Full rationale sits with the
   // entrypoint block inside buildDockerArtifacts.
   // ⚠️ toolResultMaxChars: openclaw ≥2026.8 BO key nay khoi schema va TU CHOI BOOT khi thay no.
-  // Ban cu cua script nay them key vo dieu kien moi lan container start — nen mot khach rebuild
+  // Ban cu cua script nay them key vo dieu kien moi lan container start - nen mot khach rebuild
   // image (Dockerfile keo openclaw moi) la roi vao vong: gateway chet vi key ⇒ xoa tay ⇒ entrypoint
   // them lai ⇒ chet tiep, khong lo ra thu pham (ca that 103.98.149.154, 31/08/2026, 66 lan restart).
   // Gio gate theo version openclaw THAT trong container: <2026.8 thi backfill nhu cu, ≥2026.8 thi
   // GO key neu con (tu chua cac project da nhiem). Khong doc duoc version thi KHONG dong nao chay
-  // — tha thieu mot default con hon gieo key lam gateway tu choi boot.
+  // - tha thieu mot default con hon gieo key lam gateway tu choi boot.
   const contextDefaultsScript = `const fs=require('fs'),path=require('path');const p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));let ch=false;c.skills=c.skills||{};c.skills.workshop=c.skills.workshop||{};if(!c.skills.workshop.approvalPolicy){c.skills.workshop.approvalPolicy='auto';ch=true;}if(c.browser&&c.browser.enabled!==false){c.tools=c.tools||{};const dn=Array.isArray(c.tools.deny)?c.tools.deny:[];if(!dn.includes('browser')){dn.push('browser');c.tools.deny=dn;ch=true;}}let ocMajorMinor=0;try{const v=String(require('child_process').execSync('openclaw --version',{stdio:['ignore','pipe','ignore']})).match(/(\\d{4})\\.(\\d+)/);if(v)ocMajorMinor=Number(v[1])*100+Number(v[2]);}catch(e){}const d=(c.agents&&c.agents.defaults)?c.agents.defaults:null;if(d){if(d.imageMaxDimensionPx===undefined){d.imageMaxDimensionPx=1024;ch=true;}if(d.imageQuality===undefined){d.imageQuality='efficient';ch=true;}if(ocMajorMinor&&ocMajorMinor<202608){d.contextLimits=d.contextLimits||{};if(d.contextLimits.toolResultMaxChars===undefined){d.contextLimits.toolResultMaxChars=12000;ch=true;}}else if(ocMajorMinor>=202608&&d.contextLimits&&d.contextLimits.toolResultMaxChars!==undefined){delete d.contextLimits.toolResultMaxChars;ch=true;}}if(ocMajorMinor>=202609){if(c.messages&&c.messages.removeAckAfterReply!==undefined){delete c.messages.removeAckAfterReply;ch=true;console.log('[migrate] go messages.removeAckAfterReply (2026.9 khong con nhan khoa nay)');}if(c.meta&&c.meta.lastTouchedAt!==undefined){delete c.meta.lastTouchedAt;ch=true;console.log('[migrate] go meta.lastTouchedAt (2026.9 khong con nhan khoa nay)');}if(c.browser&&c.browser.profiles&&typeof c.browser.profiles==='object'){for(const pn of Object.keys(c.browser.profiles)){const bp=c.browser.profiles[pn];if(bp&&typeof bp==='object'&&bp.color!==undefined){delete bp.color;ch=true;console.log('[migrate] go browser.profiles.'+pn+'.color (2026.9 khong con nhan khoa nay)');}}}}c.gateway=(c.gateway&&typeof c.gateway==='object')?c.gateway:{};if(c.gateway.mode===undefined){c.gateway.mode='local';ch=true;console.log('[migrate] gateway.mode=local (2026.9 tu choi chay neu thieu)');}c.tools=c.tools||{};c.tools.sessions=(c.tools.sessions&&typeof c.tools.sessions==='object')?c.tools.sessions:{};if(c.tools.sessions.visibility===undefined){c.tools.sessions.visibility='agent';ch=true;console.log('[migrate] tools.sessions.visibility=agent (khong cho bot doc phien cua bot khac)');}if(ocMajorMinor>=202608&&d&&d.modelSelectionScope===undefined){d.modelSelectionScope='session';ch=true;console.log('[migrate] agents.defaults.modelSelectionScope=session (khong ghi de model trong config)');}if(ocMajorMinor>=202608){const ag=c.agents||{};const nEntries=(Array.isArray(ag.list)?ag.list.length:0)+(ag.entries&&typeof ag.entries==='object'?Object.keys(ag.entries).length:0);if(nEntries>1&&ag.ownership!=='explicit'){ag.ownership='explicit';c.agents=ag;ch=true;}try{const agRoot=path.join(process.cwd(),'.openclaw','agents');for(const id of fs.readdirSync(agRoot)){const sf=path.join(agRoot,id,'sessions','sessions.json');if(fs.existsSync(sf)){fs.renameSync(sf,sf+'.bak-legacy-'+Date.now());console.log('[migrate] parked legacy session store '+sf);}}}catch(e){}if(c.commands&&c.commands.ownerDisplay!==undefined){delete c.commands.ownerDisplay;ch=true;}if(c.plugins&&c.plugins.bundledDiscovery!==undefined){delete c.plugins.bundledDiscovery;ch=true;}if(Array.isArray(ag.list)){ag.entries=(ag.entries&&typeof ag.entries==='object'&&!Array.isArray(ag.entries))?ag.entries:{};for(const a of ag.list){if(a&&a.id&&!ag.entries[a.id]){const{id:_aid,...rest}=a;ag.entries[_aid]=rest;}}delete ag.list;c.agents=ag;ch=true;console.log('[migrate] moved agents.list into agents.entries');}try{const ea=path.join(process.cwd(),'.openclaw','exec-approvals.json');if(fs.existsSync(ea)){fs.renameSync(ea,ea+'.bak-legacy-'+Date.now());console.log('[migrate] parked legacy exec approvals '+ea);}}catch(e){}try{const ag2=c.agents||{};const ids=(ag2.entries&&typeof ag2.entries==='object')?Object.keys(ag2.entries):(Array.isArray(ag2.list)?ag2.list.map(function(a){return a&&a.id;}).filter(Boolean):[]);if(ids.length>1&&d){if(!(d.heartbeat&&d.heartbeat.agentId)){d.heartbeat=(d.heartbeat&&typeof d.heartbeat==='object')?d.heartbeat:{};d.heartbeat.agentId=ids[0];ch=true;console.log('[migrate] agents.defaults.heartbeat.agentId='+ids[0]+' (khong thi heartbeat tat cam)');}if(!(d.systemAgent&&d.systemAgent.agentId)){d.systemAgent=(d.systemAgent&&typeof d.systemAgent==='object')?d.systemAgent:{};d.systemAgent.agentId=ids[0];ch=true;console.log('[migrate] agents.defaults.systemAgent.agentId='+ids[0]+' (khong thi cron.list vo ca trang Automations)');}const tk=(c.talk&&typeof c.talk==='object')?c.talk:{};if(!tk.agentId){tk.agentId=ids[0];c.talk=tk;ch=true;console.log('[migrate] talk.agentId='+ids[0]+' (khong thi talk.catalog loi khi mo Control UI)');}}}catch(e){}}const pr=c.models&&c.models.providers&&c.models.providers['9router'];if(pr&&Array.isArray(pr.models)){for(const m of pr.models){if(m&&m.id==='smart-route'&&(m.contextWindow===200000||m.contextWindow===131072)){m.contextWindow=1048576;ch=true;}}}if(ch)fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
 
   function buildDockerArtifacts(options) {
@@ -249,11 +249,11 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     const extVolMount = useExtensionsVolume ? '\n      - openclaw-extensions:/home/node/project/.openclaw/extensions' : '';
     const extVolDecl = useExtensionsVolume ? '\n  openclaw-extensions:' : '';
     // SQLite state on Docker Desktop (macOS/Windows): the host bind mount goes through a
-    // virtualized file share (virtiofs/gRPC-FUSE) whose locking/mmap semantics break SQLite WAL —
+    // virtualized file share (virtiofs/gRPC-FUSE) whose locking/mmap semantics break SQLite WAL -
     // OpenClaw crashes with `Error: disk I/O error` on write (e.g. when a Zalo message arrives).
     // Keep `.openclaw/state` on a named volume (the Linux VM's native filesystem) instead; the
     // rest of `.openclaw` stays bind-mounted so workspaces/config remain visible on the host.
-    // Linux/VPS bind mounts are native ext4 — unchanged there (and state stays host-visible).
+    // Linux/VPS bind mounts are native ext4 - unchanged there (and state stays host-visible).
     const useStateVolume = osChoice === 'macos' || osChoice === 'win';
     const stateVolMount = useStateVolume ? '\n      - openclaw-state:/home/node/project/.openclaw/state' : '';
     const stateVolDecl = useStateVolume ? '\n  openclaw-state:' : '';
@@ -278,7 +278,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     const deprecatedCleanupScript = `const fs=require('fs'),path=require('path');const p=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(p)){const c=JSON.parse(fs.readFileSync(p,'utf8'));let ch=false;if(c.plugins&&c.plugins.entries&&c.plugins.entries['memory-tencentdb']){delete c.plugins.entries['memory-tencentdb'];ch=true;}if(c.plugins&&Array.isArray(c.plugins.allow)){const n=c.plugins.allow.filter(x=>x!=='memory-tencentdb'&&x!=='@tencentdb-agent-memory/memory-tencentdb');if(n.length!==c.plugins.allow.length){c.plugins.allow=n;ch=true;}}if(c.skills&&c.skills.entries&&c.skills.entries['learning-memory']){delete c.skills.entries['learning-memory'];ch=true;}if(ch)fs.writeFileSync(p,JSON.stringify(c,null,2));}`;
     // One-shot upgrade for projects created by an older setup (their openclaw.json was
     // generated before these defaults existed, and bot-config-gen only runs when a bot is
-    // created/regenerated — so a plain rebuild would never pick them up):
+    // created/regenerated - so a plain rebuild would never pick them up):
     //   • skills.workshop.approvalPolicy:'auto' → the assistant can author a workspace
     //     skill end-to-end on request instead of stopping at "proposal awaiting approval".
     //   • tools.deny gains `browser` on projects that have browsing enabled, so the model
@@ -288,19 +288,19 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     //     heavy turn (deep research, 4K chart read-back) from overflowing the context
     //     window mid tool-loop, which cannot be compacted and poisons the session.
     //   • smart-route contextWindow 200000 → 131072: the old declared window exceeded the
-    //     smallest upstream in typical free-model combos, so full sessions deadlocked —
+    //     smallest upstream in typical free-model combos, so full sessions deadlocked -
     //     the compaction summarize call itself overflowed and only /new recovered. Only the
     //     exact setup-written 200000 is rewritten; an operator's custom value is left alone.
     // Each key is only filled in when absent, so an operator's own tuning is never clobbered.
-    // (The script itself lives at module scope — the native runtime replays the exact same
+    // (The script itself lives at module scope - the native runtime replays the exact same
     // migration before every gateway (re)start, since native projects have no entrypoint.)
     // Companion backfill for the same older projects: their TOOLS.md was generated before the
     // skill-authoring / long-turn guidance existed, and workspace files are only written when a
-    // bot is created — so a rebuild alone leaves the assistant stopping at "proposal awaiting
+    // bot is created - so a rebuild alone leaves the assistant stopping at "proposal awaiting
     // approval" even once approvalPolicy is 'auto'. (TOOLS.md is listed in AGENTS.md as required
     // reading, so guidance lands there rather than in the main manual.) Appends the block once
     // per workspace, keyed off the `skill_workshop` marker, never rewriting a file that has it.
-    const agentsGuidanceScript = `const fs=require('fs'),path=require('path');const vi=['','## 🛠️ Tự tạo skill & việc dài','','**Tự tạo skill:** Khi user nhờ tạo một kỹ năng/quy trình dùng lại (vd _"tạo skill X"_), bạn TỰ làm từ đầu đến cuối — dùng tool **skill_workshop**: tạo proposal RỒI **apply luôn trong cùng lượt** (môi trường này bật approvalPolicy auto, không cần chờ ai duyệt). Skill ghi vào skills/<tên>/SKILL.md và **tự nạp** qua watcher — KHÔNG cần sửa openclaw.json. Đừng dừng ở _"đã tạo proposal, chờ duyệt"_. KHÔNG nhúng bí mật vào skill — đọc từ biến môi trường lúc chạy.','','**Việc dài, nhiều bước (research sâu, dựng báo cáo/PDF):** ảnh/chart bạn vừa tạo thì **đừng đọc lại** bằng tool ảnh (chèn thẳng file vào tài liệu; kiểm bằng file tồn tại / build thành công) — đọc lại ảnh lớn ngốn ngữ cảnh gấp nhiều lần bạn tưởng. Tạo hình cạnh dài khoảng 1280px, đừng 4K trừ khi user yêu cầu. Research nhiều nguồn thì dùng **sessions_spawn** mỗi nhánh một subagent, bảo chúng **ghi dữ liệu thô ra file** và **chỉ trả tóm tắt ngắn kèm đường dẫn**; bạn tổng hợp từ file.',''].join('\\n');const en=['','## 🛠️ Authoring skills & long work','','**Authoring skills:** When the user asks for a reusable capability (e.g. _"make a skill for X"_), do it end-to-end — use the **skill_workshop** tool: create the proposal AND **apply it in the same turn** (this environment sets approvalPolicy auto, so no separate approval is needed). The skill lands in skills/<name>/SKILL.md and **auto-loads** via the watcher — no openclaw.json edit required. Do not stop at _"proposal created, awaiting approval"_. Never hardcode secrets into a skill — read them from environment variables at runtime.','','**Long multi-step work (deep research, building reports/PDFs):** do not read back an image or chart you just made (drop the file straight in; verify via file exists / build succeeded) — re-reading a large image costs far more context than it looks. Render at about 1280px on the long edge, skip 4K unless asked. For multi-source research, use **sessions_spawn** with one subagent per branch, have them **write raw findings to files** and **return only a short summary plus paths**; synthesize from the files.',''].join('\\n');const root=path.join(process.cwd(),'.openclaw');let dirs=[];try{dirs=fs.readdirSync(root).filter(n=>n.indexOf('workspace')===0);}catch(e){}for(const d of dirs){const f=path.join(root,d,'TOOLS.md');try{if(!fs.existsSync(f))continue;const cur=fs.readFileSync(f,'utf8');if(cur.indexOf('skill_workshop')!==-1)continue;const isVi=/Kỹ năng|Ghi chú|Xử lý lỗi|môi trường/.test(cur);fs.appendFileSync(f,(cur.endsWith('\\n')?'':'\\n')+(isVi?vi:en));}catch(e){}}`;
+    const agentsGuidanceScript = `const fs=require('fs'),path=require('path');const vi=['','## 🛠️ Tự tạo skill & việc dài','','**Tự tạo skill:** Khi user nhờ tạo một kỹ năng/quy trình dùng lại (vd _"tạo skill X"_), bạn TỰ làm từ đầu đến cuối - dùng tool **skill_workshop**: tạo proposal RỒI **apply luôn trong cùng lượt** (môi trường này bật approvalPolicy auto, không cần chờ ai duyệt). Skill ghi vào skills/<tên>/SKILL.md và **tự nạp** qua watcher - KHÔNG cần sửa openclaw.json. Đừng dừng ở _"đã tạo proposal, chờ duyệt"_. KHÔNG nhúng bí mật vào skill - đọc từ biến môi trường lúc chạy.','','**Việc dài, nhiều bước (research sâu, dựng báo cáo/PDF):** ảnh/chart bạn vừa tạo thì **đừng đọc lại** bằng tool ảnh (chèn thẳng file vào tài liệu; kiểm bằng file tồn tại / build thành công) - đọc lại ảnh lớn ngốn ngữ cảnh gấp nhiều lần bạn tưởng. Tạo hình cạnh dài khoảng 1280px, đừng 4K trừ khi user yêu cầu. Research nhiều nguồn thì dùng **sessions_spawn** mỗi nhánh một subagent, bảo chúng **ghi dữ liệu thô ra file** và **chỉ trả tóm tắt ngắn kèm đường dẫn**; bạn tổng hợp từ file.',''].join('\\n');const en=['','## 🛠️ Authoring skills & long work','','**Authoring skills:** When the user asks for a reusable capability (e.g. _"make a skill for X"_), do it end-to-end - use the **skill_workshop** tool: create the proposal AND **apply it in the same turn** (this environment sets approvalPolicy auto, so no separate approval is needed). The skill lands in skills/<name>/SKILL.md and **auto-loads** via the watcher - no openclaw.json edit required. Do not stop at _"proposal created, awaiting approval"_. Never hardcode secrets into a skill - read them from environment variables at runtime.','','**Long multi-step work (deep research, building reports/PDFs):** do not read back an image or chart you just made (drop the file straight in; verify via file exists / build succeeded) - re-reading a large image costs far more context than it looks. Render at about 1280px on the long edge, skip 4K unless asked. For multi-source research, use **sessions_spawn** with one subagent per branch, have them **write raw findings to files** and **return only a short summary plus paths**; synthesize from the files.',''].join('\\n');const root=path.join(process.cwd(),'.openclaw');let dirs=[];try{dirs=fs.readdirSync(root).filter(n=>n.indexOf('workspace')===0);}catch(e){}for(const d of dirs){const f=path.join(root,d,'TOOLS.md');try{if(!fs.existsSync(f))continue;const cur=fs.readFileSync(f,'utf8');if(cur.indexOf('skill_workshop')!==-1)continue;const isVi=/Kỹ năng|Ghi chú|Xử lý lỗi|môi trường/.test(cur);fs.appendFileSync(f,(cur.endsWith('\\n')?'':'\\n')+(isVi?vi:en));}catch(e){}}`;
     const securityCompatScript = `const fs=require('fs'),path=require('path');const scopes=['operator.admin','operator.pairing','operator.approvals'];function uniq(a){return Array.from(new Set([...(Array.isArray(a)?a:[]),...scopes]));}function walk(v){if(!v||typeof v!=='object')return;if(Array.isArray(v)){v.forEach(walk);return;}if(Array.isArray(v.scopes)||Array.isArray(v.approvedScopes)){v.scopes=uniq(v.scopes);v.approvedScopes=uniq(v.approvedScopes);}Object.values(v).forEach(walk);}const home=process.env.OPENCLAW_HOME||path.join(process.cwd(),'.openclaw');const state=process.env.OPENCLAW_STATE_DIR||home;const cfgPath=path.join(process.cwd(),'.openclaw','openclaw.json');if(fs.existsSync(cfgPath)){const c=JSON.parse(fs.readFileSync(cfgPath,'utf8'));const p=c.models&&c.models.providers&&c.models.providers['9router'];if(p){p.request=Object.assign({},p.request,{allowPrivateNetwork:true});}fs.writeFileSync(cfgPath,JSON.stringify(c,null,2));}for(const root of Array.from(new Set([home,state]))){const f=path.join(root,'devices','paired.json');if(fs.existsSync(f)){const d=JSON.parse(fs.readFileSync(f,'utf8'));walk(d);fs.writeFileSync(f,JSON.stringify(d,null,2));}}`;
 
     const runtimeParts = runtimeCommandParts.filter(Boolean);
@@ -309,7 +309,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       'export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$OPENCLAW_HOME}"',
       'mkdir -p "$OPENCLAW_HOME" "$OPENCLAW_STATE_DIR"',
       // `openclaw plugins install` unpacks into extensions/.openclaw-install-stage-XXXXXX and removes
-      // it when it finishes. An interrupted install leaves the staging copy behind — and it still
+      // it when it finishes. An interrupted install leaves the staging copy behind - and it still
       // carries a plugin manifest, so the gateway logs "duplicate plugin id detected" on every boot
       // and a stale build competes with the real one for the same id. Found on a production host: a
       // zalo-connect 3.0.7 stage dir shadowing 3.0.17 for a week. Nothing is installing at entrypoint
@@ -381,8 +381,8 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       // Backfill the inbound-message ack reaction for projects created before it was
       // seeded. Kept out of the shared migration because zalo-connect reads the GLOBAL
       // messages.ackReaction, and that same key also feeds Telegram/Discord/Slack/
-      // WhatsApp — which accept only their own fixed reaction sets and would reject an
-      // arbitrary emoji. Absent-only, so an operator's own choice is never overwritten —
+      // WhatsApp - which accept only their own fixed reaction sets and would reject an
+      // arbitrary emoji. Absent-only, so an operator's own choice is never overwritten -
       // with one exception: the 🦞 this script itself used to seed is rewritten to
       // `/-heart`. 🦞 only ships as a Zalo CUSTOM reaction (needs zalo-connect ≥3.0.15,
       // silently dropped below that); `/-heart` is a built-in every version can send.
@@ -399,11 +399,11 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     // Backfill skill-authoring + context defaults for configs from an older setup (see above).
     runtimeParts.push(`node - <<'NODE'\n${contextDefaultsScript}\nNODE`);
     runtimeParts.push(`node - <<'NODE'\n${agentsGuidanceScript}\nNODE`);
-    // browser-tool.js is a CDP client only — it has no code to launch a browser, so it
+    // browser-tool.js is a CDP client only - it has no code to launch a browser, so it
     // needs something listening on a debug port. On a desktop that is the operator's own
     // Chrome (started by start-chrome), reached through the host gateway. On a server there
     // is no such Chrome, and browsing simply failed. Start a headless Chromium on loopback
-    // 9222 — the second entry in browser-tool.js's candidate list — so the same tool works
+    // 9222 - the second entry in browser-tool.js's candidate list - so the same tool works
     // on every OS.
     //
     // Emitted unconditionally and gated at RUNTIME on the plugin being installed, not on
@@ -411,7 +411,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     // browser-automation on later (the common path) would otherwise never get this block.
     //
     // Chromium is baked into the image only when hasBrowser was known at build time. When it
-    // is missing — every project whose image predates the plugin — download it once instead
+    // is missing - every project whose image predates the plugin - download it once instead
     // of telling the bot to give up; that message is what makes it answer "there is no
     // browser in my environment". The download goes to a path under $OPENCLAW_HOME, which is
     // a bind mount, so recreating the container does not pay for it again. It runs in the
@@ -463,7 +463,7 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
       '      echo "[entrypoint] Chromium ready at $installed_bin"',
       '      launch_headless_chrome "$installed_bin"',
       '    else',
-      '      echo "[entrypoint] Chromium download failed; see /tmp/openclaw-chromium-install.log — browsing still works if the operator runs start-chrome on the host"',
+      '      echo "[entrypoint] Chromium download failed; see /tmp/openclaw-chromium-install.log - browsing still works if the operator runs start-chrome on the host"',
       '    fi',
       '  ) &',
       '}',
@@ -473,9 +473,9 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     // openclaw ≥2026.8 TACH duckduckgo khoi bundle thanh plugin external co capability consent.
     // Config do setup sinh (bot chon skill web-search) van khai `plugins.entries.duckduckgo`,
     // va gateway 2026.8.x TU CHOI ready khi entry khai ma plugin chua cai ("Plugin verification
-    // failed … requires capability consent") — do that tren 103.98.149.154, 31/08/2026.
+    // failed … requires capability consent") - do that tren 103.98.149.154, 31/08/2026.
     // Cai o day, truoc gateway run, dung lenh + co ma chinh gateway goi y; `yes |` cho cau hoi
-    // consent; loi khong chan boot (|| true) — thieu web search chi la mat mot tool phu.
+    // consent; loi khong chan boot (|| true) - thieu web search chi la mat mot tool phu.
     runtimeParts.push([
       'if grep -q \'"duckduckgo"\' "$OPENCLAW_HOME/openclaw.json" 2>/dev/null && [ ! -d "$OPENCLAW_HOME/extensions/duckduckgo" ]; then',
       '  echo "[entrypoint] installing external duckduckgo plugin (openclaw >=2026.8 unbundled it)"',
@@ -485,10 +485,10 @@ if(touched){console.log('[patch-9router] Applied Codex compatibility patch.');}e
     // ── Doctor-on-upgrade ─────────────────────────────────────────────────────────────────
     // Update openclaw khong bao gio chi la "doi so version": schema config doi (key cu bi TU CHOI
     // chu khong bo qua) va state DB doi migration (audit-events-v2…), va doctor chi chay sach khi
-    // gateway DANG TAT — tuc dung ngay tai day, truoc `gateway run`, trong container vua boot.
+    // gateway DANG TAT - tuc dung ngay tai day, truoc `gateway run`, trong container vua boot.
     // So version hien tai voi lan boot truoc (marker trong $OPENCLAW_HOME); khac nhau moi chay,
     // hai luot vi doctor boc migration theo LOP (ca that 103.98.149.154 can nhieu luot). `yes |`
-    // vi doctor co cau hoi tuong tac; loi doctor khong chan boot — gateway se tu noi not phan con
+    // vi doctor co cau hoi tuong tac; loi doctor khong chan boot - gateway se tu noi not phan con
     // thieu, con hon container chet cung khong ai chan doan duoc.
     runtimeParts.push([
       'OC_VER="$(openclaw --version 2>/dev/null | head -1)"',
@@ -566,7 +566,7 @@ ${indentBlock(docker9RouterEntrypointScript, 8)}
       - HOSTNAME=0.0.0.0
       - CI=true
       # 9router blocks the default password for "remote" access, and inside Docker every
-      # host request arrives via the bridge network, so it always counts as remote — without
+      # host request arrives via the bridge network, so it always counts as remote - without
       # this the user can NEVER log in with the documented default (measured 02/09/2026).
       - INITIAL_PASSWORD=123456
     volumes:
@@ -664,7 +664,7 @@ ${indentBlock(docker9RouterEntrypointScript, 8)}
       - HOSTNAME=0.0.0.0
       - CI=true
       # 9router blocks the default password for "remote" access, and inside Docker every
-      # host request arrives via the bridge network, so it always counts as remote — without
+      # host request arrives via the bridge network, so it always counts as remote - without
       # this the user can NEVER log in with the documented default (measured 02/09/2026).
       - INITIAL_PASSWORD=123456
     volumes:

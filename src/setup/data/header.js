@@ -2,7 +2,7 @@
 /* eslint-disable no-undef, no-unused-vars */
 /**
  * @fileoverview Part of the OpenClaw Setup Wizard IIFE bundle.
- * This file is concatenated (not imported) — globals are shared via setup.js IIFE scope.
+ * This file is concatenated (not imported) - globals are shared via setup.js IIFE scope.
  * Do NOT add import/export statements. Edit, then run: node build.mjs
  *
  * @global {object}  state       - Wizard UI state

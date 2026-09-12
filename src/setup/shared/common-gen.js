@@ -1,7 +1,7 @@
 // @ts-nocheck
 (function (root) {
   // GHIM version, khong dung @latest: Dockerfile sinh ra mang spec nay, nen "@latest" nghia la
-  // MOI lan rebuild image co the nhay han mot the he openclaw — schema config doi, state DB doi
+  // MOI lan rebuild image co the nhay han mot the he openclaw - schema config doi, state DB doi
   // migration, va bot khach chet ngay sau mot lan bam rebuild vo hai (ca that 103.98.149.154,
   // 31/08/2026: rebuild keo 2026.7.1-2 → 2026.8.1, gateway tu choi boot, 66 lan restart).
   // Nang version = doi spec nay MOT CACH CO Y trong mot ban phat hanh setup, kem kiem chung.
@@ -45,9 +45,9 @@
   const TELEGRAM_RELAY_PLUGIN_ID = 'telegram-multibot-relay';
   const TELEGRAM_SETUP_GUIDE_FILENAME = 'TELEGRAM-GROUP-SETUP.md';
 
-  // ── OpenClaw Zalo Connect — single source of truth ──────────────────────────
+  // ── OpenClaw Zalo Connect - single source of truth ──────────────────────────
   // Installed from ClawHub (owned package `openclaw-zalo-connect`) at LATEST, like zalo-mod, so the
-  // dashboard "Update" button + first-boot always fetch the newest published version — no tag pin to
+  // dashboard "Update" button + first-boot always fetch the newest published version - no tag pin to
   // bump each release. (Was a pinned git tag; switched once the fork was published to ClawHub.)
   const ZALO_CHANNEL_ID = 'zalo-connect';
   const ZALO_PLUGIN_ID = 'zalo-connect';
@@ -73,7 +73,7 @@
     const botList = bots.map((bot, idx) => {
       const name = bot?.name || `Bot ${idx + 1}`;
       if (includeTokenPreview) {
-        return `- **${name}** — token: ${String(bot?.token || '').slice(0, 10)}...`;
+        return `- **${name}** - token: ${String(bot?.token || '').slice(0, 10)}...`;
       }
       return `- **${name}**`;
     }).join('\n');
@@ -273,12 +273,12 @@ If setup reported a plugin install error, run this after the bot is running:
         {
           id: 'smart-route',
           name: 'Smart Proxy (Auto Route)',
-          // 1M (Kent chot 01/09/2026) — dao lai quyet dinh 131072 cua 5.16.0. Boi canh de doc
+          // 1M (Kent chot 01/09/2026) - dao lai quyet dinh 131072 cua 5.16.0. Boi canh de doc
           // lai sau: 131072 sinh ra vi smart-route fan-out sang upstream free ma model nho nhat
           // trong pool tran ~128k; khai 200k lam phien day den muc chinh loi goi compaction cung
           // overflow ("auto-compaction could not recover" cho den /new). Gio pool upstream da la
           // cac model cua so lon nen khai 1M de phien dai khong bi compaction som. TRADE-OFF: neu
-          // mot combo van con model 128k thi phien vuot 128k se chet dung nhu hoi 5.15.x — do la
+          // mot combo van con model 128k thi phien vuot 128k se chet dung nhu hoi 5.15.x - do la
           // van de cua combo, sua bang cach chon model, khong sua bang cach ha window o day nua.
           contextWindow: 1048576,
           maxTokens: 8192,

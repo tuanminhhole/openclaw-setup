@@ -68,7 +68,7 @@ Once configured, you have total control over the bot lifecycle via the Web UI:
 
 ---
 
-## 🐳 Docker or Native — what actually differs
+## 🐳 Docker or Native - what actually differs
 
 |  | Docker _(recommended)_ | Native |
 |---|---|---|
@@ -98,7 +98,7 @@ host** and steps to the next free pair, so a second project coexists with the fi
 project sits where, read `gateway.port` in `openclaw.json` or look at the **Status** column on the Bot
 tab.
 
-Docker publishes its ports on **`127.0.0.1`**, not `0.0.0.0` — so a container binding `0.0.0.0`
+Docker publishes its ports on **`127.0.0.1`**, not `0.0.0.0` - so a container binding `0.0.0.0`
 internally is still not exposed to the internet. Native listens on loopback too, even when you pick
 **Linux VPS**; see below.
 
@@ -110,7 +110,7 @@ A few things behave differently when native runs on a server:
 
 - **The gateway is a systemd _user_ unit.** `openclaw daemon install` has no `--system` flag, so the
   service lands in `~/.config/systemd/user/`. A user manager is torn down when that user's last
-  session ends — harmless on a desktop with a graphical session, fatal over SSH: **the bot dies when
+  session ends - harmless on a desktop with a graphical session, fatal over SSH: **the bot dies when
   you close the terminal**. Setup enables `loginctl enable-linger` so the service outlives the session
   and comes back after a reboot. If the log says it could not, run it yourself:
   `sudo loginctl enable-linger <user>`.
@@ -119,11 +119,11 @@ A few things behave differently when native runs on a server:
   has no firewall, so exposing the control plane would be a badly lopsided trade. Reach it over an SSH
   tunnel instead (next section).
 - **Plugins are installed for you.** Native puts `zalo-connect` (when a bot uses the Zalo channel) and
-  `learning-memory` into `<project>/.openclaw/extensions` **before** the gateway's first boot — the
+  `learning-memory` into `<project>/.openclaw/extensions` **before** the gateway's first boot - the
   same job the container's entrypoint does. Before v5.15.4 native skipped this, so Zalo login failed
   with `Unsupported channel "zalo-connect"` and the bot ran with no context engine.
 - **The service env is completed.** `openclaw daemon install` propagates only some variables into the
-  service it generates — `OPENCLAW_STATE_DIR` survives, `OPENCLAW_HOME` does not. Without it, plugins
+  service it generates - `OPENCLAW_STATE_DIR` survives, `OPENCLAW_HOME` does not. Without it, plugins
   write to `~/.openclaw` instead of the project: files sent to the bot land outside the agent's
   workspace so it **cannot read them**, and the Zalo session sits in a different home from its config.
   Since v5.15.5 Setup completes the env (both systemd and launchd) and adopts the misplaced files
@@ -136,7 +136,7 @@ A few things behave differently when native runs on a server:
 There is no browser on the server, and every interface listens on `127.0.0.1` only. The way in is an
 **SSH tunnel** from your own machine, then `localhost`.
 
-On the Bot tab, open the **🌐 Open from another machine (VPS/server)** panel and hit **Copy** — the
+On the Bot tab, open the **🌐 Open from another machine (VPS/server)** panel and hit **Copy** - the
 command is pre-filled with the selected project's real ports, including the zalo-mod dashboard at
 gateway + 1:
 
@@ -150,7 +150,7 @@ the dashboard now work, because they point at the same port numbers on `localhos
 
 > **If your own machine already runs another OpenClaw project** (a Docker one especially), those ports
 > are **already taken locally** and `ssh -L` fails with `bind: Address already in use`. Stop the local
-> project before opening the tunnel — or forward to different local ports
+> project before opening the tunnel - or forward to different local ports
 > (`-L 28789:127.0.0.1:18789`), accepting that the "Open" buttons will then point at the wrong port
 > because they use the server's numbering.
 
@@ -164,5 +164,5 @@ the dashboard now work, because they point at the same port numbers on `localhos
 | Zalo login says `Unsupported channel "zalo-connect"` | The plugin is not on disk. Update Setup to ≥ v5.15.4, or hit **Update** on the `OpenClaw Zalo Connect` card. |
 | The bot dies when you close SSH, or never returns after a reboot | The systemd user unit has no linger → `sudo loginctl enable-linger <user>`. |
 | The zalo-mod dashboard opens blank or refuses to connect | The tunnel is not forwarding its port. The dashboard is **gateway + 1**, not a fixed number. |
-| The bot says it cannot read a file or image you sent | The service is missing `OPENCLAW_HOME`, so the file was staged outside the project. Update Setup to ≥ v5.15.5 and restart the bot — it completes the env and adopts the files. |
+| The bot says it cannot read a file or image you sent | The service is missing `OPENCLAW_HOME`, so the file was staged outside the project. Update Setup to ≥ v5.15.5 and restart the bot - it completes the env and adopts the files. |
 | `Config warnings … plugin not found` on every command | The config declares a plugin that is not installed. It is a warning, not a blocker: install the plugin, or run `openclaw doctor --fix` to drop the stale declaration. |
