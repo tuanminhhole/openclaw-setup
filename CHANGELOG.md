@@ -1,6 +1,119 @@
 # Changelog (English)
 
 
+## [5.17.4] - 2026-09-12
+
+### 🔑 "Authentication failed" on a bot whose key was perfectly fine
+
+A bot could answer its first message and then reply
+`9router/smart-route request failed (authentication failed)` to everything after it - while the key
+sitting in its config answered a hand-run request with 200. Measured end to end on a customer VPS.
+
+OpenClaw resolves provider credentials as **auth profile first, models.json second**, and it freezes
+whatever key the config carried at first boot into an auth profile inside its own database. A project
+is created before 9Router has minted its key, so the frozen key is the `sk-no-key` placeholder. After
+that, writing the real key into the config changes nothing, and neither does restarting: the profile
+is in SQLite, not in the file the restart re-reads. Every turn shipped the placeholder, took a 401,
+and OpenClaw then dropped *all nine* models for that run. The recovery probe reads models.json, so it
+answered 200 a second later - which made 9Router's log look flaky rather than misconfigured.
+
+- **Writing a new 9Router key now removes the auth profile that outranks it**, so the key Setup just
+  verified is the key the bot actually sends.
+- **Bots installed before this fix repair themselves on the next restart** - the profile is only
+  dropped when OpenClaw reports it stuck on auth, so a healthy login is left alone.
+- Multi-bot projects are walked agent by agent; each agent has its own auth store.
+
+### 💬 Zalo's own Bot API channel, finished
+
+Zalo Bot API has been in the channel list for a while, but a bot created on it never answered: the
+generated config carried a `provider` key that does not exist in OpenClaw's schema, and the channel
+plugin was left out of the project's plugin allowlist. Both are fixed, and the channel was run end
+to end on a live customer VPS before this release.
+
+- **Pick "Zalo Bot API", paste the token from `bot.zaloplatforms.com`, and that is the whole setup.**
+  No QR scan, no personal account borrowed, and no public webhook: the channel long-polls.
+- **The generated config no longer stops the gateway from booting.** `channels.zalo` is
+  `additionalProperties: false` in OpenClaw 2026.9.2, so the stray `provider: "official_account"`
+  was rejected outright - and a rejected config takes down every bot in the project, not just the
+  new one. Regression tests now assert the key stays absent.
+- **The channel plugin is installed and allowlisted.** `@openclaw/zalo` is fetched during creation
+  the same way zalo-connect is, and `zalo` is added to `plugins.allow`; without it the plugin
+  installed and then refused to load with "Cannot enable Zalo: blocked by allowlist".
+- **Groups work, with the rules spelled out in the UI.** New bots start with DMs open and groups
+  open. A bot cannot be found in the member list - it is invited with a link from the **Zalo Bot
+  Creator** mini app, confirmed by the group owner, and answers only an @mention or a reply.
+- **`openclaw-zalo-mod` is offered for this channel too**, not just for personal Zalo.
+- **The empty `ZALO_APP_ID` / `ZALO_APP_SECRET` lines are gone** from generated `.env` files. They
+  belong to the legacy Zalo OA OpenAPI and were never read by this channel.
+
+### 🧪 Two regression tests were asserting the wrong thing
+
+Both predate this release and both went red against correct code: one pinned two calls inside a
+400-character window that a 5.17.4 change pushed them out of, and one still looked for the
+migration dialog's confirm button in the function it was split out of. They now assert the
+behaviour instead of the byte offsets.
+
+### 📦 The offer to leave Docker now has a button behind it
+
+5.17.2 added a prompt that offers to move a Docker bot onto the machine itself. It was reachable
+exactly once, and only for the project the dashboard happened to be pointed at, so on a machine
+where somebody had already closed it there was nothing on screen about Docker at all.
+
+- **Every project still on Docker now carries a "Chuyển sang Native" button**, next to Connect on
+  its card under Settings. Press it whenever you want; it opens the same move, for that project.
+- **"Later" is a snooze again, not a refusal.** It used to be remembered forever, so one stray
+  click retired the offer on that machine for good. It now comes back after three days.
+- **The move refuses to start while Docker Desktop is shut down.** Your Zalo logins and your whole
+  chat history live inside Docker's own storage, and the only way to copy them out is through
+  Docker. With it closed, the move used to run anyway and finish with a bot that was logged out and
+  had forgotten everything. It now stops and says what to open.
+
+### 🔁 Four more faults the real migration walked straight into
+
+The move off Docker was run end to end on a live Windows machine before this release. Each of these
+stopped it dead, and none of them would have shown up any other way:
+
+- **The bot refused to start after the move.** Permission for each plugin is remembered per machine,
+  so plugins carried over from Docker arrive without it and OpenClaw will not start the bot at all
+  until it is granted. Update now grants it for the plugins already present, not only for ones it
+  had to download.
+- **The launcher started the bot without telling it where its settings are.** It relied on them
+  sitting in the Windows user folder, which is only true after a step that the interrupted move had
+  not reached - so the bot started, found no settings, and quit with "Missing config".
+- **A stale launcher was never replaced.** Launchers were only written when missing, so a machine
+  that already had a broken one kept using it. They are now rewritten on every restart, which is how
+  the fix above actually reaches the machines that need it.
+- **9Router died whenever the dashboard was closed**, and a bot without it answers nothing at all
+  while still looking healthy. It now starts the same detached way the bot itself does, and a restart
+  brings it back if it is down.
+
+### 🛠️ Windows: every OpenClaw command Setup ran could fail for one hidden reason
+
+Found while moving a real customer machine off Docker today. Windows spells the search path `Path`,
+not `PATH`, and Setup was writing `PATH` - which on Windows does not replace `Path`, it adds a
+SECOND one containing a single folder. Whatever Setup launched inherited that stunted copy, so the
+small wrapper that starts OpenClaw could no longer find Node and quit with `'"node"' is not
+recognized`. Two consequences, both of which looked like something else entirely:
+
+- **Installing the background service failed outright**, which stopped the move off Docker at the
+  last step, after the data had already been copied across.
+- **The settings upgrade silently did nothing.** It asks OpenClaw its version first and, getting no
+  answer, assumed the oldest one - so the four settings OpenClaw 2026.9 refuses were left in place
+  and the bot came up with a settings file it would not accept.
+
+### 🖱️ Docker is no longer offered as the recommended mode
+
+The create dialog had already retired it, but the Settings page still showed Docker ticked and
+labelled "Recommended" - and the dialog then opened onto its own disabled tab. Native is the
+recommendation now, and the Docker tile says it is retired.
+
+### 🧹 Under the hood
+
+The automated checks had been failing to start since 5.17.1, so 5.17.2 and 5.17.3 both shipped
+without them. They run again, and they cover the move off Docker. Around 250 lines of a retired
+feature were removed with them.
+
+
 ## [5.17.3] - 2026-09-12
 ### 🔁 Pressing "Update" no longer takes the dashboard down with it
 

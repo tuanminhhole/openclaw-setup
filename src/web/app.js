@@ -7,18 +7,20 @@ const OS_OPTIONS = [
   { id: 'linux-desktop', title: 'Linux Desktop', subtitle: 'Ubuntu / Debian / Fedora', icon: `${SVG_CDN}/linux/default.svg`, badge: 'Desktop' },
   { id: 'vps', title: 'Linux VPS', subtitle: 'Server install with public bind', icon: `${SVG_CDN}/ubuntu/default.svg`, badge: 'Server' },
 ];
-// Two deploy modes. Docker isolates the bot in a container; native runs openclaw + 9router
-// straight on this machine as a managed service (launchd/systemd/schtasks). Native needs no
-// Docker install, sees the host filesystem directly, and is the only mode where the bot can
-// drive apps on the desktop - at the cost of the container's isolation.
+// One deploy mode is left. Native runs openclaw + 9router straight on this machine as a managed
+// service (launchd/systemd/schtasks): no Docker install, the host filesystem in plain sight, and
+// the only mode where the bot can drive apps on the desktop.
+// Docker is kept on screen but retired, and it has to say so HERE too, not only inside the create
+// dialog: this tile was still the pre-ticked "Recommended" one, so the dialog then opened on its
+// own locked tab and the operator was left holding a disabled button with no explanation.
 const MODE_OPTIONS = [
-  { id: 'docker', title: 'Docker', subtitle: 'Isolated containers, safest default', icon: `${SVG_CDN}/docker/default.svg`, badge: 'Recommended' },
-  { id: 'native', title: 'Native', subtitle: 'Runs on this machine, controls apps', icon: `${SVG_CDN}/gnubash/default.svg`, badge: 'Desktop' },
+  { id: 'native', title: 'Native', subtitle: 'Runs on this machine, controls apps', icon: `${SVG_CDN}/nodedotjs/default.svg`, badge: 'Recommended' },
+  { id: 'docker', title: 'Docker', subtitle: 'Retired, existing projects keep running', icon: `${SVG_CDN}/docker/default.svg`, badge: 'Retired', retired: true },
 ];
 const BOT_CHANNELS = [
   { id: 'telegram', title: 'Telegram', subtitle: 'Bot API', icon: `${SVG_CDN}/telegram/default.svg`, badge: 'Tele' },
   { id: 'zalo-personal', title: 'Zalo cá nhân', subtitle: 'OpenClaw Zalo Connect', icon: `${SVG_CDN}/zalo/default.svg`, badge: 'User' },
-  { id: 'zalo-bot', title: 'Zalo API', subtitle: 'Official Account', icon: `${SVG_CDN}/zalo/default.svg`, badge: 'API' },
+  { id: 'zalo-bot', title: 'Zalo Bot API', subtitle: 'Bot chính chủ (bot.zaloplatforms.com)', icon: `${SVG_CDN}/zalo/default.svg`, badge: 'Bot' },
   { id: 'fb-messenger', title: 'Facebook', subtitle: 'Messenger', icon: `${SVG_CDN}/messenger/default.svg`, badge: 'FB' },
   { id: 'discord', title: 'Discord', subtitle: 'Bot', icon: `${SVG_CDN}/discord/default.svg`, badge: 'Discord', comingSoon: true },
   { id: 'lark', title: 'Lark', subtitle: 'Lark / Feishu', icon: '/lark.svg', badge: 'Lark', comingSoon: true },
@@ -26,10 +28,15 @@ const BOT_CHANNELS = [
 
 function choiceCard(group, item, current) {
   const coming = !!item.comingSoon;
-  const badge = coming ? t('Sắp ra mắt', 'Coming soon') : item.badge;
-  return `<label class="choice-card logo-card ${item.id === current ? 'is-selected' : ''} ${coming ? 'is-coming-soon' : ''}" ${coming ? `title="${t('Sắp ra mắt','Coming soon')}"` : ''}>
-    <input name="${group}" type="radio" value="${item.id}" ${item.id===current?'checked':''} ${coming?'disabled':''}/>
+  const retired = !!item.retired;
+  const retiredWhy = t('Đã ngừng cho project mới - OpenClaw 2026.9 không ghi được cấu hình qua Docker trên Windows',
+                       'Retired for new projects - OpenClaw 2026.9 cannot write config through Docker on Windows');
+  const badge = coming ? t('Sắp ra mắt', 'Coming soon') : retired ? t('Đã ngừng', 'Retired') : item.badge;
+  const locked = coming || retired;
+  return `<label class="choice-card logo-card ${item.id === current ? 'is-selected' : ''} ${coming ? 'is-coming-soon' : ''} ${retired ? 'is-retired' : ''}" ${coming ? `title="${t('Sắp ra mắt','Coming soon')}"` : retired ? `title="${escapeHtml(retiredWhy)}"` : ''}>
+    <input name="${group}" type="radio" value="${item.id}" ${item.id===current?'checked':''} ${locked?'disabled':''}/>
     ${coming ? `<span class="coming-badge">${t('Sắp ra mắt','Coming soon')}</span>` : ''}
+    ${retired ? `<span class="coming-badge">${t('Đã ngừng','Retired')}</span>` : ''}
     <span class="choice-card__icon"><img src="${item.icon}" alt="${item.title} icon" loading="lazy" onerror="this.style.display='none'"/></span>
     <span class="choice-card__body"><strong>${item.title}</strong><small>${badge}</small></span>
   </label>`;
@@ -110,7 +117,8 @@ function actionIcon(name) {
     save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>',
     edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
     spark: '<path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8Z"/>',
-    key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>'
+    key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
+    native: '<path d="M12 3v11"/><polyline points="8 7 12 3 16 7"/><path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>'
   }[name];
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 }
@@ -216,13 +224,13 @@ function installModal() {
   const pathExample = os === 'win' ? 'C:\\openclaw-setup' : os === 'macos' ? '/Users/you/openclaw-setup' : '/home/you/openclaw-setup';
   const osChoices = OS_OPTIONS.map(o => [o.id, t(o.title, o.title), trChoice(o).subtitle]);
   // Docker is closed for NEW projects: openclaw >=2026.9 writes config through fs-safe, which
-  // fstat()s the file after an atomic rename \u2014 a check that cannot pass through a Docker Desktop
+  // fstat()s the file after an atomic rename - a check that cannot pass through a Docker Desktop
   // bind mount on Windows, so the first image rebuild after that takes the gateway down for good
   // (measured on win_kha, 09/09/2026). Existing docker projects keep running and move to native on
   // their next update; the tile stays visible but disabled so the reason is on screen.
   const modeChoices = [
-    ['native', 'Native', t('Ch\u1ea1y th\u1eb3ng tr\u00ean m\u00e1y n\u00e0y \u2014 kh\u00f4ng c\u1ea7n Docker, \u0111i\u1ec1u khi\u1ec3n \u0111\u01b0\u1ee3c app', 'Runs on this machine \u2014 no Docker, can drive desktop apps'), false],
-    ['docker', 'Docker', t('\u0110\u00e3 ng\u1eebng \u2014 OpenClaw 2026.9 kh\u00f4ng ghi \u0111\u01b0\u1ee3c c\u1ea5u h\u00ecnh qua Docker tr\u00ean Windows', 'Retired \u2014 OpenClaw 2026.9 cannot write config through Docker on Windows'), true],
+    ['native', 'Native', t('Ch\u1ea1y th\u1eb3ng tr\u00ean m\u00e1y n\u00e0y - kh\u00f4ng c\u1ea7n Docker, \u0111i\u1ec1u khi\u1ec3n \u0111\u01b0\u1ee3c app', 'Runs on this machine - no Docker, can drive desktop apps'), false],
+    ['docker', 'Docker', t('\u0110\u00e3 ng\u1eebng - OpenClaw 2026.9 kh\u00f4ng ghi \u0111\u01b0\u1ee3c c\u1ea5u h\u00ecnh qua Docker tr\u00ean Windows', 'Retired - OpenClaw 2026.9 cannot write config through Docker on Windows'), true],
   ];
   return `<div class="modal-backdrop install-backdrop" data-install-modal="close">
     <section class="donate-modal install-modal" role="dialog" aria-modal="true" aria-label="${t('T\u1ea1o Project','Create Project')}" onclick="event.stopPropagation()">
@@ -252,7 +260,7 @@ function ui(key) {
     localSetup:['C\u00e0i \u0111\u1eb7t c\u1ee5c b\u1ed9','Local Setup'], ready:['S\u1eb5n s\u00e0ng','Ready'], installed:['\u0110\u00e3 c\u00e0i','Installed'],
     light:['S\u00e1ng','Light'], dark:['T\u1ed1i','Dark'], donate:['\u1ee6ng h\u1ed9','Donate'], installer:['TR\u00ccNH C\u00c0I \u0110\u1eb6T WEB C\u1ee4C B\u1ed8','LOCAL WEB INSTALLER'],
     osTitle:['Ch\u1ecdn h\u1ec7 \u0111i\u1ec1u h\u00e0nh','Choose operating system'], osDesc:['M\u1eb7c \u0111\u1ecbnh theo m\u00e1y \u0111\u00e3 nh\u1eadn di\u1ec7n','Default follows detected machine'],
-    modeTitle:['Ch\u1ecdn ch\u1ebf \u0111\u1ed9 ch\u1ea1y','Choose runtime mode'], modeDesc:['Docker \u0111\u01b0\u1ee3c khuy\u00ean d\u00f9ng tr\u00ean Windows/macOS','Docker recommended on Windows/macOS'],
+    modeTitle:['Ch\u1ecdn ch\u1ebf \u0111\u1ed9 ch\u1ea1y','Choose runtime mode'], modeDesc:['Ch\u1ea1y th\u1eb3ng tr\u00ean m\u00e1y (native). Docker \u0111\u00e3 ng\u1eebng cho project m\u1edbi.','Runs directly on this machine (native). Docker is retired for new projects.'],
     install:['C\u00e0i OpenClaw','Install OpenClaw'], installSub:['T\u1ea1o project \u2192 c\u00e0i runtime m\u1edbi nh\u1ea5t \u2192 kh\u1edfi \u0111\u1ed9ng bot','Generate project \u2192 install latest runtime \u2192 start bot'],
     system:['H\u1ec7 th\u1ed1ng','System'], notReady:['Ch\u01b0a s\u1eb5n s\u00e0ng','Not ready'], missing:['Thi\u1ebfu','Missing'],
     liveLogs:['Nh\u1eadt k\u00fd tr\u1ef1c ti\u1ebfp','Live Logs'], status:['Tr\u1ea1ng th\u00e1i','Status'], yes:['C\u00f3','Yes'], no:['Kh\u00f4ng','No'], mode:['Ch\u1ebf \u0111\u1ed9','Mode'], project:['Project','Project'], gateway:['Gateway','Gateway'],
@@ -371,8 +379,21 @@ function openComputerUseModal(r = {}) {
   };
 }
 
+// "Later" is a snooze, not a refusal. The first cut stored the dismissal forever, so one stray
+// click on "Để sau" - by the owner, by whoever was at the keyboard - retired the prompt on that
+// machine for good and the project stayed on Docker with nothing left to say so. Come back after
+// this long instead.
+const NATIVE_OFFER_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
+
+function nativeOfferSnoozed(dir) {
+  try {
+    const at = Number(localStorage.getItem('openclaw-native-offer:' + dir) || 0);
+    return at > 0 && (Date.now() - at) < NATIVE_OFFER_SNOOZE_MS;
+  } catch (_) { return false; }  // private window: just ask
+}
+
 /**
- * Offer the move off Docker, once, when we can see the project is still on it.
+ * Offer the move off Docker when we can see a project is still on it.
  *
  * Relying on the operator to press "Update" does not work: nothing on screen says that Update is
  * ALSO the migration, so a machine sits on Docker indefinitely. And it cannot sit there safely -
@@ -380,17 +401,15 @@ function openComputerUseModal(r = {}) {
  * next image rebuild takes the bot down for good. Say that plainly, show what is gained, and make
  * the move one button.
  *
- * Asked once per project, then remembered: a prompt that returns on every page load is a prompt
- * people learn to dismiss without reading.
+ * The automatic offer is snoozed once dismissed - a prompt that returns on every page load is a
+ * prompt people learn to dismiss without reading. `force` is the button in Settings: an operator
+ * who went looking for the move is never told to come back in three days.
  */
-function maybeOfferNativeMigration() {
-  const s = state.install || {};
-  if (s.deployMode !== 'docker') return;
-  const dir = s.projectDir || '';
-  if (!dir) return;
+function openNativeMigrationModal(dir, { force = false } = {}) {
+  if (!dir) return false;
   const key = 'openclaw-native-offer:' + dir;
-  try { if (localStorage.getItem(key)) return; } catch (_) { /* private window: just ask */ }
-  if (state.confirmModal) return;          // never stack on top of another dialog
+  if (!force && nativeOfferSnoozed(dir)) return false;
+  if (state.confirmModal) return false;    // never stack on top of another dialog
   const rows = [
     ['🖥️', t('Bot điều khiển được máy này', 'Your bot can drive this machine'),
       t('Chụp màn hình, rê chuột, bấm, gõ phím. Bản Docker không làm được vì bot nằm trong container, không thấy màn hình.',
@@ -414,8 +433,8 @@ function maybeOfferNativeMigration() {
     bodyHtml: `
       <ul class="cu-status grant-list">${rows.map(([i, ttl, d]) =>
         `<li><span aria-hidden="true">${i}</span><div><b>${ttl}</b><br>${d}</div></li>`).join('')}</ul>
-      <p class="cu-note">${t('Mất khoảng 2-5 phút, bot ngừng trả lời trong lúc đó. Container cũ chỉ được <b>dừng</b> chứ không xoá, nên vẫn có đường quay lui.',
-                             'Takes about 2-5 minutes, during which the bot stops replying. The old containers are <b>stopped</b>, not deleted, so there is a way back.')}</p>`,
+      <p class="cu-note">${t('Mất khoảng <b>5-15 phút</b> tuỳ số plugin đã cài (đo trên máy thật: 350MB plugin mất ~8 phút chỉ riêng bước chép). Bot ngừng trả lời trong lúc đó, và đừng tắt cửa sổ này giữa chừng. Container cũ chỉ được <b>dừng</b> chứ không xoá, nên vẫn có đường quay lui.',
+                             'Takes <b>5-15 minutes</b> depending on how many plugins are installed (measured: 350MB of plugins took ~8 minutes to copy alone). The bot stops replying meanwhile, and this window must stay open. The old containers are <b>stopped</b>, not deleted, so there is a way back.')}</p>`,
     okText: t('Chuyển ngay', 'Move now'),
     cancelText: t('Để sau', 'Later'),
     onCancel: () => {
@@ -430,8 +449,14 @@ function maybeOfferNativeMigration() {
       render();
       showToast(t('Đang chuyển sang chạy thẳng trên máy', 'Moving off Docker'),
                 t('Giữ cửa sổ này mở. Xem tiến trình ở tab Nhật ký.', 'Keep this window open. Watch the Log tab for progress.'));
+      // The move can be started from any project's card, not only the connected one - follow the
+      // project being moved, or the status we refresh below describes a different machine corner.
+      state.selectedProjectDir = dir;
+      state.tab = 'logs';
+      render();
       try {
         await api('/api/runtime/update', { method: 'POST', body: { projectDir: dir, target: 'openclaw' } });
+        await loadSystem(true);
         await loadStatus(true);
         showToast(t('Đã chuyển xong', 'Moved'), t('Bot giờ chạy thẳng trên máy này.', 'The bot now runs directly on this machine.'));
       } catch (err) {
@@ -441,6 +466,18 @@ function maybeOfferNativeMigration() {
     },
   };
   render();
+  return true;
+}
+
+/**
+ * The automatic half of the offer: fires off the status refresh, for the project the UI is
+ * currently pointed at. Every other docker project on the machine is reachable through the
+ * "Chuyển sang Native" button on its card in Settings.
+ */
+function maybeOfferNativeMigration() {
+  const s = state.install || {};
+  if (s.deployMode !== 'docker') return;
+  openNativeMigrationModal(s.projectDir || '');
 }
 
 async function pickFolderPathShared() {
@@ -830,7 +867,7 @@ function dashboardView() {
   
   const widgets = [
     { label: t('Project hiện tại','Current project'), value: escapeHtml(fileBaseName(s.projectDir || '-')), meta: `${projects.length} projects` },
-    { label: t('Bots','Bots'), value: String(bots.length), meta: `${byChannel('telegram')} Telegram \u00b7 ${byChannel('zalo-personal')} Zalo` },
+    { label: t('Bots','Bots'), value: String(bots.length), meta: `${byChannel('telegram')} Telegram \u00b7 ${byChannel('zalo-personal') + byChannel('zalo-bot')} Zalo` },
     { label: t('Provider (LLM)','Provider (LLM)'), value: s.activeProvider || '9Router', meta: t('Đang sử dụng nhiều nhất','Most used provider') },
     { label: t('Model (AI)','Model (AI)'), value: s.activeModel || 'smart-route', meta: t('Đang sử dụng nhiều nhất','Most used model') }
   ];
@@ -922,7 +959,10 @@ function dashboardView() {
 function setupView() {
   const sys = state.system;
   const os = state.os || sys?.os || 'win';
-  const mode = state.mode || sys?.recommendedMode || 'docker';
+  // Never preselect a retired mode: this picker seeds the create dialog's tab, and Docker's tab
+  // there is disabled, so a docker project would open the dialog onto a button that does nothing.
+  const modeRaw = state.mode || sys?.recommendedMode || 'native';
+  const mode = MODE_OPTIONS.find((m) => m.id === modeRaw && !m.retired) ? modeRaw : 'native';
   const currentProject = state.install?.projectDir || '-';
   const projects = sys?.projects || [];
   const selectedProject = state.selectedProjectDir || currentProject;
@@ -937,7 +977,7 @@ function setupView() {
         ${projects.length ? `<div class="detected-projects">${projects.map((p) => {
           const active = selectedProject===p.projectDir;
           const loading = state.pendingProjectDir===p.projectDir;
-          return `<article class="detected-project ${active?'active':''} ${loading?'is-loading':''}" data-project-pick="${escapeHtml(p.projectDir)}"><div class="detected-project__shine"></div><div class="detected-project__head"><b>${escapeHtml(fileBaseName(p.projectDir))}</b>${loading ? `<span class="detected-project__loading">${actionIcon('refresh')}<span>${t('\u0110ang k\u1ebft n\u1ed1i...','Connecting...')}</span></span>` : ''}</div><small>${escapeHtml(p.projectDir)}</small><div class="detected-project__meta">${runtimeBadge(p.os || 'OS', 'os')}${runtimeBadge(p.mode, p.mode)}${runtimeBadge(`GW ${p.gatewayPort || '-'}`)}${runtimeBadge(`9R ${p.routerPort || '-'}`)}${runtimeBadge(`${p.botCount || 0} bot`)}</div><div class="detected-project__actions"><button class="secondary icon-btn2" type="button" data-project-connect="${escapeHtml(p.projectDir)}" ${loading ? 'disabled' : ''}>${actionIcon('link')}<span>${t('K\u1ebft n\u1ed1i','Connect')}</span></button><button class="secondary danger-soft icon-btn2" type="button" data-project-remove="${escapeHtml(p.projectDir)}">${actionIcon('trash')}<span>${t('Xóa','Delete')}</span></button></div></article>`;
+          return `<article class="detected-project ${active?'active':''} ${loading?'is-loading':''}" data-project-pick="${escapeHtml(p.projectDir)}"><div class="detected-project__shine"></div><div class="detected-project__head"><b>${escapeHtml(fileBaseName(p.projectDir))}</b>${loading ? `<span class="detected-project__loading">${actionIcon('refresh')}<span>${t('\u0110ang k\u1ebft n\u1ed1i...','Connecting...')}</span></span>` : ''}</div><small>${escapeHtml(p.projectDir)}</small><div class="detected-project__meta">${runtimeBadge(p.os || 'OS', 'os')}${runtimeBadge(p.mode, p.mode)}${runtimeBadge(`GW ${p.gatewayPort || '-'}`)}${runtimeBadge(`9R ${p.routerPort || '-'}`)}${runtimeBadge(`${p.botCount || 0} bot`)}</div><div class="detected-project__actions"><button class="secondary icon-btn2" type="button" data-project-connect="${escapeHtml(p.projectDir)}" ${loading ? 'disabled' : ''}>${actionIcon('link')}<span>${t('K\u1ebft n\u1ed1i','Connect')}</span></button>${p.mode === 'docker' ? `<button class="secondary accent-soft icon-btn2" type="button" data-project-to-native="${escapeHtml(p.projectDir)}" title="${t('Chuy\u1ec3n project n\u00e0y t\u1eeb Docker sang ch\u1ea1y th\u1eb3ng tr\u00ean m\u00e1y','Move this project off Docker onto this machine')}">${actionIcon('native')}<span>${t('Chuy\u1ec3n sang Native','Move to Native')}</span></button>` : ''}<button class="secondary danger-soft icon-btn2" type="button" data-project-remove="${escapeHtml(p.projectDir)}">${actionIcon('trash')}<span>${t('Xóa','Delete')}</span></button></div></article>`;
         }).join('')}</div>` : ''}
         <small>${t('Chọn 1 project bên trên hoặc mở trình chọn thư mục. UI sẽ sync bot, workspace, port và mode ngay.', 'Choose a project above or open the folder browser. The UI will sync bots, workspace, ports, and mode immediately.')}</small>
         ${state.projectConnectMessage ? `<p class="bot-inline-msg">${escapeHtml(state.projectConnectMessage)}</p>` : ''}
@@ -1208,7 +1248,7 @@ function botSkillsPanel() {
     { id: 'zalo-connect', title: 'OpenClaw Zalo Connect', desc: t('Kênh Zalo cá nhân (zca-js) - BẮT BUỘC cho bot Zalo. Tự cài khi tạo bot Zalo đầu tiên; bấm Cập nhật để lên bản mới nhất.', 'Personal Zalo channel (zca-js) - REQUIRED for Zalo bots. Auto-installed with your first Zalo bot; click Update for the latest version.'), channels: ['zalo-personal'] },
     { id: 'learning-memory', title: 'Siêu Trí Nhớ Dài Hạn (learning-memory)', desc: t('Bộ nhớ always-on: nạp MEMORY.md + USER.md đã chắt lọc vào MỌI lượt - kể cả trong nhóm - nên bot không quên ngữ cảnh/quy tắc. Tự cài khi tạo bot.', 'Always-on memory: injects a curated MEMORY.md + USER.md into every turn - including group chats - so the bot stops forgetting context and rules. Auto-installed on bot creation.') },
     { id: 'openclaw-browser-automation', title: 'openclaw-browser-automation', desc: 'Smart Search + Browser (headless & Chrome thật)' },
-    { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers', channels: ['zalo-personal'], openWebPort: 18790, openWebPath: '/dashboard' },
+    { id: 'openclaw-zalo-mod', title: 'openclaw-zalo-mod', desc: 'Zalo group helpers', channels: ['zalo-personal', 'zalo-bot'], openWebPort: 18790, openWebPath: '/dashboard' },
     { id: 'openclaw-fb-messenger', title: 'openclaw-fb-messenger', desc: t('Kênh Facebook Messenger - webhook + Graph API (bắt buộc cho bot Messenger)', 'Facebook Messenger channel - webhook + Graph API (required for Messenger bots)'), channels: ['fb-messenger'] },
     { id: 'openclaw-facebook-crawler', title: 'openclaw-facebook-crawler', desc: 'Facebook crawler automation', channels: ['fb-messenger'] },
     { id: 'openclaw-n8n-facebook-poster', title: 'openclaw-n8n-facebook-poster', desc: 'Facebook post automation (n8n)', channels: ['fb-messenger'] },
@@ -1409,6 +1449,16 @@ function wireTab() {
       }
     }
   }));
+  // Manual escape hatch for the Docker → native move. The automatic prompt only speaks for the
+  // project the UI is connected to, and only until someone presses "Để sau" - neither is a reason
+  // for a machine to be stuck on a runtime that breaks on its next rebuild.
+  document.querySelectorAll('[data-project-to-native]').forEach(btn => btn.onclick = () => {
+    const dir = btn.dataset.projectToNative;
+    if (!openNativeMigrationModal(dir, { force: true })) {
+      showToast(t('Đang có hộp thoại khác mở', 'Another dialog is open'),
+                t('Đóng hộp thoại đang mở rồi bấm lại.', 'Close it, then press this again.'), 'info');
+    }
+  });
   document.querySelectorAll('[data-project-refresh]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => {
     const result = await api('/api/projects/discover');
     state.system = { ...(state.system || {}), projects: result.projects || [] };

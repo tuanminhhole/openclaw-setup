@@ -459,7 +459,23 @@
       // key crashes the gateway on boot.
       channels['zalo-connect'] = buildZaloConnectChannelConfig();
     } else if (channelKey === 'zalo-bot') {
-      channels.zalo = { enabled: true, provider: 'official_account' };
+      // Zalo Bot API (bot.zaloplatforms.com), the official bot platform - NOT Zalo OA.
+      // `channels.zalo` is `additionalProperties: false` in openclaw 2026.9.2 and has NO
+      // `provider` key: writing one is rejected outright and the gateway refuses to boot,
+      // which takes down every bot in the project (same class of bug as `agent.role`).
+      // Valid keys measured from `openclaw config schema`: accounts, allowFrom, botToken,
+      // configWrites, defaultAccount, dmPolicy, enabled, groupAllowFrom, groupPolicy,
+      // historyLimit, markdown, mediaMaxMb, name, proxy, responsePrefix, tokenFile,
+      // webhookPath, webhookSecret, webhookUrl.
+      // Defaults mirror the zalo-connect block: DMs open so the owner can reach the bot
+      // right after creation, groups open so an invited bot answers anywhere. Zalo Bot API
+      // only delivers group events on @mention or reply, so `open` is not a firehose.
+      channels.zalo = {
+        enabled: true,
+        dmPolicy: 'open',
+        allowFrom: ['*'],
+        groupPolicy: 'open',
+      };
     }
 
     return channels;
@@ -516,6 +532,15 @@
     if (isZaloPersonal(channelKey)) {
       entries['zalo-connect'] = { enabled: true };
       allow.push('zalo-connect');
+    }
+
+    // Zalo Bot API ships as the external `@openclaw/zalo` plugin, and an allowlist is in
+    // use here: leaving `zalo` out of it makes the channel die with
+    // "Cannot enable Zalo: blocked by allowlist" - the package installs, then refuses to
+    // load, and the bot is silently unreachable. ensureNativePlugins installs it.
+    if (channelKey === 'zalo-bot') {
+      entries['zalo'] = { enabled: true };
+      allow.push('zalo');
     }
 
     // DuckDuckGo search plugin for web-search
@@ -638,8 +663,11 @@
         lines.push(`TELEGRAM_BOT_TOKEN=${botToken || '<your_bot_token>'}`);
         if (isMultiBot && groupId) lines.push(`TELEGRAM_GROUP_ID=${groupId}`);
       } else if (channelKey === 'zalo-bot') {
-        lines.push('ZALO_APP_ID=');
-        lines.push('ZALO_APP_SECRET=');
+        // Zalo Bot API authenticates with the bot token alone - ZALO_APP_ID/ZALO_APP_SECRET
+        // belong to the old Zalo OA OpenAPI and were never read by this channel.
+        // The token that actually reaches the gateway is `channels.zalo.botToken` in
+        // openclaw.json (a native gateway unit has no EnvironmentFile, so .env is reference
+        // material only); this line stays so a hand-run `openclaw` picks the same account up.
         lines.push(`ZALO_BOT_TOKEN=${botToken || '<your_zalo_bot_token>'}`);
       }
     }

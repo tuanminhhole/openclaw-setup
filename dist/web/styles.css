@@ -71,7 +71,7 @@ html[data-theme="light"] .topbar,html[data-theme="light"] .setup-section,html[da
 html[data-theme="light"] .side-info{background:rgba(255,255,255,.8)}html[data-theme="light"] .donate-modal{background:linear-gradient(145deg,#fff,#fff7f8)}
 .confirm-modal{width:min(520px,94vw)}
 .confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
-.confirm-actions .secondary,.confirm-actions .primary{border-radius:14px;padding:12px 16px;font-weight:900;cursor:pointer}
+.confirm-actions .secondary,.confirm-actions .primary{border-radius:14px;padding:12px 16px;font-weight:900;cursor:pointer;white-space:nowrap}
 .confirm-actions .secondary{border:1px solid var(--hair);background:rgba(255,255,255,.06);color:var(--ink)}
 .confirm-actions .primary.danger{border:0;background:linear-gradient(135deg,#e11d30,#ff3b4d);color:#fff}
 .zalo-login-modal{width:min(760px,96vw)}
@@ -435,6 +435,11 @@ html[data-theme="light"] .bot-form-grid input,html[data-theme="light"] .bot-form
 .icon-btn2 svg{width:16px;height:16px;flex:0 0 auto}\r
 .btn-icon{display:inline-flex!important;align-items:center!important;gap:7px!important}\r
 .btn-icon svg{width:15px!important;height:15px!important;max-width:15px!important;max-height:15px!important;flex:0 0 15px!important}
+/* The Docker -> native move. It sits next to Connect and Delete, so it needs to read as the
+   useful action rather than the destructive one - and as something other than plain chrome,
+   because this button IS the answer when the automatic prompt never reached the operator. */
+.accent-soft{border-color:rgba(125,211,252,.4)!important;color:#bae6fd!important;background:rgba(14,165,233,.10)!important}
+.accent-soft:hover{border-color:#7dd3fc!important;color:#f0f9ff!important;background:rgba(14,165,233,.2)!important}
 .danger-soft{border-color:rgba(255,90,107,.28)!important;color:#ffb0b8!important}
 .danger-soft:hover{border-color:#ff5a6b!important;color:#fff!important;background:rgba(255,90,107,.14)!important}
 .mini-pill{display:inline-flex;align-items:center;min-height:26px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,36,54,.55);font-size:12px;font-weight:800;letter-spacing:.2px}
@@ -1924,6 +1929,9 @@ html[data-theme="light"] .bot-create-card:hover {
 main{transition:margin .2s}
 
 /* Coming-soon channels (Discord, Lark): logo stays fully visible, corner badge, not selectable */
+.choice-card.is-retired{cursor:not-allowed;opacity:.62}
+.choice-card.is-retired:hover{transform:none;border-color:var(--hair);box-shadow:none}
+.choice-card.is-retired .coming-badge{position:absolute;top:8px;right:8px;z-index:3;font-size:9px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:rgba(255,255,255,.14);color:#e2e8f0;white-space:nowrap;pointer-events:none}
 .choice-card.is-coming-soon{cursor:not-allowed}
 .choice-card.is-coming-soon:hover{transform:none;border-color:var(--hair);box-shadow:none}
 .choice-card.is-coming-soon .choice-card__body strong{opacity:.78}
