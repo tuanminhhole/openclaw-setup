@@ -7102,9 +7102,13 @@ async function handler(req, res, rootProjectDir) {
             sendLog(`[update-setup] Global npm install detected - npm i -g create-openclaw-bot@latest${prefixArgs.length ? ` (prefix ${npmPrefix})` : ''}…`);
             await run('npm', ['i', '-g', 'create-openclaw-bot@latest', '--no-audit', '--no-fund', ...prefixArgs], { cwd: installerDir });
           } else {
-            // Ephemeral `npx github:…` install: nothing to pull in place - the relaunch
-            // re-runs `npx github:…`, which fetches the latest from GitHub.
-            sendLog('[update-setup] Fetching the latest from GitHub on relaunch…');
+            // An npx install: warm the package cache HERE, while the UI is still up and the
+            // browser is still watching the log. Leaving it to the relaunch meant the download
+            // happened with no server running and nothing to report progress to, so a slow link
+            // looked exactly like a crash.
+            sendLog('[update-setup] Tải bản mới từ npm…');
+            await run('npm', ['cache', 'add', 'create-openclaw-bot@latest'], { cwd: installerDir })
+              .catch((e) => sendLog(`[update-setup] npm cache add: ${e.message}`));
           }
           restartInstaller();
         } catch (err) {
@@ -7323,17 +7327,34 @@ function restartInstaller() {
       ];
 
       let bin, spawnArgs, opts;
-      if (isNpx) {
-        // Ephemeral `npx github:…` run - re-fetch the latest from GitHub and relaunch.
+      // Inheriting the parent's stdio is what killed this on Windows. The dashboard is started by
+      // the hidden launcher (wscript -> cmd), whose console is torn down the moment this process
+      // exits - and the child inherits it, so the replacement died with its parent and the tab sat
+      // on "Không thể kết nối lại với Setup UI". A relaunch must not depend on the parent's
+      // console at all. Measured on a customer machine.
+      const relaunchStdio = 'ignore';
+      const winLauncher = process.platform === 'win32'
+        ? [join(activeUiProjectDir || '', 'run-hidden.vbs'), join(activeUiProjectDir || '', 'setup-ui.cmd')]
+        : null;
+      if (winLauncher && winLauncher.every((f) => existsSync(f))) {
+        // Best case on Windows: hand back to the very launcher the operator uses. It already knows
+        // the host, port and project dir, and it puts the UI in their desktop session.
+        bin = 'wscript.exe';
+        spawnArgs = winLauncher;
+        opts = { detached: true, stdio: relaunchStdio, shell: false, windowsHide: true };
+      } else if (isNpx) {
+        // An npx install came from npm, so update from npm. Pulling `github:…` instead rebuilt the
+        // repo from source on every update: minutes of clone plus install, long past the point the
+        // browser gives up reconnecting, and a different artifact from the one they installed.
         const win = process.platform === 'win32';
         bin = win ? 'npx.cmd' : 'npx';
-        spawnArgs = ['-y', 'github:tuanminhhole/openclaw-setup', ...uiArgs];
-        opts = { detached: true, stdio: 'inherit', shell: win };
+        spawnArgs = ['--yes', 'create-openclaw-bot@latest', ...uiArgs];
+        opts = { detached: true, stdio: relaunchStdio, shell: win };
       } else {
         // Local clone / file install - re-run this entry (git pull already updated it).
         bin = process.argv[0];
         spawnArgs = [process.argv[1], ...uiArgs];
-        opts = { detached: true, stdio: 'inherit', shell: false };
+        opts = { detached: true, stdio: relaunchStdio, shell: false };
       }
 
       // Brief delay to let the port fully release before the child binds it.

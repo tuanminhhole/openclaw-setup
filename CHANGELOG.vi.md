@@ -1,6 +1,26 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.17.3] - 2026-09-12
+### 🔁 Bấm "Cập nhật" không còn làm mất luôn bảng điều khiển
+
+Trên Windows, bảng điều khiển tự tắt để khởi động lại bản mới rồi không lên nữa, để lại dòng
+"Không thể kết nối lại với Setup UI" và một cái máy không còn bảng điều khiển nào. Ba chỗ sai cùng
+lúc:
+
+- **Tiến trình mới chết theo tiến trình cũ.** Nó được bật chung cửa sổ với bản cũ, mà cửa sổ đó
+  biến mất ngay khi bản cũ thoát.
+- **Nó tự dựng lại từ mã nguồn.** Cập nhật đi tải cả project từ GitHub rồi dựng lại, mất vài phút,
+  lâu hơn nhiều so với thời gian trình duyệt chịu chờ. Nay nó lấy thẳng gói đã phát hành, đúng thứ
+  bạn đã cài lúc đầu, và nhanh hơn hẳn.
+- **Nó tải lúc không còn gì chạy.** Việc tải bị dời tới sau khi bảng điều khiển đã tắt, nên mạng
+  chậm thì không thấy tiến độ đâu và trông y hệt bị treo. Nay nó tải trước, lúc bảng điều khiển còn
+  sống và nhật ký còn chạy.
+
+Trên Windows, lần khởi động lại cũng được giao lại cho chính tệp "MO GIAO DIEN" mà bạn vẫn bấm, nên
+bảng điều khiển quay lại đúng trong phiên của bạn như lúc mới mở.
+
+
 ## [5.17.2] - 2026-09-12
 ### 📦 Còn chạy Docker? Bảng điều khiển sẽ mời bạn chuyển
 

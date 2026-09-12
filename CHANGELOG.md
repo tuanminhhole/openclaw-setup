@@ -1,6 +1,27 @@
 # Changelog (English)
 
 
+## [5.17.3] - 2026-09-12
+### 🔁 Pressing "Update" no longer takes the dashboard down with it
+
+On Windows the dashboard closed itself to restart on the new version and never came back, leaving
+"Could not reconnect to the Setup UI" on screen and a machine with no dashboard at all. Three
+things were wrong at once:
+
+- **The replacement died with the process that started it.** It was launched sharing the old
+  window, and that window disappears the moment the old process exits.
+- **It rebuilt itself from source.** Updating fetched the project from GitHub and rebuilt it, which
+  takes minutes, long after the browser has given up waiting. It now takes the published package,
+  which is what you installed in the first place, and is far quicker.
+- **It downloaded with nothing left running.** The download was left until after the dashboard had
+  already shut down, so on a slow connection there was no progress to see and no way to tell it
+  apart from a crash. It now downloads first, while the dashboard is still up and the log is still
+  running.
+
+On Windows the restart also hands back to the same "MO GIAO DIEN" launcher you use yourself, so the
+dashboard comes back in your own session exactly as it started.
+
+
 ## [5.17.2] - 2026-09-12
 ### 📦 Still on Docker? The dashboard now offers to move you
 
