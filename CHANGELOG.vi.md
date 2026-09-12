@@ -1,6 +1,98 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.17.4] - 2026-09-12
+
+### 💬 Kênh Zalo Bot API chính chủ, làm cho xong
+
+Zalo Bot API có trong danh sách kênh đã lâu, nhưng bot tạo ra chưa bao giờ trả lời: cấu hình sinh ra
+mang khoá `provider` không hề tồn tại trong bộ soát của OpenClaw, và plugin của kênh bị bỏ quên
+ngoài danh sách plugin được phép của project. Cả hai đã vá, và kênh này đã được chạy thật trọn vẹn
+trên một VPS khách trước khi phát hành.
+
+- **Chọn "Zalo Bot API", dán token lấy ở `bot.zaloplatforms.com`, hết.** Không quét QR, không mượn
+  tài khoản cá nhân, không cần webhook public - kênh chạy long-polling.
+- **Cấu hình sinh ra không còn chặn gateway khởi động.** `channels.zalo` trong OpenClaw 2026.9.2 là
+  `additionalProperties: false`, nên khoá thừa `provider: "official_account"` bị bác thẳng - mà
+  cấu hình bị bác thì **mọi bot** trong project chết theo, không riêng con vừa tạo. Đã có test giữ
+  cho khoá đó không bao giờ quay lại.
+- **Plugin của kênh được cài và được cho phép.** `@openclaw/zalo` nay được cài lúc tạo bot giống
+  zalo-connect, và `zalo` được thêm vào `plugins.allow`; thiếu nó thì plugin cài xong vẫn từ chối
+  nạp với thông báo "Cannot enable Zalo: blocked by allowlist".
+- **Nhóm chạy được, và giao diện nói rõ luật chơi.** Bot mới mặc định mở DM và mở nhóm. Không tìm
+  thấy bot trong danh sách thành viên đâu - phải mời bằng link trong mini app **Zalo Bot Creator**,
+  trưởng nhóm bấm xác nhận; trong nhóm bot chỉ trả lời khi được @mention hoặc khi có người trả lời
+  tin của chính nó.
+- **`openclaw-zalo-mod` giờ cũng cài được cho kênh này**, không còn chỉ dành cho Zalo cá nhân.
+- **Bỏ hai dòng rỗng `ZALO_APP_ID` / `ZALO_APP_SECRET`** khỏi tệp `.env` sinh ra. Chúng thuộc về
+  Zalo OA OpenAPI đời cũ, kênh này chưa bao giờ đọc tới.
+
+### 🧪 Hai bài test bắt lỗi sai chỗ
+
+Cả hai có từ trước bản này và đều báo đỏ trên code đúng: một bài buộc hai lệnh phải nằm trong 400
+ký tự đầu hàm, mà đúng bản 5.17.4 đã chèn thêm đoạn khác lên trước; một bài vẫn tìm nút xác nhận
+của hộp thoại chuyển Docker trong cái hàm mà nó vừa được tách ra. Nay cả hai kiểm **hành vi** thay
+vì kiểm vị trí ký tự.
+
+### 📦 Lời mời rời Docker giờ có nút bấm hẳn hoi
+
+Bản 5.17.2 thêm hộp thoại mời chuyển bot từ Docker sang chạy thẳng trên máy. Nó chỉ hiện đúng
+một lần, và chỉ cho project mà bảng điều khiển đang mở, nên trên máy đã có người tắt nó một lần
+thì không còn gì trên màn hình nhắc đến Docker nữa.
+
+- **Mọi project còn chạy Docker nay có nút "Chuyển sang Native"**, nằm cạnh nút Kết nối trên thẻ
+  của project trong mục Cài đặt. Bấm lúc nào cũng được, mở đúng hộp thoại đó cho chính project đó.
+- **"Để sau" trở lại đúng nghĩa là để sau.** Trước đây bấm một lần là nhớ luôn, coi như tắt hẳn lời
+  mời trên máy đó. Nay ba ngày sau nó hỏi lại.
+- **Không cho chuyển khi Docker Desktop đang tắt.** Phiên đăng nhập Zalo và toàn bộ lịch sử chat nằm
+  trong kho riêng của Docker, muốn chép ra phải qua Docker. Docker đang tắt thì trước đây vẫn chuyển,
+  và kết thúc bằng một con bot mất đăng nhập, quên sạch. Nay nó dừng lại và nói rõ cần mở cái gì.
+
+### 🔁 Bốn lỗi nữa mà chính cuộc chuyển thật đâm phải
+
+Trước bản này, việc chuyển khỏi Docker đã được chạy trọn vẹn trên một máy Windows đang dùng thật. Mỗi
+lỗi dưới đây đều đủ sức làm đứt giữa chừng, và không có cách nào khác để lộ ra:
+
+- **Bot không chịu khởi động sau khi chuyển.** Quyền của từng plugin được ghi nhớ theo từng máy,
+  nên plugin mang từ Docker sang là chưa có quyền, và OpenClaw từ chối bật bot cho đến khi được cấp.
+  Nút Cập nhật nay cấp quyền cho cả những plugin đã có sẵn, chứ không chỉ những plugin nó vừa tải về.
+- **Tệp khởi động bật bot mà không chỉ cho nó cấu hình nằm ở đâu.** Nó trông chờ cấu hình nằm trong thư
+  mục người dùng Windows - điều chỉ đúng sau một bước mà cuộc chuyển bị đứt chưa kịp làm - nên bot bật
+  lên, không thấy cấu hình, rồi tắt với lỗi "Missing config".
+- **Tệp khởi động cũ không bao giờ được thay.** Trước đây chỉ ghi khi thiếu, nên máy nào đã lỡ có bản
+  hỏng thì cứ dùng mãi bản hỏng đó. Nay mỗi lần khởi động lại đều ghi đè, đó là cách bản sửa trên thực sự
+  đến được máy cần nó.
+- **9Router chết theo mỗi lần đóng bảng điều khiển**, mà bot thiếu nó thì không trả lời gì cả trong khi trông
+  vẫn như bình thường. Nay nó chạy tách hẳn giống cách bot vẫn chạy, và mỗi lần khởi động lại bot thì nếu
+  nó đang tắt sẽ được bật lại.
+
+### 🛠️ Windows: mọi lệnh OpenClaw mà trình cài gọi đều có thể hỏng vì một lý do ẩn
+
+Phát hiện hôm nay khi chuyển một máy khách thật từ Docker sang native. Windows gọi biến đường dẫn là
+`Path` chứ không phải `PATH`, mà trình cài lại ghi vào `PATH` - trên Windows việc đó không ghi đè lên
+`Path`, nó đẻ ra biến THỨ HAI chỉ chứa đúng một thư mục. Mọi thứ trình cài gọi đều thừa hưởng bản cụt
+đó, nên đoạn mồi khởi động OpenClaw không tìm ra Node nữa và thoát với lỗi `'"node"' is not recognized`.
+Hai hệ quả, và cả hai đều trông giống chuyện khác hẳn:
+
+- **Cài dịch vụ chạy nền thất bại**, làm việc chuyển khỏi Docker đứt ở bước cuối, sau khi dữ liệu đã chép
+  xong xuôi.
+- **Bước nâng cấp cấu hình âm thầm không làm gì.** Nó hỏi phiên bản OpenClaw trước, không hỏi được thì
+  mặc định coi là bản cũ nhất - nên bốn khoá mà OpenClaw 2026.9 từ chối vẫn nằm nguyên, và bot khởi động
+  với một tệp cấu hình mà chính nó không chịu nhận.
+
+### 🖱️ Docker không còn được đề xuất là chế độ nên dùng
+
+Hộp thoại tạo project đã khoá Docker từ trước, nhưng trang Cài đặt vẫn tích sẵn Docker và ghi
+"Khuyến dùng" - rồi hộp thoại mở ra đúng cái tab đã bị khoá của nó. Nay Native là lựa chọn được
+khuyên dùng, còn ô Docker ghi rõ đã ngừng.
+
+### 🧹 Bên trong
+
+Bộ kiểm thử tự động đã không chạy được từ bản 5.17.1, nên 5.17.2 và 5.17.3 đều phát hành mà
+không qua kiểm thử. Nay nó chạy lại, và có phủ phần chuyển Docker sang native. Kèm theo đó là
+khoảng 250 dòng mã của một tính năng đã bỏ được dọn đi.
+
+
 ## [5.17.3] - 2026-09-12
 ### 🔁 Bấm "Cập nhật" không còn làm mất luôn bảng điều khiển
 

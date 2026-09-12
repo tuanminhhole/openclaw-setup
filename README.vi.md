@@ -7,7 +7,7 @@
 *Chạy một lệnh, mở dashboard, bot lên sóng. Windows, macOS, Linux, VPS. Bot chạy thẳng trên máy, không cần Docker.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.3-0EA5E9?style=for-the-badge" alt="Version 5.17.3" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.4-0EA5E9?style=for-the-badge" alt="Version 5.17.4" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,8 +37,9 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.17.3
+## 🆕 Có gì mới trong v5.17.4
 
+- 💬 **Kênh Zalo Bot API chính chủ dùng được thật** - chọn **Zalo Bot API** khi tạo bot, dán Bot Token lấy ở `bot.zaloplatforms.com` là xong: không quét QR, không mượn tài khoản cá nhân, không cần webhook public (bot chạy long-polling). Bot vào được nhóm Zalo - mời bằng link trong mini app **Zalo Bot Creator**, trưởng nhóm bấm xác nhận; trong nhóm bot trả lời khi được @mention hoặc khi có người trả lời tin của nó. Plugin `openclaw-zalo-mod` giờ cũng cài được cho kênh này.
 - 🩹 **Cài native trên OpenClaw 2026.8 mượt từ phát đầu** - đợt này vá nốt chuỗi lỗi đo được khi dựng máy khách mới: cấu hình sinh ra sạch 100% với bộ soát khắt khe của OpenClaw mới, các bước cài tự chạy đúng thứ tự, và mọi thao tác khởi động lại/cài plugin không còn bị chặn giữa chừng.
 - 🔑 **Đăng nhập 9Router hoạt động trên Docker**: bản 9Router mới chặn mật khẩu mặc định với truy cập "từ xa" - mà trong Docker thì mọi truy cập đều bị tính là từ xa, nên trước đây không cách nào vào được bằng 123456. Giờ đăng nhập bình thường (vào rồi vẫn nên đổi mật khẩu).
 - 🧹 **Xoá project gỡ sạch 9Router cũ**: trước đây 9Router cũ còn chạy ngầm giữ cổng, làm lần cài mới tự tách sang cổng khác mà không ai hay - giờ xoá là sạch, cài lại đúng cổng chuẩn.
@@ -249,7 +250,7 @@ Bấm nút **Cập nhật** ở **góc trên bên phải giao diện Setup**. H�
 - **Node.js 24 LTS** (bắt buộc). Cả trình cài đặt lẫn bot đều chạy bằng Node. [Tải Node.js](https://nodejs.org/).
   Máy chưa có Node thì trình cài đặt tự cài giúp bạn.
 - **Git**: Đã cài đặt và có trong biến môi trường PATH.
-- **Không cần Docker nữa.** Từ bản 5.17.3 bot chạy thẳng trên máy.
+- **Không cần Docker nữa.** Từ bản 5.17.4 bot chạy thẳng trên máy.
 
 ---
 
