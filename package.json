@@ -37,5 +37,8 @@
     "chalk",
     "fs-extra"
   ],
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "tmp": "0.2.7"
+  }
 }
