@@ -84,7 +84,7 @@ function buildNodeHostCmd({ projectDir, gatewayPort, gatewayToken }) {
 }
 
 /** Starts the gateway. Calls node directly - see the --task-supervisor note below. */
-function buildGatewayCmd({ projectDir, gatewayPort }) {
+function buildGatewayCmd({ projectDir, gatewayPort, stateDir }) {
   return CRLF(
     '@echo off\n' +
     'rem Goi thang node, KHONG qua gateway.cmd cua openclaw: tep do chay kem --task-supervisor,\n' +
@@ -92,6 +92,15 @@ function buildGatewayCmd({ projectDir, gatewayPort }) {
     'rem Khong redirect ra tep co dinh (xem trap 3) - openclaw tu ghi nhat ky trong %TEMP%\\openclaw.\n' +
     `cd /d ${projectDir}\n` +
     'set "HOME=%USERPROFILE%"\n' +
+    // Name the state dir outright. Setting only HOME works when the state was moved to
+    // %USERPROFILE%\.openclaw (the >=2026.8 layout prepareNativeStateHome sets up), and silently
+    // does not when it was left in the project: the gateway then finds no config and exits with
+    // "Missing config. Run `openclaw setup`", which reads like a broken install rather than a
+    // launcher looking in the wrong place. Measured on win_phuc, 12/09/2026, after a migration
+    // that stopped before the state move. This value is the resolved path, so it is right under
+    // both layouts (the project copy may be a junction, and 2026.8 fs-safe refuses those).
+    `set "OPENCLAW_HOME=${stateDir}"\n` +
+    `set "OPENCLAW_STATE_DIR=${stateDir}"\n` +
     `set "OPENCLAW_GATEWAY_PORT=${gatewayPort}"\n` +
     `set "OPENCLAW_PORT=${gatewayPort}"\n` +
     '"%ProgramFiles%\\nodejs\\node.exe" --max-old-space-size=8192 ' +
@@ -216,8 +225,8 @@ function buildReadme({ projectDir, gatewayPort, routerPort, setupPort }) {
 }
 
 /** All launcher files for a native Windows project, as { relativeName: content }. */
-function buildWindowsLaunchers({ projectDir, gatewayPort = 18789, routerPort = 20128, setupPort = 51789, gatewayToken = '' }) {
-  const opts = { projectDir, gatewayPort, routerPort, setupPort, gatewayToken };
+function buildWindowsLaunchers({ projectDir, gatewayPort = 18789, routerPort = 20128, setupPort = 51789, gatewayToken = '', stateDir = '' }) {
+  const opts = { projectDir, gatewayPort, routerPort, setupPort, gatewayToken, stateDir: stateDir || `${projectDir}\\.openclaw` };
   return {
     'run-hidden.vbs': buildRunHiddenVbs(),
     'start-9router.cmd': build9RouterCmd(opts),

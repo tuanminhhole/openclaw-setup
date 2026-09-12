@@ -1,6 +1,69 @@
 # Changelog (English)
 
 
+## [5.17.4] - 2026-09-12
+
+### 📦 The offer to leave Docker now has a button behind it
+
+5.17.2 added a prompt that offers to move a Docker bot onto the machine itself. It was reachable
+exactly once, and only for the project the dashboard happened to be pointed at, so on a machine
+where somebody had already closed it there was nothing on screen about Docker at all.
+
+- **Every project still on Docker now carries a "Chuyển sang Native" button**, next to Connect on
+  its card under Settings. Press it whenever you want; it opens the same move, for that project.
+- **"Later" is a snooze again, not a refusal.** It used to be remembered forever, so one stray
+  click retired the offer on that machine for good. It now comes back after three days.
+- **The move refuses to start while Docker Desktop is shut down.** Your Zalo logins and your whole
+  chat history live inside Docker's own storage, and the only way to copy them out is through
+  Docker. With it closed, the move used to run anyway and finish with a bot that was logged out and
+  had forgotten everything. It now stops and says what to open.
+
+### 🔁 Four more faults the real migration walked straight into
+
+The move off Docker was run end to end on a live Windows machine before this release. Each of these
+stopped it dead, and none of them would have shown up any other way:
+
+- **The bot refused to start after the move.** Permission for each plugin is remembered per machine,
+  so plugins carried over from Docker arrive without it and OpenClaw will not start the bot at all
+  until it is granted. Update now grants it for the plugins already present, not only for ones it
+  had to download.
+- **The launcher started the bot without telling it where its settings are.** It relied on them
+  sitting in the Windows user folder, which is only true after a step that the interrupted move had
+  not reached - so the bot started, found no settings, and quit with "Missing config".
+- **A stale launcher was never replaced.** Launchers were only written when missing, so a machine
+  that already had a broken one kept using it. They are now rewritten on every restart, which is how
+  the fix above actually reaches the machines that need it.
+- **9Router died whenever the dashboard was closed**, and a bot without it answers nothing at all
+  while still looking healthy. It now starts the same detached way the bot itself does, and a restart
+  brings it back if it is down.
+
+### 🛠️ Windows: every OpenClaw command Setup ran could fail for one hidden reason
+
+Found while moving a real customer machine off Docker today. Windows spells the search path `Path`,
+not `PATH`, and Setup was writing `PATH` - which on Windows does not replace `Path`, it adds a
+SECOND one containing a single folder. Whatever Setup launched inherited that stunted copy, so the
+small wrapper that starts OpenClaw could no longer find Node and quit with `'"node"' is not
+recognized`. Two consequences, both of which looked like something else entirely:
+
+- **Installing the background service failed outright**, which stopped the move off Docker at the
+  last step, after the data had already been copied across.
+- **The settings upgrade silently did nothing.** It asks OpenClaw its version first and, getting no
+  answer, assumed the oldest one - so the four settings OpenClaw 2026.9 refuses were left in place
+  and the bot came up with a settings file it would not accept.
+
+### 🖱️ Docker is no longer offered as the recommended mode
+
+The create dialog had already retired it, but the Settings page still showed Docker ticked and
+labelled "Recommended" - and the dialog then opened onto its own disabled tab. Native is the
+recommendation now, and the Docker tile says it is retired.
+
+### 🧹 Under the hood
+
+The automated checks had been failing to start since 5.17.1, so 5.17.2 and 5.17.3 both shipped
+without them. They run again, and they cover the move off Docker. Around 250 lines of a retired
+feature were removed with them.
+
+
 ## [5.17.3] - 2026-09-12
 ### 🔁 Pressing "Update" no longer takes the dashboard down with it
 
