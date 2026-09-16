@@ -1,6 +1,30 @@
 # Changelog (English)
 
 
+## [5.17.5] - 2026-09-16
+### 🐳 Moving a bot from Docker to native no longer leaves it half-migrated
+
+Measured on a customer Mac on 16/09/2026, where the move stopped the bot four separate times. Every
+failure came from one habit: something still named the OLD location of a file that had already moved.
+
+- **The gateway refused to install.** After the state folder moved to ~/.openclaw and the project
+  folder became a link to it, each agent's workspace still pointed at the project path. OpenClaw
+  compares paths as text, saw every plugin twice and rejected the config. Both stores are now
+  rewritten to the new location right after the move.
+- **Updating a plugin deleted it.** OpenClaw remembered the old install folder, installed the new
+  version into the new one, then removed "the previous folder" - which was the same folder. The
+  remembered paths are rewritten too, so an update no longer erases what it just installed.
+- **The model gateway address kept its Docker name.** `http://9router:<port>` was only rewritten for
+  the default port, so a project on another port could receive messages but never answer. The port
+  is now taken from the project.
+- **A stale login profile made every reply start with an error.** The profile OpenClaw froze inside
+  the container outranked the real key; each turn opened with a 401 before retrying. The cleanup
+  looked for a fixed profile name that did not match - it now reads the real names and clears them
+  for every agent as part of the move.
+- **"Add drive" works on native.** There is nothing to mount; the bot gets the permission in words -
+  the granted-folders block in AGENTS.md now uses real host paths on native machines.
+
+
 ## [5.17.4] - 2026-09-12
 
 ### 🔑 "Authentication failed" on a bot whose key was perfectly fine

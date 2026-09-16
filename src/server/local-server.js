@@ -1764,6 +1764,15 @@ async function resolveProject9RouterApiKey(projectDir, cfg = null) {
  * @param {boolean} force - true right after the key in models.json changed; otherwise the profile
  *                          is only dropped when `models auth list` reports it stuck on auth.
  */
+/** Lines of `openclaw models auth list` look like: "- 9router:models-json [9router/api_key; cooldown:auth until …] - …". */
+function parse9RouterAuthProfiles(listText) {
+  const out = [];
+  for (const m of String(listText || '').matchAll(/^\s*-\s+(9router:[^\s\]]+)\s*\[([^\]]*)\]/gm)) {
+    out.push({ id: m[1], stuck: /cooldown:auth/i.test(m[2]) });
+  }
+  return out;
+}
+
 async function drop9RouterAuthProfile(projectDir, cfg = null, { force = false } = {}) {
   if (!projectDir) return false;
   let config = cfg;
@@ -1778,18 +1787,24 @@ async function drop9RouterAuthProfile(projectDir, cfg = null, { force = false } 
   let dropped = false;
   for (const agentId of targets) {
     const agentArgs = agentId ? ['--agent', agentId] : [];
-    if (!force) {
-      const list = await ocCapture(projectDir, ['models', 'auth', 'list', ...agentArgs], { timeout: 30000 }).catch(() => null);
-      const text = `${list?.stdout || ''}\n${list?.stderr || ''}`;
-      // Only the auth-stuck state is worth touching on a plain restart.
-      if (!/9router:[^\s\]]+[^\n]*cooldown:auth/i.test(text)) continue;
-    }
-    // profileId is a POSITIONAL argument here - `--profile-id` exists on `login`, not on `logout`.
-    const out = await ocCapture(projectDir, ['models', 'auth', 'logout', '9router:default', ...agentArgs, '--yes'], { timeout: 30000 }).catch(() => null);
-    const text = `${out?.stdout || ''}\n${out?.stderr || ''}`;
-    if (/removed auth profile/i.test(text)) {
-      dropped = true;
-      sendLog(`[9router] dropped the stale auth profile for ${agentId || 'the default agent'} - the gateway now uses the key in models.json.`);
+    const list = await ocCapture(projectDir, ['models', 'auth', 'list', ...agentArgs], { timeout: 30000 }).catch(() => null);
+    const text = `${list?.stdout || ''}\n${list?.stderr || ''}`;
+    // The profile id is whatever openclaw named it - '9router:default' on a fresh install, but
+    // '9router:models-json' on a bot that came out of Docker (mac_dr-tuan 16/09/2026). Logging out a
+    // hard-coded id there silently did nothing, and every turn opened with a 401 that the UI showed as
+    // "The agent run failed before producing a reply". Read the ids off the list instead.
+    const profiles = parse9RouterAuthProfiles(text);
+    // Only the auth-stuck state is worth touching on a plain restart.
+    const victims = force ? profiles.map((p) => p.id) : profiles.filter((p) => p.stuck).map((p) => p.id);
+    if (!victims.length && force && !profiles.length) victims.push('9router:default');
+    for (const profileId of victims) {
+      // profileId is a POSITIONAL argument here - `--profile-id` exists on `login`, not on `logout`.
+      const out = await ocCapture(projectDir, ['models', 'auth', 'logout', profileId, ...agentArgs, '--yes'], { timeout: 30000 }).catch(() => null);
+      const outText = `${out?.stdout || ''}\n${out?.stderr || ''}`;
+      if (/removed auth profile/i.test(outText)) {
+        dropped = true;
+        sendLog(`[9router] dropped the stale auth profile ${profileId} for ${agentId || 'the default agent'} - the gateway now uses the key in models.json.`);
+      }
     }
   }
   return dropped;
@@ -3863,7 +3878,12 @@ async function prepareNativeStateHome(projectDir) {
   if (projIsLink) {
     // Already migrated (or hand-fixed): just make sure the link lands on the home state.
     try {
-      if (resolve(fs.realpathSync(projState)) === resolve(homeState)) return installEnv;
+      if (resolve(fs.realpathSync(projState)) === resolve(homeState)) {
+        // Already on the 2026.8 layout - but a machine migrated by 5.17.4 still carries project paths in
+        // config/registry (mac_dr-tuan). Repoint is idempotent, so run it on every pass.
+        await repointStatePaths(projectDir, homeState).catch((e) => sendLog(`[native] repoint paths skipped: ${e.message}`));
+        return installEnv;
+      }
     } catch {}
     throw new Error(`${projState} là symlink nhưng không trỏ về ${homeState} - kiểm tay trước khi cài service`);
   }
@@ -3886,7 +3906,67 @@ async function prepareNativeStateHome(projectDir) {
   await fsp.rename(projState, homeState);
   fs.symlinkSync(homeState, projState, linkType);
   sendLog(`[native] state moved to ${homeState}; ${projState} is now a symlink (openclaw >=2026.8 layout)`);
+  await repointStatePaths(projectDir, homeState).catch((e) => sendLog(`[native] repoint paths skipped: ${e.message}`));
   return installEnv;
+}
+
+/**
+ * After the state dir moved to ~/.openclaw, everything that still names <project>/.openclaw reaches
+ * the SAME files through the symlink - and openclaw compares paths as strings. Measured on
+ * mac_dr-tuan 16/09/2026, two failures from one cause:
+ *   1. agents.entries[*].workspace kept the project path (3a-ter pins it there), so the plugin scan
+ *      saw every plugin twice ("plugin id present in multiple agent workspaces") and `daemon install`
+ *      refused the config - the bot never came back up.
+ *   2. config_machine_state.value_json (state sqlite) kept the project path as the plugin install
+ *      dir, so the next plugin update installed into ~/.openclaw/extensions/<id> and then "removed
+ *      the previous install directory" - the very same inode. The plugin vanished.
+ * Rewrite both stores to the home path. Idempotent; a project that never had the project path is
+ * a no-op. Container-era paths (/home/node/project/.openclaw) are folded in for the same reason.
+ */
+async function repointStatePaths(projectDir, homeState) {
+  const homePosix = homeState.replace(/\\/g, '/');
+  const projState = join(projectDir, '.openclaw');
+  const variants = [...new Set([
+    projState.replace(/\\/g, '/'),
+    projState.replace(/\\/g, '\\\\'),      // as it appears inside JSON on Windows
+    projState,
+    '/home/node/project/.openclaw',
+  ])].filter((v) => v && v !== homePosix && v !== homeState);
+  const swap = (text) => { let out = text; for (const v of variants) out = out.split(v).join(homePosix); return out; };
+  let touched = [];
+  // 1. openclaw.json
+  const cfgPath = join(homeState, 'openclaw.json');
+  if (existsSync(cfgPath)) {
+    const before = await fsp.readFile(cfgPath, 'utf8');
+    const after = swap(before);
+    if (after !== before) {
+      await fsp.writeFile(`${cfgPath}.bak-truoc-repoint`, before, 'utf8');
+      await fsp.writeFile(cfgPath, after, 'utf8');
+      touched.push('openclaw.json');
+    }
+  }
+  // 2. state sqlite - plugin registry snapshot
+  const dbPath = join(homeState, 'state', 'openclaw.sqlite');
+  if (existsSync(dbPath)) {
+    let db = null;
+    try {
+      db = new DatabaseSync(dbPath);
+      const hasTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='config_machine_state'").get();
+      if (hasTable) {
+        const rows = db.prepare('SELECT rowid AS rid, value_json FROM config_machine_state').all();
+        let n = 0;
+        const upd = db.prepare('UPDATE config_machine_state SET value_json = ? WHERE rowid = ?');
+        for (const r of rows) {
+          if (typeof r.value_json !== 'string') continue;
+          const after = swap(r.value_json);
+          if (after !== r.value_json) { upd.run(after, r.rid); n++; }
+        }
+        if (n) touched.push(`config_machine_state x${n}`);
+      }
+    } finally { try { db?.close(); } catch {} }
+  }
+  if (touched.length) sendLog(`[native] repointed ${touched.join(', ')} -> ${homePosix} (paths through the symlink count as duplicates)`);
+  return touched;
 }
 
 /**
@@ -4353,9 +4433,12 @@ async function migrateDockerProjectToNative(projectDir, { osChoice = '' } = {}) 
       //     `getaddrinfo ENOTFOUND 9router` - the bot still reacts (that is the channel, no model
       //     needed) but can never reply, which reads as "bot ignores me". Same story for
       //     host.docker.internal and the 192.168.65.x Desktop bridge. Measured win_kha 10/09/2026.
+      // Port is whatever this project runs 9router on (20129 on mac_dr-tuan, because 18790/20128
+      // were taken) - a fixed ':20128' left `http://9router:20129` in place and every model call
+      // died with ENOTFOUND while the bot still reacted to messages. Measured 16/09/2026.
       text = text
-        .split('http://9router:20128').join('http://127.0.0.1:20128')
-        .split('http://host.docker.internal:20128').join('http://127.0.0.1:20128')
+        .replace(/http:\/\/9router:(\d+)/g, 'http://127.0.0.1:$1')
+        .replace(/http:\/\/host\.docker\.internal:(\d+)/g, 'http://127.0.0.1:$1')
         .replace(/http:\/\/192\.168\.65\.\d+:(\d+)/g, 'http://127.0.0.1:$1');
       cfg = JSON.parse(text);
       // 3b. bind. Inside docker, 0.0.0.0 was safe because the port was published to loopback only.
@@ -4736,6 +4819,10 @@ async function updateRuntime(target, projectDir) {
     sendLog('[update] Project đang chạy Docker - chuyển sang native trước khi cập nhật.');
     await ensureNodeInstalled();
     await migrateDockerProjectToNative(projectDir, { osChoice: state.os || detectOs() });
+    // The key context changed with the runtime: whatever auth profile the container-era gateway froze
+    // is wrong now. Drop them for EVERY agent up front (the restart path only touches profiles already
+    // reported stuck, which is why bstuana kept its stale one on mac_dr-tuan).
+    await drop9RouterAuthProfile(projectDir, null, { force: true }).catch(() => {});
     await run('npm', ['install', '-g', OPENCLAW_NPM_SPEC]);
     invalidateHostOpenclawVersion();
     await run('npm', ['install', '-g', NINE_ROUTER_NPM_SPEC]);
@@ -4843,6 +4930,10 @@ async function addBotMount(projectDir, hostPath, mountName = '') {
   if (/^[a-zA-Z]:$/.test(cleanPath)) cleanPath += '/';
   if (!cleanPath) throw httpError(400, 'Đường dẫn ổ đĩa/thư mục đang trống');
   const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
+  // Native has no mount: the bot already reads the host. What it lacks is PERMISSION in words - the
+  // granted-mounts block in AGENTS.md (with real host paths, no /mnt). Measured on mac_dr-tuan
+  // 16/09/2026 after the Docker->native move, where the Docker-only path below threw on compose.
+  if (isNativeProject(projectDir)) return addNativeMount(projectDir, cleanPath);
   if (!existsSync(composeFile)) throw httpError(400, 'Không tìm thấy docker-compose.yml (project có thể không chạy ở chế độ Docker)');
   const base = mountName || cleanPath.split('/').filter(Boolean).pop() || 'data';
   const name = base.toLowerCase().replace(/[^a-z0-9-_]+/g, '-').replace(/^-+|-+$/g, '') || 'data';
@@ -4875,9 +4966,69 @@ async function addBotMount(projectDir, hostPath, mountName = '') {
   return { ok: true, target, hostPath: cleanPath, applied, needsRebuild: !applied };
 }
 
+const GRANTED_MOUNTS_START = '<!-- granted-mounts:start -->';
+const GRANTED_MOUNTS_END = '<!-- granted-mounts:end -->';
+
+/** Every agent workspace of a project: 2026.8+ `agents.entries` (absolute workspace) and the legacy `agents.list`. */
+function agentWorkspaceDirs(cfg, projectDir) {
+  const dirs = [];
+  for (const [, meta] of Object.entries(cfg?.agents?.entries || {})) {
+    if (!meta || typeof meta.workspace !== 'string' || !meta.workspace) continue;
+    const w = meta.workspace;
+    dirs.push(/^[a-zA-Z]:[\\/]/.test(w) || w.startsWith('/') ? w : join(projectDir, w.replace(/^\.[\\/]/, '')));
+  }
+  for (const agent of cfg?.agents?.list || []) {
+    const rel = workspaceRelForAgent(agent, cfg, projectDir);
+    if (rel) dirs.push(join(projectDir, '.openclaw', rel));
+  }
+  return [...new Set(dirs)];
+}
+
+/** Replace or append the managed granted-mounts block in one AGENTS.md text. Empty block removes it. */
+function applyGrantedMountsBlock(doc, block) {
+  const blockRe = new RegExp(`\\n*${GRANTED_MOUNTS_START}[\\s\\S]*?${GRANTED_MOUNTS_END}\\n*`);
+  if (blockRe.test(doc)) return doc.replace(blockRe, block ? `\n\n${block}\n` : '\n');
+  return block ? doc.replace(/\s*$/, '') + `\n\n${block}\n` : doc;
+}
+
+/** Native: the granted paths live in native.json and are written as HOST paths - no /mnt, no /home/node. */
+function renderNativeGrantedMountsBlock(mounts) {
+  if (!mounts || !mounts.length) return '';
+  return `${GRANTED_MOUNTS_START}\n## 💽 Thư mục/ổ đĩa được cấp quyền (toàn project)\n`
+    + mounts.map((m) => `- \`${m.host}\` - bot được phép đọc/ghi tại đây.`).join('\n')
+    + '\n- Máy chạy native, không còn Docker: dùng THẲNG các đường dẫn trên, không dùng `/mnt/...` hay `/home/node/...`.'
+    + `\n- Mặc định MỌI bot trong project đều dùng được các thư mục trên. Muốn giới hạn theo từng bot thì ghi rõ ngay dưới mục này.\n${GRANTED_MOUNTS_END}`;
+}
+
+async function addNativeMount(projectDir, hostPath) {
+  const meta = readNativeMeta(projectDir) || { mode: 'native' };
+  const mounts = Array.isArray(meta.mounts) ? meta.mounts : [];
+  const already = mounts.some((m) => m && m.host === hostPath);
+  if (!already) mounts.push({ host: hostPath, addedAt: new Date().toISOString() });
+  meta.mounts = mounts;
+  await fsp.writeFile(nativeMarkerPath(projectDir), JSON.stringify(meta, null, 2), 'utf8');
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  let cfg = {};
+  try { cfg = ensureConfigShape(JSON.parse(await fsp.readFile(cfgPath, 'utf8'))); } catch {}
+  const block = renderNativeGrantedMountsBlock(mounts);
+  let written = 0;
+  for (const dir of agentWorkspaceDirs(cfg, projectDir)) {
+    const file = join(dir, 'AGENTS.md');
+    if (!existsSync(file)) continue;
+    const doc = await fsp.readFile(file, 'utf8');
+    await fsp.writeFile(file, applyGrantedMountsBlock(doc, block), 'utf8');
+    written++;
+  }
+  sendLog(`[mount] Native: cấp quyền ${hostPath} cho ${written} agent (ghi khối granted-mounts vào AGENTS.md, không cần mount)`);
+  return { ok: true, hostPath, native: true, alreadyMounted: already, applied: true, agents: written };
+}
+
 // Sync a managed "granted mounts" block into every agent's AGENTS.md from the /mnt/* mounts in
 // docker-compose.yml (excludes /mnt/project - that's the project root, always mounted).
 async function updateGrantedMountsInAgents(projectDir) {
+  // A migrated project still carries its old compose file (kept for rollback). Re-deriving the block
+  // from those /mnt/* mounts would overwrite the host-path block native wrote - leave native alone.
+  if (isNativeProject(projectDir)) return;
   const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
   const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
   if (!existsSync(cfgPath) || !existsSync(composeFile)) return;
@@ -4901,8 +5052,8 @@ async function updateGrantedMountsInAgents(projectDir) {
     const ssm = lines[i].match(/^\s*-\s*"?([^":\n]+):(\/mnt\/[A-Za-z0-9._-]+)"?\s*$/);
     if (ssm && ssm[2] !== '/mnt/project') mounts.push({ host: ssm[1].trim(), target: ssm[2] });
   }
-  const START = '<!-- granted-mounts:start -->';
-  const END = '<!-- granted-mounts:end -->';
+  const START = GRANTED_MOUNTS_START;
+  const END = GRANTED_MOUNTS_END;
   const block = mounts.length
     ? `${START}\n## 💽 Thư mục/ổ đĩa được cấp quyền (toàn project)\n`
       + mounts.map((x) => `- \`${x.target}\` ← host \`${x.host}\` - bot được phép đọc/ghi tại đây.`).join('\n')
@@ -7681,4 +7832,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
+export { repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
