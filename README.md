@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows, macOS, Linux, VPS - Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.4-0EA5E9?style=for-the-badge" alt="Version 5.17.4" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.5-0EA5E9?style=for-the-badge" alt="Version 5.17.5" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,8 +37,9 @@
 
 ---
 
-## 🆕 What's New in v5.17.4
+## 🆕 What's New in v5.17.5
 
+- 🤖 **The dashboard no longer shows zero bots while the bots are running** - a model written in its short string form (`"smart-route"` instead of `{ primary, fallbacks }`) broke every config read at once, emptying the bot list on all channels along with the token fields and plugin versions. Both shapes are accepted now.
 - 🔑 **No more "authentication failed" on a bot whose key is correct** - OpenClaw froze the `sk-no-key` placeholder from project creation into an auth profile and kept sending it; restarting never helped. Writing a new key now clears that profile, and bots installed earlier repair themselves on the next restart.
 - 💬 **Zalo's own Bot API channel actually works now** - pick **Zalo Bot API** when creating a bot, paste the Bot Token from `bot.zaloplatforms.com`, done: no QR scan, no personal account, no public webhook (the channel long-polls). The bot can join Zalo groups - invite it with the link from the **Zalo Bot Creator** mini app and have the group owner confirm; inside a group it answers an @mention or a reply to its own message. The `openclaw-zalo-mod` plugin is now installable for this channel too.
 - 🩹 **Native installs on OpenClaw 2026.8 are smooth from the first run** - this wave patches the remaining chain of issues measured on fresh customer machines: generated configs pass the new strict checks 100%, install steps run in the right order, and restarts/plugin installs no longer get blocked midway.

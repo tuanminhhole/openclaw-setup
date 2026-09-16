@@ -1,6 +1,42 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.17.5] - 2026-09-25
+### 🤖 Giao diện hiện 0 bot ở mọi kênh, dù bot vẫn đang chạy
+
+Đo trên máy khách đang chạy chín bot (25/09/2026): bảng điều khiển hiện 0 bot Telegram, 0 bot Zalo
+cá nhân và 0 ở mọi kênh, ô token trống, không có phiên bản plugin - trong khi thực tế mọi kênh đều
+`running, connected` và vừa trả lời tin nhắn vài phút trước đó.
+
+OpenClaw chấp nhận khai báo model theo hai dạng: dạng object `{ primary, fallbacks }` và dạng chuỗi
+rút gọn `"smart-route"`. Giao diện cài đặt luôn cho rằng đó là object, nên gặp config viết dạng
+chuỗi thì nó gán `.primary` lên một chuỗi - thao tác này ném lỗi ngay trong chế độ strict của ESM.
+Lỗi đó rơi đúng vào hàm mà mọi chỗ đọc config đều đi qua, mà mỗi chỗ gọi lại biến lỗi thành kết quả
+rỗng, nên chỉ một dạng khai báo hợp lệ nhưng chưa được hỗ trợ đã làm trống sạch bảng điều khiển. Nay
+cả hai dạng được chuẩn hoá tại một chỗ, giữ nguyên tên model đã cấu hình.
+
+### 🐳 Chuyển bot từ Docker sang native không còn bị đứt giữa đường
+
+Đo trên một máy Mac của khách ngày 16/09/2026: lượt chuyển làm bot tắt bốn lần riêng rẽ. Mọi lỗi đều
+từ một thói quen: có chỗ vẫn gọi tên vị trí CŨ của một tệp đã dời đi.
+
+- **Gateway từ chối cài.** Sau khi thư mục state dời về ~/.openclaw và thư mục project trở thành
+  liên kết trỏ tới đó, workspace của từng agent vẫn ghi đường project. OpenClaw so đường dẫn theo
+  chữ, thấy mỗi plugin hai lần và bác config. Nay cả hai nơi được ghi lại theo vị trí mới ngay sau
+  khi dời.
+- **Cập nhật plugin thì xoá luôn plugin.** OpenClaw nhớ thư mục cài cũ, cài bản mới vào thư mục
+  mới, rồi xoá "thư mục cũ" - chính là cùng một thư mục. Sổ nhớ đường cài cũng được ghi lại, nên cập
+  nhật không còn xoá thứ vừa cài.
+- **Địa chỉ gateway model giữ tên Docker.** `http://9router:<cổng>` chỉ được đổi cho cổng mặc định,
+  nên project chạy cổng khác nhận được tin mà không bao giờ trả lời. Nay lấy đúng cổng của project.
+- **Một profile đăng nhập cũ làm mỗi câu trả lời mở đầu bằng lỗi.** Profile mà OpenClaw đóng băng
+  trong container được ưu tiên hơn key thật; mỗi lượt mở màn bằng 401 rồi mới thử lại. Bước dọn
+  trước đây tìm một tên profile cố định không khớp - nay đọc đúng tên thật và dọn cho mọi agent ngay
+  trong lượt chuyển.
+- **"Thêm ổ đĩa" chạy trên native.** Không có gì để mount; bot nhận quyền bằng lời - khối thư mục
+  được cấp trong AGENTS.md dùng đường dẫn thật của máy.
+
+
 ## [5.17.4] - 2026-09-12
 
 ### 🔑 "Authentication failed" trên con bot có key hoàn toàn đúng
