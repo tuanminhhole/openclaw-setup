@@ -7,7 +7,7 @@
 *Chạy một lệnh, mở dashboard, bot lên sóng. Windows, macOS, Linux, VPS. Bot chạy thẳng trên máy, không cần Docker.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.5-0EA5E9?style=for-the-badge" alt="Version 5.17.5" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.0-0EA5E9?style=for-the-badge" alt="Version 5.18.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,7 +37,15 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.17.5
+## 🆕 Có gì mới trong v5.18.0
+
+- 💸 **Bot thôi đốt token vào lịch sử chat cũ** - chat dài được tự động tóm tắt (smart-route có ngân sách làm việc 250.000 token thay vì gần như không bao giờ nén), và mỗi cuộc chat bắt đầu lại lúc 4 giờ sáng theo múi giờ của bạn, sau khi lưu 30 tin gần nhất vào bộ nhớ của bot. Đo trên một nhóm của khách: mỗi câu hỏi phải gửi lại khoảng 170.000 token lịch sử.
+- 📌 **Ghim OpenClaw 2026.9.8** - hết lỗi tác vụ phụ đã xong bị thử lại mãi và mất kết quả. Hãy sao lưu trước khi cập nhật: từ 2026.9.5 định dạng dữ liệu đã đổi.
+- 💬 **Telegram: gọi bot bằng tên trong nhóm** - ô mới "Tên gọi trong nhóm" trong form bot Telegram; sửa bot Telegram không còn xoá cấu hình riêng từng nhóm.
+- 🛠️ **Sửa lỗi** - mã QR Zalo hiện được trên Windows; xoá được bot có ID chứa `_`; cập nhật 9Router chạy được trên Windows và Linux; openclaw.json bị lỗi được báo rõ thay vì hiện "0 bot"; bảng điều khiển hiện đúng phiên bản OpenClaw sau khi cập nhật từ bên ngoài.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.17.5</b></summary>
 
 - 🤖 **Giao diện không còn hiện 0 bot trong khi bot vẫn chạy** - model viết ở dạng chuỗi rút gọn (`"smart-route"` thay vì `{ primary, fallbacks }`) làm hỏng mọi lượt đọc config cùng lúc, xoá sạch danh sách bot ở mọi kênh kèm ô token và phiên bản plugin. Nay chấp nhận cả hai dạng.
 - 🔑 **Hết cảnh bot báo "authentication failed" dù key đúng** - OpenClaw đóng băng key giả `sk-no-key` lúc dựng project thành hồ sơ đăng nhập rồi cứ thế gửi mãi, khởi động lại không chữa được. Nay ghi key mới là dọn luôn hồ sơ cũ, và bot cài từ trước tự lành ở lần khởi động lại kế tiếp.
@@ -46,6 +54,8 @@
 - 🔑 **Đăng nhập 9Router hoạt động trên Docker**: bản 9Router mới chặn mật khẩu mặc định với truy cập "từ xa" - mà trong Docker thì mọi truy cập đều bị tính là từ xa, nên trước đây không cách nào vào được bằng 123456. Giờ đăng nhập bình thường (vào rồi vẫn nên đổi mật khẩu).
 - 🧹 **Xoá project gỡ sạch 9Router cũ**: trước đây 9Router cũ còn chạy ngầm giữ cổng, làm lần cài mới tự tách sang cổng khác mà không ai hay - giờ xoá là sạch, cài lại đúng cổng chuẩn.
 - 🔌 **Máy native tự cài đủ plugin tìm kiếm web** (DuckDuckGo) kèm xác nhận quyền - hết cảnh bot khởi động vòng lặp vì thiếu một cái gật đầu.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.16.3</b></summary>

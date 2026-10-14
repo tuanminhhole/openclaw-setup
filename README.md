@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows, macOS, Linux, VPS - Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.17.5-0EA5E9?style=for-the-badge" alt="Version 5.17.5" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.0-0EA5E9?style=for-the-badge" alt="Version 5.18.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,7 +37,15 @@
 
 ---
 
-## 🆕 What's New in v5.17.5
+## 🆕 What's New in v5.18.0
+
+- 💸 **Bots stop burning tokens on old conversations** - long chats are now summarised automatically (smart-route gets a 250,000-token working budget instead of never compacting), and every chat starts fresh at 4:00 in the morning in your time zone, after saving its last 30 messages to the bot's memory. Measured on a customer group that re-sent about 170,000 tokens of history with every question.
+- 📌 **OpenClaw pinned to 2026.9.8** - fixes a finished sub-task being retried forever and losing its result. Back up before updating: from 2026.9.5 the database format changed.
+- 💬 **Telegram: call the bot by name in groups** - new "Names in groups" field on the Telegram bot form; editing a Telegram bot no longer wipes its per-group settings.
+- 🛠️ **Fixes** - Zalo QR appears on Windows; bots whose ID contains `_` can be deleted; updating 9Router works on Windows and Linux; a broken openclaw.json is reported instead of showing "0 bots"; the dashboard shows the right OpenClaw version after an update made outside it.
+
+<details>
+<summary><b>Previous: What's new in v5.17.5</b></summary>
 
 - 🤖 **The dashboard no longer shows zero bots while the bots are running** - a model written in its short string form (`"smart-route"` instead of `{ primary, fallbacks }`) broke every config read at once, emptying the bot list on all channels along with the token fields and plugin versions. Both shapes are accepted now.
 - 🔑 **No more "authentication failed" on a bot whose key is correct** - OpenClaw froze the `sk-no-key` placeholder from project creation into an auth profile and kept sending it; restarting never helped. Writing a new key now clears that profile, and bots installed earlier repair themselves on the next restart.
@@ -46,6 +54,8 @@
 - 🔑 **9Router login works on Docker**: the new 9Router blocks the default password for "remote" access - and inside Docker every request counts as remote, so 123456 could never log in. It works now (still change the password once you're in).
 - 🧹 **Deleting a project fully removes the old 9Router**: it used to keep running in the background holding the port, silently forking the next install onto a different port - now removal is clean and reinstalls land on the standard port.
 - 🔌 **Native machines auto-install the web-search plugin** (DuckDuckGo) with its capability consent - no more boot loops over a missing nod.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.16.3</b></summary>

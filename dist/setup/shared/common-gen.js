@@ -5,7 +5,10 @@
   // migration, va bot khach chet ngay sau mot lan bam rebuild vo hai (ca that 103.98.149.154,
   // 31/08/2026: rebuild keo 2026.7.1-2 → 2026.8.1, gateway tu choi boot, 66 lan restart).
   // Nang version = doi spec nay MOT CACH CO Y trong mot ban phat hanh setup, kem kiem chung.
-  const OPENCLAW_NPM_SPEC = 'openclaw@2026.9.2';
+  // 2026.9.8 (12/10/2026): 2026.9.2-9.6 lap vo han "subagent completion owner changed before settlement"
+  // (sua o 9.7, PR #159179). Da nang that tren vps_minh-thu tu 9.3: 0 loi, plugin zalo-connect/zalo-mod/
+  // learning-memory nap du. Luu y: tu 9.5 state DB len schema 21 - ha ban phai restore backup.
+  const OPENCLAW_NPM_SPEC = 'openclaw@2026.9.8';
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const NINE_ROUTER_PORT = 20128;
@@ -281,6 +284,9 @@ If setup reported a plugin install error, run this after the bot is running:
           // mot combo van con model 128k thi phien vuot 128k se chet dung nhu hoi 5.15.x - do la
           // van de cua combo, sua bang cach chon model, khong sua bang cach ha window o day nua.
           contextWindow: 1048576,
+          // Ngan sach OpenClaw thuc su dung (Kent chot 08/10/2026). Window 1M ma khong co cap nay thi
+          // phien khong bao gio tu nen - moi cau hoi gui lai toan bo lich su (vu win_kha 6 trieu token/ngay).
+          contextTokens: 250000,
           maxTokens: 8192,
           input: ['text', 'image'],
         },

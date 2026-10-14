@@ -97,9 +97,18 @@ console.log(LOGO);
 const args = process.argv.slice(2);
 
 const noOpen = args.includes('--no-open');
-const hostArg = args.find((arg) => arg.startsWith('--host='));
-const portArg = args.find((arg) => arg.startsWith('--port='));
-const projectDirArg = args.find((arg) => arg.startsWith('--project-dir='));
+// Accept both `--flag=value` and `--flag value`. Only the `=` form used to be read, so a scheduled
+// task written as `--project-dir "D:\bot"` silently fell back to C:\openclaw-setup and the UI
+// opened the wrong project (win_kha, 08/10/2026). Normalised back to the `=` form below.
+const flagArg = (name) => {
+  const eq = args.find((arg) => arg.startsWith(`${name}=`));
+  if (eq) return eq;
+  const i = args.indexOf(name);
+  return i >= 0 && args[i + 1] && !args[i + 1].startsWith('--') ? `${name}=${args[i + 1]}` : undefined;
+};
+const hostArg = flagArg('--host');
+const portArg = flagArg('--port');
+const projectDirArg = flagArg('--project-dir');
 
 const fallbackDir = path.join(os.homedir(), 'openclaw-setup');
 const defaultProjectDir = process.platform === 'win32'

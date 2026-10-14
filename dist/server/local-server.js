@@ -992,7 +992,10 @@ async function resolveProjectRuntimeVersions(projectDir, mode = state.mode || 'd
     };
   }
   // Cache only meaningful results (don't pin empties from a container that's mid-restart).
-  if (result.openclaw || result.nineRouter || result.node) probeCacheSet(ck, result);
+  // Native gets the same 10-minute backstop as getCurrentRuntimeVersions: without it this outer
+  // entry never expired, so a runtime upgraded from the CLI kept showing the old version until the
+  // Setup UI restarted (vps_minh-thu showed 2026.9.3 after a manual 2026.9.8 upgrade, 12/10/2026).
+  if (result.openclaw || result.nineRouter || result.node) probeCacheSet(ck, result, mode === 'docker' ? 0 : 10 * 60 * 1000);
   return result;
 }
 
@@ -1492,11 +1495,27 @@ async function readProjectEnv(projectDir) {
 }
 
 
+// OpenClaw accepts a model reference in two shapes: the object `{ primary, fallbacks }` and the
+// short string form `"smart-route"`. Everything below reads `.primary`, so a string arriving here
+// used to be kept as-is and then written to - and assigning a property to a string throws
+// `Cannot create property 'primary' on string` under ESM strict mode. That throw happened inside
+// ensureConfigShape, which every config reader calls, so the whole Setup UI silently showed zero
+// bots on every channel plus empty tokens and no plugin versions (measured on win_kha, 25/09/2026:
+// `agents.defaults.model` was the plain string "smart-route"). Normalise both shapes to the object.
+function normalizeModelRef(value, fallbackPrimary) {
+  const primaryFallback = typeof fallbackPrimary === 'string' && fallbackPrimary ? fallbackPrimary : DEFAULT_MODEL;
+  if (typeof value === 'string') return { primary: value.trim() || primaryFallback, fallbacks: [] };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { primary: primaryFallback, fallbacks: [] };
+  if (typeof value.primary === 'string' && !value.primary.trim()) value.primary = primaryFallback;
+  if (!Array.isArray(value.fallbacks)) value.fallbacks = [];
+  return value;
+}
+
 function ensureConfigShape(cfg) {
   if (!cfg || typeof cfg !== 'object') throw httpError(400, 'Invalid openclaw.json');
   cfg.agents = cfg.agents || {};
   cfg.agents.defaults = cfg.agents.defaults || { model: { primary: DEFAULT_MODEL, fallbacks: [] } };
-  cfg.agents.defaults.model = cfg.agents.defaults.model || { primary: DEFAULT_MODEL, fallbacks: [] };
+  cfg.agents.defaults.model = normalizeModelRef(cfg.agents.defaults.model, DEFAULT_MODEL);
   if (!cfg.agents.defaults.model.primary || cfg.agents.defaults.model.primary === '9router/smart-route' || cfg.agents.defaults.model.primary === 'openai/smart-route') cfg.agents.defaults.model.primary = DEFAULT_MODEL;
   // openclaw 2026.8.x keys agents by `agents.entries` and its strict schema REJECTS
   // `agents.list` in the FILE (measured on vps_c-thu: doctor moves list→entries, then the
@@ -1543,7 +1562,7 @@ function ensureConfigShape(cfg) {
         agent.workspace = agent.workspace.replace('/root/project/', '/home/node/project/');
       }
     }
-    agent.model = agent.model || { primary: cfg.agents.defaults.model.primary, fallbacks: [] };
+    agent.model = normalizeModelRef(agent.model, cfg.agents.defaults.model.primary);
     if (!agent.model.primary || agent.model.primary === '9router/smart-route' || agent.model.primary === 'openai/smart-route') agent.model.primary = DEFAULT_MODEL;
   }
   cfg.models = cfg.models || { mode: 'merge', providers: {} };
@@ -2031,6 +2050,7 @@ async function listConfiguredBots(projectDir) {
       userName: meta.userName || '',
       userDescription: meta.userDescription || '',
       emoji: meta.emoji || '',
+      mentionNames: channel === 'telegram' ? mentionNamesForAgent(agent) : '',
       pageId: channel === 'fb-messenger' ? (cfg.channels?.['fb-messenger']?.pageId || '') : '',
       appId: meta.appId || '',
       pageAccessToken: channel === 'fb-messenger' ? (env.FB_MESSENGER_PAGE_ACCESS_TOKEN || '') : '',
@@ -2053,8 +2073,11 @@ async function rmInside(root, target) {
 
 async function deleteBotInProject(projectDir, agentId) {
   if (!projectDir) throw httpError(400, 'Install project not found');
-  const cleanId = slugify(agentId, '');
-  if (!cleanId || cleanId !== agentId) throw httpError(400, 'Invalid bot id');
+  // Only refuse characters that could reach outside the project (slash, dot, space...). Comparing
+  // against slugify() rejected every real id with `_` or a trailing `-` - Telegram bots are named
+  // after their @username (ngao_ngaooo_bot, woof-woof-), so 7 of 11 bots on win_kha could not be
+  // deleted (08/10/2026). rmInside() below still refuses any path that escapes the project.
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(String(agentId || ''))) throw httpError(400, 'Invalid bot id');
   const openclawHome = join(projectDir, '.openclaw');
   const cfgPath = join(openclawHome, 'openclaw.json');
   if (!existsSync(cfgPath)) throw httpError(404, 'openclaw.json not found');
@@ -2143,12 +2166,24 @@ async function findFreeHostPort(start, { reserveNext = false, limit = 100 } = {}
   return start;
 }
 
+// A config the dashboard cannot parse used to show up as "0 bots" in every channel - which reads as
+// "my bots were deleted" (win_kha 08/10/2026: someone hand-added mentionPatterns with a trailing comma
+// and a missing brace). Say what is actually wrong instead. The gateway keeps running on the config it
+// already loaded, but it will refuse to start on this file, so this is worth shouting about.
+function describeConfigReadError(err) {
+  if (err instanceof SyntaxError) {
+    return `openclaw.json bị lỗi cú pháp nên không đọc được danh sách bot (${err.message.slice(0, 160)}). Bot chưa bị xoá. Sửa lại file (chạy "openclaw config validate" để xem chỗ lỗi) trước khi khởi động lại bot, nếu không gateway sẽ không chạy được.`;
+  }
+  return `Không đọc được danh sách bot: ${String(err?.message || err).slice(0, 200)}`;
+}
+
 async function buildBotStatus() {
   if (state.projectDir) await syncRuntimeState(state.projectDir).catch(() => {});
+  let configError = '';
   const [gatewayStatus, routerStatus, bots, runtimeVersions] = await Promise.all([
     portStatus(state.gatewayPort || 18789).catch(() => state.installed ? 'unknown' : 'offline'),
     portStatus(state.routerPort || 20128).catch(() => state.installed ? 'unknown' : 'offline'),
-    listConfiguredBots(state.projectDir).catch(() => []),
+    listConfiguredBots(state.projectDir).catch((err) => { configError = describeConfigReadError(err); return []; }),
     resolveProjectRuntimeVersions(state.projectDir, state.mode).catch(() => ({ openclaw: '', nineRouter: '', node: process.version || '' })),
   ]);
   const credentials = await readBotCredentials(state.projectDir).catch(() => ({ openclawToken: '', nineRouterApiKey: '' }));
@@ -2180,7 +2215,57 @@ async function buildBotStatus() {
   // Resolved per project, not from the installer-wide state.mode: the operator can switch between
   // a docker project and a native one, and the UI hides/shows container-only actions on this.
   const deployMode = projectDeployMode(state.projectDir);
-  return { ...state, deployMode, gatewayStatus, routerStatus, bots, credentials, runtimeVersions, activeModel, activeProvider };
+  return { ...state, deployMode, gatewayStatus, routerStatus, bots, credentials, runtimeVersions, activeModel, activeProvider, configError };
+}
+
+// "Tên gọi trong nhóm" for Telegram bots. OpenClaw answers an unmentioned group message when it matches
+// agents.entries.<id>.groupChat.mentionPatterns - regexes compiled with the `i` flag (case-insensitive,
+// diacritics must still match). People type plain names here, so each one is escaped into a literal
+// pattern; nobody has to know regex. Setting the list also turns OFF the patterns OpenClaw would derive
+// from the bot's identity name, so this list is the whole set of names the bot answers to.
+const MENTION_NAME_MAX = 10;
+function parseMentionNames(raw) {
+  const seen = new Set();
+  const out = [];
+  for (const part of String(raw || '').split(/[,\n;]+/)) {
+    const name = part.trim().replace(/\s+/g, ' ').slice(0, 60);
+    const key = name.toLowerCase();
+    if (!name || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+    if (out.length >= MENTION_NAME_MAX) break;
+  }
+  return out;
+}
+function mentionNameToPattern(name) {
+  // People do not type backslashes into a name, so one that has a backslash is a hand-written regex
+  // shown back in the form (win_kha bots already carried `\bKM\b`). Keep it as is:
+  // escaping it would turn the word boundary into a literal backslash and the name would never match.
+  if (String(name).includes('\\')) return String(name);
+  return String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+function mentionPatternToName(pattern) {
+  return String(pattern || '').replace(/\\([.*+?^${}()|[\]\\])/g, '$1');
+}
+function mentionNamesForAgent(agent) {
+  const patterns = agent?.groupChat?.mentionPatterns;
+  return Array.isArray(patterns) ? patterns.map(mentionPatternToName).join(', ') : '';
+}
+/**
+ * Apply the form's mention names to an agent entry. `raw === undefined` means the form did not send the
+ * field (another channel), so nothing is touched. An unchanged list is left byte-for-byte as it was, so a
+ * hand-written regex survives an unrelated edit of the bot.
+ */
+function applyMentionNames(agent, raw) {
+  if (raw === undefined) return;
+  const names = parseMentionNames(raw);
+  if (names.join(', ') === mentionNamesForAgent(agent)) return;
+  if (names.length) {
+    agent.groupChat = { ...(agent.groupChat || {}), mentionPatterns: names.map(mentionNameToPattern) };
+  } else if (agent.groupChat) {
+    delete agent.groupChat.mentionPatterns;
+    if (!Object.keys(agent.groupChat).length) delete agent.groupChat;
+  }
 }
 
 async function createBotInProject(projectDir, body = {}, runtime = {}) {
@@ -2260,6 +2345,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     cfg.channels.telegram.accounts = accounts;
     cfg.channels.telegram.defaultAccount = cfg.channels.telegram.defaultAccount || 'default';
     cfg.bindings.push({ agentId, match: { channel: 'telegram', accountId } });
+    applyMentionNames(cfg.agents.list.find((a) => a.id === agentId), body.mentionNames);
     await appendEnvValue(projectDir, accountId === 'default' ? 'TELEGRAM_BOT_TOKEN' : `TELEGRAM_BOT_TOKEN_${agentId.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}`, token);
   } else if (channel === 'zalo-personal') {
     ensureZaloConnectChannel(cfg);
@@ -2385,10 +2471,14 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     const accountId = existingAccountId || (existingTelegramAccounts.length === 0 ? 'default' : agentId);
     // If accountId changed (e.g. was agentId, now should be 'default'), clean up old key
     if (existingAccountId && existingAccountId !== accountId) delete accounts[existingAccountId];
-    accounts[accountId] = { botToken: token || accounts[accountId]?.botToken || accounts[existingAccountId]?.botToken || '' };
+    // Keep everything else on the account (groups, mention settings...) - rebuilding it as
+    // `{ botToken }` silently dropped those on every edit of the bot.
+    const previousAccount = accounts[accountId] || (existingAccountId ? accounts[existingAccountId] : null) || {};
+    accounts[accountId] = { ...previousAccount, botToken: token || previousAccount.botToken || '' };
     cfg.channels.telegram.accounts = accounts;
     cfg.channels.telegram.defaultAccount = cfg.channels.telegram.defaultAccount || 'default';
     cfg.bindings.push({ agentId, match: { channel: 'telegram', accountId } });
+    applyMentionNames(agent, body.mentionNames);
   } else if (channel === 'zalo-personal') {
     ensureZaloConnectChannel(cfg);
     const zc = cfg.channels['zalo-connect'];
@@ -2766,9 +2856,28 @@ async function startZaloConnectLogin(projectDir, accountId = 'default') {
   const runAttempt = () => {
     attempt++;
     if (attempt > 1) sendLog(`[zalo-connect] Retry ${attempt}/${MAX_ATTEMPTS}...`);
-    const child = native
-      ? spawn(resolveBinPath('openclaw'), ['channels', 'login', '--channel', 'zalo-connect', '--account', accountId, '--verbose'], { cwd: projectDir, shell: false, windowsHide: true, env: { ...process.env, ...nativeEnv(projectDir) } })
-      : spawn('docker', ['exec', botContainer, 'sh', '-lc', loginCmd], { cwd: projectDir, shell: false, windowsHide: true });
+    // Native: run openclaw's entry script with this node, never the openclaw.cmd shim - on Windows
+    // spawning the shim throws a synchronous `spawn EINVAL` (win_kha 08/10/2026). That throw used to
+    // escape before any 'close' handler existed, leaving zaloLoginInFlight stuck at true, so every
+    // later click only answered "already running" and the QR modal stayed empty until the UI restarted.
+    let child;
+    try {
+      if (native) {
+        const loginArgs = ['channels', 'login', '--channel', 'zalo-connect', '--account', accountId, '--verbose'];
+        // Windows only: macOS/Linux keep spawning the openclaw binary exactly as before.
+        const entry = process.platform === 'win32' ? openclawEntryScript() : '';
+        const bin = entry ? process.execPath : resolveBinPath('openclaw');
+        const argv = entry ? [entry, ...loginArgs] : loginArgs;
+        child = spawn(bin, argv, { cwd: projectDir, shell: needsWindowsShell(bin), windowsHide: true, env: { ...process.env, ...nativeEnv(projectDir) } });
+      } else {
+        child = spawn('docker', ['exec', botContainer, 'sh', '-lc', loginCmd], { cwd: projectDir, shell: false, windowsHide: true });
+      }
+    } catch (err) {
+      zaloLoginInFlight = false;
+      zaloLoginChild = null;
+      sendLog(`[zalo-connect] Login process failed to start: ${err.message}. Click "Đăng nhập Zalo" to retry.`);
+      return;
+    }
     zaloLoginChild = child;
     child.stdout.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLine));
     child.stderr.on('data', (d) => String(d).split(/\r?\n/).filter(Boolean).forEach(handleLine));
@@ -3764,6 +3873,21 @@ async function killListenerOnPort(port) {
   if (/^\d+$/.test(pid)) await run('kill', [pid], { shell: false }).catch(() => {});
 }
 
+/**
+ * Windows: stop every process running from the global 9router package - the `cli.js` parent as
+ * well as the `app\custom-server.js` child. killListenerOnPort only reaches the child that owns the
+ * port; the parent keeps its own handles, and either one is enough to make `npm i -g` fail EBUSY.
+ */
+async function stopWindows9RouterProcesses() {
+  if (process.platform !== 'win32') return;
+  const ps = "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*\\node_modules\\9router\\*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; $_.ProcessId }";
+  const out = await runCapture('powershell', ['-NoProfile', '-Command', ps], { shell: false, timeout: 30000 }).catch(() => ({ stdout: '' }));
+  const pids = String(out.stdout || '').split(/\s+/).filter((p) => /^\d+$/.test(p));
+  sendLog(pids.length ? `[native] Stopped 9router (pid ${pids.join(', ')}) before updating` : '[native] No running 9router process found');
+  // Give Windows a moment to release the directory handles before npm renames the folder.
+  await new Promise((r) => setTimeout(r, 2000));
+}
+
 async function probeHttpOk(url, timeoutMs = 2000) {
   const r = await runCapture('curl', ['-s', '-m', String(Math.ceil(timeoutMs / 1000)), '-o', '/dev/null', '-w', '%{http_code}', url], { shell: false, timeout: timeoutMs + 2000 });
   return /^[23]/.test((r.stdout || '').trim());
@@ -3792,7 +3916,7 @@ async function startNative9Router(projectDir, { restart = false } = {}) {
   // macOS/Windows keep the detached process: no deployed native host runs there yet, and each
   // would need its own service wrapper (launchd/Task Scheduler).
   if (process.platform === 'linux') {
-    const ok = await installNative9RouterUnit(projectDir, routerPort, dataDir).catch((e) => { sendLog(`[native] 9router unit skipped: ${e.message}`); return false; });
+    const ok = await installNative9RouterUnit(projectDir, routerPort, dataDir, { restart }).catch((e) => { sendLog(`[native] 9router unit skipped: ${e.message}`); return false; });
     if (ok) return routerPort;
   }
   // Windows: go through the same wscript + run-hidden.vbs pair the launcher uses. A plain detached
@@ -3818,7 +3942,7 @@ async function startNative9Router(projectDir, { restart = false } = {}) {
   return routerPort;
 }
 
-async function installNative9RouterUnit(projectDir, routerPort, dataDir) {
+async function installNative9RouterUnit(projectDir, routerPort, dataDir, { restart = false } = {}) {
   const bin = resolveBinPath('9router');
   const binDir = bin.includes('/') ? dirname(bin) : '';
   const unitDir = join(os.homedir(), '.config', 'systemd', 'user');
@@ -3848,6 +3972,15 @@ async function installNative9RouterUnit(projectDir, routerPort, dataDir) {
   await run('systemctl', ['--user', 'daemon-reload'], {}).catch(() => {});
   const res = await runCapture('systemctl', ['--user', 'enable', '--now', 'openclaw-9router.service'], { shell: false, timeout: 30000 });
   if (res.code !== 0) throw new Error(String(res.stderr || res.stdout || 'systemctl enable failed').trim().slice(0, 160));
+  // `enable --now` leaves an already-running unit alone, so after `npm i -g 9router@latest` the old
+  // process kept serving from memory: vps_minh-thu ran its 02/09 9router for six weeks after a
+  // "successful" Update (12/10/2026) and Codex tool calls came back malformed. A restart request
+  // has to restart the unit itself - killing the port listener only reached the next-server child.
+  if (restart) {
+    const rs = await runCapture('systemctl', ['--user', 'restart', 'openclaw-9router.service'], { shell: false, timeout: 60000 });
+    if (rs.code !== 0) throw new Error(String(rs.stderr || rs.stdout || 'systemctl restart failed').trim().slice(0, 160));
+    sendLog('[native] 9router restarted (systemd user unit) - the new version is now the one serving');
+  }
   sendLog('[native] 9router installed as systemd user unit openclaw-9router.service (survives UI restarts and reboots)');
   return true;
 }
@@ -4788,17 +4921,50 @@ async function recreateDockerBot(projectDir) {
   return true;
 }
 
+// One runtime update at a time. Two `npm i -g` of the same package running together tear each other's
+// install apart: on win_kha (08/10/2026) a second click landed while the first install was mid-way,
+// both failed (EBUSY + a postinstall that no longer existed) and the global 9router folder was left
+// empty - every bot lost its model until it was reinstalled by hand. The button's own spinner only
+// guards one browser tab, so the lock has to live here.
+let runtimeUpdateInFlight = '';
 async function updateRuntime(target, projectDir) {
+  if (runtimeUpdateInFlight) {
+    throw httpError(409, `Đang cập nhật ${runtimeUpdateInFlight}, chờ lượt này xong rồi bấm lại.`);
+  }
+  runtimeUpdateInFlight = target === '9router' ? '9router' : 'openclaw';
+  try {
+    return await updateRuntimeUnlocked(target, projectDir);
+  } finally {
+    runtimeUpdateInFlight = '';
+  }
+}
+
+async function updateRuntimeUnlocked(target, projectDir) {
   const isRouter = target === '9router';
   const spec = isRouter ? NINE_ROUTER_NPM_SPEC : OPENCLAW_NPM_SPEC;
   // Native: the runtime is a global npm package, not an image. Reinstall it, then restart the
   // service so the new binary is the one actually serving. This is what replaces "Rebuild".
   if (isNativeProject(projectDir)) {
     sendLog(`[native] Updating ${target} → ${spec}`);
-    await run('npm', ['install', '-g', spec]);
+    if (isRouter && process.platform === 'win32') {
+      // Windows locks a directory while a process has it as its cwd, and 9router's server child
+      // runs inside node_modules\9router\app - so `npm i -g` over a running 9router dies with
+      // `EBUSY: rename ...\9router\app` and the old version stays (win_kha, 08/10/2026, 0.5.69 kept
+      // a Grok client version xAI now rejects with 426). Stop every 9router process first, and
+      // bring 9router back whether or not the install worked, so a failed update never leaves the
+      // bots without a model.
+      await stopWindows9RouterProcesses();
+      try {
+        await run('npm', ['install', '-g', spec]);
+      } finally {
+        await startNative9Router(projectDir, { restart: true }).catch((e) => sendLog(`[native] 9router restart: ${e.message}`));
+      }
+    } else {
+      await run('npm', ['install', '-g', spec]);
+    }
     if (!isRouter) invalidateHostOpenclawVersion();
-    if (isRouter) await startNative9Router(projectDir, { restart: true }).catch((e) => sendLog(`[native] 9router restart: ${e.message}`));
-    else {
+    if (isRouter && process.platform !== 'win32') await startNative9Router(projectDir, { restart: true }).catch((e) => sendLog(`[native] 9router restart: ${e.message}`));
+    else if (!isRouter) {
       // Update is the repair button on a native project, so put the plugins back in a state the
       // new runtime will boot with BEFORE restarting: a new openclaw can refuse to start over a
       // plugin whose capability consent it does not recognise, and a project that came across from

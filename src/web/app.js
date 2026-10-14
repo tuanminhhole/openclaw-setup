@@ -1043,6 +1043,7 @@ function botView() {
             ? `<button class="is-coming-soon" disabled title="${t('Sắp ra mắt','Coming soon')}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${t('Sắp','Soon')}</span></button>`
             : `<button class="${ch===c.id?'active':''}" data-bot-channel="${c.id}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${bots.filter(b=>b.channel===c.id).length}</span></button>`
           ).join('')}</div>
+          ${state.install?.configError ? `<div class="config-error-box" role="alert" style="margin-bottom:14px;padding:12px 14px;border:1px solid #ff4d5e;border-radius:12px;color:#ff4d5e;font-size:13px;line-height:1.5;"><b>${t('Không đọc được config','Cannot read config')}</b><br/>${escapeHtml(state.install.configError)}</div>` : ''}
           ${botListPanel(channelBots)}
         </div>
       </section>
@@ -1098,6 +1099,7 @@ function botCreateForm(ch, empty, data = {}) {
       <label><span>${t('\u0056ai tr\u00f2','Role')}</span><input name="role" required placeholder="${t('\u0054r\u1ee3 l\u00fd AI c\u00e1 nh\u00e2n','Personal AI assistant')}" value="${escapeHtml(data.role || '')}"/></label>
       ${!isFb ? `<label><span>Emoji</span><input name="emoji" maxlength="8" placeholder="\uD83E\uDD16" value="${escapeHtml(data.emoji || '')}"/></label>` : ''}
       ${needsToken ? `<label><span>Token</span><input name="token" ${tokenRequired ? 'required' : ''} autocomplete="off" placeholder="${ch==='telegram'?'123456:ABC...':'Zalo OA token'}" value="${escapeHtml(data.token || '')}"/></label>` : `<input name="token" type="hidden" value="${escapeHtml(data.token || '')}"/>`}
+      ${ch === 'telegram' ? `<label class="wide"><span>${t('Tên gọi trong nhóm','Names in groups')}</span><input name="mentionNames" autocomplete="off" placeholder="${t('Kỳ Môn ơi, km ơi','Kymon, hey km')}" value="${escapeHtml(data.mentionNames || '')}"/><small>${t('Cách nhau bằng dấu phẩy, tối đa 10 tên. Trong nhóm, bot chỉ trả lời khi được tag @username hoặc khi tin nhắn có một trong các tên này (không phân biệt hoa thường, phải đúng dấu). Để trống thì giữ mặc định (gọi bằng tag @username). Cần vào BotFather gõ /setprivacy, chọn Disable, rồi xoá và thêm lại bot vào nhóm thì bot mới nhận được tin không tag.','Comma-separated, up to 10. In groups the bot only replies when tagged @username or when a message contains one of these names (case-insensitive). Leave empty to keep the default (tag @username). Turn off privacy mode in BotFather (/setprivacy, Disable), then remove and re-add the bot to the group so it can see untagged messages.')}</small></label>` : ''}
       ${isFb ? `
         <div class="fb-fields">
           <div class="fb-row3">
@@ -1123,7 +1125,7 @@ function botCreateForm(ch, empty, data = {}) {
 function botCreateModal() {
   if (!state.botModalOpen) return '';
   const current = (state.install?.bots || []).find((b) => b.id === state.botEditId) || null;
-  const data = current ? { mode: 'edit', channel: current.channel || state.botChannel, botName: current.name, role: current.role || '', token: '', personality: current.persona || '', userName: current.userName || '', userDescription: current.userDescription || '', emoji: current.emoji || '', pageId: current.pageId || '', appId: current.appId || '', pageAccessToken: current.pageAccessToken || '', appSecret: current.appSecret || '', verifyToken: current.verifyToken || '' } : { mode: 'create' };
+  const data = current ? { mode: 'edit', channel: current.channel || state.botChannel, botName: current.name, role: current.role || '', token: '', personality: current.persona || '', userName: current.userName || '', userDescription: current.userDescription || '', emoji: current.emoji || '', mentionNames: current.mentionNames || '', pageId: current.pageId || '', appId: current.appId || '', pageAccessToken: current.pageAccessToken || '', appSecret: current.appSecret || '', verifyToken: current.verifyToken || '' } : { mode: 'create' };
   const currentChannel = BOT_CHANNELS.find((x) => x.id === ((current && current.channel) || state.botChannel || 'telegram'));
   return `<div class="modal-backdrop bot-modal-backdrop" data-bot-modal="close">
     <section class="donate-modal bot-modal" role="dialog" aria-modal="true" aria-label="${t('\u0054\u1ea1o bot','Create bot')}" onclick="event.stopPropagation()">

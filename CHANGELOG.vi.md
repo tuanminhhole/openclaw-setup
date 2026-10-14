@@ -1,6 +1,42 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.18.0] - 2026-10-14
+### 💸 Bot thôi đốt token vào lịch sử chat cũ
+
+Đo trên hai máy của khách tháng 10/2026: một nhóm chat chưa từng được dọn từ tháng 9, nên mỗi câu
+hỏi mới phải gửi lại khoảng 170.000 token lịch sử, một ngày tốn 6 triệu token.
+
+- **Chat dài được tự động tóm tắt.** Trước đây OpenClaw chỉ nén khi gần chạm cửa sổ tối đa của
+  model, mà smart-route khai tới 1 triệu token nên gần như không bao giờ nén. Nay smart-route có
+  ngân sách làm việc 250.000 token, nên chat được tóm tắt từ sớm thay vì để hoá đơn phình to.
+- **Mỗi cuộc chat bắt đầu lại lúc 4 giờ sáng (theo múi giờ của bạn).** Trước khi làm mới, 30 tin
+  gần nhất được lưu vào bộ nhớ của bot, nên bot vẫn nhớ hôm qua đang làm gì. Máy chủ chạy giờ UTC
+  được quy đổi đúng giờ, không làm mới vào giữa trưa.
+- **OpenClaw được ghim ở bản 2026.9.8.** Các bản 2026.9.2 đến 2026.9.6 có thể thử lại mãi một tác
+  vụ phụ đã xong, làm mất kết quả và ghi log mỗi phút. Hãy sao lưu trước khi cập nhật: từ 2026.9.5
+  định dạng dữ liệu đã đổi, muốn quay lại bản cũ phải dùng bản sao lưu.
+
+### 💬 Telegram: gọi bot bằng tên trong nhóm
+
+- **Ô mới "Tên gọi trong nhóm"** trong form bot Telegram. Trong nhóm, bot trả lời khi được tag hoặc
+  khi tin nhắn có một trong các tên này (không phân biệt hoa thường). Vào BotFather tắt chế độ
+  riêng tư (`/setprivacy`, chọn Disable) rồi thêm lại bot vào nhóm để Telegram gửi cả tin không tag.
+- **Sửa bot Telegram không còn xoá mất cấu hình tài khoản**, ví dụ quy tắc riêng từng nhóm.
+
+### 🛠️ Sửa lỗi
+
+- **Mã QR Zalo hiện được trên Windows.** Trước đây đăng nhập có thể hỏng âm thầm, rồi mọi lần bấm
+  sau chỉ báo "đang chạy" cho tới khi khởi động lại bảng điều khiển.
+- **Xoá được bot có ID chứa `_` hoặc kết thúc bằng `-`** (đa số bot Telegram).
+- **Cập nhật 9Router chạy được trên Windows và Linux.** Windows không cho thay tệp đang dùng; Linux
+  cài bản mới nhưng vẫn chạy bản cũ. Hai lượt cập nhật bấm cùng lúc không còn làm hỏng nhau.
+- **openclaw.json bị lỗi được báo rõ thay vì hiện "0 bot".** Bảng điều khiển ghi file có lỗi cú pháp
+  và bot chưa hề bị xoá.
+- **Bảng điều khiển hiện đúng phiên bản OpenClaw** sau khi cập nhật từ bên ngoài.
+- Lệnh cài đặt nhận cả `--project-dir <thư mục>` lẫn `--project-dir=<thư mục>`.
+
+
 ## [5.17.5] - 2026-09-25
 ### 🤖 Giao diện hiện 0 bot ở mọi kênh, dù bot vẫn đang chạy
 

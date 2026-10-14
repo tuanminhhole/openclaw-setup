@@ -1,6 +1,45 @@
 # Changelog (English)
 
 
+## [5.18.0] - 2026-10-14
+### 💸 Bots stop burning tokens on old conversations
+
+Measured on two customer machines in October 2026: one group chat had never been cleaned since
+September, so every new question re-sent about 170,000 tokens of history and a single day used
+6 million tokens.
+
+- **Long chats are now summarised automatically.** OpenClaw only compacted a chat when it neared the
+  model's full window, which for smart-route was 1 million tokens, so it effectively never happened.
+  Setup now gives smart-route a 250,000-token working budget, so compaction kicks in long before
+  the bill does.
+- **Every chat starts fresh at 4:00 in the morning (your time zone).** Before each reset the last 30
+  messages are saved to the bot's memory, so it still knows what it was doing yesterday. On servers
+  that run on UTC the hour is converted, so the reset does not land at lunchtime.
+- **OpenClaw is now pinned to 2026.9.8.** Versions 2026.9.2 to 2026.9.6 could retry a finished
+  sub-task forever, losing its result and filling the log every minute. Back up before updating:
+  from 2026.9.5 the database format changed, so going back requires the backup.
+
+### 💬 Telegram: call the bot by name in groups
+
+- **New "Names in groups" field** on the Telegram bot form. In a group the bot answers when it is
+  tagged or when a message contains one of these names (case-insensitive). Turn off privacy mode in
+  BotFather (`/setprivacy`, Disable) and re-add the bot so Telegram delivers untagged messages.
+- **Editing a Telegram bot no longer wipes its account settings** such as per-group rules.
+
+### 🛠️ Fixes
+
+- **Zalo QR now appears on Windows.** The login could fail silently and then answer "already
+  running" to every later click until the dashboard was restarted.
+- **Bots whose ID contains `_` or ends with `-` can be deleted** (most Telegram bots).
+- **Updating 9Router works on Windows and Linux.** Windows refused to replace files that were in use;
+  Linux installed the new version but kept running the old one. Two updates started at the same time
+  no longer break each other.
+- **A broken openclaw.json is reported instead of showing "0 bots".** The dashboard now says the file
+  has a syntax error and that the bots were not deleted.
+- **The dashboard shows the right OpenClaw version** after an update made outside it.
+- The setup command accepts `--project-dir <folder>` as well as `--project-dir=<folder>`.
+
+
 ## [5.17.5] - 2026-09-25
 ### 🤖 The dashboard showed zero bots on every channel while the bots kept running
 
