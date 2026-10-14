@@ -1,6 +1,25 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.18.1] - 2026-10-14
+### 🔧 Nút "Cập nhật OpenClaw" chạy trọn trên máy chủ cài từ bản cũ
+
+Ghi nhận trên máy chủ của khách ngày 14/10/2026, lần đầu cập nhật từ OpenClaw 2026.7 lên 2026.9.8.
+Bản mới đã được cài nhưng mọi bước sau đó đều lỗi, bot vẫn chạy chỉ vì gateway cũ còn trong bộ nhớ.
+
+- **Dừng gateway cũ trước khi áp bản mới.** Trước đây bước chuyển dữ liệu và kiểm tra plugin chạy
+  trong lúc gateway cũ vẫn bật, nên bản mới nói chuyện với bản cũ và plugin nào cũng báo "cài không
+  được". Nay quy trình là dừng gateway, chuyển dữ liệu, bật bản mới rồi mới kiểm tra plugin. (Linux
+  và macOS; Windows giữ nguyên.)
+- **Nhận ra plugin cài theo kiểu mới.** OpenClaw 2026.9 để plugin tải từ ClawHub hoặc npm ở một thư
+  mục khác; trước đây Setup chỉ tìm ở thư mục cũ nên báo plugin Zalo đang chạy là bị thiếu.
+- **Máy chủ cài từ bản cũ giữ đúng thư mục dữ liệu.** Các lệnh quản lý dịch vụ từng bị trỏ về thư
+  mục home của tài khoản, đọc nhầm một file cũ ở đó và báo "config không hợp lệ" trong khi cấu hình
+  thật của bot vẫn đúng.
+- **Setup điều khiển được dịch vụ bot khi chính nó chạy dạng system service.** Bật, dừng, nạp lại
+  gateway và 9Router không còn lỗi "Failed to connect to bus".
+
+
 ## [5.18.0] - 2026-10-14
 ### 💸 Bot thôi đốt token vào lịch sử chat cũ
 

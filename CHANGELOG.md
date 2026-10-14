@@ -1,6 +1,27 @@
 # Changelog (English)
 
 
+## [5.18.1] - 2026-10-14
+### 🔧 "Update OpenClaw" finishes cleanly on servers installed with older versions
+
+Measured on a customer server on 14/10/2026, first update from OpenClaw 2026.7 to 2026.9.8. The new
+version was installed, but every step after it failed, and the bot only kept running because the old
+gateway was still in memory.
+
+- **The old gateway is stopped before the update is applied.** The data migration and the plugin
+  check used to run while the previous gateway was still up, so the new version talked to the old one
+  and every plugin "failed to install". The update now stops the gateway, migrates the data, starts
+  the new version and only then checks plugins. (Linux and macOS; Windows is unchanged.)
+- **Plugins installed the new way are recognised.** OpenClaw 2026.9 keeps plugins downloaded from
+  ClawHub or npm in a different folder; Setup looked only in the old one and reported a working
+  Zalo plugin as missing.
+- **Servers set up on older versions keep their data folder.** Service commands were pointed at the
+  account's home folder, read an outdated file there and reported "config is invalid" while the
+  bot's real configuration was fine.
+- **Setup can manage the bot service when it runs as a system service.** Starting, stopping and
+  reloading the gateway and 9Router no longer fail with "Failed to connect to bus".
+
+
 ## [5.18.0] - 2026-10-14
 ### 💸 Bots stop burning tokens on old conversations
 

@@ -7,7 +7,7 @@
 *Chạy một lệnh, mở dashboard, bot lên sóng. Windows, macOS, Linux, VPS. Bot chạy thẳng trên máy, không cần Docker.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.0-0EA5E9?style=for-the-badge" alt="Version 5.18.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.1-0EA5E9?style=for-the-badge" alt="Version 5.18.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,12 +37,19 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.18.0
+## 🆕 Có gì mới trong v5.18.1
+
+- 🔧 **Nút "Cập nhật OpenClaw" chạy trọn trên máy chủ cài từ bản cũ** - gateway cũ được dừng trước khi áp bản mới, nên bước chuyển dữ liệu và kiểm tra plugin chạy với bản mới thay vì lỗi dây chuyền. Plugin cài theo kiểu mới (ClawHub/npm) được nhận đúng, máy chủ cài từ bản cũ giữ đúng thư mục dữ liệu, và Setup điều khiển được dịch vụ bot kể cả khi chính nó chạy dạng system service.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.18.0</b></summary>
 
 - 💸 **Bot thôi đốt token vào lịch sử chat cũ** - chat dài được tự động tóm tắt (smart-route có ngân sách làm việc 250.000 token thay vì gần như không bao giờ nén), và mỗi cuộc chat bắt đầu lại lúc 4 giờ sáng theo múi giờ của bạn, sau khi lưu 30 tin gần nhất vào bộ nhớ của bot. Đo trên một nhóm của khách: mỗi câu hỏi phải gửi lại khoảng 170.000 token lịch sử.
 - 📌 **Ghim OpenClaw 2026.9.8** - hết lỗi tác vụ phụ đã xong bị thử lại mãi và mất kết quả. Hãy sao lưu trước khi cập nhật: từ 2026.9.5 định dạng dữ liệu đã đổi.
 - 💬 **Telegram: gọi bot bằng tên trong nhóm** - ô mới "Tên gọi trong nhóm" trong form bot Telegram; sửa bot Telegram không còn xoá cấu hình riêng từng nhóm.
 - 🛠️ **Sửa lỗi** - mã QR Zalo hiện được trên Windows; xoá được bot có ID chứa `_`; cập nhật 9Router chạy được trên Windows và Linux; openclaw.json bị lỗi được báo rõ thay vì hiện "0 bot"; bảng điều khiển hiện đúng phiên bản OpenClaw sau khi cập nhật từ bên ngoài.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.17.5</b></summary>

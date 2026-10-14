@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows, macOS, Linux, VPS - Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.0-0EA5E9?style=for-the-badge" alt="Version 5.18.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.1-0EA5E9?style=for-the-badge" alt="Version 5.18.1" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,12 +37,19 @@
 
 ---
 
-## 🆕 What's New in v5.18.0
+## 🆕 What's New in v5.18.1
+
+- 🔧 **"Update OpenClaw" finishes cleanly on servers installed with older versions** - the old gateway is now stopped before the update is applied, so the data migration and plugin checks run against the new version instead of failing one after another. Plugins installed the new way (ClawHub/npm) are recognised, servers set up on older versions keep their data folder, and Setup can control the bot service even when it runs as a system service.
+
+<details>
+<summary><b>Previous: What's new in v5.18.0</b></summary>
 
 - 💸 **Bots stop burning tokens on old conversations** - long chats are now summarised automatically (smart-route gets a 250,000-token working budget instead of never compacting), and every chat starts fresh at 4:00 in the morning in your time zone, after saving its last 30 messages to the bot's memory. Measured on a customer group that re-sent about 170,000 tokens of history with every question.
 - 📌 **OpenClaw pinned to 2026.9.8** - fixes a finished sub-task being retried forever and losing its result. Back up before updating: from 2026.9.5 the database format changed.
 - 💬 **Telegram: call the bot by name in groups** - new "Names in groups" field on the Telegram bot form; editing a Telegram bot no longer wipes its per-group settings.
 - 🛠️ **Fixes** - Zalo QR appears on Windows; bots whose ID contains `_` can be deleted; updating 9Router works on Windows and Linux; a broken openclaw.json is reported instead of showing "0 bots"; the dashboard shows the right OpenClaw version after an update made outside it.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.17.5</b></summary>

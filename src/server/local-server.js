@@ -55,6 +55,22 @@ let hostOcMajorMinorCache = null;
 function invalidateHostOpenclawVersion() {
   hostOcMajorMinorCache = null;
 }
+/**
+ * The Setup UI often runs as a SYSTEM service (User=root), which has no XDG_RUNTIME_DIR / session
+ * bus - so every `systemctl --user` it ran failed with "Failed to connect to bus: No medium found"
+ * and the gateway and 9router user units could not be reloaded, restarted or installed (vps_asa,
+ * 14/10/2026: 9router fell back to a detached process). When the user manager is running, its
+ * runtime dir exists; point the environment at it so this process and every child can reach it.
+ */
+function ensureUserSystemdEnv() {
+  if (process.platform !== 'linux' || typeof process.getuid !== 'function') return;
+  const runtimeDir = `/run/user/${process.getuid()}`;
+  if (!process.env.XDG_RUNTIME_DIR && existsSync(runtimeDir)) process.env.XDG_RUNTIME_DIR = runtimeDir;
+  const bus = join(process.env.XDG_RUNTIME_DIR || runtimeDir, 'bus');
+  if (!process.env.DBUS_SESSION_BUS_ADDRESS && existsSync(bus)) process.env.DBUS_SESSION_BUS_ADDRESS = `unix:path=${bus}`;
+}
+ensureUserSystemdEnv();
+
 async function hostOpenclawMajorMinor() {
   // Cache only a REAL version: during bot creation this is first called before
   // `npm i -g openclaw` has run, and caching that 0 forever made prepareNativeStateHome
@@ -3336,6 +3352,10 @@ function migrationLeaseDeadline(text = '') {
 }
 
 /** `openclaw daemon <verb>` for a native project: streams output to the UI log AND returns it. */
+function sameRealPath(a, b) {
+  try { return fs.realpathSync(a) === fs.realpathSync(b); } catch { return false; }
+}
+
 async function ocDaemon(projectDir, verb, extraArgs = []) {
   const args = ['daemon', verb, ...extraArgs];
   sendLog(`$ openclaw ${args.join(' ')}`);
@@ -3348,8 +3368,13 @@ async function ocDaemon(projectDir, verb, extraArgs = []) {
   if ((await hostOpenclawMajorMinor()) >= 202608) {
     env = { ...env };
     delete env.OPENCLAW_HOME;
-    delete env.OPENCLAW_STATE_DIR;
     env.HOME = os.homedir();
+    // Only a project whose state IS the account's ~/.openclaw can drop the state override. A host
+    // installed on an older layout keeps its state elsewhere (vps_asa: /home/bot/.openclaw, unit
+    // written by 2026.7) - stripping OPENCLAW_STATE_DIR there sent every daemon verb to a stale
+    // ~/.openclaw/openclaw.json and the upgrade to 2026.9.8 failed with "config is invalid"
+    // although the real config was fine (14/10/2026).
+    if (sameRealPath(join(projectDir, '.openclaw'), join(os.homedir(), '.openclaw'))) delete env.OPENCLAW_STATE_DIR;
   }
   if (verb === 'stop' && !extraArgs.includes('--force')) args.push('--force');
   const out = await runCapture('openclaw', args, { cwd: projectDir, env, shell: false, timeout: 120000 });
@@ -3763,6 +3788,24 @@ async function reportNativeGatewayBlockage(projectDir, port) {
  * fails with `Unsupported channel "zalo-connect"` - and the bot silently runs with no context
  * engine at all. Same set and same skip-if-present cheapness as ensure_plugin.
  */
+/**
+ * Is a plugin already installed for this project? OpenClaw 2026.9 installs ClawHub/npm plugins as
+ * npm projects - <state>/npm/projects/<name>[-hash]/node_modules/<package> - instead of
+ * extensions/<id>. Looking only at extensions/ reported a working zalo-connect as "missing" and
+ * tried to reinstall it on every update (vps_asa, 14/10/2026), and skipped those plugins when
+ * re-confirming capability consent.
+ */
+function nativePluginPresent(projectDir, id) {
+  const state = join(projectDir, '.openclaw');
+  if (existsSync(join(state, 'extensions', id))) return true;
+  const spec = id === ZALO_PLUGIN_ID ? ZALO_CONNECT_PLUGIN_SPEC : pluginInstallSpec(id);
+  const names = new Set([id, `openclaw-${id}`, String(spec).replace(/^clawhub:/, '').replace(/@[^/@]*$/, '')]);
+  const projects = join(state, 'npm', 'projects');
+  let dirs = [];
+  try { dirs = fs.readdirSync(projects); } catch { return false; }
+  return dirs.some((d) => [...names].some((n) => existsSync(join(projects, d, 'node_modules', n, 'package.json'))));
+}
+
 async function ensureNativePlugins(projectDir, { restart = false } = {}) {
   if (!isNativeProject(projectDir)) return [];
   // Same cleanup the container entrypoint does (docker-gen.js): an interrupted `plugins install`
@@ -3792,7 +3835,7 @@ async function ensureNativePlugins(projectDir, { restart = false } = {}) {
   const installed = [];
   for (const id of wanted) {
     const dir = join(projectDir, '.openclaw', 'extensions', id);
-    if (existsSync(dir)) continue;
+    if (nativePluginPresent(projectDir, id)) continue;
     const spec = id === ZALO_PLUGIN_ID ? ZALO_CONNECT_PLUGIN_SPEC : pluginInstallSpec(id);
     sendLog(`[native] plugin ${id} missing; installing ${spec}`);
     const out = await ocCaptureInstall(projectDir, ['plugins', 'install', spec, '--force', '--accept-capabilities'], { timeout: 300000 });
@@ -3810,7 +3853,7 @@ async function ensureNativePlugins(projectDir, { restart = false } = {}) {
   const declared = Object.entries((cfg?.plugins?.entries && typeof cfg.plugins.entries === 'object') ? cfg.plugins.entries : {})
     .filter(([, meta]) => !meta || meta.enabled !== false)
     .map(([id]) => id)
-    .filter((id) => existsSync(join(projectDir, '.openclaw', 'extensions', id)));
+    .filter((id) => nativePluginPresent(projectDir, id));
   const consented = [];
   for (const id of declared) {
     const out = await ocCaptureInstall(projectDir, ['plugins', 'enable', id, '--accept-capabilities'], { timeout: 120000 });
@@ -4969,8 +5012,21 @@ async function updateRuntimeUnlocked(target, projectDir) {
       // new runtime will boot with BEFORE restarting: a new openclaw can refuse to start over a
       // plugin whose capability consent it does not recognise, and a project that came across from
       // Docker has plugin folders that were never consented on this machine at all.
-      await ensureNativePlugins(projectDir).catch((e) => sendLog(`[native] plugin check skipped: ${e.message}`));
-      await restartNativeRuntime(projectDir);
+      if (process.platform === 'win32') {
+        await ensureNativePlugins(projectDir).catch((e) => sendLog(`[native] plugin check skipped: ${e.message}`));
+        await restartNativeRuntime(projectDir);
+      } else {
+        // The old gateway is still running when npm finishes, so the NEW CLI ends up talking to the
+        // OLD gateway: `plugins install` needs a `plugins.reload` method the old gateway does not
+        // have, and `doctor --fix` cannot enter maintenance while the gateway owns the state
+        // database (vps_asa 2026.7 -> 2026.9.8, 14/10/2026 - every plugin "failed" and the database
+        // was never migrated). Stop it first: restartNativeRuntime then migrates the config and runs
+        // doctor with no writer, starts the new gateway, and only then are plugins checked against it.
+        sendLog('[native] Dừng gateway cũ để chuyển dữ liệu sang bản mới...');
+        await ocDaemon(projectDir, 'stop').catch((e) => sendLog(`[native] stop: ${e.message}`));
+        await restartNativeRuntime(projectDir);
+        await ensureNativePlugins(projectDir, { restart: true }).catch((e) => sendLog(`[native] plugin check skipped: ${e.message}`));
+      }
     }
     await syncRuntimeState(projectDir, { full: true }).catch(() => {});
     probeCacheClear();
@@ -7998,4 +8054,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
+export { nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
