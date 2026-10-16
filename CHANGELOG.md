@@ -1,6 +1,23 @@
 # Changelog (English)
 
 
+## [5.18.2] - 2026-10-16
+### 🔧 Plugin updates apply without a needless restart, and bots keep their cron tool
+
+- **A plugin update no longer restarts the bot when OpenClaw has already applied it.** OpenClaw 2026.9
+  swaps the new plugin into the running gateway; the extra restart Setup did afterwards is what
+  printed a page of errors after an update that had worked. The Zalo plugin is still restarted, so
+  older zalo-mod versions keep receiving messages.
+- **"doctor --fix" is skipped while the gateway is running.** It cannot work then and only filled the
+  log with "database is busy". OpenClaw updates stop the gateway first, so doctor still runs when it
+  matters.
+- **Bots with scheduled tasks keep their cron tool.** OpenClaw 2026.9 ignores `"*"` in the owner list,
+  so every sender was treated as a guest and the bot answered that it had no cron tool. The bot
+  owner known to zalo-mod is now added to the list, and existing bots are repaired on the next
+  restart.
+- Includes every fix from 5.18.1.
+
+
 ## [5.18.1] - 2026-10-14
 ### 🔧 "Update OpenClaw" finishes cleanly on servers installed with older versions
 

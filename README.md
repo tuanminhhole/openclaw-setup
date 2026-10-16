@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows, macOS, Linux, VPS - Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.1-0EA5E9?style=for-the-badge" alt="Version 5.18.1" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.2-0EA5E9?style=for-the-badge" alt="Version 5.18.2" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,9 +37,16 @@
 
 ---
 
-## 🆕 What's New in v5.18.1
+## 🆕 What's New in v5.18.2
+
+- 🔧 **Plugin updates apply without a needless restart, and bots keep their cron tool** - when OpenClaw has already loaded a new plugin, Setup no longer restarts the bot on top of it; "doctor --fix" is skipped while the gateway is running; and the bot owner is added to OpenClaw's owner list, which ignores `"*"` since 2026.9 and had left bots without their cron tool. Includes every fix from 5.18.1.
+
+<details>
+<summary><b>Previous: What's new in v5.18.1</b></summary>
 
 - 🔧 **"Update OpenClaw" finishes cleanly on servers installed with older versions** - the old gateway is now stopped before the update is applied, so the data migration and plugin checks run against the new version instead of failing one after another. Plugins installed the new way (ClawHub/npm) are recognised, servers set up on older versions keep their data folder, and Setup can control the bot service even when it runs as a system service.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.18.0</b></summary>

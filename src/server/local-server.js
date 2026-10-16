@@ -3429,6 +3429,15 @@ async function runOpenclawDoctorFixIfNeeded(projectDir) {
   try {
     const ver = await hostOpenclawMajorMinor();
     if (!ver || ver < 202609) return;
+    // doctor --fix needs the state database to itself; against a running gateway it always fails
+    // with GatewayStateOwnerContentionError and only prints noise into the log. The OpenClaw update
+    // stops the gateway before it gets here, which is the moment doctor actually matters.
+    const meta = readNativeMeta(projectDir) || {};
+    const gwPort = meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT;
+    if ((await portStatus(gwPort)) === 'online') {
+      sendLog('[native] Gateway đang chạy - bỏ qua doctor --fix (chỉ chạy được khi gateway đã dừng).');
+      return;
+    }
     sendLog('[native] openclaw doctor --fix (2026.9 yêu cầu migrate workspace trước khi boot)…');
     await run('openclaw', ['doctor', '--fix'], { cwd: projectDir, env: openclawProjectEnv(projectDir) });
   } catch (err) {
@@ -3482,6 +3491,41 @@ async function restartWindowsGateway(projectDir) {
   return false;
 }
 
+/**
+ * OpenClaw 2026.9 ignores `"*"` in commands.ownerAllowFrom ("Wildcards can admit commands, but do not
+ * grant owner authority"), so with only `["*"]` every sender is a non-owner and the owner-only tools -
+ * cron (automations) and gateway - are stripped from the turn: the bot honestly answers "I have no cron
+ * tool this turn" (vps_thuy-le, 16/10/2026; vps_asa carried the same `["*"]`). The real owner is known:
+ * zalo-mod keeps it per bot in plugins-data/zalo-mod/config.json. Add those ids, channel-prefixed.
+ */
+async function zaloModOwnerIds(projectDir) {
+  try {
+    const raw = await fsp.readFile(join(projectDir, '.openclaw', 'plugins-data', 'zalo-mod', 'config.json'), 'utf8');
+    const bots = Object.values(JSON.parse(raw)?.bots || {});
+    const ids = bots.flatMap((b) => [b?.ownerId, ...(Array.isArray(b?.ownerIds) ? b.ownerIds : [])])
+      .map((x) => String(x ?? '').trim())
+      .filter((x) => /^\d{5,}$/.test(x));
+    return [...new Set(ids)].map((id) => `${ZALO_CHANNEL_ID}:${id}`);
+  } catch {
+    return [];
+  }
+}
+
+/** Additive and idempotent: only touches configs that already use an owner list, never removes anything. */
+async function syncOwnerAllowFrom(projectDir) {
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  let cfg;
+  try { cfg = parseJsonText(await fsp.readFile(cfgPath, 'utf8')); } catch { return false; }
+  const list = cfg?.commands?.ownerAllowFrom;
+  if (!Array.isArray(list)) return false;
+  const missing = (await zaloModOwnerIds(projectDir)).filter((id) => !list.includes(id));
+  if (!missing.length) return false;
+  cfg.commands.ownerAllowFrom = [...list, ...missing];
+  await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+  sendLog(`[native] commands.ownerAllowFrom: thêm chủ bot ${missing.join(', ')} (OpenClaw 2026.9 bỏ qua "*")`);
+  return true;
+}
+
 async function restartNativeRuntime(projectDir) {
   // Every restart is a chance to repair a project installed before these fixes existed - the
   // calls are no-ops once the service env is complete, stray files are adopted, and the config
@@ -3498,6 +3542,7 @@ async function restartNativeRuntime(projectDir) {
     }
   }
   await adoptStrayNativeHome(projectDir).catch(() => {});
+  await syncOwnerAllowFrom(projectDir).catch(() => {});
   await syncNativeServiceEnv(projectDir).catch(() => {});
   await runNativeConfigMigrations(projectDir).catch(() => {});
   await hardenNativeServiceRestarts(projectDir).catch(() => {});
@@ -6586,7 +6631,7 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
       cfg.tools = cfg.tools || { profile: 'full', exec: { host: 'gateway', security: 'full', ask: 'off' } };
       cfg.tools.alsoAllow = Array.from(new Set([...(cfg.tools.alsoAllow || []), 'group:automation']));
       cfg.commands = cfg.commands || {};
-      cfg.commands.ownerAllowFrom = Array.from(new Set([...(cfg.commands.ownerAllowFrom || []), '*']));
+      cfg.commands.ownerAllowFrom = Array.from(new Set([...(cfg.commands.ownerAllowFrom || []), '*', ...(await zaloModOwnerIds(projectDir))]));
       for (const a of cfg.agents.list) {
         const sf = await readWorkspaceText(projectDir, a, 'skills/cronjob/SKILL.md');
         await fsp.mkdir(dirname(sf.file), { recursive: true });
@@ -7009,9 +7054,18 @@ async function installFeature(projectDir, agentId, kind, id) {
       // Browser-automation plugin needs Docker rebuild for Playwright/Chromium deps
       const isBrowserPlugin = id === 'openclaw-browser-automation' || id === 'browser-automation';
       if (isNativeProject(projectDir)) {
-        // Native: no container - reload the managed gateway service so the plugin loads.
-        sendLog('[plugin] Restarting native gateway to apply plugin...');
-        await restartNativeRuntime(projectDir).catch((err) => sendLog(`[plugin] restart failed: ${err.message}`));
+        // OpenClaw 2026.9 swaps the plugin into the running gateway itself and says so
+        // ("Applied in Gateway generation N"). Restarting on top of that only added risk: on
+        // vps_asa (14/10/2026) the extra restart is what printed a page of "config is invalid"
+        // errors after a plugin update that had already worked.
+        const hotApplied = /Applied in Gateway generation \d+|Plugin replacement applied/i.test(`${cmdOut?.stdout || ''}\n${cmdOut?.stderr || ''}`);
+        if (hotApplied) {
+          sendLog('[plugin] Gateway đã nạp bản plugin mới, không cần khởi động lại.');
+        } else {
+          // Native: no container - reload the managed gateway service so the plugin loads.
+          sendLog('[plugin] Restarting native gateway to apply plugin...');
+          await restartNativeRuntime(projectDir).catch((err) => sendLog(`[plugin] restart failed: ${err.message}`));
+        }
       } else if (isBrowserPlugin && composeDir) {
         await patchBrowserAutomationHostPreference(projectDir, aliases, sendLog);
         sendLog(`[plugin] Browser plugin requires Docker rebuild for Playwright/Chromium...`);
@@ -8054,4 +8108,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
+export { syncOwnerAllowFrom, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };

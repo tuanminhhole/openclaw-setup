@@ -1,6 +1,22 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.18.2] - 2026-10-16
+### 🔧 Cập nhật plugin không khởi động lại thừa, bot giữ được công cụ hẹn giờ
+
+- **Cập nhật plugin không còn khởi động lại bot khi OpenClaw đã tự áp dụng.** OpenClaw 2026.9 nạp
+  plugin mới ngay vào gateway đang chạy; bước khởi động lại thừa của Setup chính là thứ in ra cả
+  trang lỗi sau một lần cập nhật đã thành công. Riêng plugin Zalo vẫn khởi động lại, để các bản
+  zalo-mod cũ tiếp tục nhận tin.
+- **Bỏ qua "doctor --fix" khi gateway đang chạy.** Lúc đó lệnh này không chạy được và chỉ ghi lỗi
+  "database is busy" vào nhật ký. Khi cập nhật OpenClaw, gateway được dừng trước nên doctor vẫn chạy
+  đúng lúc cần.
+- **Bot có lịch hẹn giờ giữ được công cụ cron.** OpenClaw 2026.9 bỏ qua `"*"` trong danh sách chủ bot,
+  nên ai nhắn cũng bị coi là khách và bot trả lời là không có công cụ cron. Nay chủ bot mà zalo-mod
+  đã biết được thêm vào danh sách, và các bot đang chạy tự sửa ở lần khởi động lại kế tiếp.
+- Bao gồm toàn bộ bản sửa của 5.18.1.
+
+
 ## [5.18.1] - 2026-10-14
 ### 🔧 Nút "Cập nhật OpenClaw" chạy trọn trên máy chủ cài từ bản cũ
 
