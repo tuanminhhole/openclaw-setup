@@ -1332,6 +1332,59 @@ async function removeEmptyWorkspaceAttestations(projectDir) {
 }
 
 /**
+ * Thư mục state THẬT của gateway native. Từ OpenClaw 2026.8 state nằm ở ~/.openclaw và
+ * <project>/.openclaw chỉ là symlink trỏ về đó (prepareNativeStateHome); gateway chạy với
+ * OPENCLAW_HOME = đường thật. zalo-connect so đường tệp gửi đi với OPENCLAW_HOME/media theo
+ * chữ, nên đường đi qua symlink cũng bị chặn - phải ghi đường thật vào tài liệu cho bot.
+ */
+function nativeStateRoot(projectDir) {
+  const p = join(projectDir, '.openclaw');
+  try { return fs.realpathSync(p); } catch { return p; }
+}
+
+/** Đường workspace + outbound ghi vào AGENTS.md/TOOLS.md: native lấy đường thật, Docker giữ đường container. */
+function workspaceDocPaths(projectDir, workspaceDir) {
+  if (!isNativeProject(projectDir)) {
+    return { workspacePath: `/home/node/project/.openclaw/${workspaceDir}`, outboundDir: '/home/node/project/.openclaw/media/outbound' };
+  }
+  const root = nativeStateRoot(projectDir);
+  return { workspacePath: join(root, workspaceDir), outboundDir: join(root, 'media', 'outbound') };
+}
+
+/**
+ * Bot native tạo từ bản setup cũ còn ghi đường Docker "/home/node/project/.openclaw/..." trong
+ * AGENTS.md, TOOLS.md và SKILL.md. Bot làm theo thì gửi tệp lỗi "outside allowed directories"
+ * (đo trên vps_thuy-le 16/10/2026). Thay bằng đường state thật; chạy lại nhiều lần không đổi gì.
+ * Trả số tệp đã sửa.
+ */
+async function repointWorkspaceDocPaths(projectDir) {
+  if (!isNativeProject(projectDir)) return 0;
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  let cfg;
+  try { cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8')); } catch { return 0; }
+  const root = nativeStateRoot(projectDir);
+  const legacy = '/home/node/project/.openclaw';
+  let fixed = 0;
+  for (const ws of agentWorkspaceDirs(cfg, projectDir)) {
+    const files = ['AGENTS.md', 'TOOLS.md'].map((f) => join(ws, f));
+    try {
+      for (const d of await fsp.readdir(join(ws, 'skills'), { withFileTypes: true })) {
+        if (d.isDirectory()) files.push(join(ws, 'skills', d.name, 'SKILL.md'));
+      }
+    } catch {}
+    for (const f of files) {
+      let text;
+      try { text = await fsp.readFile(f, 'utf8'); } catch { continue; }
+      if (!text.includes(legacy)) continue;
+      await fsp.writeFile(f, text.split(legacy).join(root), 'utf8');
+      fixed += 1;
+    }
+  }
+  if (fixed) sendLog(`[migrate] Native: thay đường Docker trong ${fixed} tệp tài liệu workspace bằng ${root}.`);
+  return fixed;
+}
+
+/**
  * Native counterpart of migrateContainerPaths. A native bot runs on the host with cwd = the
  * project dir, so any Docker/legacy container path baked into openclaw.json (e.g. an agent
  * `workspace` of "/home/node/project/.openclaw/workspace-x", left over from a bot created by an
@@ -2422,7 +2475,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     emoji,
     userInfo,
     agentWorkspaceDir: workspaceDir,
-    workspacePath: `/home/node/project/.openclaw/${workspaceDir}`,
+    ...workspaceDocPaths(projectDir, workspaceDir),
     channel,
     hasZaloMod: channel === 'zalo-personal',
     zaloBackend: zaloBackendForConfig(cfg),
@@ -2579,7 +2632,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     emoji,
     userInfo,
     agentWorkspaceDir: workspaceDir,
-    workspacePath: `/home/node/project/.openclaw/${workspaceDir}`,
+    ...workspaceDocPaths(projectDir, workspaceDir),
     channel,
     hasZaloMod: channel === 'zalo-personal',
     zaloBackend: zaloBackendForConfig(cfg),
@@ -3413,6 +3466,7 @@ async function runNativeConfigMigrations(projectDir) {
   });
   if (res.code !== 0) sendLog(`[native] config migrations skipped: ${String(res.stderr || res.stdout || '').trim().slice(0, 200)}`);
   await runOpenclawDoctorFixIfNeeded(projectDir);
+  await repointWorkspaceDocPaths(projectDir).catch((e) => sendLog(`[migrate] repoint workspace docs skipped: ${e.message}`));
   return res.code === 0;
 }
 
@@ -8108,4 +8162,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { syncOwnerAllowFrom, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
+export { syncOwnerAllowFrom, repointWorkspaceDocPaths, workspaceDocPaths, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };

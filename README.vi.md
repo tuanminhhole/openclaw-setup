@@ -7,7 +7,7 @@
 *Chạy một lệnh, mở dashboard, bot lên sóng. Windows, macOS, Linux, VPS. Bot chạy thẳng trên máy, không cần Docker.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.2-0EA5E9?style=for-the-badge" alt="Version 5.18.2" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.3-0EA5E9?style=for-the-badge" alt="Version 5.18.3" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,7 +37,7 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.18.2
+## 🆕 Có gì mới trong v5.18.3
 
 - 🔧 **Cập nhật plugin không khởi động lại thừa, bot giữ được công cụ hẹn giờ** - khi OpenClaw đã nạp plugin mới, Setup không khởi động lại bot thêm lần nữa; bỏ qua "doctor --fix" lúc gateway đang chạy; và chủ bot được thêm vào danh sách chủ của OpenClaw (từ 2026.9 giá trị `"*"` bị bỏ qua, làm bot mất công cụ cron). Bao gồm toàn bộ bản sửa của 5.18.1.
 

@@ -1,6 +1,17 @@
 # Changelog (English)
 
 
+## [5.18.3] - 2026-10-16
+### 🔧 Bots on native installs can send files again
+
+- **Workspace docs point at the real state folder.** Bots created or migrated by older builds still
+  had Docker paths (`/home/node/project/.openclaw/...`) in AGENTS.md, TOOLS.md and skill files.
+  A bot that followed them put outgoing files outside the folder the Zalo plugin accepts, and sending
+  failed with "outside allowed directories". New bots get the real path, and existing bots are
+  repaired on the next restart. Customer notes such as USER.md are left untouched.
+- Includes every fix from 5.18.2.
+
+
 ## [5.18.2] - 2026-10-16
 ### 🔧 Plugin updates apply without a needless restart, and bots keep their cron tool
 

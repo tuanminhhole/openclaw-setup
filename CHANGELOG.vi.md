@@ -1,6 +1,17 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.18.3] - 2026-10-16
+### 🔧 Bot cài trực tiếp trên máy gửi được tệp trở lại
+
+- **Tài liệu của bot trỏ đúng thư mục dữ liệu thật.** Bot tạo hoặc chuyển từ bản cũ vẫn còn đường dẫn
+  Docker (`/home/node/project/.openclaw/...`) trong AGENTS.md, TOOLS.md và các tệp kỹ năng. Bot làm
+  theo thì để tệp gửi đi ở ngoài thư mục mà plugin Zalo cho phép, và việc gửi báo lỗi "outside allowed
+  directories". Bot mới nhận đúng đường dẫn thật, bot đang chạy được sửa ở lần khởi động lại kế tiếp.
+  Ghi chú của khách như USER.md được giữ nguyên.
+- Bao gồm toàn bộ bản sửa của 5.18.2.
+
+
 ## [5.18.2] - 2026-10-16
 ### 🔧 Cập nhật plugin không khởi động lại thừa, bot giữ được công cụ hẹn giờ
 
