@@ -17,7 +17,7 @@ const { buildWorkspaceFileMap, buildCronjobSkillMd, buildInfographicGeneratorSki
 const { buildOpenclawJson, buildEnvFileContent, buildExecApprovalsJson, buildZaloConnectChannelConfig } = loadSharedModule('../setup/shared/bot-config-gen.js', '__openclawBotConfig');
 const { buildDockerArtifacts, contextDefaultsScript } = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
 const { buildWindowsLaunchers, WINDOWS_DESKTOP_LAUNCHERS } = loadSharedModule('../setup/shared/windows-launcher-gen.js', '__openclawWindowsLaunchers');
-const { OPENCLAW_NPM_SPEC, NINE_ROUTER_NPM_SPEC, ZALO_CHANNEL_ID, ZALO_PLUGIN_ID, ZALO_CONNECT_VERSION, ZALO_CONNECT_PLUGIN_SPEC, build9RouterProviderConfig, get9RouterBaseUrl } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
+const { OPENCLAW_NPM_SPEC, OPENCLAW_NODE_ENGINES, OPENCLAW_NODE_TARGET_MAJOR, NINE_ROUTER_NPM_SPEC, ZALO_CHANNEL_ID, ZALO_PLUGIN_ID, ZALO_CONNECT_VERSION, ZALO_CONNECT_PLUGIN_SPEC, build9RouterProviderConfig, get9RouterBaseUrl, tunnelControlUiOrigins } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
 
 // Chrome 136+ ignores --remote-debugging-port when --user-data-dir is the default profile
@@ -755,10 +755,16 @@ function needsWindowsShell(bin) {
   return process.platform === 'win32' && /\.(cmd|bat)"?$/i.test(String(bin || ''));
 }
 
+// Set by ensureNodeInstalled when it put a supported Node somewhere OTHER than the directory this
+// process was started from (a new nvm version, a brew keg, a fallback after apt). Without it every
+// `node`/`npm` lookup keeps resolving to the old binary next to process.argv[0], and the very next
+// `npm i -g openclaw` runs on the Node we just replaced and dies EBADENGINE again.
+let preferredNodeBinDir = '';
+
 function resolveBinPath(cmd) {
   if (!cmd || cmd.includes('/') || cmd.includes('\\')) return cmd;
   const names = process.platform === 'win32' ? [`${cmd}.cmd`, `${cmd}.exe`, cmd] : [cmd];
-  const nodeBinDir = dirname(process.argv[0]);
+  const nodeBinDir = preferredNodeBinDir || dirname(process.argv[0]);
   for (const name of names) {
     const p = join(nodeBinDir, name);
     if (existsSync(p)) return p;
@@ -2796,10 +2802,32 @@ async function startZaloLogin(projectDir, agentId = "") {
   // `main` is never the target.
   if (!binding) {
     const roster = (cfg.agents.list || []).filter((a) => !isPhantomMainAgent(a, projectDir, (cfg.agents.list || []).length));
-    const target = (agentId && roster.some((a) => a.id === agentId)) ? agentId : roster[0]?.id;
+    // A bot the page still shows but the project no longer has (deleted from another tab, or by
+    // the operator while the customer kept the old page open) must NOT fall back to another bot.
+    // It used to pick roster[0] and log in on ITS default account: a renter's Zalo replaced the
+    // main bot's session and the main bot's persona answered on the renter's account
+    // (vps_trang-alisa, 21/10/2026).
+    if (agentId && !roster.some((a) => a.id === agentId)) {
+      throw httpError(404, `Bot "${agentId}" không còn trong project này (có thể vừa bị xoá). Tải lại trang rồi chọn đúng bot trước khi đăng nhập Zalo.`);
+    }
+    const target = agentId || roster[0]?.id;
+    // Never take an account another bot already owns. "default" is the usual one, so a second
+    // bot gets an account named after itself instead.
+    const owned = new Set((cfg.bindings || [])
+      .filter((b) => b.match?.channel === 'zalo-connect' && b.agentId !== target)
+      .map((b) => b.match?.accountId || 'default'));
+    const accountId = owned.has('default') ? target : 'default';
+    if (target && owned.has(accountId)) {
+      throw httpError(409, `Tài khoản Zalo "${accountId}" đang thuộc bot khác - không đăng nhập đè lên.`);
+    }
     if (target) {
-      binding = { agentId: target, match: { channel: 'zalo-connect', accountId: 'default' } };
+      binding = { agentId: target, match: { channel: 'zalo-connect', accountId } };
       cfg.bindings = [...(cfg.bindings || []), binding];
+      if (accountId !== 'default' && cfg.channels?.['zalo-connect']) {
+        const zc = cfg.channels['zalo-connect'];
+        zc.accounts = (zc.accounts && typeof zc.accounts === 'object') ? zc.accounts : {};
+        if (!zc.accounts[accountId]) zc.accounts[accountId] = { enabled: true };
+      }
       await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
       sendLog(`[zalo-connect] No zalo-connect binding found - pinned this QR login to agent [${target}] so OpenClaw knows who owns the channel.`);
     }
@@ -3594,6 +3622,9 @@ async function restartNativeRuntime(projectDir) {
       sendLog(`[native] 9router không chạy (cổng ${rtPort}) - khởi động lại trước khi bật bot.`);
       await startNative9Router(projectDir).catch((e) => sendLog(`[native] 9router: ${e.message}`));
     }
+    // A project migrated before this repair can still point its models at a Docker hostname.
+    await repointDockerProviderHosts(projectDir, rtPort).catch(() => {});
+    await ensureTunnelControlOrigins(projectDir).catch(() => {});
   }
   await adoptStrayNativeHome(projectDir).catch(() => {});
   await syncOwnerAllowFrom(projectDir).catch(() => {});
@@ -3631,6 +3662,16 @@ async function restartNativeRuntime(projectDir) {
     if (res.code !== 0 && !migrationLeaseDeadline(res.text)) {
       sendLog(`[native] daemon restart exited ${res.code}; falling back to stop+start`);
       res = await stopStart();
+    }
+    // No service to restart at all: OpenClaw answers "Gateway service disabled." with the hint
+    // "Tip: openclaw gateway install" (measured on hieu-oracle-vps, 21/10/2026, after a Docker
+    // migration stopped before the install step). Waiting below would only time out - install it.
+    if (res.code !== 0 && /openclaw gateway install/i.test(res.text)) {
+      const meta = readNativeMeta(projectDir) || {};
+      const gwPort = meta.gatewayPort || state.gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT;
+      sendLog('[native] Chưa có service gateway trên máy - cài service thay vì chờ.');
+      await installNativeGatewayService(projectDir, gwPort);
+      res = { code: 0, text: '' };
     }
   }
   const deadline = migrationLeaseDeadline(res.text);
@@ -3905,6 +3946,60 @@ function nativePluginPresent(projectDir, id) {
   return dirs.some((d) => [...names].some((n) => existsSync(join(projects, d, 'node_modules', n, 'package.json'))));
 }
 
+// A plugin folder lifted out of a Docker volume can leave a record OpenClaw can neither use nor
+// overwrite: `plugins install --force` stops with "Plugin config repair could not be inspected",
+// while `plugins list` says the install is incomplete and to run that very command (zalo-mod on
+// hieu-oracle-vps, 21/10/2026).
+const STUCK_PLUGIN_RECORD_RE = /config repair could not be inspected|install incomplete|plugin metadata is missing/i;
+
+/**
+ * Way out of STUCK_PLUGIN_RECORD_RE: uninstall the record, install fresh, put the settings back.
+ * `plugins uninstall` removes the plugin's settings block and its allowlist entry along with the
+ * record - for zalo-mod that is the dashboard port and token the owner's links depend on - so
+ * both are captured first and restored after. plugins-data (sessions, CRM, licence) is not touched
+ * by uninstall.
+ */
+async function reinstallPluginKeepingSettings(projectDir, id, spec) {
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  let saved = null;
+  let wasAllowed = false;
+  try {
+    const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
+    saved = cfg?.plugins?.entries?.[id] ? JSON.parse(JSON.stringify(cfg.plugins.entries[id])) : null;
+    wasAllowed = Array.isArray(cfg?.plugins?.allow) && cfg.plugins.allow.includes(id);
+  } catch {}
+  sendLog(`[native] ${id}: bản ghi plugin chép từ Docker bị kẹt - gỡ bản ghi rồi cài lại (giữ cài đặt, không đụng plugins-data)`);
+  await ocCaptureInstall(projectDir, ['plugins', 'uninstall', id, '--force'], { timeout: 120000 });
+  const re = await ocCaptureInstall(projectDir, ['plugins', 'install', spec, '--force', '--accept-capabilities'], { timeout: 300000 });
+  if (re.code !== 0) {
+    sendLog(`[native] ${id}: cài lại sau khi gỡ vẫn lỗi - ${stripCliWarnings(`${re.stdout || ''}\n${re.stderr || ''}`).trim().slice(0, 200)}`);
+    return false;
+  }
+  try {
+    const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
+    cfg.plugins = cfg.plugins && typeof cfg.plugins === 'object' ? cfg.plugins : {};
+    cfg.plugins.entries = cfg.plugins.entries && typeof cfg.plugins.entries === 'object' ? cfg.plugins.entries : {};
+    if (saved) {
+      const cur = cfg.plugins.entries[id] && typeof cfg.plugins.entries[id] === 'object' ? cfg.plugins.entries[id] : {};
+      cfg.plugins.entries[id] = {
+        ...cur,
+        ...saved,
+        hooks: { ...(cur.hooks || {}), ...(saved.hooks || {}) },
+        config: { ...(cur.config || {}), ...(saved.config || {}) },
+      };
+    }
+    if (wasAllowed) {
+      cfg.plugins.allow = Array.isArray(cfg.plugins.allow) ? cfg.plugins.allow : [];
+      if (!cfg.plugins.allow.includes(id)) cfg.plugins.allow.push(id);
+    }
+    await fsp.writeFile(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`, 'utf8');
+    sendLog(`[native] ${id}: đã cài lại và trả cài đặt cũ (${Object.keys((saved && saved.config) || {}).join(', ') || 'không có config riêng'})`);
+  } catch (e) {
+    sendLog(`[native] ${id}: cài lại xong nhưng không trả được cài đặt cũ - ${e.message}`);
+  }
+  return true;
+}
+
 async function ensureNativePlugins(projectDir, { restart = false } = {}) {
   if (!isNativeProject(projectDir)) return [];
   // Same cleanup the container entrypoint does (docker-gen.js): an interrupted `plugins install`
@@ -3971,8 +4066,10 @@ async function ensureNativePlugins(projectDir, { restart = false } = {}) {
     } catch {}
     sendLog(`[native] ${id}: chưa có quyền (${why.slice(0, 120)}) - cài lại ${spec}`);
     const re = await ocCaptureInstall(projectDir, ['plugins', 'install', spec, '--force', '--accept-capabilities'], { timeout: 300000 });
+    const reText = stripCliWarnings(`${re.stdout || ''}\n${re.stderr || ''}`).trim();
     if (re.code === 0) consented.push(id);
-    else sendLog(`[native] ${id}: cài lại không xong - ${stripCliWarnings(`${re.stdout || ''}\n${re.stderr || ''}`).trim().slice(0, 200)}`);
+    else if (STUCK_PLUGIN_RECORD_RE.test(reText) && await reinstallPluginKeepingSettings(projectDir, id, spec)) consented.push(id);
+    else sendLog(`[native] ${id}: cài lại không xong - ${reText.slice(0, 200)}`);
   }
   if (consented.length) sendLog(`[native] Đã xác nhận quyền cho ${consented.length}/${declared.length} plugin: ${consented.join(', ')}`);
 
@@ -4084,6 +4181,25 @@ async function startNative9Router(projectDir, { restart = false } = {}) {
   return routerPort;
 }
 
+/**
+ * OpenClaw >=2026.8 keeps a native project's state at <account home>/.openclaw, so one account
+ * can run ONE native project. A second install used to discover that only at the very last step
+ * ("~/.openclaw đã chứa state của một project khác"), after it had already rewritten the shared
+ * 9router unit and left a half-built project behind (vps_trang-alisa, 21/10/2026). Say so before
+ * touching anything.
+ */
+function assertNativeHomeFreeFor(projectDir) {
+  const homeState = join(os.homedir(), '.openclaw');
+  if (!existsSync(join(homeState, 'openclaw.json'))) return;
+  let homeReal = homeState;
+  let projReal = '';
+  try { homeReal = fs.realpathSync(homeState); } catch {}
+  try { projReal = fs.realpathSync(join(projectDir, '.openclaw')); } catch {}
+  if (projReal && resolve(projReal) === resolve(homeReal)) return; // reinstalling the same project
+  throw httpError(409, `Tài khoản ${os.userInfo().username} đã có một project OpenClaw native (${homeReal}). `
+    + 'OpenClaw chỉ chạy được MỘT project native mỗi user Linux - cài project thứ hai dưới một user Linux khác.');
+}
+
 async function installNative9RouterUnit(projectDir, routerPort, dataDir, { restart = false } = {}) {
   const bin = resolveBinPath('9router');
   const binDir = bin.includes('/') ? dirname(bin) : '';
@@ -4110,6 +4226,15 @@ async function installNative9RouterUnit(projectDir, routerPort, dataDir, { resta
     '[Install]',
     'WantedBy=default.target',
   ].join('\n');
+  // The unit name is per ACCOUNT, not per project. A second project installed under the same
+  // account overwrote the first one's unit with its own DATA_DIR and port; the first bot kept
+  // working only until 9router next restarted (vps_trang-alisa, 21/10/2026). OpenClaw native runs
+  // one project per account anyway, so refuse instead of taking another project's router.
+  const existingUnit = await fsp.readFile(join(unitDir, 'openclaw-9router.service'), 'utf8').catch(() => '');
+  const otherDataDir = (existingUnit.match(/^Environment=DATA_DIR=(.+)$/m) || [])[1];
+  if (otherDataDir && resolve(otherDataDir.trim()) !== resolve(dataDir) && existsSync(otherDataDir.trim())) {
+    throw new Error(`openclaw-9router.service đang phục vụ project khác (${otherDataDir.trim()}) - không ghi đè. Mỗi user Linux chạy được một project native; project thứ hai phải cài dưới user Linux khác.`);
+  }
   await fsp.writeFile(join(unitDir, 'openclaw-9router.service'), `${unit}\n`, 'utf8');
   await run('systemctl', ['--user', 'daemon-reload'], {}).catch(() => {});
   const res = await runCapture('systemctl', ['--user', 'enable', '--now', 'openclaw-9router.service'], { shell: false, timeout: 30000 });
@@ -4659,9 +4784,16 @@ async function migrateDockerProjectToNative(projectDir, { osChoice = '' } = {}) 
       if (!hostDir) { sendLog(`[migrate] bỏ qua volume ${volName} (${dest}) - không map được về project`); continue; }
       await fsp.mkdir(hostDir, { recursive: true });
       // Copy with a throwaway container: the volume has no host path we can read directly.
+      // The container copies as root, so on Linux the files land owned by root and the native
+      // services - which run as THIS user - cannot read them: 9router died on its own jwt-secret
+      // with EACCES and every model call failed (hieu-oracle-vps, 21/10/2026). Hand the copy back
+      // to the account running the migration while still inside the container.
+      const owner = (process.platform !== 'win32' && typeof process.getuid === 'function' && process.getuid() !== 0)
+        ? `${process.getuid()}:${process.getgid()}` : '';
       const r = await runCapture('docker', [
         'run', '--rm', '-v', `${volName}:/__src:ro`, '-v', `${hostDir}:/__dst`,
-        'node:22-slim', 'sh', '-c', 'cp -a /__src/. /__dst/ 2>/dev/null; ls -A /__dst | head -1',
+        'node:22-slim', 'sh', '-c',
+        `cp -a /__src/. /__dst/ 2>/dev/null; ${owner ? `chown -R ${owner} /__dst 2>/dev/null;` : ''} ls -A /__dst | head -1`,
       ], { shell: false });
       if (r.stdout && r.stdout.trim()) { copied++; sendLog(`[migrate] ${volName} → ${hostDir}`); }
       else sendLog(`[migrate] ${volName} rỗng hoặc không chép được - kiểm tra tay: ${hostDir}`);
@@ -4723,7 +4855,11 @@ async function migrateDockerProjectToNative(projectDir, { osChoice = '' } = {}) 
         cfg.gateway.bind = 'loopback';
         delete cfg.gateway.customBindHost;
         if (cfg.gateway.controlUi) {
-          cfg.gateway.controlUi.allowedOrigins = ['http://localhost:' + (cfg.gateway.port || NATIVE_DEFAULT_GATEWAY_PORT), 'http://127.0.0.1:' + (cfg.gateway.port || NATIVE_DEFAULT_GATEWAY_PORT)];
+          cfg.gateway.controlUi.allowedOrigins = [
+            'http://localhost:' + (cfg.gateway.port || NATIVE_DEFAULT_GATEWAY_PORT),
+            'http://127.0.0.1:' + (cfg.gateway.port || NATIVE_DEFAULT_GATEWAY_PORT),
+            ...tunnelControlUiOrigins(),
+          ];
         }
         sendLog('[migrate] gateway.bind → loopback (native bind thẳng lên host, 0.0.0.0 là mở ra mạng)');
       }
@@ -4789,6 +4925,134 @@ async function migrateDockerProjectToNative(projectDir, { osChoice = '' } = {}) 
  * openclaw.json → install the gateway as a managed service. Order matters: the gateway must boot
  * after 9router is reachable and after the key is on disk, or its first turn has no model.
  */
+/**
+ * Install (or reinstall) the managed gateway service. Managed service = auto-restart
+ * (KeepAlive/Restart=always) and start-at-login, the native equivalent of docker's
+ * `restart: always`. --force so re-running install updates the port.
+ *
+ * Its own function because two paths need it: a fresh native bring-up, and a restart that finds
+ * no service at all - a Docker migration that stopped before this step leaves the project marked
+ * native with nothing to restart, and the update then waited out its whole timeout on a unit that
+ * did not exist (hieu-oracle-vps, 21/10/2026).
+ */
+async function installNativeGatewayService(projectDir, gwPort) {
+  const env = nativeEnv(projectDir);
+  await ensureSystemdLinger();
+  await prepareSystemdUserDir().catch((e) => sendLog(`[native] systemd user dir: ${e.message}`));
+  // openclaw 2026.8.x refuses `daemon install` with a custom OPENCLAW_HOME ("service
+  // management skipped: non-default state dir"). Move the real state to ~/.openclaw and
+  // leave a symlink (junction on Windows) at <project>/.openclaw, then install with the
+  // plain account HOME. Older runtimes keep the original env untouched.
+  const daemonEnv = await prepareNativeStateHome(projectDir).catch((e) => { sendLog(`[native] state-home prep skipped: ${e.message}`); return null; });
+  await run('openclaw', ['daemon', 'install', '--force', '--port', String(gwPort)], { cwd: projectDir, env: daemonEnv || env });
+  await hardenNativeServiceRestarts(projectDir).catch((e) => sendLog(`[native] service hardening skipped: ${e.message}`));
+  await clearNativeServiceFailure(projectDir).catch(() => {});
+}
+
+/**
+ * Make ~/.config/systemd/user acceptable to `openclaw daemon install` before it runs.
+ *
+ * 1. OpenClaw refuses to write a unit into a directory that is group/world-writable, or whose
+ *    nearest existing ancestor is ("[unsafe-permissions] ... remove group/other write access with
+ *    chmod go-w"). Ubuntu's default umask 002 for regular users creates exactly that, so every
+ *    non-root native install died here (hieu-oracle-vps and the bshang user on vps_trang-alisa,
+ *    21/10/2026). Remove group/other WRITE only, one directory at a time - never recursive, never
+ *    on a directory that belongs to someone else.
+ * 2. A gateway unit name masked to /dev/null (left by an earlier hand repair) makes the same
+ *    command fail with "Service definition cannot be safely inspected". The mask only existed to
+ *    stop an old unit that is gone; park it next to the units instead of deleting it.
+ */
+async function prepareSystemdUserDir() {
+  if (process.platform !== 'linux' || typeof process.getuid !== 'function') return;
+  const uid = process.getuid();
+  const unitDir = join(os.homedir(), '.config', 'systemd', 'user');
+  await fsp.mkdir(unitDir, { recursive: true, mode: 0o700 });
+  for (const dir of [join(os.homedir(), '.config'), join(os.homedir(), '.config', 'systemd'), unitDir]) {
+    const st = await fsp.stat(dir).catch(() => null);
+    if (!st || st.uid !== uid || (st.mode & 0o022) === 0) continue;
+    await fsp.chmod(dir, st.mode & 0o7755);
+    sendLog(`[native] ${dir}: bỏ quyền ghi của group/others (OpenClaw từ chối cài service vào thư mục ai cũng ghi được)`);
+  }
+  let parked = 0;
+  for (const name of ['openclaw-gateway.service', 'openclaw-bot-gateway.service']) {
+    const p = join(unitDir, name);
+    const lst = await fsp.lstat(p).catch(() => null);
+    if (!lst || !lst.isSymbolicLink()) continue;
+    if ((await fsp.readlink(p).catch(() => '')) !== '/dev/null') continue;
+    const parkDir = join(unitDir, '..', 'openclaw-unit-mask-cu');
+    await fsp.mkdir(parkDir, { recursive: true });
+    await fsp.rename(p, join(parkDir, `${name}.${Date.now()}`));
+    sendLog(`[native] cất unit ${name} đang bị mask (/dev/null) sang ${parkDir}`);
+    parked++;
+  }
+  if (parked) await run('systemctl', ['--user', 'daemon-reload'], {}).catch(() => {});
+}
+
+/**
+ * A Docker-era provider URL points at a hostname that only compose's internal DNS knows:
+ * `http://9router:20128`, the 9router CONTAINER name (`http://9router-openclaw-bot:20129`),
+ * host.docker.internal, the 192.168.65.x Desktop bridge. Native has none of them, so every model
+ * call fails while the bot still reacts to messages - it looks like the bot ignores people.
+ * The migration's text replace only knew the first spelling and kept the container-side port, so
+ * hieu-oracle-vps came back with `http://9router-openclaw-bot:20129/v1` and never answered
+ * (21/10/2026). Rewrite by HOSTNAME SHAPE instead: a name without a dot is a compose service or
+ * container name, never a public API. 9router lands on this project's native router port.
+ * Loopback URLs are left exactly as they are - a project may deliberately share another project's
+ * 9router (bot BSHANG on vps_trang-alisa uses localhost:20128 while its own router is off).
+ */
+async function repointDockerProviderHosts(projectDir, routerPort) {
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  let cfg;
+  try { cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8')); } catch { return 0; }
+  const providers = cfg?.models?.providers;
+  if (!providers || typeof providers !== 'object') return 0;
+  let changed = 0;
+  for (const [id, provider] of Object.entries(providers)) {
+    if (!provider || typeof provider.baseUrl !== 'string') continue;
+    let url;
+    try { url = new URL(provider.baseUrl); } catch { continue; }
+    if (!isDockerOnlyHost(url.hostname)) continue;
+    const before = provider.baseUrl;
+    const isRouter = id === '9router' || /9router/i.test(url.hostname);
+    url.hostname = '127.0.0.1';
+    if (isRouter) url.port = String(routerPort);
+    provider.baseUrl = url.toString().replace(/\/$/, before.endsWith('/') ? '/' : '');
+    sendLog(`[native] provider ${id}: ${before} → ${provider.baseUrl} (tên máy chỉ có trong Docker)`);
+    changed++;
+  }
+  if (changed) await fsp.writeFile(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`, 'utf8');
+  return changed;
+}
+
+/**
+ * Projects installed before the customer launcher package moved to auto-picked local ports
+ * (21/10/2026) only allow the gateway's own port as Control UI origin, so the package's
+ * "4 - OpenClaw Control" opened the page and the gateway then refused the connection. Add the
+ * package's local ports to an EXISTING loopback allowlist; never widen a gateway bound past
+ * loopback, and never create the list where there is none.
+ */
+async function ensureTunnelControlOrigins(projectDir) {
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  let cfg;
+  try { cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8')); } catch { return 0; }
+  const gw = cfg?.gateway;
+  const list = gw?.controlUi?.allowedOrigins;
+  if (!gw || gw.bind !== 'loopback' || !Array.isArray(list)) return 0;
+  const missing = tunnelControlUiOrigins().filter((o) => !list.includes(o));
+  if (!missing.length) return 0;
+  list.push(...missing);
+  await fsp.writeFile(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`, 'utf8');
+  sendLog(`[native] Control UI: thêm ${missing.length} origin cổng local của gói mở giao diện khách`);
+  return missing.length;
+}
+
+function isDockerOnlyHost(hostname) {
+  const h = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+  if (!h || h === 'localhost' || h === '127.0.0.1' || h === '::1') return false;
+  if (h === 'host.docker.internal' || /^192\.168\.65\.\d+$/.test(h)) return true;
+  return !h.includes('.') && !h.includes(':');
+}
+
 async function startNativeRuntime({ projectDir, osChoice = '', gatewayPort, routerPort }) {
   const gwPort = gatewayPort || NATIVE_DEFAULT_GATEWAY_PORT;
   const rtPort = routerPort || NATIVE_DEFAULT_ROUTER_PORT;
@@ -4831,6 +5095,7 @@ async function startNativeRuntime({ projectDir, osChoice = '', gatewayPort, rout
   }
 
   await new Promise((r) => setTimeout(r, 8000));
+  await repointDockerProviderHosts(projectDir, rtPort).catch((e) => sendLog(`[native] provider host repoint skipped: ${e.message}`));
   await applyResolved9RouterApiKey(projectDir).catch(() => {});
 
   // Plugins BEFORE the gateway's first boot - the container entrypoint installs them ahead of the
@@ -4843,22 +5108,7 @@ async function startNativeRuntime({ projectDir, osChoice = '', gatewayPort, rout
 
   await ensureNativePlugins(projectDir).catch((e) => sendLog(`[native] plugin bootstrap skipped: ${e.message}`));
 
-  // Managed service = auto-restart (KeepAlive/Restart=always) and start-at-login, the native
-  // equivalent of docker's `restart: always`. --force so re-running install updates the port.
-  const env = nativeEnv(projectDir);
-  await ensureSystemdLinger();
-  // openclaw 2026.8.x refuses `daemon install` with a custom OPENCLAW_HOME ("service
-  // management skipped: non-default state dir"). Move the real state to ~/.openclaw and
-  // leave a symlink (junction on Windows) at <project>/.openclaw, then install with the
-  // plain account HOME. Older runtimes keep the original env untouched.
-  const daemonEnv = await prepareNativeStateHome(projectDir).catch((e) => { sendLog(`[native] state-home prep skipped: ${e.message}`); return null; });
-  if (daemonEnv) {
-    await run('openclaw', ['daemon', 'install', '--force', '--port', String(gwPort)], { cwd: projectDir, env: daemonEnv });
-  } else {
-    await run('openclaw', ['daemon', 'install', '--force', '--port', String(gwPort)], { cwd: projectDir, env });
-  }
-  await hardenNativeServiceRestarts(projectDir).catch((e) => sendLog(`[native] service hardening skipped: ${e.message}`));
-  await clearNativeServiceFailure(projectDir).catch(() => {});
+  await installNativeGatewayService(projectDir, gwPort);
   // `daemon install` already STARTED the unit, and that first boot begins the state migrations that
   // hold a five-minute lease on the state directory. This used to restart it right away - to pick up
   // the env completed below - and the restart landed mid-migration: the lease was left behind, every
@@ -5088,6 +5338,10 @@ async function updateRuntimeUnlocked(target, projectDir) {
   // service so the new binary is the one actually serving. This is what replaces "Rebuild".
   if (isNativeProject(projectDir)) {
     sendLog(`[native] Updating ${target} → ${spec}`);
+    // The pinned openclaw can need a newer Node than the one this host was set up with (2026.9.8
+    // wants >=24.16, hosts built before 17/10/2026 run 22), and `npm i -g` refuses it in preinstall.
+    // Upgrade Node first; on NodeSource that is in place, so the service unit keeps its node path.
+    if (!isRouter) await ensureNodeInstalled();
     if (isRouter && process.platform === 'win32') {
       // Windows locks a directory while a process has it as its cwd, and 9router's server child
       // runs inside node_modules\9router\app - so `npm i -g` over a running 9router dies with
@@ -5870,27 +6124,77 @@ async function waitForDockerDaemon(timeoutMs) {
   }
 }
 
-// OpenClaw's own engines range, copied verbatim from its package.json:
-//   ">=22.22.3 <23 || >=24.15.0 <25 || >=25.9.0"
-// The gaps matter - Node 23.x and 25.0-25.8 are NOT usable - so "install the latest Node" is the
-// wrong instinct here. When we have to install, we install 24 LTS, which sits inside a supported
-// window and is what every working host in the fleet already runs.
-const NODE_TARGET_MAJOR = 24;
-function nodeVersionSupported(raw) {
-  const m = String(raw || '').match(/v?(\d+)\.(\d+)\.(\d+)/);
-  if (!m) return false;
-  const [maj, min, pat] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const atLeast = (a, b, c) => maj > a || (maj === a && (min > b || (min === b && pat >= c)));
-  if (maj === 22) return atLeast(22, 22, 3);
-  if (maj === 24) return atLeast(24, 15, 0);
-  if (maj >= 25) return maj > 25 || atLeast(25, 9, 0);
-  return false;
+// Does a Node version satisfy an npm-style engines range? The range is OPENCLAW_NODE_ENGINES, which
+// sits next to OPENCLAW_NPM_SPEC in common-gen.js and is copied from the pinned version's own
+// package.json - so moving the pin moves the gate with it. Until 5.18.3 this function hard-coded the
+// range of an OLDER openclaw (">=22.22.3 <23 || >=24.15.0 <25 || >=25.9.0") while the pin had moved to
+// 2026.9.8 (">=24.16.0 <25 || >=26.1.0"): Node 22.23.3 was reported fine and `npm i -g` then died
+// EBADENGINE in preinstall (vps_trang-alisa, 17/10/2026). The ranges have GAPS, which is why "install
+// the latest Node" is the wrong instinct; we install NODE_TARGET_MAJOR LTS, which sits inside one.
+// Handles what engines fields actually use: `||` alternatives of space-separated >=, >, <=, <, =
+// comparators on full or partial versions. Anything it cannot parse counts as unsupported.
+const NODE_TARGET_MAJOR = OPENCLAW_NODE_TARGET_MAJOR;
+function parseNodeVersion(raw) {
+  const m = String(raw || '').match(/v?(\d+)(?:\.(\d+))?(?:\.(\d+))?/);
+  return m ? [Number(m[1]), Number(m[2] || 0), Number(m[3] || 0)] : null;
+}
+function nodeVersionSupported(raw, range = OPENCLAW_NODE_ENGINES) {
+  if (!/v?\d+\.\d+\.\d+/.test(String(raw || ''))) return false;
+  const v = parseNodeVersion(raw);
+  const cmp = (b) => (v[0] - b[0]) || (v[1] - b[1]) || (v[2] - b[2]);
+  return String(range || '').split('||').some((alt) => {
+    const parts = alt.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return false;
+    return parts.every((part) => {
+      const m = part.match(/^(>=|<=|>|<|=)?(v?\d+(?:\.\d+){0,2})$/);
+      if (!m) return false;
+      const c = cmp(parseNodeVersion(m[2]));
+      switch (m[1] || '=') {
+        case '>=': return c >= 0;
+        case '>': return c > 0;
+        case '<=': return c <= 0;
+        case '<': return c < 0;
+        default: return c === 0;
+      }
+    });
+  });
+}
+
+// Where the Node we just installed lives, per install route, so the re-check (and every later
+// `npm`) looks THERE instead of next to the Node this process was started with.
+function nvmNodeBinDir(major) {
+  const root = process.env.NVM_DIR ? join(process.env.NVM_DIR, 'versions', 'node') : join(os.homedir(), '.nvm', 'versions', 'node');
+  try {
+    const hit = fs.readdirSync(root)
+      .filter((d) => parseNodeVersion(d)?.[0] === major)
+      .sort((a, b) => { const x = parseNodeVersion(a); const y = parseNodeVersion(b); return (x[1] - y[1]) || (x[2] - y[2]); })
+      .pop();
+    return hit ? join(root, hit, 'bin') : '';
+  } catch { return ''; }
+}
+
+// Point node/npm lookups (and the PATH children inherit, which shebang `#!/usr/bin/env node` scripts
+// use) at newBinDir when it holds a Node and is not already what we resolve.
+function preferNodeBinDir(newBinDir) {
+  if (!newBinDir) return;
+  const exe = process.platform === 'win32' ? 'node.exe' : 'node';
+  if (!existsSync(join(newBinDir, exe))) return;
+  if (dirname(resolveBinPath('node')) === newBinDir) return;
+  preferredNodeBinDir = newBinDir;
+  extraBinDirsCache = null;
+  const sep = process.platform === 'win32' ? ';' : ':';
+  const key = Object.keys(process.env).find((k) => k.toLowerCase() === 'path') || 'PATH';
+  const cur = String(process.env[key] || '').split(sep).filter((d) => d && d !== newBinDir);
+  process.env[key] = [newBinDir, ...cur].join(sep);
+  sendLog(`[node] Dùng Node ở ${newBinDir} cho các lệnh tiếp theo.`);
 }
 
 // Native mode runs openclaw straight off the host, so the host's Node IS the runtime - unlike
 // docker mode, where the image carried its own. A customer machine that never needed Node before
 // (or carries one outside openclaw's supported range) must get a usable one before anything else,
 // otherwise the install dies deep inside `npm i -g openclaw` with an unreadable engine error.
+// Every route must UPGRADE an existing Node, not only install a missing one: the fleet's hosts set
+// up before 17/10/2026 run Node 22 from NodeSource, and Update OpenClaw onto 2026.9.8 lands here.
 async function ensureNodeInstalled() {
   const current = await commandExists('node', ['--version']);
   if (current.ok && nodeVersionSupported(current.output)) {
@@ -5898,47 +6202,71 @@ async function ensureNodeInstalled() {
     return;
   }
   const why = current.ok
-    ? `Node ${current.output.trim()} nằm ngoài dải OpenClaw hỗ trợ`
+    ? `Node ${current.output.trim()} nằm ngoài dải OpenClaw ${OPENCLAW_NPM_SPEC} hỗ trợ (${OPENCLAW_NODE_ENGINES})`
     : 'Máy chưa có Node';
   sendLog(`[node] ${why} - đang cài Node ${NODE_TARGET_MAJOR} LTS...`);
+  const currentBin = resolveBinPath('node');
+  let newBinDir = '';
 
   if (process.platform === 'linux') {
     const root = typeof process.getuid === 'function' && process.getuid() === 0;
     const sudo = root ? '' : 'sudo ';
-    // NodeSource covers deb/rpm and pins the major, so we land inside the supported window
-    // instead of whatever "latest" happens to be that week.
-    await run('sh', ['-c',
-      `curl -fsSL https://deb.nodesource.com/setup_${NODE_TARGET_MAJOR}.x | ${sudo}bash - && ${sudo}apt-get install -y nodejs`,
-    ]).catch(async () => {
-      sendLog('[node] apt không dùng được - thử nvm...');
+    const viaNvm = async () => {
       await run('sh', ['-c',
-        `export NVM_DIR="$HOME/.nvm"; curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash && . "$NVM_DIR/nvm.sh" && nvm install ${NODE_TARGET_MAJOR} && nvm alias default ${NODE_TARGET_MAJOR}`,
+        `export NVM_DIR="\${NVM_DIR:-$HOME/.nvm}"; [ -s "$NVM_DIR/nvm.sh" ] || curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash; . "$NVM_DIR/nvm.sh" && nvm install ${NODE_TARGET_MAJOR} && nvm alias default ${NODE_TARGET_MAJOR}`,
       ]);
-    });
+      newBinDir = nvmNodeBinDir(NODE_TARGET_MAJOR);
+    };
+    // A Node that came from nvm wins on PATH whatever apt does to /usr/bin, so upgrade it where it is.
+    if (current.ok && /[\\/]\.nvm[\\/]/.test(currentBin)) {
+      await viaNvm();
+    } else {
+      // NodeSource covers deb and pins the major. Re-running setup_<N>.x on a host that already has
+      // setup_22.x rewrites the apt source to node_<N>.x, so the install below is an in-place upgrade
+      // of /usr/bin/node - which is also where the running service's unit points.
+      await run('sh', ['-c',
+        `curl -fsSL https://deb.nodesource.com/setup_${NODE_TARGET_MAJOR}.x | ${sudo}bash - && ${sudo}apt-get install -y nodejs`,
+      ]).then(() => { newBinDir = '/usr/bin'; }).catch(async () => {
+        sendLog('[node] apt không dùng được - thử nvm...');
+        await viaNvm();
+      });
+    }
   } else if (process.platform === 'darwin') {
     const brew = await commandExists('brew', ['--version']);
     if (!brew.ok) throw httpError(400, 'macOS: cần Homebrew để tự cài Node. Cài tại https://brew.sh rồi thử lại.');
+    // `install` upgrades an outdated keg too; an older node@N stays linked unless the link is forced.
     await run('brew', ['install', `node@${NODE_TARGET_MAJOR}`]);
     await run('brew', ['link', '--overwrite', '--force', `node@${NODE_TARGET_MAJOR}`]).catch(() => {});
+    const prefix = await commandExists('brew', ['--prefix', `node@${NODE_TARGET_MAJOR}`]);
+    if (prefix.ok && prefix.output) newBinDir = join(prefix.output.split(/\r?\n/).pop().trim(), 'bin');
   } else if (process.platform === 'win32') {
     const winget = await commandExists('winget', ['--version']);
     const choco = await commandExists('choco', ['--version']);
     if (winget.ok) {
-      await run('winget', ['install', '-e', '--id', `OpenJS.NodeJS.LTS`, '--accept-source-agreements', '--accept-package-agreements']);
+      const args = ['-e', '--id', 'OpenJS.NodeJS.LTS', '--accept-source-agreements', '--accept-package-agreements'];
+      // `winget install` over an installed package is a no-op (or an error) on older winget builds,
+      // so a machine with an outdated Node needs `upgrade`. Try install first: it covers a fresh box.
+      await run('winget', ['install', ...args]).catch(async () => {
+        sendLog('[node] winget install không nâng được - thử winget upgrade...');
+        await run('winget', ['upgrade', ...args]);
+      });
     } else if (choco.ok) {
-      await run('choco', ['install', 'nodejs-lts', '-y']);
+      // `choco install` stops at "already installed"; `upgrade` installs when missing too.
+      await run('choco', ['upgrade', 'nodejs-lts', '-y']);
     } else {
       throw httpError(400, `Windows: cần winget hoặc Chocolatey để tự cài Node (hoặc cài Node ${NODE_TARGET_MAJOR} LTS thủ công tại https://nodejs.org) rồi thử lại.`);
     }
+    newBinDir = join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs');
   } else {
     throw httpError(400, `Hệ điều hành không tự cài Node được. Hãy cài Node ${NODE_TARGET_MAJOR} LTS thủ công rồi thử lại.`);
   }
 
-  // A fresh install lands on a PATH this process never picked up, so re-check through a new shell
-  // rather than trusting our own env.
+  // A fresh install lands on a PATH this process never picked up, and resolveBinPath prefers the
+  // directory this process was started from - so steer lookups at the new Node before re-checking.
+  preferNodeBinDir(newBinDir);
   const after = await commandExists('node', ['--version']);
   if (!after.ok || !nodeVersionSupported(after.output)) {
-    throw httpError(500, `Đã cài Node nhưng phiên bản hiện tại (${after.output || 'không đọc được'}) vẫn ngoài dải OpenClaw hỗ trợ. Mở lại cửa sổ dòng lệnh (hoặc đăng xuất/đăng nhập lại) để PATH cập nhật, rồi cài lại.`);
+    throw httpError(500, `Đã cài Node nhưng phiên bản hiện tại (${after.output || 'không đọc được'}) vẫn ngoài dải OpenClaw hỗ trợ (${OPENCLAW_NODE_ENGINES}). Mở lại cửa sổ dòng lệnh (hoặc đăng xuất/đăng nhập lại) để PATH cập nhật, rồi cài lại.`);
   }
   sendLog(`[node] Node ${after.output.trim()} đã sẵn sàng.`);
 }
@@ -6044,6 +6372,7 @@ async function installCore({ osChoice, mode, projectDir, gatewayPort = 18789, ro
     // container, so it skips this entirely (that is much of the point of choosing it).
     // Native has no image to carry a runtime, so the host's Node IS the runtime - get a supported
     // one on the machine before npm touches anything. Docker still needs the daemon instead.
+    if (mode === 'native') assertNativeHomeFreeFor(projectDir);
     if (mode === 'native') await ensureNodeInstalled();
     else await ensureDockerInstalled(osChoice);
     await writeCoreProject({ projectDir, osChoice, mode, gatewayPort, routerPort, userTimezone });
@@ -7567,7 +7896,16 @@ async function handler(req, res, rootProjectDir) {
       const projectDir = await resolveProjectDir(rootProjectDir, body);
       const target = body.target === '9router' ? '9router' : 'openclaw';
       sendLog(`[update] Updating ${target}...`);
-      const result = await updateRuntime(target, projectDir);
+      let result;
+      try {
+        result = await updateRuntime(target, projectDir);
+      } catch (err) {
+        // The error used to reach only the browser that clicked: the log simply stopped after the
+        // last npm line, so a migration that died on "readNativeMeta is not defined" looked like a
+        // hang to anyone reading it later (hieu-oracle-vps, 21/10/2026). Say it where it is read.
+        sendLog(`[update] ${target} update FAILED: ${err?.message || String(err)}`);
+        throw err;
+      }
       sendLog(`[update] ${target} update completed (${result.mode})`);
       return json(res, result);
     }

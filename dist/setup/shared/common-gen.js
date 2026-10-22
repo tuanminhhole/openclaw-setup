@@ -9,6 +9,14 @@
   // (sua o 9.7, PR #159179). Da nang that tren vps_minh-thu tu 9.3: 0 loi, plugin zalo-connect/zalo-mod/
   // learning-memory nap du. Luu y: tu 9.5 state DB len schema 21 - ha ban phai restore backup.
   const OPENCLAW_NPM_SPEC = 'openclaw@2026.9.8';
+  // Dai Node ma CHINH ban ghim tren doi hoi, chep nguyen van tu `npm view openclaw@2026.9.8 engines.node`.
+  // Doi OPENCLAW_NPM_SPEC thi PHAI doi dong nay cung luc: native chay openclaw tren Node cua may khach,
+  // nen dai cu con nam day nghia la Setup UI bao "hop le" roi `npm i -g` chet EBADENGINE o preinstall
+  // (vps_trang-alisa 17/10/2026: Node 22.23.3 qua cua kiem, 2026.9.8 tu choi). Test so dong nay voi
+  // npm registry moi lan chay (bo qua khi offline).
+  const OPENCLAW_NODE_ENGINES = '>=24.16.0 <25 || >=26.1.0';
+  // Ban major Setup tu cai khi Node cua may nam ngoai dai tren. Phai la mot dong LTS nam TRONG dai.
+  const OPENCLAW_NODE_TARGET_MAJOR = 24;
   const OPENCLAW_RUNTIME_PACKAGES = 'grammy @grammyjs/runner @grammyjs/transformer-throttler @buape/carbon @larksuiteoapi/node-sdk @slack/web-api';
   const NINE_ROUTER_NPM_SPEC = '9router@latest';
   const NINE_ROUTER_PORT = 20128;
@@ -294,6 +302,17 @@ If setup reported a plugin install error, run this after the bot is running:
     };
   }
 
+  // Goi mo giao dien gui khach (oc-goi-khach.sh, tu 21/10/2026) dua Control UI qua cong local
+  // 519X1 (X = 0..9, tu chon dai trong) chu khong phai cong gateway that. Khong co cac origin nay
+  // thi tep "4 - OpenClaw Control" mo duoc trang nhung gateway tu choi ket noi.
+  function tunnelControlUiOrigins() {
+    const out = [];
+    for (let base = 51900; base < 52000; base += 10) {
+      out.push(`http://localhost:${base + 1}`, `http://127.0.0.1:${base + 1}`);
+    }
+    return out;
+  }
+
   function buildGatewayConfig(port = 18789, deployMode = 'native', allowedOrigins = [], osChoice = '') {
     const normalizedPort = Number(port) || 18789;
     const cfg = {
@@ -313,6 +332,8 @@ If setup reported a plugin install error, run this after the bot is running:
 
   root.__openclawCommon = {
     OPENCLAW_NPM_SPEC,
+    OPENCLAW_NODE_ENGINES,
+    OPENCLAW_NODE_TARGET_MAJOR,
     OPENCLAW_RUNTIME_PACKAGES,
     NINE_ROUTER_NPM_SPEC,
     NINE_ROUTER_PORT,
@@ -337,6 +358,7 @@ If setup reported a plugin install error, run this after the bot is running:
     get9RouterBaseUrl,
     build9RouterProviderConfig,
     buildGatewayConfig,
+    tunnelControlUiOrigins,
   };
 
 })(typeof globalThis !== 'undefined' ? globalThis : {});

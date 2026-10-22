@@ -1,6 +1,39 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.18.4] - 2026-10-22
+### 🔧 Chuyển bot từ Docker sang cài trực tiếp chạy trọn vẹn, hai bot trên một máy không đè nhau
+
+Ghi nhận trên hai máy chủ của khách ngày 21/10/2026: một bot vừa chuyển khỏi Docker không trả lời gần
+một giờ, và việc đăng nhập bot thứ hai đã thay mất tài khoản Zalo của bot đầu tiên.
+
+- **Bot chuyển khỏi Docker trả lời được ngay.** Địa chỉ model vẫn mang tên máy chỉ có bên trong Docker
+  (ví dụ `9router-openclaw-bot`), nên bot nhận tin mà không bao giờ trả lời được. Nay mọi địa chỉ chỉ có
+  trong Docker được trỏ về chính máy chủ, 9router về đúng cổng của project. Bot đã chuyển từ trước được
+  sửa ở lần khởi động lại kế tiếp.
+- **Dữ liệu chép ra từ Docker thuộc đúng người dùng.** Trước đây dữ liệu thuộc root, nên 9router chạy
+  bằng người dùng thường không đọc được dữ liệu của chính nó.
+- **Không còn chờ mãi một dịch vụ chưa từng được cài.** Nếu lần chuyển dừng trước bước cài dịch vụ, nút
+  Cập nhật nay tự cài dịch vụ thay vì đứng chờ.
+- **Cài được dịch vụ cho người dùng thường.** Setup tự xử lý hai điều OpenClaw từ chối: thư mục dịch vụ
+  mà người khác ghi được, và dịch vụ gateway cũ đang bị khoá.
+- **Plugin chép từ Docker được cài lại sạch.** Khi OpenClaw không dùng lại được bản ghi đã chép, Setup gỡ
+  bản ghi, cài lại plugin và trả lại cài đặt cũ (zalo-mod giữ nguyên cổng và mã truy cập dashboard).
+  Dữ liệu của plugin không bị đụng tới.
+- **Đăng nhập Zalo không bao giờ rơi sang bot khác.** Bấm đăng nhập cho một bot vừa bị xoá trước đây sẽ
+  đăng nhập vào tài khoản của bot đầu tiên và thay mất phiên Zalo của bot đó. Nay Setup từ chối và nhắc
+  tải lại trang; bot thứ hai luôn có tài khoản riêng.
+- **Mỗi người dùng một project cài trực tiếp, báo rõ từ đầu.** Setup không ghi đè 9router của project
+  khác nữa, và lần cài project thứ hai dưới cùng người dùng dừng lại trước khi thay đổi bất cứ thứ gì,
+  kèm hướng dẫn dùng một người dùng Linux khác.
+- **Kiểm Node theo đúng yêu cầu của OpenClaw.** Phép kiểm khớp phiên bản OpenClaw đang dùng, và nút Cập
+  nhật tự nâng Node cũ (ví dụ Node 22) trước khi cài OpenClaw.
+- **Mở được OpenClaw Control từ bộ tệp mở giao diện gửi khách.** Các cổng mà bộ 4 tệp dùng trên máy khách
+  được cho phép, nên tệp "OpenClaw Control" kết nối được thay vì bị từ chối.
+- Lỗi khi cập nhật nay được ghi vào nhật ký, không chỉ hiện trên trình duyệt của người bấm.
+- Bao gồm toàn bộ bản sửa của 5.18.3.
+
+
 ## [5.18.3] - 2026-10-16
 ### 🔧 Bot cài trực tiếp trên máy gửi được tệp trở lại
 

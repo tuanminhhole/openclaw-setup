@@ -354,7 +354,10 @@
       controlUi: {
         allowedOrigins: gatewayAllowedOrigins.length > 0
           ? gatewayAllowedOrigins
-          : [`http://localhost:${gatewayPort}`, `http://127.0.0.1:${gatewayPort}`, `http://0.0.0.0:${gatewayPort}`],
+          : [
+            `http://localhost:${gatewayPort}`, `http://127.0.0.1:${gatewayPort}`, `http://0.0.0.0:${gatewayPort}`,
+            ...(typeof _common.tunnelControlUiOrigins === 'function' ? _common.tunnelControlUiOrigins() : []),
+          ],
       },
       auth: { mode: 'token', token: generateToken() },
     };

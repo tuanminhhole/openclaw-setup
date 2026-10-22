@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows, macOS, Linux, VPS - Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.3-0EA5E9?style=for-the-badge" alt="Version 5.18.3" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.18.4-0EA5E9?style=for-the-badge" alt="Version 5.18.4" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,9 +37,20 @@
 
 ---
 
-## 🆕 What's New in v5.18.3
+## 🆕 What's New in v5.18.4
 
-- 🔧 **Plugin updates apply without a needless restart, and bots keep their cron tool** - when OpenClaw has already loaded a new plugin, Setup no longer restarts the bot on top of it; "doctor --fix" is skipped while the gateway is running; and the bot owner is added to OpenClaw's owner list, which ignores `"*"` since 2026.9 and had left bots without their cron tool. Includes every fix from 5.18.1.
+- 🚚 **Moving a bot off Docker finishes properly** - a moved bot answers right away (its model address no longer uses a Docker-only host name), copied data belongs to the right user, Setup installs the service if the move stopped halfway, and plugins copied out of Docker are reinstalled cleanly with their settings kept.
+- 🔐 **Two bots on one server stay apart** - logging in Zalo for a bot that was just deleted no longer lands on another bot's account; Setup no longer rewrites another project's 9router, and says up front that each Linux user runs one native project.
+- 🟢 **Node checked against what OpenClaw needs** - Update upgrades an older Node (for example Node 22) before installing OpenClaw 2026.9.8, instead of reporting it fine and failing halfway.
+- 🖥️ **OpenClaw Control opens from the customer launcher pack**, and update errors are written to the log. Includes every fix from 5.18.3.
+
+<details>
+<summary><b>Previous: What's new in v5.18.2 and v5.18.3</b></summary>
+
+- 🔧 **Bots on native installs can send files again (5.18.3)** - workspace docs point at the real state folder instead of old Docker paths, so outgoing files are no longer rejected as "outside allowed directories".
+- 🔧 **Plugin updates apply without a needless restart, and bots keep their cron tool (5.18.2)** - when OpenClaw has already loaded a new plugin, Setup no longer restarts the bot on top of it; "doctor --fix" is skipped while the gateway is running; and the bot owner is added to OpenClaw's owner list, which ignores `"*"` since 2026.9 and had left bots without their cron tool. Includes every fix from 5.18.1.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.18.1</b></summary>

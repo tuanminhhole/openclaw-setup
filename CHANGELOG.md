@@ -1,6 +1,39 @@
 # Changelog (English)
 
 
+## [5.18.4] - 2026-10-22
+### 🔧 Moving a bot off Docker finishes properly, and two bots on one server stay apart
+
+Found on two customer servers on 21/10/2026: a bot moved from Docker stayed silent for almost an hour,
+and logging in a second bot replaced the first bot's Zalo account.
+
+- **A bot moved off Docker answers right away.** Its model address still used a name that only exists
+  inside Docker (for example `9router-openclaw-bot`), so it received messages but could never reply.
+  Every Docker-only address now points at the server itself, and 9router at this project's own port.
+  Bots moved earlier are repaired on their next restart.
+- **Data copied out of Docker belongs to the right user.** It used to land owned by root, and 9router,
+  running as the normal user, could not read its own files.
+- **No more endless wait for a service that was never installed.** If the move stopped before that step,
+  Update now installs the service instead of waiting for it.
+- **The service installs for regular users too.** Setup now fixes the two things OpenClaw refuses on
+  its own: a service folder other users can write to, and an old gateway service left masked.
+- **Plugins copied out of Docker are reinstalled cleanly.** When OpenClaw cannot reuse the copied
+  record, Setup removes it, installs the plugin again and puts the settings back (zalo-mod keeps its
+  dashboard port and token). Plugin data is not touched.
+- **Zalo login never falls through to another bot.** Logging in a bot that had just been deleted used to
+  sign in on the first bot's account and replace its Zalo session. Setup now refuses and asks you to
+  reload the page; a second bot always gets an account of its own.
+- **One native project per user account, said up front.** Setup no longer rewrites another project's
+  9router, and a second native install under the same account stops before changing anything, with a
+  clear message to use another user account.
+- **Node is checked against what OpenClaw really needs.** The check matches the pinned OpenClaw version,
+  and Update upgrades an older Node (for example Node 22) before installing OpenClaw.
+- **OpenClaw Control opens from the customer launcher pack.** The local ports used by the 4-file pack
+  are allowed, so its "OpenClaw Control" file connects instead of being refused.
+- Update errors are now written to the log, not only shown in the browser that clicked.
+- Includes every fix from 5.18.3.
+
+
 ## [5.18.3] - 2026-10-16
 ### 🔧 Bots on native installs can send files again
 
