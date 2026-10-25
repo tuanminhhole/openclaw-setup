@@ -1,6 +1,43 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.20.0] - 2026-10-25
+
+### 🧭 Tạo bot bằng cách chọn vai, không phải viết prompt
+
+Hộp thoại tạo bot trước đây hỏi "vai trò" và "tính cách" dạng chữ tự do, nên mỗi khách tự viết prompt
+và phần lớn bot chỉ có một dòng. Form nay làm theo cách của MonkeyAgent và đi thêm một bước: mỗi vai có
+sẵn bản hướng dẫn ngầm.
+
+- **Thẻ vai.** Trợ lý riêng, chăm sóc khách hàng, bán hàng, lễ tân và đặt lịch, kế toán, marketing và
+  nội dung, IT, hoặc "tự mô tả". Mỗi vai mang một bản hướng dẫn ngầm (mục tiêu, cách làm việc, giới hạn)
+  ghi vào SOUL.md của bot; khách chỉ việc chọn thẻ.
+- **Phong cách trả lời dạng pill.** Giọng vùng miền (Bắc, Trung, Nam, miền Tây), tính cách (vui vẻ,
+  nghiêm túc, điềm đạm, nhiệt tình, cọc tính hài hước), xưng hô, độ dài. Mỗi nhóm chọn một, mỗi pill
+  thêm một dòng vào phong cách của bot. Ô tính cách tự do vẫn còn, là phần thêm tuỳ chọn.
+- **"Chủ bot" thay cho "user".** Hai ô này nay nói rõ bot làm việc cho ai. Cấu hình cũ giữ nguyên giá trị.
+- **Tài liệu và liên kết để bot hiểu công ty.** Tải md, txt, csv, json (đọc ngay, có trong tìm kiếm
+  bộ nhớ) hoặc pdf, docx, xlsx, pptx, zip (bot tự học ở lần chạy đầu bằng skill học tài liệu), hoặc dán
+  liên kết. Tối đa 10 tệp, 4MB mỗi tệp. USER.md ghi lại những gì đã nạp.
+- **Reaction xác nhận thay cho ô Emoji.** Mặc định là tim (`/-heart`), có sẵn vài lựa chọn hoặc gõ
+  emoji bất kỳ, hoặc tắt. Bot Zalo nhận như trước; bot Facebook nay thả reaction lên mỗi tin khách
+  qua Connect (Instagram luôn là "love"); Telegram giữ mặc định của OpenClaw.
+- Vai hướng khách trên Facebook (CSKH, bán hàng, lễ tân) chạy với bộ tool gọn đã đo trên Trang thật:
+  system prompt 41k xuống 19k ký tự, khoảng 19k xuống 7k token mỗi lượt, bot trả lời nhanh hơn.
+
+### 🔗 Facebook: gắn Trang an toàn, không giật Trang
+
+Máy thứ hai của cùng một chủ trước đây lấy mất Trang của bot thứ nhất mà không báo. Connect nay giữ
+Trang cho bot đang có; hộp thoại hiện "đang thuộc bot X" và hỏi trước khi chuyển. Trang chưa từng được
+cấp cho bot này trong một phiên kết nối thì bị từ chối.
+
+### 🧹 Sửa bot không còn xoá những gì bot đã học
+
+Bấm Lưu ở hộp thoại sửa bot từng ghi đè mọi tệp workspace, kể cả USER.md và MEMORY.md bot đang tự
+điền. Nay giữ nguyên; chỉ các mục do Setup sở hữu được làm mới. BOOTSTRAP.md không sinh lại khi bot
+đã xoá nó.
+
+
 ## [5.19.0] - 2026-10-25
 
 ### 🔗 Facebook Messenger và Instagram không cần token, qua MonkeyTech Connect

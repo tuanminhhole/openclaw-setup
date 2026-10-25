@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows, macOS, Linux, VPS - Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.19.0-0EA5E9?style=for-the-badge" alt="Version 5.19.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.20.0-0EA5E9?style=for-the-badge" alt="Version 5.20.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,7 +37,7 @@
 
 ---
 
-## 🆕 What's New in v5.19.0
+## 🆕 What's New in v5.20.0
 
 - 🚚 **Moving a bot off Docker finishes properly** - a moved bot answers right away (its model address no longer uses a Docker-only host name), copied data belongs to the right user, Setup installs the service if the move stopped halfway, and plugins copied out of Docker are reinstalled cleanly with their settings kept.
 - 🔐 **Two bots on one server stay apart** - logging in Zalo for a bot that was just deleted no longer lands on another bot's account; Setup no longer rewrites another project's 9router, and says up front that each Linux user runs one native project.

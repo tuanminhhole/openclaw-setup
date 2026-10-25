@@ -1,6 +1,45 @@
 # Changelog (English)
 
 
+## [5.20.0] - 2026-10-25
+
+### 🧭 Create a bot by picking a role, not by writing a prompt
+
+The create dialog used to ask for a free-text "role" and a free-text "personality", so every
+customer wrote their own prompt and most bots ended up with a one-liner. The form now works the way
+MonkeyAgent does, and goes one step further: the role carries a built-in brief.
+
+- **Role cards.** Personal assistant, customer support, sales, front desk and booking, accounting,
+  marketing and content, IT support, or "describe it yourself". Each role ships a hidden brief
+  (goal, way of working, limits) that goes into the bot's SOUL.md; the customer only picks a card.
+- **Reply style as pills.** Regional voice (North, Central, South, Mekong Delta), temperament
+  (cheerful, serious, calm, enthusiastic, comically grumpy), address form and reply length. One pick
+  per group, each adds one line to the bot's style. Free-text personality stays as an optional extra.
+- **"Bot owner" instead of "user".** The two fields now say who the bot works for. Existing
+  configs keep their values.
+- **Documents and links for the bot to learn the business.** Upload md, txt, csv, json (read at once,
+  indexed for memory search) or pdf, docx, xlsx, pptx, zip (learned on first run by the learn-documents
+  skill), or paste links. Up to 10 files, 4MB each. USER.md lists what was added.
+- **Ack reaction replaces the Emoji field.** Default is the heart (`/-heart`), with presets or any
+  emoji, or off. Zalo bots get it as before; Facebook bots now react on every incoming message through
+  Connect (Instagram always sends "love"); Telegram keeps OpenClaw's own default.
+- Customer-facing Facebook roles (support, sales, front desk) run with the lean tool set measured on
+  a live Page: system prompt 41k to 19k characters, about 19k to 7k tokens per turn, so replies come
+  back faster.
+
+### 🔗 Facebook: safer Page linking, no stolen Pages
+
+A second machine of the same owner used to take a Page away from the first bot silently. Connect now
+keeps the Page with its current bot; the dialog shows "owned by bot X" and asks before moving it.
+A Page that was never granted to this bot in a connect session is refused.
+
+### 🧹 Editing a bot no longer wipes what it learned
+
+Saving the edit dialog rewrote every workspace file, including USER.md and MEMORY.md the bot had been
+filling in. Those are kept now; only the sections Setup owns are refreshed. BOOTSTRAP.md is not
+recreated once the bot has removed it.
+
+
 ## [5.19.0] - 2026-10-25
 
 ### 🔗 Facebook Messenger and Instagram without a token, through MonkeyTech Connect

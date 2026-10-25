@@ -19,6 +19,7 @@ const { buildDockerArtifacts, contextDefaultsScript } = loadSharedModule('../set
 const { buildWindowsLaunchers, WINDOWS_DESKTOP_LAUNCHERS } = loadSharedModule('../setup/shared/windows-launcher-gen.js', '__openclawWindowsLaunchers');
 const { OPENCLAW_NPM_SPEC, OPENCLAW_NODE_ENGINES, OPENCLAW_NODE_TARGET_MAJOR, NINE_ROUTER_NPM_SPEC, ZALO_CHANNEL_ID, ZALO_PLUGIN_ID, ZALO_CONNECT_VERSION, ZALO_CONNECT_PLUGIN_SPEC, META_CONNECT_URL, FB_PLUGIN_SPEC, build9RouterProviderConfig, get9RouterBaseUrl, tunnelControlUiOrigins } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
+const botRoles = loadSharedModule('../setup/data/roles.js', '__openclawRoles');
 
 // Chrome 136+ ignores --remote-debugging-port when --user-data-dir is the default profile
 // directory, so every launch path here (the dashboard button and the generated start-chrome
@@ -1545,6 +1546,67 @@ async function writeBotMeta(projectDir, workspaceDir, meta) {
   } catch { /* non-fatal */ }
 }
 
+// File bot tự viết trong lúc chạy. Trước 23/10/2026 nút Sửa bot ghi đè mọi file workspace, nên
+// một lần sửa tên hay tính cách là bot quên sạch những gì đã học về chủ (cách xưng hô, công ty,
+// ký ức dài hạn), chỉ còn lại bản mẫu trống.
+const BOT_OWNED_WORKSPACE_FILES = new Set(['MEMORY.md', 'DREAMS.md']);
+const USER_INFO_HEADINGS = ['Thông tin cá nhân', 'Notes'];
+const USER_PERSONALIZATION_HEADINGS = ['Cá nhân hoá', 'Personalization'];
+const USER_CONTEXT_HEADINGS = ['Bối cảnh', 'Context'];
+
+// [start, end) theo dòng của mục "## <heading>": từ dòng tiêu đề tới trước tiêu đề "## " kế tiếp.
+function markdownSectionRange(lines, headings) {
+  const start = lines.findIndex((l) => headings.some((h) => l.trim() === `## ${h}`));
+  if (start < 0) return null;
+  let end = lines.findIndex((l, i) => i > start && /^## /.test(l));
+  if (end < 0) end = lines.length;
+  return [start, end];
+}
+
+/**
+ * USER.md khi sửa bot: giữ mọi thứ bot đã ghi, chỉ thay mục thông tin cá nhân lấy từ form Setup
+ * (khi form có điền), và chèn mục Cá nhân hoá + Dự án từ bản mẫu nếu file cũ chưa có (bot tạo
+ * trước khi có tính năng làm quen với chủ).
+ */
+function mergeUserDoc(existing, fresh, { replaceUserInfo = false } = {}) {
+  const out = existing.split('\n');
+  const freshLines = fresh.split('\n');
+  if (replaceUserInfo) {
+    const a = markdownSectionRange(out, USER_INFO_HEADINGS);
+    const b = markdownSectionRange(freshLines, USER_INFO_HEADINGS);
+    if (a && b) out.splice(a[0], a[1] - a[0], ...freshLines.slice(b[0], b[1]));
+  }
+  if (!markdownSectionRange(out, USER_PERSONALIZATION_HEADINGS)) {
+    const p = markdownSectionRange(freshLines, USER_PERSONALIZATION_HEADINGS);
+    const ctx = markdownSectionRange(freshLines, USER_CONTEXT_HEADINGS);
+    if (p) {
+      // Lấy cả các mục đi sau Cá nhân hoá (Dự án, công ty...) cho tới trước mục Bối cảnh.
+      const block = freshLines.slice(p[0], ctx && ctx[0] > p[0] ? ctx[0] : p[1]);
+      const at = markdownSectionRange(out, USER_CONTEXT_HEADINGS);
+      if (at) out.splice(at[0], 0, ...block);
+      else out.push('', ...block);
+    }
+  }
+  return out.join('\n');
+}
+
+async function writeWorkspaceFiles(wsRoot, files, { userInfo = '' } = {}) {
+  const existed = existsSync(join(wsRoot, 'AGENTS.md'));
+  for (const [name, content] of Object.entries(files)) {
+    const target = join(wsRoot, name);
+    const present = existsSync(target);
+    if (present && BOT_OWNED_WORKSPACE_FILES.has(name)) continue;
+    // Bot xoá BOOTSTRAP.md sau lần chạy đầu; sinh lại là bắt nó khởi động lại từ đầu.
+    if (name === 'BOOTSTRAP.md' && existed && !present) continue;
+    let body = content || '';
+    if (name === 'USER.md' && present) {
+      body = mergeUserDoc(await fsp.readFile(target, 'utf8'), body, { replaceUserInfo: !!String(userInfo).trim() });
+    }
+    await fsp.mkdir(dirname(target), { recursive: true });
+    await fsp.writeFile(target, body, 'utf8');
+  }
+}
+
 async function readBotMeta(projectDir, agent, cfg) {
   try {
     const rel = workspaceRelForAgent(agent, cfg, projectDir);
@@ -1801,6 +1863,30 @@ async function getFbConnectSession(projectDir, sessionId) {
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(String(sessionId || ''))) throw httpError(400, 'Invalid session id');
   const data = await connectFetch(projectDir, 'GET', `/api/connect/sessions/${encodeURIComponent(sessionId)}`);
   return { status: data.status, pages: data.pages || [], user: data.user || null };
+}
+
+/**
+ * Make sure the Page is linked to THIS bot on Connect before the account is written. Connect links
+ * every Page the owner granted in the connect session, except Pages already owned by another bot
+ * (a second machine of the same owner): those come back with `alreadyLinked`, and the UI asks before
+ * sending `forceLink`. Without the link the plugin would poll for a Page Connect never routes to it.
+ */
+async function ensureFbPageLinked(projectDir, pageId, { force = false } = {}) {
+  const mine = await connectFetch(projectDir, 'GET', '/api/pages', undefined, { timeoutMs: 8000 }).catch(() => null);
+  if (mine && (mine.pages || []).some((p) => String(p.id) === String(pageId))) return { linked: true, moved: false };
+  const res = await fetch(`${connectBaseUrl()}/api/page_bots/${encodeURIComponent(pageId)}`, {
+    method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json', authorization: `Bearer ${(await readRelayCredential(projectDir))?.botKey || ''}` },
+    body: JSON.stringify({ force: !!force }), signal: AbortSignal.timeout(10000),
+  }).catch((err) => { throw httpError(502, `Không gọi được MonkeyTech Connect: ${err.message}`); });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 409) {
+    const who = data?.linkedTo?.label || data?.linkedTo?.botId || 'bot khác';
+    throw httpError(409, `Trang ${pageId} đang gắn với bot "${who}". Bấm Kết nối lại rồi xác nhận chuyển Trang sang bot này.`);
+  }
+  if (res.status === 403) throw httpError(403, `Trang ${pageId} chưa được cấp cho bot này trên MonkeyTech Connect. Bấm Kết nối Trang Facebook và chọn Trang đó.`);
+  if (!res.ok || data?.ok === false) throw httpError(502, typeof data?.error === 'string' ? data.error : `Connect HTTP ${res.status}`);
+  fbHealthCache.delete(projectDir);
+  return { linked: true, moved: !!data.movedFrom };
 }
 
 async function unlinkFbPage(projectDir, pageId) {
@@ -2256,9 +2342,15 @@ async function listConfiguredBots(projectDir) {
       workspace: agent.workspace || `.openclaw/${workspaceRelForAgent(agent, cfg, projectDir)}`,
       agentDir: agent.agentDir,
       persona: meta.persona || '',
-      userName: meta.userName || '',
-      userDescription: meta.userDescription || '',
+      userName: meta.ownerName || meta.userName || '',
+      userDescription: meta.ownerDescription || meta.userDescription || '',
+      ownerName: meta.ownerName || meta.userName || '',
+      ownerDescription: meta.ownerDescription || meta.userDescription || '',
       emoji: meta.emoji || '',
+      roleId: meta.roleId || (meta.role ? 'tuy-chinh' : ''),
+      customRole: meta.customRole || (meta.roleId ? '' : (meta.role || '')),
+      styles: Array.isArray(meta.styles) ? meta.styles : [],
+      reaction: meta.reaction !== undefined ? meta.reaction : '',
       mentionNames: channel === 'telegram' ? mentionNamesForAgent(agent) : '',
       transport: channel === 'fb-messenger' ? (fbTransportOf(cfg) || 'relay') : '',
       pageId: channel === 'fb-messenger' ? (fbTransportOf(cfg) === 'relay' ? (binding?.match?.accountId || '') : (cfg.channels?.['fb-messenger']?.pageId || '')) : '',
@@ -2503,6 +2595,137 @@ function applyMentionNames(agent, raw) {
   }
 }
 
+// ── Bot persona from the create/edit form (5.20): role card + style pills + owner info ───────
+// The customer picks a ROLE (hidden prompt goes to SOUL.md), a few STYLE pills (one line each),
+// optionally types extra personality, and describes the OWNER (not "user"). `reaction` is the
+// ack emoji (default Zalo code /-heart, mapped per channel); "" turns it off.
+const DEFAULT_ACK_REACTION = '/-heart';
+function parseBotPersona(body = {}, { channel = 'telegram', previous = {} } = {}) {
+  const roles = botRoles.BOT_ROLES || [];
+  let roleId = String(body.roleId ?? previous.roleId ?? '').trim();
+  if (!roles.some((r) => r.id === roleId)) roleId = previous.roleId && roles.some((r) => r.id === previous.roleId) ? previous.roleId : (channel === 'fb-messenger' ? 'cskh' : 'tro-ly');
+  // Legacy form (`role` free text) keeps working as the custom role.
+  const legacyRole = String(body.role || body.botDesc || '').trim();
+  let customRole = String(body.customRole ?? '').trim() || (body.roleId === undefined && legacyRole ? legacyRole : '') || String(previous.customRole || '').trim();
+  if (body.roleId === undefined && legacyRole && !body.customRole) roleId = 'tuy-chinh';
+  if (roleId !== 'tuy-chinh') customRole = '';
+  const rawStyles = body.styles !== undefined ? body.styles : previous.styles;
+  const styles = (Array.isArray(rawStyles) ? rawStyles : String(rawStyles || '').split(/[,\s]+/))
+    .map((x) => String(x).trim()).filter((x) => x && botRoles.styleById && botRoles.styleById(x));
+  const persona = String(body.personality ?? body.persona ?? previous.persona ?? '').trim();
+  const reaction = body.reaction !== undefined ? String(body.reaction || '').trim() : (previous.reaction !== undefined ? String(previous.reaction || '') : (String(body.emoji || '').trim() || DEFAULT_ACK_REACTION));
+  const emoji = botRoles.reactionEmoji ? botRoles.reactionEmoji(reaction) : reaction;
+  const ownerName = String(body.ownerName ?? body.userName ?? previous.ownerName ?? previous.userName ?? '').trim();
+  const ownerDesc = String(body.ownerDescription ?? body.userDescription ?? body.userDesc ?? previous.ownerDescription ?? previous.userDescription ?? '').trim();
+  const userInfo = [ownerName ? `- **Tên:** ${ownerName}` : '', ownerDesc ? `- **Mô tả:** ${ownerDesc}` : ''].filter(Boolean).join('\n');
+  const botDesc = botRoles.roleLabel ? botRoles.roleLabel({ isVi: true, roleId, customRole }) : (customRole || 'Trợ lý AI cá nhân');
+  const roleSection = botRoles.buildRoleSoulSection ? botRoles.buildRoleSoulSection({ isVi: true, roleId, styleIds: styles, customRole }) : '';
+  const role = roles.find((r) => r.id === roleId) || null;
+  return { roleId, customRole, styles, persona, reaction, emoji, ownerName, ownerDesc, userInfo, botDesc, roleSection, toolProfile: role?.toolProfile || 'full' };
+}
+
+// Where the ack reaction lives per channel. zalo-connect reads only the global `messages.ackReaction`
+// (Zalo codes like /-heart). fb-messenger has a per-account key (plugin maps codes to emoji).
+// Telegram is left alone: OpenClaw only accepts its fixed reaction set there.
+function applyAckReaction(cfg, channel, accountId, reaction) {
+  const value = String(reaction || '').trim();
+  if (channel === 'zalo-personal') {
+    cfg.messages = cfg.messages || {};
+    if (value) { cfg.messages.ackReaction = value; if (!cfg.messages.ackReactionScope) cfg.messages.ackReactionScope = 'all'; }
+    else { delete cfg.messages.ackReaction; delete cfg.messages.ackReactionScope; if (!Object.keys(cfg.messages).length) delete cfg.messages; }
+  } else if (channel === 'fb-messenger') {
+    const acc = cfg.channels?.['fb-messenger']?.accounts?.[accountId];
+    if (acc) acc.ackReaction = value; // "" = off, the plugin treats blank as disabled
+  }
+}
+
+// Facebook customer-facing roles run with the lean tool set measured on 26/10/2026 (system prompt
+// 41k -> 19k chars, tokens 19k -> 7.3k per turn): no shell/file/computer tools, only the cron skill.
+function applyRoleToolProfile(agent, channel, toolProfile) {
+  if (channel !== 'fb-messenger' || toolProfile !== 'messaging') { delete agent.tools; delete agent.skills; return; }
+  agent.tools = { profile: 'messaging', deny: ['computer', 'exec', 'process', 'apply_patch', 'write', 'edit'] };
+  agent.skills = ['cronjob'];
+}
+
+// Knowledge the owner uploads from the form: text goes straight into `memory/kien-thuc-<ten>.md`
+// (the only place memory_search indexes), binaries are kept under `tai-lieu/<ten>/goc/` for the
+// learn-documents skill, links are listed for web_fetch. USER.md gets one line per item under
+// "Dự án, công ty bot cần hiểu" (the heading the learn-documents skill already uses).
+const KNOWLEDGE_TEXT_EXT = new Set(['.md', '.txt', '.csv', '.json', '.tsv']);
+const KNOWLEDGE_BINARY_EXT = new Set(['.pdf', '.docx', '.xlsx', '.pptx', '.zip']);
+const KNOWLEDGE_MAX_BYTES = 4 * 1024 * 1024;
+const KNOWLEDGE_MAX_FILES = 10;
+function knowledgeSlug(name) {
+  const base = String(name || '').replace(/\.[^.]+$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+  return base || 'tai-lieu';
+}
+async function appendUserDocKnowledge(wsRoot, lines) {
+  const userPath = join(wsRoot, 'USER.md');
+  if (!existsSync(userPath) || !lines.length) return;
+  const txt = await fsp.readFile(userPath, 'utf8');
+  const rows = txt.split('\n');
+  const heading = rows.findIndex((l) => /^## (Dự án, công ty bot cần hiểu|Projects and companies the bot must know)/.test(l.trim()));
+  if (heading < 0) { await fsp.writeFile(userPath, `${txt.replace(/\s*$/, '')}\n\n## Dự án, công ty bot cần hiểu\n\n${lines.join('\n')}\n`, 'utf8'); return; }
+  let end = rows.findIndex((l, i) => i > heading && /^## /.test(l));
+  if (end < 0) end = rows.length;
+  // drop the placeholder line, keep what is already there, append new items
+  const body = rows.slice(heading + 1, end).filter((l) => !/^_\(|^- _\(/.test(l.trim()));
+  const merged = [...body.filter((l) => l.trim()), ...lines.filter((l) => !body.includes(l))];
+  rows.splice(heading + 1, end - heading - 1, '', ...merged, '');
+  await fsp.writeFile(userPath, rows.join('\n'), 'utf8');
+}
+async function addBotKnowledge(projectDir, agentId, { files = [], links = [] } = {}) {
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  if (!existsSync(cfgPath)) throw httpError(404, 'openclaw.json not found');
+  const cfg = ensureConfigShape(parseJsonText(await fsp.readFile(cfgPath, 'utf8')));
+  const agent = cfg.agents.list.find((a) => a.id === agentId);
+  if (!agent) throw httpError(404, 'Bot not found');
+  const rel = workspaceRelForAgent(agent, cfg, projectDir);
+  if (!rel) throw httpError(404, 'Workspace not found');
+  const wsRoot = join(projectDir, '.openclaw', rel);
+  if (!Array.isArray(files) || files.length > KNOWLEDGE_MAX_FILES) throw httpError(400, `Tối đa ${KNOWLEDGE_MAX_FILES} tệp mỗi lần`);
+  const added = [];
+  const userLines = [];
+  for (const f of files) {
+    const name = basename(String(f?.name || '')).trim();
+    const ext = extname(name).toLowerCase();
+    if (!name) continue;
+    if (!KNOWLEDGE_TEXT_EXT.has(ext) && !KNOWLEDGE_BINARY_EXT.has(ext)) throw httpError(400, `Không nhận tệp ${name}: chỉ md, txt, csv, json, pdf, docx, xlsx, pptx, zip`);
+    const buf = Buffer.from(String(f.contentBase64 || ''), 'base64');
+    if (!buf.length) throw httpError(400, `Tệp ${name} rỗng`);
+    if (buf.length > KNOWLEDGE_MAX_BYTES) throw httpError(400, `Tệp ${name} quá 4MB`);
+    const slug = knowledgeSlug(name);
+    if (KNOWLEDGE_TEXT_EXT.has(ext)) {
+      const target = safeJoin(wsRoot, join('memory', `kien-thuc-${slug}.md`));
+      await fsp.mkdir(dirname(target), { recursive: true });
+      const body = buf.toString('utf8');
+      const content = ext === '.md' ? body : `# ${name}\n\n\`\`\`${ext.slice(1)}\n${body}\n\`\`\`\n`;
+      await fsp.writeFile(target, `---\nname: kien-thuc-${slug}\nsource: ${name}\nadded: ${new Date().toISOString().slice(0, 10)}\n---\n\n${content.replace(/^---[\s\S]*?---\n/, '')}`, 'utf8');
+      added.push({ name, path: `memory/kien-thuc-${slug}.md`, kind: 'text' });
+      userLines.push(`- ${name} → memory/kien-thuc-${slug}.md`);
+    } else {
+      const target = safeJoin(wsRoot, join('tai-lieu', slug, 'goc', name));
+      await fsp.mkdir(dirname(target), { recursive: true });
+      await fsp.writeFile(target, buf);
+      added.push({ name, path: `tai-lieu/${slug}/goc/${name}`, kind: 'binary' });
+      userLines.push(`- ${name} (chưa học, skill hoc-tai-lieu đọc từ tai-lieu/${slug}/goc/) → memory/kien-thuc-${slug}.md`);
+    }
+  }
+  const cleanLinks = (Array.isArray(links) ? links : String(links || '').split(/[\n,\s]+/)).map((l) => String(l).trim()).filter((l) => /^https?:\/\/\S+$/i.test(l)).slice(0, 50);
+  if (cleanLinks.length) {
+    const target = safeJoin(wsRoot, join('memory', 'kien-thuc-lien-ket.md'));
+    await fsp.mkdir(dirname(target), { recursive: true });
+    const prev = existsSync(target) ? await fsp.readFile(target, 'utf8') : '---\nname: kien-thuc-lien-ket\n---\n\n# Liên kết chủ bot cung cấp\n\n_Mở bằng tool web_fetch khi cần, tóm tắt vào memory/kien-thuc-<ten>.md._\n';
+    const fresh = cleanLinks.filter((l) => !prev.includes(l)).map((l) => `- ${l}`);
+    if (fresh.length) await fsp.writeFile(target, `${prev.replace(/\s*$/, '')}\n${fresh.join('\n')}\n`, 'utf8');
+    added.push({ name: `${cleanLinks.length} liên kết`, path: 'memory/kien-thuc-lien-ket.md', kind: 'links' });
+    userLines.push('- Liên kết chủ cung cấp → memory/kien-thuc-lien-ket.md');
+  }
+  await appendUserDocKnowledge(wsRoot, userLines);
+  return { ok: true, added };
+}
+
 async function createBotInProject(projectDir, body = {}, runtime = {}) {
   if (!projectDir) throw httpError(400, 'Install project not found');
   const channel = body.channel || 'telegram';
@@ -2527,12 +2750,10 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   }
 
   const requestedBotName = String(body.botName || '').trim() || 'OpenClaw Bot';
-  const botDesc = String(body.role || body.botDesc || '').trim() || 'Personal OpenClaw assistant';
-  const persona = String(body.personality || body.persona || '').trim();
-  const emoji = String(body.emoji || '').trim();
-  const userName = String(body.userName || '').trim();
-  const userDesc = String(body.userDescription || body.userDesc || '').trim();
-  const userInfo = [userName ? `- **Tên:** ${userName}` : '', userDesc ? `- **Mô tả:** ${userDesc}` : ''].filter(Boolean).join('\n');
+  const personaCfg = parseBotPersona(body, { channel });
+  const { botDesc, persona, emoji, userInfo, roleSection } = personaCfg;
+  const userName = personaCfg.ownerName;
+  const userDesc = personaCfg.ownerDesc;
 
   // Múi giờ người dùng chọn ở UI Cài đặt (mặc định VN). Với project đã có sẵn, ưu tiên tz đã lưu
   // trong config để bot mới đồng bộ với các bot cũ.
@@ -2575,6 +2796,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     agentDir: `agents/${agentId}/agent`,
     model: { primary: model === '9router/smart-route' || model === 'openai/smart-route' ? DEFAULT_MODEL : model, fallbacks: [] },
   });
+  applyRoleToolProfile(cfg.agents.list[cfg.agents.list.length - 1], channel, personaCfg.toolProfile);
 
   let accountId = 'default';
   let warning = '';
@@ -2619,6 +2841,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     if (cfg.bindings.some((b) => b.match?.channel === 'fb-messenger' && b.match?.accountId === fbPageId)) {
       throw httpError(400, `Trang ${fbPageId} đã có bot trong project này. Sửa bot đó hoặc chọn Trang khác.`);
     }
+    await ensureFbPageLinked(projectDir, fbPageId, { force: body.forceLink === true || body.forceLink === 'true' });
     ensureFbRelayAccount(cfg, { pageId: fbPageId, name: fbPageName, instagramId: fbInstagramId });
     cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: fbPageId } });
   } else if (channel === 'fb-messenger') {
@@ -2649,6 +2872,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   if (cfg.agents.list.length > 1) {
     cfg.tools.agentToAgent = { enabled: true, allow: cfg.agents.list.map((a) => a.id) };
   }
+  applyAckReaction(cfg, channel, (cfg.bindings || []).find((b) => b.agentId === agentId)?.match?.accountId || 'default', personaCfg.reaction);
   validateOpenclawConfig(cfg);
   if (existsSync(cfgPath)) await fsp.copyFile(cfgPath, `${cfgPath}.bak`);
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
@@ -2668,6 +2892,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     botName,
     botDesc,
     persona,
+    roleSection,
     emoji,
     userInfo,
     agentWorkspaceDir: workspaceDir,
@@ -2680,11 +2905,8 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     userTimezone,
   });
   const wsRoot = join(openclawHome, workspaceDir);
-  for (const [name, content] of Object.entries(files)) {
-    await fsp.mkdir(dirname(join(wsRoot, name)), { recursive: true });
-    await fsp.writeFile(join(wsRoot, name), content || '', 'utf8');
-  }
-  const botMeta = { persona, userName, userDescription: userDesc, emoji, role: botDesc };
+  await writeWorkspaceFiles(wsRoot, files, { userInfo });
+  const botMeta = { persona, userName, userDescription: userDesc, emoji, role: botDesc, roleId: personaCfg.roleId, customRole: personaCfg.customRole, styles: personaCfg.styles, reaction: personaCfg.reaction, ownerName: userName, ownerDescription: userDesc };
   // appId is only meaningful for Facebook Messenger (the plugin needs it to exchange
   // the token); don't pollute other channels' bot-meta.json with an empty appId.
   if (channel === 'fb-messenger') botMeta.appId = fbAppId;
@@ -2712,13 +2934,13 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   const channel = body.channel || (mappedChannel !== 'unknown' ? mappedChannel : 'telegram');
   const token = String(body.token || '').trim();
   const botName = uniqueDisplayName(String(body.botName || agent.name || agentId).trim() || agent.name || agentId, new Set(cfg.agents.list.filter((a) => a.id !== agentId).map((a) => a.name || a.id)));
-  const botDesc = String(body.role || body.botDesc || agent.role || agent.desc || agent.description || '').trim();
-  const persona = String(body.personality || body.persona || '').trim();
-  const emoji = String(body.emoji || '').trim();
-  const userName = String(body.userName || '').trim();
-  const userDesc = String(body.userDescription || body.userDesc || '').trim();
-  const userInfo = [userName ? `- **Tên:** ${userName}` : '', userDesc ? `- **Mô tả:** ${userDesc}` : ''].filter(Boolean).join('\n');
   const workspaceDir = workspaceRelForAgent(agent, cfg, projectDir) || `workspace-${agentId}`;
+  const previousMeta = await readBotMeta(projectDir, agent, cfg).catch(() => ({}));
+  const personaCfg = parseBotPersona(body, { channel, previous: previousMeta });
+  const { botDesc, persona, emoji, userInfo, roleSection } = personaCfg;
+  const userName = personaCfg.ownerName;
+  const userDesc = personaCfg.ownerDesc;
+  applyRoleToolProfile(agent, channel, personaCfg.toolProfile);
   agent.workspace = `/home/node/project/.openclaw/${workspaceDir}`;
   agent.agentDir = `agents/${agentId}/agent`;
 
@@ -2768,6 +2990,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     if (nextPage !== prevPage && cfg.bindings.some((b) => b.match?.channel === 'fb-messenger' && b.match?.accountId === nextPage)) {
       throw httpError(400, `Trang ${nextPage} đã có bot khác trong project này.`);
     }
+    if (nextPage !== prevPage) await ensureFbPageLinked(projectDir, nextPage, { force: body.forceLink === true || body.forceLink === 'true' });
     const fb = cfg.channels['fb-messenger'];
     const prevAccount = (prevPage && fb.accounts?.[prevPage]) || {};
     if (prevPage && nextPage !== prevPage && fb.accounts) delete fb.accounts[prevPage];
@@ -2800,6 +3023,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   // The description already has a home - bot-meta.json, written a few lines below - and that is
   // what the UI reads back (readBotIdentity prefers meta.role). ensureConfigShape deletes this key
   // on load precisely because it does not belong here; re-adding it on save just undid that.
+  applyAckReaction(cfg, channel, (cfg.bindings || []).find((b) => b.agentId === agentId)?.match?.accountId || 'default', personaCfg.reaction);
   validateOpenclawConfig(cfg);
   if (existsSync(cfgPath)) await fsp.copyFile(cfgPath, `${cfgPath}.bak`);
   await fsp.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
@@ -2843,6 +3067,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     botName,
     botDesc,
     persona,
+    roleSection,
     emoji,
     userInfo,
     agentWorkspaceDir: workspaceDir,
@@ -2855,11 +3080,8 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     userTimezone: cfg.agents?.defaults?.userTimezone || 'Asia/Ho_Chi_Minh',
   });
   const wsRoot = join(projectDir, '.openclaw', workspaceDir);
-  for (const [name, content] of Object.entries(files)) {
-    await fsp.mkdir(dirname(join(wsRoot, name)), { recursive: true });
-    await fsp.writeFile(join(wsRoot, name), content || '', 'utf8');
-  }
-  const botMeta = { persona, userName, userDescription: userDesc, emoji, role: botDesc };
+  await writeWorkspaceFiles(wsRoot, files, { userInfo });
+  const botMeta = { persona, userName, userDescription: userDesc, emoji, role: botDesc, roleId: personaCfg.roleId, customRole: personaCfg.customRole, styles: personaCfg.styles, reaction: personaCfg.reaction, ownerName: userName, ownerDescription: userDesc };
   if (channel === 'fb-messenger') botMeta.appId = String(body.appId || '').trim();
   await writeBotMeta(projectDir, workspaceDir, botMeta);
 
@@ -8099,6 +8321,22 @@ async function handler(req, res, rootProjectDir) {
       const body = await readJson(req);
       return json(res, await connectPickedProject(body.projectName, rootProjectDir));
     }
+    if (url.pathname === '/api/bot/roles' && req.method === 'GET') {
+      // Prompts stay server-side: the UI only needs ids, labels and icons.
+      return json(res, {
+        roles: (botRoles.BOT_ROLES || []).map((r) => ({ id: r.id, icon: r.icon, title: r.title, desc: r.desc, custom: !r.prompt })),
+        styleGroups: (botRoles.BOT_STYLE_GROUPS || []).map((g) => ({ id: g.id, title: g.title, items: g.items.map((i) => ({ id: i.id, label: i.label })) })),
+        reactions: botRoles.ACK_REACTION_PRESETS || [],
+        defaultReaction: DEFAULT_ACK_REACTION,
+      });
+    }
+    if (url.pathname === '/api/bot/knowledge' && req.method === 'POST') {
+      const body = await readJson(req);
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
+      const result = await addBotKnowledge(projectDir, String(body.agentId || ''), { files: body.files || [], links: body.links || [] });
+      sendLog(`[bot] knowledge added for ${body.agentId}: ${result.added.map((a) => a.path).join(', ') || 'nothing'}`);
+      return json(res, result);
+    }
     if (url.pathname === '/api/bot/status' && req.method === 'GET') {
       await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
       return json(res, await buildBotStatus());
@@ -8745,4 +8983,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { listConfiguredBots, startFbConnect, getFbConnectSession, getFbHealth, ensureConnectBot, readRelayCredential, syncOwnerAllowFrom, repointWorkspaceDocPaths, workspaceDocPaths, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
+export { listConfiguredBots, parseBotPersona, addBotKnowledge, startFbConnect, getFbConnectSession, getFbHealth, ensureConnectBot, readRelayCredential, syncOwnerAllowFrom, repointWorkspaceDocPaths, workspaceDocPaths, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };

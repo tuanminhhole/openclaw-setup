@@ -1,5 +1,5 @@
 const $ = (sel) => document.querySelector(sel);
-const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', tz: localStorage.getItem('openclaw-tz') || 'Asia/Ho_Chi_Minh', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'native', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, featureLocked: {}, zaloBackend: '', zaloHealth: null, fbHealth: null, fbConnect: null, openDirs: {} };
+const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', tz: localStorage.getItem('openclaw-tz') || 'Asia/Ho_Chi_Minh', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'native', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, featureLocked: {}, zaloBackend: '', zaloHealth: null, fbHealth: null, fbConnect: null, botRoles: null, openDirs: {} };
 const SVG_CDN = 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons';
 const OS_OPTIONS = [
   { id: 'win', title: 'Windows', subtitle: 'Auto-detected desktop', icon: `${SVG_CDN}/windows/default.svg`, badge: 'Desktop' },
@@ -1047,34 +1047,80 @@ function botCreateForm(ch, empty, data = {}) {
   const needsToken = ch === 'telegram' || ch === 'zalo-bot';
   const tokenRequired = needsToken && data.mode !== 'edit';
   const isFb = ch === 'fb-messenger';
-  const fbRequired = isFb && data.mode !== 'edit';
-  const selectedChannel = BOT_CHANNELS.find((x) => x.id === ch);
-  return `<form class="bot-create" id="bot-create">
-    ${empty ? `<div class="empty-create"><h3>${t('\u0043h\u01b0a c\u00f3 bot n\u00e0o','No bots yet')}</h3><p>${t('\u0054\u1ea1o bot \u0111\u1ea7u ti\u00ean \u0111\u1ec3 b\u1eaft \u0111\u1ea7u.','Create the first bot to start.')}</p></div>` : ``}
-    ${data.mode === 'edit'
+  const isEdit = data.mode === 'edit';
+  const lang = state.lang === 'en' ? 'en' : 'vi';
+  const L = (obj) => (obj && typeof obj === 'object') ? (obj[lang] || obj.vi || obj.en || '') : String(obj || '');
+  // Catalogue arrives from the server; render once more when it lands so the cards appear without a re-open.
+  if (!state.botRoles && !state.botRolesLoading) { state.botRolesLoading = true; loadBotRoles().then(() => { state.botRolesLoading = false; if (state.botModalOpen) render(); }); }
+  const catalog = state.botRoles || { roles: [], styleGroups: [], reactions: [], defaultReaction: '/-heart' };
+  const roleId = data.roleId || (isFb ? 'cskh' : 'tro-ly');
+  const styles = new Set(Array.isArray(data.styles) ? data.styles : []);
+  const reaction = (isEdit && data.reaction !== undefined) ? String(data.reaction) : (data.reaction !== undefined ? String(data.reaction) : (catalog.defaultReaction || '/-heart'));
+  const reactionIsPreset = (catalog.reactions || []).some((r) => r.id === reaction);
+  return `<form class="bot-create" id="bot-create" enctype="multipart/form-data">
+    ${empty ? `<div class="empty-create"><h3>${t('Chưa có bot nào','No bots yet')}</h3><p>${t('Tạo bot đầu tiên để bắt đầu.','Create the first bot to start.')}</p></div>` : ``}
+    ${isEdit
       ? `<input name="channel" type="hidden" value="${escapeHtml(ch)}"/>`
       : `<div class="choice-grid bot-channel-grid">${BOT_CHANNELS.map(o => choiceCard('bot-channel', o, ch)).join('')}</div>`}
     <div class="bot-form-grid">
-      <label><span>${t('\u0054\u00ean bot','Bot name')}</span><input name="botName" required placeholder="Williams" value="${escapeHtml(data.botName || '')}"/></label>
-      ${data.mode !== 'edit' ? `
+      <label><span>${t('Tên bot','Bot name')}</span><input name="botName" required placeholder="Williams" value="${escapeHtml(data.botName || '')}"/></label>
+      ${!isEdit ? `
         <label>
           <span>${t('ID bot (viết liền, ko dấu)', 'Bot ID (no accent, lowercase)')}</span>
           <input name="agentId" required pattern="^[a-z0-9-_]+$" title="${t('Chỉ dùng chữ cái viết thường không dấu, số, gạch ngang (-) và gạch dưới (_)', 'Only lowercase letters, numbers, hyphens (-) and underscores (_) are allowed')}" placeholder="william" value=""/>
         </label>
-      ` : ''}
-      <label><span>${t('\u0056ai tr\u00f2','Role')}</span><input name="role" required placeholder="${t('\u0054r\u1ee3 l\u00fd AI c\u00e1 nh\u00e2n','Personal AI assistant')}" value="${escapeHtml(data.role || '')}"/></label>
-      ${!isFb ? `<label><span>Emoji</span><input name="emoji" maxlength="8" placeholder="\uD83E\uDD16" value="${escapeHtml(data.emoji || '')}"/></label>` : ''}
+      ` : `<label><span>${t('Reaction xác nhận','Ack reaction')}</span><div class="reaction-pills" data-reaction-pills>${reactionPillsHtml(catalog, reaction, reactionIsPreset)}</div></label>`}
       ${needsToken ? `<label><span>Token</span><input name="token" ${tokenRequired ? 'required' : ''} autocomplete="off" placeholder="${ch==='telegram'?'123456:ABC...':'Zalo OA token'}" value="${escapeHtml(data.token || '')}"/></label>` : `<input name="token" type="hidden" value="${escapeHtml(data.token || '')}"/>`}
+      ${!isEdit ? `<label><span>${t('Reaction xác nhận','Ack reaction')}</span><div class="reaction-pills" data-reaction-pills>${reactionPillsHtml(catalog, reaction, reactionIsPreset)}</div></label>` : ''}
+      <input type="hidden" name="reaction" value="${escapeHtml(reaction)}" data-reaction-value/>
       ${ch === 'telegram' ? `<label class="wide"><span>${t('Tên gọi trong nhóm','Names in groups')}</span><input name="mentionNames" autocomplete="off" placeholder="${t('Kỳ Môn ơi, km ơi','Kymon, hey km')}" value="${escapeHtml(data.mentionNames || '')}"/><small>${t('Cách nhau bằng dấu phẩy, tối đa 10 tên. Trong nhóm, bot chỉ trả lời khi được tag @username hoặc khi tin nhắn có một trong các tên này (không phân biệt hoa thường, phải đúng dấu). Để trống thì giữ mặc định (gọi bằng tag @username). Cần vào BotFather gõ /setprivacy, chọn Disable, rồi xoá và thêm lại bot vào nhóm thì bot mới nhận được tin không tag.','Comma-separated, up to 10. In groups the bot only replies when tagged @username or when a message contains one of these names (case-insensitive). Leave empty to keep the default (tag @username). Turn off privacy mode in BotFather (/setprivacy, Disable), then remove and re-add the bot to the group so it can see untagged messages.')}</small></label>` : ''}
       ${isFb ? fbChannelFields(data) : ''}
-      <label class="wide"><span>${t('\u0054\u00ednh c\u00e1ch','Personality')}</span><textarea name="personality" rows="3" placeholder="${t('\u0054h\u00e2n thi\u1ec7n, r\u00f5 r\u00e0ng, ch\u1ee7 \u0111\u1ed9ng.','Friendly, clear, proactive.')}">${escapeHtml(data.personality || '')}</textarea></label>
-      <label><span>${t('\u0054\u00ean user','User name')}</span><input name="userName" placeholder="${t('\u0054\u00ean c\u1ee7a b\u1ea1n','Your name')}" value="${escapeHtml(data.userName || '')}"/></label>
-      <label><span>${t('\u004d\u00f4 t\u1ea3 user','User description')}</span><input name="userDescription" placeholder="${t('\u0053\u1edf th\u00edch, ng\u1eef c\u1ea3nh, c\u00e1ch x\u01b0ng h\u00f4...','Preferences, context, address style...')}" value="${escapeHtml(data.userDescription || '')}"/></label>
+
+      <div class="wide bot-section"><span class="bot-section-title">${t('Vai trò của bot','Bot role')}</span><small>${t('Mỗi vai có sẵn hướng dẫn ngầm cho bot (mục tiêu, cách làm việc, giới hạn). Chọn một.','Each role carries a built-in brief for the bot (goal, way of working, limits). Pick one.')}</small>
+        <div class="choice-grid bot-role-grid">${(catalog.roles || []).map((r) => `<label class="choice-card bot-role-card ${r.id === roleId ? 'active' : ''}"><input type="radio" name="roleId" value="${escapeHtml(r.id)}" ${r.id === roleId ? 'checked' : ''}/><span class="choice-card__icon bot-role-icon" aria-hidden="true">${r.icon || '🤖'}</span><span class="choice-card__body"><b>${escapeHtml(L(r.title))}</b><small>${escapeHtml(L(r.desc))}</small></span></label>`).join('') || `<small class="bot-dim">${t('Đang tải danh sách vai...','Loading roles...')}</small>`}</div>
+        <label class="wide" data-custom-role ${roleId === 'tuy-chinh' ? '' : 'hidden'}><span>${t('Mô tả vai trò','Describe the role')}</span><input name="customRole" placeholder="${t('Ví dụ: Tư vấn khoá học tiếng Anh cho phụ huynh','e.g. Advise parents on English courses')}" value="${escapeHtml(data.customRole || '')}"/></label>
+      </div>
+
+      <div class="wide bot-section"><span class="bot-section-title">${t('Phong cách trả lời','Reply style')}</span><small>${t('Chọn tối đa một ở mỗi nhóm, bỏ trống thì bot tự nhiên.','At most one per group; leave empty for the default voice.')}</small>
+        ${(catalog.styleGroups || []).map((g) => `<div class="style-group"><span>${escapeHtml(L(g.title))}</span><div class="style-pills">${g.items.map((i) => `<button type="button" class="chip ${styles.has(i.id) ? 'is-active' : ''}" data-style-pill="${escapeHtml(g.id)}" data-value="${escapeHtml(i.id)}">${escapeHtml(L(i.label))}</button>`).join('')}</div></div>`).join('')}
+        <input type="hidden" name="styles" value="${escapeHtml([...styles].join(','))}" data-styles-value/>
+        <label class="wide"><span>${t('Tính cách riêng (tuỳ chọn)','Extra personality (optional)')}</span><textarea name="personality" rows="2" placeholder="${t('Ví dụ: hay dùng câu ngắn, thích ví von, luôn hỏi lại tên khách.','e.g. short sentences, fond of analogies, always asks the customer\'s name.')}">${escapeHtml(data.personality || '')}</textarea></label>
+      </div>
+
+      <div class="wide bot-section"><span class="bot-section-title">${t('Chủ bot','Bot owner')}</span><small>${t('Người mà bot phục vụ và báo cáo. Bot gọi người này là "chủ".','The person the bot works for and reports to.')}</small>
+        <div class="bot-form-grid bot-form-grid--inner">
+          <label><span>${t('Tên chủ bot','Owner name')}</span><input name="ownerName" placeholder="${t('Anh Tuấn, chị Hoa...','Your name')}" value="${escapeHtml(data.ownerName || data.userName || '')}"/></label>
+          <label><span>${t('Về chủ bot','About the owner')}</span><input name="ownerDescription" placeholder="${t('Chủ tiệm tạp hoá ở Cần Thơ, thích nói ngắn gọn','Grocery owner in Can Tho, prefers short answers')}" value="${escapeHtml(data.ownerDescription || data.userDescription || '')}"/></label>
+        </div>
+        <label class="wide"><span>${t('Tài liệu để bot hiểu công ty, dự án','Documents so the bot knows the company and projects')}</span><input type="file" name="knowledgeFiles" multiple accept=".md,.txt,.csv,.json,.pdf,.docx,.xlsx,.pptx,.zip" data-knowledge-files/><small>${t('md, txt, csv, json đọc ngay; pdf, docx, xlsx, pptx, zip bot sẽ tự học ở lần chạy đầu. Tối đa 10 tệp, 4MB mỗi tệp.','md, txt, csv, json are read at once; pdf, docx, xlsx, pptx, zip are learned on first run. Up to 10 files, 4MB each.')}</small></label>
+        <label class="wide"><span>${t('Hoặc dán liên kết (website, Google Doc công khai...)','Or paste links (website, public Google Doc...)')}</span><textarea name="knowledgeLinks" rows="2" placeholder="https://..."></textarea></label>
+      </div>
     </div>
-    <div class="bot-actions"><button class="primary btn-icon" type="submit">${data.mode === 'edit' ? `${actionIcon('save')} ${t('\u004c\u01b0u thay \u0111\u1ed5i','Save changes')}` : `${actionIcon('spark')} ${t('\u0054\u1ea1o bot','Create bot')}`}</button><span class="bot-message">${escapeHtml(state.botMessage || '')}</span></div>
+    <div class="bot-actions"><button class="primary btn-icon" type="submit">${isEdit ? `${actionIcon('save')} ${t('Lưu thay đổi','Save changes')}` : `${actionIcon('spark')} ${t('Tạo bot','Create bot')}`}</button><span class="bot-message">${escapeHtml(state.botMessage || '')}</span></div>
   </form>`;
 }
-
+function reactionPillsHtml(catalog, reaction, reactionIsPreset) {
+  const lang = state.lang === 'en' ? 'en' : 'vi';
+  return `${(catalog.reactions || []).map((r) => `<button type="button" class="chip chip--emoji ${r.id === reaction ? 'is-active' : ''}" data-reaction-pill data-value="${escapeHtml(r.id)}" title="${escapeHtml(r[lang] || r.vi || '')}">${escapeHtml(r.label)}</button>`).join('')}<input class="chip-input" data-reaction-custom maxlength="8" placeholder="${t('khác','other')}" value="${escapeHtml(reactionIsPreset ? '' : reaction)}"/>`;
+}
+async function loadBotRoles() {
+  if (state.botRoles) return state.botRoles;
+  try { state.botRoles = await api('/api/bot/roles'); } catch (_) { state.botRoles = { roles: [], styleGroups: [], reactions: [], defaultReaction: '/-heart' }; }
+  return state.botRoles;
+}
+// Read the chosen files as base64 and ship them after the bot exists (needs the agentId).
+async function submitBotKnowledge(agentId, form) {
+  const input = form.querySelector('[data-knowledge-files]');
+  const links = String(form.querySelector('[name="knowledgeLinks"]')?.value || '').trim();
+  const files = [];
+  for (const f of (input?.files ? [...input.files] : []).slice(0, 10)) {
+    if (f.size > 4 * 1024 * 1024) throw new Error(t(`Tệp ${f.name} quá 4MB`, `File ${f.name} is over 4MB`));
+    const b64 = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(',')[1] || ''); r.onerror = reject; r.readAsDataURL(f); });
+    files.push({ name: f.name, contentBase64: b64 });
+  }
+  if (!files.length && !links) return null;
+  return api('/api/bot/knowledge', { method: 'POST', body: { projectDir: activeProjectDir(), agentId, files, links } });
+}
 // Facebook: relay through MonkeyTech Connect by default (no token on this machine), the old
 // own-Meta-app webhook fields stay behind an "advanced" toggle. Hidden inputs carry what the
 // connect session chose; the status box is patched in place so typed fields survive.
@@ -1087,8 +1133,7 @@ function fbChannelFields(data = {}) {
           <input type="hidden" name="pageId" value="${escapeHtml(advanced ? '' : (data.pageId || ''))}" data-fb-page-id/>
           <input type="hidden" name="pageName" value="${escapeHtml(data.pageName || '')}" data-fb-page-name/>
           <input type="hidden" name="instagramId" value="${escapeHtml(data.instagramId || '')}" data-fb-instagram-id/>
-          <div class="fb-row2">
-            <label><span>Emoji</span><input name="emoji" maxlength="8" placeholder="🤖" value="${escapeHtml(data.emoji || '')}"/></label>
+          <div class="fb-row1">
             <div class="fb-connect-box" data-fb-relay-only ${advanced ? 'hidden' : ''}>
               <div class="fb-connect-head"><span>${t('Trang Facebook','Facebook Page')}</span><button class="secondary btn-inline" type="button" data-fb-connect>${actionIcon('key')}<span>${picked ? t('Kết nối lại','Reconnect') : t('Kết nối Trang Facebook','Connect Facebook Page')}</span></button></div>
               <div class="fb-connect-status" data-fb-connect-status>${fbConnectStatusHtml(picked)}</div>
@@ -1124,9 +1169,9 @@ function fbSetPicked(page) {
 function fbRenderPagePicker(pages) {
   const box = document.querySelector('[data-fb-connect-status]');
   if (!box) return;
-  box.innerHTML = `<label class="fb-pick"><span>${t('Chọn Trang cho bot này','Pick the Page for this bot')}</span><select data-fb-pick>${pages.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name || p.id)}${p.igUsername ? ` (Instagram @${escapeHtml(p.igUsername)})` : ''}</option>`).join('')}</select></label>`;
+  box.innerHTML = `<label class="fb-pick"><span>${t('Chọn Trang cho bot này','Pick the Page for this bot')}</span><select data-fb-pick>${pages.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name || p.id)}${p.igUsername ? ` (Instagram @${escapeHtml(p.igUsername)})` : ''}${p.alreadyLinked ? ` - ${t('đang thuộc bot','owned by bot')} ${escapeHtml(p.alreadyLinked.label || p.alreadyLinked.botId)}` : ''}</option>`).join('')}</select></label>`;
   const sel = box.querySelector('[data-fb-pick]');
-  const apply = () => { const p = pages.find((x) => String(x.id) === sel.value); if (p) { const set = (q, v) => { const el = document.querySelector(q); if (el) el.value = v || ''; }; set('[data-fb-page-id]', p.id); set('[data-fb-page-name]', p.name); set('[data-fb-instagram-id]', p.igId); } };
+  const apply = () => { const p = pages.find((x) => String(x.id) === sel.value); if (p) { const set = (q, v) => { const el = document.querySelector(q); if (el) el.value = v || ''; }; set('[data-fb-page-id]', p.id); set('[data-fb-page-name]', p.name); set('[data-fb-instagram-id]', p.igId); state.fbPickedLinkedTo = p.alreadyLinked ? (p.alreadyLinked.label || p.alreadyLinked.botId) : ''; } };
   sel.onchange = apply;
   apply();
 }
@@ -1158,7 +1203,8 @@ async function fbStartConnect(btn) {
     if (s.status !== 'done') { if (box) box.innerHTML = `<em class="bad">${t('Phiên kết nối đã hết hạn, bấm Kết nối lại.','Connect session expired, click Connect again.')}</em>`; return; }
     const pages = s.pages || [];
     if (!pages.length) { if (box) box.innerHTML = `<em class="bad">${t('Không có Trang nào được cấp. Bấm Kết nối lại và chọn ít nhất một Trang trong hộp thoại Facebook.','No Page was granted. Click Connect again and pick at least one Page in the Facebook dialog.')}</em>`; return; }
-    if (pages.length === 1) fbSetPicked(pages[0]); else fbRenderPagePicker(pages);
+    state.fbPickedLinkedTo = '';
+    if (pages.length === 1) { fbSetPicked(pages[0]); state.fbPickedLinkedTo = pages[0].alreadyLinked ? (pages[0].alreadyLinked.label || pages[0].alreadyLinked.botId) : ''; } else fbRenderPagePicker(pages);
     showToast(t('Đã kết nối Facebook','Facebook connected'), t(`Đã nhận ${pages.length} Trang từ MonkeyTech Connect.`, `Received ${pages.length} Page(s) from MonkeyTech Connect.`), 'success');
     state.fbHealth = null;
     loadFbHealth(true).catch(() => {});
@@ -1167,7 +1213,7 @@ async function fbStartConnect(btn) {
 function botCreateModal() {
   if (!state.botModalOpen) return '';
   const current = (state.install?.bots || []).find((b) => b.id === state.botEditId) || null;
-  const data = current ? { mode: 'edit', channel: current.channel || state.botChannel, botName: current.name, role: current.role || '', token: '', personality: current.persona || '', userName: current.userName || '', userDescription: current.userDescription || '', emoji: current.emoji || '', mentionNames: current.mentionNames || '', pageId: current.pageId || '', pageName: current.pageName || '', instagramId: current.instagramId || '', transport: current.transport || '', appId: current.appId || '', pageAccessToken: current.pageAccessToken || '', appSecret: current.appSecret || '', verifyToken: current.verifyToken || '' } : { mode: 'create' };
+  const data = current ? { mode: 'edit', channel: current.channel || state.botChannel, botName: current.name, role: current.role || '', token: '', personality: current.persona || '', userName: current.userName || '', userDescription: current.userDescription || '', emoji: current.emoji || '', mentionNames: current.mentionNames || '', pageId: current.pageId || '', pageName: current.pageName || '', instagramId: current.instagramId || '', transport: current.transport || '', appId: current.appId || '', pageAccessToken: current.pageAccessToken || '', appSecret: current.appSecret || '', verifyToken: current.verifyToken || '', roleId: current.roleId || '', customRole: current.customRole || '', styles: current.styles || [], reaction: current.reaction, ownerName: current.ownerName || '', ownerDescription: current.ownerDescription || '' } : { mode: 'create' };
   const currentChannel = BOT_CHANNELS.find((x) => x.id === ((current && current.channel) || state.botChannel || 'telegram'));
   return `<div class="modal-backdrop bot-modal-backdrop" data-bot-modal="close">
     <section class="donate-modal bot-modal" role="dialog" aria-modal="true" aria-label="${t('\u0054\u1ea1o bot','Create bot')}" onclick="event.stopPropagation()">
@@ -1386,8 +1432,30 @@ function wireTab() {
   });
   document.querySelectorAll('[data-donate]').forEach(el => el.onclick = () => { state.donateOpen = el.dataset.donate === 'open'; render(); });
   document.querySelectorAll('[data-fbplugin]').forEach(el => el.onclick = () => { state.fbPluginModalOpen = false; render(); });
-  document.querySelectorAll('[data-bot-modal]').forEach(el => el.onclick = () => { state.botModalOpen = el.dataset.botModal === 'open'; if (el.dataset.botModal === 'open') state.botEditId = ''; state.botMessage = ''; render(); });
-  document.querySelectorAll('[data-edit-bot]').forEach(btn => btn.onclick = (ev) => { ev.stopPropagation(); state.botEditId = btn.dataset.editBot; state.botChannel = (state.install?.bots || []).find((b) => b.id === state.botEditId)?.channel || state.botChannel; state.botModalOpen = true; state.botMessage = ''; render(); });
+  document.querySelectorAll('[data-bot-modal]').forEach(el => el.onclick = () => { state.botModalOpen = el.dataset.botModal === 'open'; if (el.dataset.botModal === 'open') state.botEditId = ''; state.botMessage = ''; render(); if (state.botModalOpen && !state.botRoles) loadBotRoles().then(() => render()); });
+  document.querySelectorAll('[data-edit-bot]').forEach(btn => btn.onclick = (ev) => { ev.stopPropagation(); state.botEditId = btn.dataset.editBot; state.botChannel = (state.install?.bots || []).find((b) => b.id === state.botEditId)?.channel || state.botChannel; state.botModalOpen = true; state.botMessage = ''; render(); if (!state.botRoles) loadBotRoles().then(() => render()); });
+  // Role cards, style pills and reaction pills patch hidden inputs in place (no re-render, typed text survives).
+  document.querySelectorAll('input[name="roleId"]').forEach(i => i.onchange = () => {
+    document.querySelectorAll('.bot-role-card').forEach((c) => c.classList.toggle('active', c.querySelector('input')?.value === i.value));
+    const custom = document.querySelector('[data-custom-role]'); if (custom) custom.hidden = i.value !== 'tuy-chinh';
+  });
+  document.querySelectorAll('[data-style-pill]').forEach(btn => btn.onclick = () => {
+    const group = btn.dataset.stylePill; const wasActive = btn.classList.contains('is-active');
+    document.querySelectorAll(`[data-style-pill="${group}"]`).forEach((b) => b.classList.remove('is-active'));
+    if (!wasActive) btn.classList.add('is-active');
+    const hidden = document.querySelector('[data-styles-value]');
+    if (hidden) hidden.value = [...document.querySelectorAll('[data-style-pill].is-active')].map((b) => b.dataset.value).join(',');
+  });
+  document.querySelectorAll('[data-reaction-pill]').forEach(btn => btn.onclick = () => {
+    document.querySelectorAll('[data-reaction-pill]').forEach((b) => b.classList.remove('is-active')); btn.classList.add('is-active');
+    const hidden = document.querySelector('[data-reaction-value]'); if (hidden) hidden.value = btn.dataset.value;
+    const custom = document.querySelector('[data-reaction-custom]'); if (custom) custom.value = '';
+  });
+  document.querySelectorAll('[data-reaction-custom]').forEach(inp => inp.oninput = () => {
+    const v = inp.value.trim(); if (!v) return;
+    document.querySelectorAll('[data-reaction-pill]').forEach((b) => b.classList.remove('is-active'));
+    const hidden = document.querySelector('[data-reaction-value]'); if (hidden) hidden.value = v;
+  });
   document.querySelectorAll('[data-zalo-login]').forEach(el => el.onclick = () => { const opening = el.dataset.zaloLogin === 'open'; if (!opening && state.zaloLoginOpen) api('/api/zalo/login/cancel', { method: 'POST' }).catch(() => {}); state.zaloLoginOpen = opening; render(); });
   document.querySelectorAll('[data-zalo-health-refresh]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { await loadZaloHealth(); }));
   document.querySelectorAll('[data-fb-health-refresh]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { state.fbHealth = null; await loadFbHealth(); }));
@@ -1807,8 +1875,12 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     const submitBtn = ev.currentTarget.querySelector('button[type="submit"]');
     if (submitBtn?.classList.contains('is-loading')) return;
     await withButtonLoading(submitBtn, async () => {
-    const fd = new FormData(ev.currentTarget);
-    const body = Object.fromEntries(fd.entries());
+    const formEl = ev.currentTarget;
+    const fd = new FormData(formEl);
+    const body = Object.fromEntries([...fd.entries()].filter(([k, v]) => !(v instanceof File)));
+    delete body.knowledgeFiles; delete body.knowledgeLinks;
+    body.styles = String(body.styles || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (body.roleId !== 'tuy-chinh') body.customRole = '';
     body.projectDir = activeProjectDir();
     body.channel = state.botChannel || 'telegram';
     body.userTimezone = state.tz;
@@ -1821,6 +1893,21 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
         return;
       }
       delete body.webhookPageId;
+      if (body.transport !== 'webhook' && state.fbPickedLinkedTo && !body.forceLink) {
+        const ok = await new Promise((resolve) => {
+          state.confirmModal = {
+            icon: '🔁', eyebrow: t('Trang đang gắn với bot khác','Page owned by another bot'),
+            title: t('Chuyển Trang sang bot này?','Move the Page to this bot?'),
+            message: t(`Trang này đang gắn với bot "${state.fbPickedLinkedTo}". Chuyển sang thì bot kia ngừng nhận tin của Trang.`, `This Page is linked to bot "${state.fbPickedLinkedTo}". Moving it stops that bot from receiving the Page's messages.`),
+            okText: t('Chuyển sang bot này','Move it here'), cancelText: t('Để sau','Not now'),
+            onConfirm: () => { state.confirmModal = null; resolve(true); render(); },
+            onCancel: () => { state.confirmModal = null; resolve(false); render(); },
+          };
+          render();
+        });
+        if (!ok) { state.botModalOpen = true; render(); return; }
+        body.forceLink = true;
+      }
     }
     // Only the CREATE flow starts a Zalo QR login (the server kicks it off and sets
     // loginStarted). Editing a bot (rename, persona...) must never pop the QR modal -
@@ -1837,7 +1924,14 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
       const url = isEdit ? `/api/bot/${encodeURIComponent(state.botEditId)}` : '/api/bot/create';
       const method = isEdit ? 'PUT' : 'POST';
       const result = await api(url, { method, body });
-      state.botMessage = `✅ ${isEdit ? t('Đã cập nhật','Updated') : t('Đã tạo','Created')} ${result.agentId}${result.warning ? ' - ' + result.warning : ''}`;
+      let knowledgeNote = '';
+      try {
+        const k = await submitBotKnowledge(result.agentId, formEl);
+        if (k?.added?.length) knowledgeNote = ' - ' + t(`đã nạp ${k.added.length} tài liệu`, `${k.added.length} document(s) added`);
+      } catch (err) {
+        showToast(t('Tài liệu chưa nạp được','Documents not added'), err.message, 'error');
+      }
+      state.botMessage = `✅ ${isEdit ? t('Đã cập nhật','Updated') : t('Đã tạo','Created')} ${result.agentId}${result.warning ? ' - ' + result.warning : ''}${knowledgeNote}`;
       showToast(isEdit ? t('Đã cập nhật', 'Updated') : t('Đã tạo bot', 'Bot created'), `${isEdit ? t('Đã cập nhật','Updated') : t('Đã tạo','Created')} bot ${result.agentId} thành công!`, 'success');
       state.botChannel = body.channel;
       state.botEditId = '';
