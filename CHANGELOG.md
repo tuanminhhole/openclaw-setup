@@ -1,6 +1,53 @@
 # Changelog (English)
 
 
+## [5.19.0] - 2026-10-25
+
+### 🔗 Facebook Messenger and Instagram without a token, through MonkeyTech Connect
+
+A Facebook bot used to need a Page Access Token, a Verify Token, a Meta App ID and App Secret,
+plus a public HTTPS address for Meta to call. Almost nobody running a bot on a VPS or a Windows
+machine has all of that, and the token fields never worked on a native install anyway (see below).
+
+- **One button: "Connect Facebook Page".** The create dialog opens MonkeyTech Connect in a new tab,
+  the Page owner clicks "Continue with Facebook" once and picks the Page, the dialog fills itself in.
+  If several Pages were granted, a dropdown lets you choose which one this bot answers for.
+- **The bot keeps no secret.** MonkeyTech runs one reviewed Meta app; the Page token and the App
+  Secret stay on Connect. Your machine holds a single bot key, written owner-only to
+  `credentials/fb-messenger/relay.json`. No public HTTPS, no Meta developer account, no webhook
+  to register.
+- **Instagram Direct comes with it** when the Page has a professional Instagram account linked.
+- **Several Pages per project.** Each Facebook bot is its own account named after its Page ID;
+  the same Page twice is refused with a clear message.
+- **Status on the bot card**: Page name and whether Connect still holds a working token for it,
+  refreshed on the same 10-second rhythm as the Zalo cards. When the owner removes the app on
+  Facebook, the card turns red and tells you to connect again.
+- **Own Meta app still possible.** "Use your own Meta app (advanced)" brings back the token fields
+  (webhook mode). The two modes are not mixed inside one project.
+- Needs `openclaw-fb-messenger` 0.2.0, which Setup installs on its own on a native host.
+
+### 🛠️ Eight faults in the old Facebook form, fixed together
+
+- **Tokens never reached the bot on a native install.** They were written to the project `.env`
+  only, but a native service has no EnvironmentFile and OpenClaw does not read `.env`. The values
+  now go into `openclaw.json` like every other channel; `.env` keeps a reference copy.
+- **Installing the plugin from its card wrote a second config entry** under the package name
+  instead of the channel id, so the allow-list carried an id no plugin declares.
+- **A native host never installed the plugin by itself**; the bot stayed dark until someone
+  clicked the card. Setup now fetches it at first boot like it does for Zalo.
+- **Creating a second Facebook bot overwrote the first bot's Page token** and left an agent with
+  no binding. Refused now.
+- **Editing a bot without a channel in the request fell into the Zalo Bot API branch.**
+- **Deleting the only Facebook bot left the token in `.env`.** It is blanked now.
+- The Facebook channel was missing from the CLI channel table and the config generator.
+
+### 📦 The "Bot still runs in Docker" prompt no longer opens by itself
+
+A project with neither a native marker nor a Docker compose file was reported as Docker, so people
+who never used Docker were told their bot ran in a container. The prompt is gone; the move stays
+available from the "Switch to Native" button on each project card in Settings.
+
+
 ## [5.18.4] - 2026-10-22
 ### 🔧 Moving a bot off Docker finishes properly, and two bots on one server stay apart
 

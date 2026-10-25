@@ -1877,6 +1877,15 @@ html[data-theme="light"] .bot-create-card:hover {
 
 /* Facebook Messenger bot form layout (responsive) */
 .fb-fields{grid-column:1/-1;display:grid;gap:14px}
+.fb-connect-box{display:grid;gap:8px;padding:12px 14px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.03)}
+html[data-theme="light"] .fb-connect-box{border-color:rgba(15,23,42,.1);background:rgba(15,23,42,.03)}
+.fb-connect-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:800;color:var(--body)}
+.fb-connect-head .btn-inline{min-height:34px;padding:6px 12px;font-size:12px;gap:6px}.fb-connect-head svg{width:14px;height:14px}
+.fb-connect-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;min-height:22px}
+.fb-connect-status em{font-style:normal;font-weight:800}.fb-connect-status em.ok{color:#25d6ad}.fb-connect-status em.warn{color:#f7bf48}.fb-connect-status em.bad{color:#ff6574}
+.fb-connect-status code{font-size:11px;opacity:.8}.fb-connect-status .fb-ig{font-size:11px;color:var(--muted)}.fb-connect-status a{font-size:11px;color:var(--soft)}
+.fb-pick{display:grid;gap:6px;width:100%}.fb-pick select{width:100%}
+.fb-connect-note{grid-column:1/-1;color:var(--muted);font-size:12px;line-height:1.5}.fb-connect-note a{color:var(--soft);text-decoration:underline}
 .fb-row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .fb-row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .fb-fields label{display:grid;gap:8px;color:var(--body);font-size:13px;font-weight:800}

@@ -45,6 +45,7 @@
     'telegram':           { name: 'Telegram',                     type: 'telegram',           icon: '🤖' },
     'zalo-bot':           { name: 'Zalo OA (Bot Platform)',        type: 'zalo-bot',           icon: '🔑' },
     'zalo-personal':      { name: 'Zalo Personal (Quét QR)',       type: 'zalo-personal',      icon: '📱' },
+    'fb-messenger':       { name: 'Facebook Messenger',           type: 'fb-messenger',       icon: '💬' },
   };
 
   // ── Ollama model definitions (single source of truth for all config JSON writes) ──

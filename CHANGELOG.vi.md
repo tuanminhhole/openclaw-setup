@@ -1,6 +1,53 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.19.0] - 2026-10-25
+
+### 🔗 Facebook Messenger và Instagram không cần token, qua MonkeyTech Connect
+
+Trước đây bot Facebook cần Page Access Token, Verify Token, App ID và App Secret của Meta, thêm một
+địa chỉ HTTPS công khai để Meta gọi vào. Gần như không ai chạy bot trên VPS hay máy Windows có đủ
+những thứ đó, mà các ô token trên bản cài thẳng cũng chưa bao giờ chạy (xem bên dưới).
+
+- **Một nút: "Kết nối Trang Facebook".** Hộp thoại tạo bot mở MonkeyTech Connect ở tab mới, chủ
+  Trang bấm "Tiếp tục với Facebook" một lần rồi chọn Trang, hộp thoại tự điền. Được cấp nhiều Trang
+  thì có ô chọn Trang nào cho bot này.
+- **Bot không giữ bí mật nào.** MonkeyTech giữ một app Meta đã qua xét duyệt; token Trang và App
+  Secret ở lại Connect. Máy của bạn chỉ giữ một khoá bot, ghi riêng cho chủ máy tại
+  `credentials/fb-messenger/relay.json`. Không cần HTTPS công khai, không cần tài khoản developer
+  của Meta, không phải đăng ký webhook.
+- **Instagram Direct đi kèm** khi Trang đã gắn tài khoản Instagram chuyên nghiệp.
+- **Nhiều Trang trong một project.** Mỗi bot Facebook là một account riêng mang tên Page ID; cùng
+  một Trang hai lần thì bị từ chối kèm thông báo rõ.
+- **Trạng thái trên thẻ bot**: tên Trang và Connect còn giữ token chạy được cho Trang đó hay không,
+  làm mới cùng nhịp 10 giây với thẻ Zalo. Chủ Trang gỡ app trên Facebook thì thẻ chuyển đỏ và nhắc
+  kết nối lại.
+- **Vẫn dùng được app Meta riêng.** "Dùng app Meta riêng (nâng cao)" mở lại các ô token (chế độ
+  webhook). Hai chế độ không trộn trong cùng một project.
+- Cần `openclaw-fb-messenger` 0.2.0, Setup tự cài trên máy chạy thẳng.
+
+### 🛠️ Tám lỗi của form Facebook cũ, sửa gom một lượt
+
+- **Token chưa bao giờ tới được bot trên bản cài thẳng.** Nó chỉ được ghi vào `.env` của project,
+  mà dịch vụ chạy thẳng không có EnvironmentFile và OpenClaw không đọc `.env`. Nay ghi vào
+  `openclaw.json` như mọi kênh khác; `.env` chỉ giữ bản tham chiếu.
+- **Bấm Cài plugin từ thẻ ghi thêm một mục cấu hình thứ hai** theo tên gói thay vì id kênh, nên
+  danh sách cho phép mang một id không plugin nào khai.
+- **Máy chạy thẳng không bao giờ tự cài plugin**; bot nằm im tới khi có người bấm thẻ. Nay Setup
+  tự tải lúc khởi động đầu như với Zalo.
+- **Tạo bot Facebook thứ hai ghi đè token Trang của bot thứ nhất** và để lại một agent không có
+  binding. Nay từ chối.
+- **Sửa bot mà yêu cầu không mang kênh thì rơi vào nhánh Zalo Bot API.**
+- **Xoá bot Facebook cuối cùng để nguyên token trong `.env`.** Nay xoá trắng.
+- Kênh Facebook thiếu trong bảng kênh của CLI và bộ sinh cấu hình.
+
+### 📦 Hộp thoại "Bot đang chạy trong Docker" không còn tự bật
+
+Project không có dấu native lẫn tệp compose của Docker bị coi là Docker, nên người chưa từng dùng
+Docker vẫn bị bảo bot đang nằm trong container. Hộp thoại tự bật đã bỏ; việc chuyển vẫn nằm ở nút
+"Chuyển sang Native" trên thẻ từng project trong Cài đặt.
+
+
 ## [5.18.4] - 2026-10-22
 ### 🔧 Chuyển bot từ Docker sang cài trực tiếp chạy trọn vẹn, hai bot trên một máy không đè nhau
 

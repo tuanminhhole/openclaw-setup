@@ -17,7 +17,7 @@ const { buildWorkspaceFileMap, buildCronjobSkillMd, buildInfographicGeneratorSki
 const { buildOpenclawJson, buildEnvFileContent, buildExecApprovalsJson, buildZaloConnectChannelConfig } = loadSharedModule('../setup/shared/bot-config-gen.js', '__openclawBotConfig');
 const { buildDockerArtifacts, contextDefaultsScript } = loadSharedModule('../setup/shared/docker-gen.js', '__openclawDockerGen');
 const { buildWindowsLaunchers, WINDOWS_DESKTOP_LAUNCHERS } = loadSharedModule('../setup/shared/windows-launcher-gen.js', '__openclawWindowsLaunchers');
-const { OPENCLAW_NPM_SPEC, OPENCLAW_NODE_ENGINES, OPENCLAW_NODE_TARGET_MAJOR, NINE_ROUTER_NPM_SPEC, ZALO_CHANNEL_ID, ZALO_PLUGIN_ID, ZALO_CONNECT_VERSION, ZALO_CONNECT_PLUGIN_SPEC, build9RouterProviderConfig, get9RouterBaseUrl, tunnelControlUiOrigins } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
+const { OPENCLAW_NPM_SPEC, OPENCLAW_NODE_ENGINES, OPENCLAW_NODE_TARGET_MAJOR, NINE_ROUTER_NPM_SPEC, ZALO_CHANNEL_ID, ZALO_PLUGIN_ID, ZALO_CONNECT_VERSION, ZALO_CONNECT_PLUGIN_SPEC, META_CONNECT_URL, FB_PLUGIN_SPEC, build9RouterProviderConfig, get9RouterBaseUrl, tunnelControlUiOrigins } = loadSharedModule('../setup/shared/common-gen.js', '__openclawCommon');
 const dataExport = loadSharedModule('../setup/data/index.js', '__openclawData');
 
 // Chrome 136+ ignores --remote-debugging-port when --user-data-dir is the default profile
@@ -1682,21 +1682,155 @@ function ensureZaloConnectChannel(cfg) {
   if (!cfg.plugins.allow.includes('zalo-connect')) cfg.plugins.allow.push('zalo-connect');
 }
 
-function ensureFbMessengerChannel(cfg, pageId, appId) {
+function ensureFbMessengerChannel(cfg, pageId, appId, secrets = {}) {
   cfg.channels['fb-messenger'] = cfg.channels['fb-messenger'] || {
     enabled: true,
     dmPolicy: 'open',
     allowFrom: ['*'],
     historyLimit: 50,
   };
-  cfg.channels['fb-messenger'].enabled = true;
-  if (pageId) cfg.channels['fb-messenger'].pageId = pageId;
-  // Secrets (pageAccessToken/appSecret/verifyToken) live in .env, not openclaw.json.
+  const fb = cfg.channels['fb-messenger'];
+  fb.enabled = true;
+  if (pageId) fb.pageId = pageId;
+  if (appId) fb.appId = appId;
+  // The secrets go INTO openclaw.json, same as `channels.zalo.botToken` and the Telegram
+  // accounts. They used to be written to the project `.env` only, but a native gateway unit has
+  // no EnvironmentFile and openclaw's gateway does not load a dotenv file (only the node-host
+  // launcher does), so the plugin saw neither token nor verify token and never started the
+  // account (measured 25/10/2026). `.env` still gets a copy for Docker and for a hand-run CLI.
+  // Every key here is in the plugin's strict channel schema (openclaw-fb-messenger 0.1.1).
+  // Blank values keep whatever is already stored, so the edit form can leave them empty.
+  for (const key of ['pageAccessToken', 'appSecret', 'verifyToken']) {
+    const value = String(secrets[key] || '').trim();
+    if (value) fb[key] = value;
+  }
   // Register the external channel plugin so the gateway loads it.
   cfg.plugins.entries = cfg.plugins.entries || {};
   cfg.plugins.entries['fb-messenger'] = cfg.plugins.entries['fb-messenger'] || { enabled: true };
   cfg.plugins.allow = cfg.plugins.allow || [];
   if (!cfg.plugins.allow.includes('fb-messenger')) cfg.plugins.allow.push('fb-messenger');
+}
+
+/**
+ * Relay account for one Page (openclaw-fb-messenger 0.2): `channels.fb-messenger.accounts[<pageId>]`.
+ * The account key IS the Page ID (the plugin reads it back as pageId), `transport: relay` sits at the
+ * channel root so every account on this gateway goes through Connect. No token, no secret anywhere.
+ */
+function ensureFbRelayAccount(cfg, { pageId, name, instagramId }) {
+  ensureFbMessengerChannel(cfg, '', '', {});
+  const fb = cfg.channels['fb-messenger'];
+  fb.transport = 'relay';
+  fb.accounts = fb.accounts || {};
+  const prev = fb.accounts[pageId] || {};
+  fb.accounts[pageId] = { ...prev, enabled: true, pageId, ...(name ? { name } : {}), ...(instagramId ? { instagramId } : {}) };
+  if (!fb.defaultAccount) fb.defaultAccount = pageId;
+  return fb.accounts[pageId];
+}
+
+/** webhook (own Meta app, token on this machine) or relay (MonkeyTech Connect). */
+function fbTransportOf(cfg) {
+  const fb = cfg?.channels?.['fb-messenger'];
+  if (!fb) return null;
+  if (fb.transport === 'relay' || fb.transport === 'webhook') return fb.transport;
+  return fb.pageAccessToken ? 'webhook' : (Object.keys(fb.accounts || {}).length ? 'relay' : null);
+}
+
+// ── MonkeyTech Connect client (Facebook Page / Instagram relay) ──────────────────────────────
+// Setup talks to Connect on behalf of the bot: register once, open a connect session for the Page
+// owner, poll it, read the Page list for the status badges. The botKey lives in
+// <project>/.openclaw/credentials/fb-messenger/relay.json (the plugin reads the same file).
+const connectBaseUrl = () => String(process.env.OPENCLAW_SETUP_CONNECT_URL || META_CONNECT_URL).replace(/\/+$/, '');
+
+function relayCredentialPath(projectDir) {
+  let home = join(projectDir, '.openclaw');
+  try { home = fs.realpathSync(home); } catch {}
+  return join(home, 'credentials', 'fb-messenger', 'relay.json');
+}
+
+async function readRelayCredential(projectDir) {
+  try {
+    const parsed = JSON.parse(await fsp.readFile(relayCredentialPath(projectDir), 'utf8'));
+    return parsed && parsed.botKey ? parsed : null;
+  } catch { return null; }
+}
+
+async function connectFetch(projectDir, method, path, body, { auth = true, timeoutMs = 15000 } = {}) {
+  const headers = { accept: 'application/json' };
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  if (auth) {
+    const cred = await readRelayCredential(projectDir);
+    if (!cred) throw httpError(409, 'Bot chưa đăng ký với MonkeyTech Connect - bấm "Kết nối Trang Facebook" trước.');
+    headers.authorization = `Bearer ${cred.botKey}`;
+  }
+  let res;
+  try {
+    res = await fetch(`${connectBaseUrl()}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) });
+  } catch (err) {
+    throw httpError(502, `Không gọi được MonkeyTech Connect (${connectBaseUrl()}): ${err.message}`);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) throw httpError(401, 'MonkeyTech Connect từ chối botKey của bot này. Xoá credentials/fb-messenger/relay.json rồi bấm Kết nối lại.');
+  if (!res.ok || data?.ok === false) {
+    const msg = typeof data?.error === 'string' ? data.error : (data?.error?.message || `Connect HTTP ${res.status}`);
+    throw httpError(res.status >= 400 && res.status < 600 ? res.status : 502, msg);
+  }
+  return data;
+}
+
+/** Register this project with Connect once; later calls reuse relay.json. */
+async function ensureConnectBot(projectDir) {
+  const existing = await readRelayCredential(projectDir);
+  if (existing) return existing;
+  const label = `${basename(resolve(projectDir))}@${os.hostname()}`.slice(0, 80);
+  const data = await connectFetch(projectDir, 'POST', '/api/bots', { label }, { auth: false });
+  const cred = { botKey: data.botKey, botId: data.botId, url: connectBaseUrl(), createdAt: new Date().toISOString() };
+  const path = relayCredentialPath(projectDir);
+  await fsp.mkdir(dirname(path), { recursive: true });
+  await fsp.writeFile(path, JSON.stringify(cred, null, 2), { encoding: 'utf8', mode: 0o600 });
+  return cred;
+}
+
+/** Open a connect session: the browser goes to connectUrl, the Page owner logs in, Setup polls. */
+async function startFbConnect(projectDir) {
+  await ensureConnectBot(projectDir);
+  const data = await connectFetch(projectDir, 'POST', '/api/connect/sessions', {});
+  return { sessionId: data.sessionId, connectUrl: data.connectUrl, expiresInSec: data.expiresInSec };
+}
+
+async function getFbConnectSession(projectDir, sessionId) {
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(String(sessionId || ''))) throw httpError(400, 'Invalid session id');
+  const data = await connectFetch(projectDir, 'GET', `/api/connect/sessions/${encodeURIComponent(sessionId)}`);
+  return { status: data.status, pages: data.pages || [], user: data.user || null };
+}
+
+async function unlinkFbPage(projectDir, pageId) {
+  if (!/^\d{3,32}$/.test(String(pageId || ''))) throw httpError(400, 'Invalid page id');
+  return connectFetch(projectDir, 'DELETE', `/api/page_bots/${encodeURIComponent(pageId)}`);
+}
+
+// Status for the bot cards: which Pages Connect still has a token for. Cached briefly - the UI
+// polls while Facebook bots are on screen, like the Zalo health probe.
+const fbHealthCache = new Map();
+async function getFbHealth(projectDir) {
+  if (!projectDir) return { relay: { configured: false }, pages: [] };
+  const cached = fbHealthCache.get(projectDir);
+  if (cached && Date.now() - cached.at < 10000) return cached.value;
+  const cred = await readRelayCredential(projectDir);
+  const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
+  let cfg = null;
+  try { cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8')); } catch {}
+  const transport = fbTransportOf(cfg);
+  const value = { relay: { configured: !!cred, url: cred?.url || connectBaseUrl(), botId: cred?.botId || null }, transport, pages: [], error: null };
+  if (cred && transport !== 'webhook') {
+    try {
+      const data = await connectFetch(projectDir, 'GET', '/api/pages', undefined, { timeoutMs: 8000 });
+      value.pages = (data.pages || []).map((p) => ({ id: String(p.id), name: p.name || '', picture: p.picture || null, igUsername: p.ig_username || null, connected: !!p.connected, subscribed: !!p.subscribed, linkedAt: p.linked_at || null }));
+    } catch (err) {
+      value.error = err.message;
+    }
+  }
+  fbHealthCache.set(projectDir, { at: Date.now(), value });
+  return value;
 }
 
 function ensureZaloApiChannel(cfg, token) {
@@ -2126,11 +2260,14 @@ async function listConfiguredBots(projectDir) {
       userDescription: meta.userDescription || '',
       emoji: meta.emoji || '',
       mentionNames: channel === 'telegram' ? mentionNamesForAgent(agent) : '',
-      pageId: channel === 'fb-messenger' ? (cfg.channels?.['fb-messenger']?.pageId || '') : '',
-      appId: meta.appId || '',
-      pageAccessToken: channel === 'fb-messenger' ? (env.FB_MESSENGER_PAGE_ACCESS_TOKEN || '') : '',
-      appSecret: channel === 'fb-messenger' ? (env.FB_MESSENGER_APP_SECRET || '') : '',
-      verifyToken: channel === 'fb-messenger' ? (env.FB_MESSENGER_VERIFY_TOKEN || '') : '',
+      transport: channel === 'fb-messenger' ? (fbTransportOf(cfg) || 'relay') : '',
+      pageId: channel === 'fb-messenger' ? (fbTransportOf(cfg) === 'relay' ? (binding?.match?.accountId || '') : (cfg.channels?.['fb-messenger']?.pageId || '')) : '',
+      pageName: channel === 'fb-messenger' ? (cfg.channels?.['fb-messenger']?.accounts?.[binding?.match?.accountId || '']?.name || '') : '',
+      instagramId: channel === 'fb-messenger' ? (cfg.channels?.['fb-messenger']?.accounts?.[binding?.match?.accountId || '']?.instagramId || '') : '',
+      appId: meta.appId || (channel === 'fb-messenger' ? (cfg.channels?.['fb-messenger']?.appId || env.FB_MESSENGER_APP_ID || '') : ''),
+      pageAccessToken: channel === 'fb-messenger' ? (cfg.channels?.['fb-messenger']?.pageAccessToken || env.FB_MESSENGER_PAGE_ACCESS_TOKEN || '') : '',
+      appSecret: channel === 'fb-messenger' ? (cfg.channels?.['fb-messenger']?.appSecret || env.FB_MESSENGER_APP_SECRET || '') : '',
+      verifyToken: channel === 'fb-messenger' ? (cfg.channels?.['fb-messenger']?.verifyToken || env.FB_MESSENGER_VERIFY_TOKEN || '') : '',
       });
     });
   }));
@@ -2168,9 +2305,17 @@ async function deleteBotInProject(projectDir, agentId) {
     if (cfg.tools.agentToAgent.allow.length < 2) delete cfg.tools.agentToAgent;
   }
 
+  const unlinkPages = [];
   for (const binding of removedBindings) {
     const accountId = binding.match?.accountId;
     if (binding.match?.channel === 'telegram' && accountId && cfg.channels?.telegram?.accounts) delete cfg.channels.telegram.accounts[accountId];
+    // relay Facebook: the account key is the Page ID; drop it and tell Connect the Page is free.
+    if (binding.match?.channel === 'fb-messenger' && accountId && accountId !== 'default' && cfg.channels?.['fb-messenger']?.accounts?.[accountId]) {
+      delete cfg.channels['fb-messenger'].accounts[accountId];
+      const fb = cfg.channels['fb-messenger'];
+      if (fb.defaultAccount === accountId) { const rest = Object.keys(fb.accounts || {}); if (rest.length) fb.defaultAccount = rest[0]; else delete fb.defaultAccount; }
+      unlinkPages.push(accountId);
+    }
   }
   if (cfg.channels?.telegram?.accounts?.[agentId]) delete cfg.channels.telegram.accounts[agentId];
 
@@ -2178,10 +2323,25 @@ async function deleteBotInProject(projectDir, agentId) {
   // (e.g. a Telegram channel whose only bot was just removed). An enabled channel with no account
   // keeps erroring in `channels status` ("not configured") and shows a broken card.
   const stillReferenced = new Set((cfg.bindings || []).map((b) => b.match?.channel).filter(Boolean));
+  const droppedChannels = [];
   for (const ch of new Set(removedBindings.map((b) => b.match?.channel).filter(Boolean))) {
     const chCfg = cfg.channels?.[ch];
     if (chCfg && !stillReferenced.has(ch) && Object.keys(chCfg.accounts || {}).length === 0) {
       delete cfg.channels[ch];
+      droppedChannels.push(ch);
+    }
+  }
+  for (const pageId of unlinkPages) {
+    await unlinkFbPage(projectDir, pageId).catch((err) => sendLog(`[fb-messenger] Connect unlink ${pageId} skipped: ${err.message}`));
+  }
+  // The FB secrets also have a copy in .env (Docker / hand-run CLI). Dropping the channel but
+  // leaving a live Page token behind in a plain-text file is how tokens leak into backups.
+  if (droppedChannels.includes('fb-messenger')) {
+    const envPath = join(projectDir, '.env');
+    if (existsSync(envPath)) {
+      const before = await fsp.readFile(envPath, 'utf8');
+      const after = before.replace(/^(FB_MESSENGER_(?:PAGE_ACCESS_TOKEN|APP_SECRET|VERIFY_TOKEN|APP_ID))=.*$/gm, '$1=');
+      if (after !== before) await fsp.writeFile(envPath, after, 'utf8');
     }
   }
 
@@ -2354,8 +2514,16 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
   const fbAppSecret = String(body.appSecret || '').trim();
   const fbVerifyToken = String(body.verifyToken || '').trim();
   const fbAppId = String(body.appId || '').trim();
-  if (channel === 'fb-messenger' && (!fbPageToken || !fbVerifyToken)) {
-    throw httpError(400, 'Page Access Token and Verify Token are required for Facebook Messenger');
+  const fbPageName = String(body.pageName || '').trim().slice(0, 120);
+  const fbInstagramId = String(body.instagramId || '').trim();
+  // relay (default, MonkeyTech Connect): only a Page ID chosen through the connect session.
+  // webhook (own Meta app): token + verify token, as in 0.1.
+  const fbTransport = channel === 'fb-messenger' ? (body.transport === 'webhook' || (!body.transport && fbPageToken) ? 'webhook' : 'relay') : null;
+  if (fbTransport === 'webhook' && (!fbPageToken || !fbVerifyToken)) {
+    throw httpError(400, 'Page Access Token and Verify Token are required for Facebook Messenger (webhook mode)');
+  }
+  if (fbTransport === 'relay' && !/^\d{3,32}$/.test(fbPageId)) {
+    throw httpError(400, 'Chưa chọn Trang Facebook. Bấm "Kết nối Trang Facebook" và chọn Trang trước khi tạo bot.');
   }
 
   const requestedBotName = String(body.botName || '').trim() || 'OpenClaw Bot';
@@ -2437,14 +2605,36 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     zc.accounts[accountId] = zc.accounts[accountId] || { enabled: true };
     zc.defaultAccount = zc.defaultAccount || 'default';
     cfg.bindings.push({ agentId, match: { channel: 'zalo-connect', accountId } });
+  } else if (channel === 'fb-messenger' && fbTransport === 'relay') {
+    // MonkeyTech Connect relay: one account per Page, keyed by Page ID. The Page must have been
+    // linked to this bot's botKey through a connect session (relay.json exists), otherwise the
+    // plugin would start with nothing to poll.
+    const existingTransport = fbTransportOf(cfg);
+    if (existingTransport === 'webhook') {
+      throw httpError(400, 'Project này đang dùng Facebook theo chế độ webhook (app Meta riêng). Không trộn hai chế độ trong một project.');
+    }
+    if (!(await readRelayCredential(projectDir))) {
+      throw httpError(409, 'Bot chưa đăng ký với MonkeyTech Connect - bấm "Kết nối Trang Facebook" trước.');
+    }
+    if (cfg.bindings.some((b) => b.match?.channel === 'fb-messenger' && b.match?.accountId === fbPageId)) {
+      throw httpError(400, `Trang ${fbPageId} đã có bot trong project này. Sửa bot đó hoặc chọn Trang khác.`);
+    }
+    ensureFbRelayAccount(cfg, { pageId: fbPageId, name: fbPageName, instagramId: fbInstagramId });
+    cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: fbPageId } });
   } else if (channel === 'fb-messenger') {
-    // Token handling (user token → permanent Page token) is done by the fb-messenger
-    // plugin itself; here we just persist whatever the user supplied plus the App ID
-    // (the plugin needs it to exchange the token).
-    ensureFbMessengerChannel(cfg, fbPageId, fbAppId);
-    const hasFbBinding = cfg.bindings.some((b) => b.match?.channel === 'fb-messenger');
-    if (!hasFbBinding) cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: 'default' } });
-    else warning = 'Facebook Messenger already has a channel binding; new agent created, route manually if needed.';
+    // webhook mode (own Meta app): token handling (user token to permanent Page token) is done by
+    // the plugin itself; here we persist what the user supplied plus the App ID.
+    // One Page per project in this mode (the root block is single-account). The old behaviour
+    // created a second, unbound agent AND overwrote the first bot's Page token.
+    if (fbTransportOf(cfg) === 'relay') {
+      throw httpError(400, 'Project này đang dùng Facebook qua MonkeyTech Connect. Không trộn hai chế độ trong một project.');
+    }
+    if (cfg.bindings.some((b) => b.match?.channel === 'fb-messenger')) {
+      throw httpError(400, 'Chế độ webhook chỉ hỗ trợ một Trang mỗi project. Sửa bot Facebook đang có thay vì tạo bot mới.');
+    }
+    ensureFbMessengerChannel(cfg, fbPageId, fbAppId, { pageAccessToken: fbPageToken, appSecret: fbAppSecret, verifyToken: fbVerifyToken });
+    cfg.channels['fb-messenger'].transport = 'webhook';
+    cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: 'default' } });
     await appendEnvValue(projectDir, 'FB_MESSENGER_PAGE_ACCESS_TOKEN', fbPageToken);
     await appendEnvValue(projectDir, 'FB_MESSENGER_APP_SECRET', fbAppSecret);
     await appendEnvValue(projectDir, 'FB_MESSENGER_VERIFY_TOKEN', fbVerifyToken);
@@ -2515,7 +2705,11 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   const agent = cfg.agents.list.find((a) => a.id === agentId);
   if (!agent) throw httpError(404, 'Bot not found');
 
-  const channel = body.channel || (cfg.bindings || []).find((b) => b.agentId === agentId)?.match?.channel || 'telegram';
+  // Fall back through mapAgentChannel so a raw binding id (`zalo-connect`, `zalo`) never leaks
+  // in here: those are not UI keys, and the branches below compare against UI keys, so a body
+  // without `channel` used to drop every non-Telegram bot into the Zalo Bot API branch.
+  const mappedChannel = mapAgentChannel(agentId, cfg);
+  const channel = body.channel || (mappedChannel !== 'unknown' ? mappedChannel : 'telegram');
   const token = String(body.token || '').trim();
   const botName = uniqueDisplayName(String(body.botName || agent.name || agentId).trim() || agent.name || agentId, new Set(cfg.agents.list.filter((a) => a.id !== agentId).map((a) => a.name || a.id)));
   const botDesc = String(body.role || body.botDesc || agent.role || agent.desc || agent.description || '').trim();
@@ -2566,14 +2760,28 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     zc.accounts[accountId] = zc.accounts[accountId] || { enabled: true };
     zc.defaultAccount = zc.defaultAccount || 'default';
     cfg.bindings.push({ agentId, match: { channel: 'zalo-connect', accountId } });
+  } else if (channel === 'fb-messenger' && fbTransportOf(cfg) === 'relay') {
+    // relay: a reconnect may pick another Page -> move the account to the new Page ID. Blank keeps the old one.
+    const prevPage = previousAccountId('fb-messenger');
+    const nextPage = String(body.pageId || '').trim() || prevPage;
+    if (!/^\d{3,32}$/.test(String(nextPage || ''))) throw httpError(400, 'Chưa chọn Trang Facebook cho bot này.');
+    if (nextPage !== prevPage && cfg.bindings.some((b) => b.match?.channel === 'fb-messenger' && b.match?.accountId === nextPage)) {
+      throw httpError(400, `Trang ${nextPage} đã có bot khác trong project này.`);
+    }
+    const fb = cfg.channels['fb-messenger'];
+    const prevAccount = (prevPage && fb.accounts?.[prevPage]) || {};
+    if (prevPage && nextPage !== prevPage && fb.accounts) delete fb.accounts[prevPage];
+    ensureFbRelayAccount(cfg, { pageId: nextPage, name: String(body.pageName || '').trim().slice(0, 120) || prevAccount.name, instagramId: String(body.instagramId || '').trim() || prevAccount.instagramId });
+    if (fb.defaultAccount === prevPage && nextPage !== prevPage) fb.defaultAccount = nextPage;
+    cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: nextPage } });
   } else if (channel === 'fb-messenger') {
-    ensureFbMessengerChannel(cfg, String(body.pageId || '').trim(), String(body.appId || '').trim());
-    cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: 'default' } });
     // Update secrets only when re-supplied (edit form leaves them blank to keep existing).
     const fbPageToken = String(body.pageAccessToken || '').trim();
     const fbAppSecret = String(body.appSecret || '').trim();
     const fbVerifyToken = String(body.verifyToken || '').trim();
     const fbAppIdIn = String(body.appId || '').trim();
+    ensureFbMessengerChannel(cfg, String(body.pageId || '').trim(), fbAppIdIn, { pageAccessToken: fbPageToken, appSecret: fbAppSecret, verifyToken: fbVerifyToken });
+    cfg.bindings.push({ agentId, match: { channel: 'fb-messenger', accountId: previousAccountId('fb-messenger') || 'default' } });
     if (fbPageToken) await appendEnvValue(projectDir, 'FB_MESSENGER_PAGE_ACCESS_TOKEN', fbPageToken);
     if (fbAppSecret) await appendEnvValue(projectDir, 'FB_MESSENGER_APP_SECRET', fbAppSecret);
     if (fbVerifyToken) await appendEnvValue(projectDir, 'FB_MESSENGER_VERIFY_TOKEN', fbVerifyToken);
@@ -2612,7 +2820,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
         } else {
           envContent += `\nTELEGRAM_BOT_TOKEN=${token}\n`;
         }
-      } else if (channel === 'zalo') {
+      } else if (channel === 'zalo-bot') {
         if (envContent.includes('ZALO_BOT_TOKEN=')) {
           envContent = envContent.replace(/ZALO_BOT_TOKEN=.*/g, `ZALO_BOT_TOKEN=${token}`);
         } else {
@@ -4026,6 +4234,10 @@ async function ensureNativePlugins(projectDir, { restart = false } = {}) {
   // install has no container entrypoint to fetch it, so without this the config declares
   // `channels.zalo` while no plugin can serve it and the bot never receives a message.
   if (cfg?.channels?.zalo || cfg?.plugins?.entries?.zalo) wanted.add('zalo');
+  // Facebook Messenger: same shape as Zalo Bot API - an external channel plugin that nothing on
+  // a native host fetches unless we do. The wizard only showed a "please install" modal, so a
+  // native FB bot stayed dark until someone clicked the card (measured 25/10/2026).
+  if (cfg?.channels?.['fb-messenger'] || cfg?.plugins?.entries?.['fb-messenger']) wanted.add('fb-messenger');
   const installed = [];
   for (const id of wanted) {
     const dir = join(projectDir, '.openclaw', 'extensions', id);
@@ -7115,6 +7327,10 @@ async function applyFeatureToggle(projectDir, agentId, kind, id, enabled) {
       'openclaw-zalo-mod': ['zalo-mod', 'openclaw-zalo-mod'],
       'openclaw-facebook-crawler': ['openclaw-facebook-crawler', 'openclaw-n8n-facebook-crawler', 'n8n-facebook-crawler'],
       'openclaw-n8n-facebook-poster': ['openclaw-n8n-facebook-poster', 'openclaw-facebook-poster', 'facebook-poster'],
+      // Config key is the channel id `fb-messenger`; the ClawHub package is `openclaw-fb-messenger`.
+      // Without this row a click on the card wrote a second entry under the package name, and the
+      // allowlist then carried an id no plugin manifest declares.
+      'openclaw-fb-messenger': ['fb-messenger', 'openclaw-fb-messenger'],
     };
     const aliases = pluginAliasMap[id] || [id];
     const existingKey = aliases.find((a) => cfg.plugins.entries[a]) || aliases[0];
@@ -7209,6 +7425,8 @@ const PLUGIN_NPM_SPEC = {
   'duckduckgo': '@openclaw/duckduckgo-plugin',
   // Zalo Bot API channel - also a plain npm package under openclaw's own scope.
   'zalo': '@openclaw/zalo',
+  // Facebook Messenger channel: config key `fb-messenger`, ClawHub package `openclaw-fb-messenger`.
+  'fb-messenger': FB_PLUGIN_SPEC,
 };
 const pluginInstallSpec = (id) => PLUGIN_NPM_SPEC[id] || `clawhub:${id}`;
 
@@ -7373,6 +7591,7 @@ async function installFeature(projectDir, agentId, kind, id) {
         'openclaw-zalo-mod': ['zalo-mod', 'openclaw-zalo-mod'],
         'openclaw-facebook-crawler': ['openclaw-facebook-crawler', 'openclaw-n8n-facebook-crawler', 'n8n-facebook-crawler'],
         'openclaw-n8n-facebook-poster': ['openclaw-n8n-facebook-poster', 'openclaw-facebook-poster', 'facebook-poster'],
+        'openclaw-fb-messenger': ['fb-messenger', 'openclaw-fb-messenger'],
       };
       const aliases = pluginAliasMap[id] || [id];
 
@@ -8120,6 +8339,32 @@ async function handler(req, res, rootProjectDir) {
       const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
       return json(res, await getZaloHealth(projectDir));
     }
+    // Facebook Page / Instagram via MonkeyTech Connect
+    if (url.pathname === '/api/fb/connect/start' && req.method === 'POST') {
+      const body = await readJson(req).catch(() => ({}));
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
+      const started = await startFbConnect(projectDir);
+      sendLog(`[fb-messenger] connect session ${started.sessionId} opened (${connectBaseUrl()})`);
+      return json(res, { ok: true, ...started });
+    }
+    if (url.pathname.startsWith('/api/fb/connect/') && req.method === 'GET') {
+      const sessionId = decodeURIComponent(url.pathname.replace('/api/fb/connect/', ''));
+      const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
+      const session = await getFbConnectSession(projectDir, sessionId);
+      if (session.status === 'done') fbHealthCache.delete(projectDir);
+      return json(res, { ok: true, ...session });
+    }
+    if (url.pathname === '/api/fb/health' && req.method === 'GET') {
+      const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
+      return json(res, await getFbHealth(projectDir));
+    }
+    if (url.pathname === '/api/fb/disconnect' && req.method === 'POST') {
+      const body = await readJson(req).catch(() => ({}));
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
+      await unlinkFbPage(projectDir, String(body.pageId || ''));
+      fbHealthCache.delete(projectDir);
+      return json(res, { ok: true });
+    }
     if (url.pathname.startsWith('/api/bot/') && req.method === 'DELETE' && !url.pathname.startsWith('/api/bot/files/')) {
       const agentId = decodeURIComponent(url.pathname.replace('/api/bot/', ''));
       const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
@@ -8500,4 +8745,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { syncOwnerAllowFrom, repointWorkspaceDocPaths, workspaceDocPaths, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
+export { listConfiguredBots, startFbConnect, getFbConnectSession, getFbHealth, ensureConnectBot, readRelayCredential, syncOwnerAllowFrom, repointWorkspaceDocPaths, workspaceDocPaths, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };

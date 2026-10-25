@@ -65,6 +65,15 @@
   const ZALO_CONNECT_VERSION = 'latest';
   const ZALO_CONNECT_PLUGIN_SPEC = 'clawhub:openclaw-zalo-connect';
 
+  // ── MonkeyTech Connect - Facebook Page / Instagram relay ───────────────────
+  // One reviewed Meta app for every customer: the Page owner clicks "Continue with Facebook" on
+  // Connect, Connect receives the Meta webhooks and the bot long-polls them (openclaw-fb-messenger
+  // 0.2 `transport: relay`). The bot never holds a Page token or the App Secret, only a botKey that
+  // Setup writes to <state>/credentials/fb-messenger/relay.json.
+  const META_CONNECT_URL = 'https://connect.monkeytech.vn';
+  const FB_CHANNEL_ID = 'fb-messenger';
+  const FB_PLUGIN_SPEC = 'clawhub:openclaw-fb-messenger';
+
   function buildRelayPluginInstallCommand(prefix = 'openclaw') {
     return `if [ ! -d "$OPENCLAW_STATE_DIR/extensions/${TELEGRAM_RELAY_PLUGIN_ID}" ]; then ${prefix} plugins install ${TELEGRAM_RELAY_PLUGIN_SPEC} 2>/dev/null || true; fi`;
   }
@@ -350,6 +359,9 @@ If setup reported a plugin install error, run this after the bot is running:
     ZALO_PLUGIN_ID,
     ZALO_CONNECT_VERSION,
     ZALO_CONNECT_PLUGIN_SPEC,
+    META_CONNECT_URL,
+    FB_CHANNEL_ID,
+    FB_PLUGIN_SPEC,
     buildRelayPluginInstallCommand,
     buildRelayPluginInstallCommandWin,
     buildTelegramPostInstallChecklist,

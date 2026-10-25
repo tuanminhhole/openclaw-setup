@@ -86,6 +86,26 @@
       },
       pluginInstall: '',
     },
+    'fb-messenger': {
+      name: 'Facebook Messenger',
+      envKeys: [],
+      envExtra: 'FB_MESSENGER_PAGE_ACCESS_TOKEN=<your_page_access_token>\nFB_MESSENGER_VERIFY_TOKEN=<your_verify_token>\nFB_MESSENGER_APP_ID=<your_meta_app_id>\nFB_MESSENGER_APP_SECRET=<your_meta_app_secret>',
+      credSteps: [
+        { textVi: 'Kênh chạy qua plugin <strong>openclaw-fb-messenger</strong> (webhook + Graph API). Cần <strong>Page Access Token</strong> và <strong>Verify Token</strong> (chuỗi bạn tự đặt); App ID + App Secret để plugin đổi token ngắn hạn sang token Trang không hết hạn và kiểm chữ ký webhook.', textEn: 'Runs on the <strong>openclaw-fb-messenger</strong> plugin (webhook + Graph API). Needs a <strong>Page Access Token</strong> and a <strong>Verify Token</strong> (any string you choose); App ID + App Secret let the plugin mint a non-expiring Page token and verify webhook signatures.' },
+        { textVi: 'Webhook của Meta phải gọi tới được <strong>HTTPS công khai</strong>: trỏ <code>https://&lt;domain&gt;/webhooks/messenger</code> về cổng gateway (reverse proxy hoặc tunnel). Máy không có domain thì chưa dùng được kênh này; bản tiếp theo sẽ có nút "Kết nối Trang Facebook" không cần webhook riêng.', textEn: 'Meta webhooks must reach a <strong>public HTTPS</strong> URL: route <code>https://&lt;domain&gt;/webhooks/messenger</code> to the gateway port (reverse proxy or tunnel). Without a domain this channel cannot receive messages yet; the next release adds a "Connect Facebook Page" button that needs no webhook of your own.' },
+        { textVi: 'Trong Meta Dashboard → Webhooks → Page: dán Callback URL + Verify Token, subscribe <code>messages</code>, <code>messaging_postbacks</code>. Plugin tự gọi <code>subscribed_apps</code> cho Trang khi khởi động.', textEn: 'In Meta Dashboard → Webhooks → Page: paste the Callback URL + Verify Token, subscribe <code>messages</code> and <code>messaging_postbacks</code>. The plugin calls <code>subscribed_apps</code> for the Page on startup.' },
+      ],
+      // Mirrors buildFbMessengerChannelConfig() in bot-config-gen.js (strict plugin schema).
+      channelConfig: {
+        'fb-messenger': {
+          enabled: true,
+          dmPolicy: 'open',
+          allowFrom: ['*'],
+          historyLimit: 50,
+        },
+      },
+      pluginInstall: 'clawhub:openclaw-fb-messenger',
+    },
   };
 
   // ========== Default system prompts ==========

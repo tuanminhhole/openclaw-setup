@@ -21,6 +21,31 @@
     return channelKey === 'zalo-personal';
   }
 
+  function isFbMessenger(channelKey) {
+    return channelKey === 'fb-messenger';
+  }
+
+  // channels['fb-messenger'] block for a NEW project. Keys validated against the strict
+  // channel schema of openclaw-fb-messenger 0.1.1 (`additionalProperties: false`): name,
+  // enabled, pageId, pageAccessToken, appId, appSecret, verifyToken, graphApiVersion, dmPolicy,
+  // allowFrom, historyLimit, markdown, messagePrefix, responsePrefix, defaultAccount, accounts.
+  // The secrets are written by the wizard/dashboard into this same block (see
+  // ensureFbMessengerChannel in local-server.js): a native gateway has no EnvironmentFile and
+  // does not read .env, so a token that only lives in .env never reaches the plugin.
+  function buildFbMessengerChannelConfig(meta = {}) {
+    const block = {
+      enabled: true,
+      dmPolicy: 'open',
+      allowFrom: ['*'],
+      historyLimit: 50,
+    };
+    for (const key of ['pageId', 'appId', 'pageAccessToken', 'appSecret', 'verifyToken']) {
+      const value = String(meta[key] || '').trim();
+      if (value) block[key] = value;
+    }
+    return block;
+  }
+
   // ── Helper: generate a random token (works in both browser + Node) ──────────
   function generateToken() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -403,6 +428,16 @@
       }
     }
 
+    // ── bindings for fb-messenger ────────────────────────────────────────────────
+    // One Page per project for now; the dashboard refuses a second FB binding with a warning.
+    if (agentMetas.length > 0 && isFbMessenger(channelKey)) {
+      cfg.bindings = cfg.bindings || [];
+      const firstAgentId = agentMetas[0]?.agentId || 'bot';
+      if (!cfg.bindings.some(b => b.match && b.match.channel === 'fb-messenger')) {
+        cfg.bindings.push({ agentId: firstAgentId, match: { channel: 'fb-messenger', accountId: 'default' } });
+      }
+    }
+
     return cfg;
   }
 
@@ -479,6 +514,10 @@
         allowFrom: ['*'],
         groupPolicy: 'open',
       };
+    } else if (isFbMessenger(channelKey)) {
+      // Facebook Messenger via the external `openclaw-fb-messenger` channel plugin (webhook +
+      // Graph API). Single account for now; the first agent's meta may carry the Page fields.
+      channels['fb-messenger'] = buildFbMessengerChannelConfig(agentMetas[0] || {});
     }
 
     return channels;
@@ -544,6 +583,14 @@
     if (channelKey === 'zalo-bot') {
       entries['zalo'] = { enabled: true };
       allow.push('zalo');
+    }
+
+    // Facebook Messenger: external channel plugin, same allowlist rule as `zalo` above. The
+    // config key is the channel id `fb-messenger` (the ClawHub package is openclaw-fb-messenger);
+    // ensureNativePlugins installs it on native, the dashboard card on Docker.
+    if (isFbMessenger(channelKey)) {
+      entries['fb-messenger'] = { enabled: true };
+      allow.push('fb-messenger');
     }
 
     // DuckDuckGo search plugin for web-search
@@ -672,6 +719,13 @@
         // openclaw.json (a native gateway unit has no EnvironmentFile, so .env is reference
         // material only); this line stays so a hand-run `openclaw` picks the same account up.
         lines.push(`ZALO_BOT_TOKEN=${botToken || '<your_zalo_bot_token>'}`);
+      } else if (isFbMessenger(channelKey)) {
+        // Reference copy only (see the Zalo note above): the gateway reads these from
+        // channels['fb-messenger'] in openclaw.json. Kept so Docker and a hand-run CLI agree.
+        lines.push(`FB_MESSENGER_PAGE_ACCESS_TOKEN=${botToken || '<your_page_access_token>'}`);
+        lines.push('FB_MESSENGER_VERIFY_TOKEN=<your_verify_token>');
+        lines.push('FB_MESSENGER_APP_ID=<your_meta_app_id>');
+        lines.push('FB_MESSENGER_APP_SECRET=<your_meta_app_secret>');
       }
     }
 
@@ -705,6 +759,7 @@
     buildOpenclawJson,
     buildChannelConfig,
     buildZaloConnectChannelConfig,
+    buildFbMessengerChannelConfig,
     buildPluginsConfig,
     buildSkillsEntries,
     buildExecApprovalsJson,

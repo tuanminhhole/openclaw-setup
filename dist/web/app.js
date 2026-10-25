@@ -1,5 +1,5 @@
 const $ = (sel) => document.querySelector(sel);
-const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', tz: localStorage.getItem('openclaw-tz') || 'Asia/Ho_Chi_Minh', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'native', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, featureLocked: {}, zaloBackend: '', zaloHealth: null, openDirs: {} };
+const state = { tab: 'dashboard', system: null, install: null, files: [], catalog: { skills: [], plugins: [] }, logs: [], zaloLoginOpen: false, zaloLoginLines: [], zaloQrDataUrl: '', lang: localStorage.getItem('openclaw-lang') || 'vi', theme: localStorage.getItem('openclaw-theme') || 'dark', tz: localStorage.getItem('openclaw-tz') || 'Asia/Ho_Chi_Minh', navCollapsed: localStorage.getItem('openclaw-nav')==='1', os: null, mode: null, donateOpen: false, botModalOpen: false, botEditId: '', installModalOpen: false, fbPluginModalOpen: false, installTab: 'native', installDraft: null, pathModal: null, confirmModal: null, botChannel: 'telegram', botPane: 'list', activeBotId: '', selectedFile: '', botMessage: '', projectConnectMessage: '', pendingProjectDir: '', selectedProjectDir: '', featureFlags: {}, featureInstalled: {}, featureLoading: {}, featureLocked: {}, zaloBackend: '', zaloHealth: null, fbHealth: null, fbConnect: null, openDirs: {} };
 const SVG_CDN = 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons';
 const OS_OPTIONS = [
   { id: 'win', title: 'Windows', subtitle: 'Auto-detected desktop', icon: `${SVG_CDN}/windows/default.svg`, badge: 'Desktop' },
@@ -379,36 +379,16 @@ function openComputerUseModal(r = {}) {
   };
 }
 
-// "Later" is a snooze, not a refusal. The first cut stored the dismissal forever, so one stray
-// click on "Để sau" - by the owner, by whoever was at the keyboard - retired the prompt on that
-// machine for good and the project stayed on Docker with nothing left to say so. Come back after
-// this long instead.
-const NATIVE_OFFER_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
-
-function nativeOfferSnoozed(dir) {
-  try {
-    const at = Number(localStorage.getItem('openclaw-native-offer:' + dir) || 0);
-    return at > 0 && (Date.now() - at) < NATIVE_OFFER_SNOOZE_MS;
-  } catch (_) { return false; }  // private window: just ask
-}
-
 /**
- * Offer the move off Docker when we can see a project is still on it.
- *
- * Relying on the operator to press "Update" does not work: nothing on screen says that Update is
- * ALSO the migration, so a machine sits on Docker indefinitely. And it cannot sit there safely -
- * OpenClaw 2026.9 cannot write its own settings through a Docker shared folder on Windows, so the
- * next image rebuild takes the bot down for good. Say that plainly, show what is gained, and make
- * the move one button.
- *
- * The automatic offer is snoozed once dismissed - a prompt that returns on every page load is a
- * prompt people learn to dismiss without reading. `force` is the button in Settings: an operator
- * who went looking for the move is never told to come back in three days.
+ * The move off Docker, opened ONLY from the "Chuyển sang Native" button on a project card in
+ * Settings (5.19.0). It used to pop up by itself whenever the dashboard believed the project was
+ * on Docker, and that belief was a guess: a project with neither a native marker nor a compose
+ * file was reported as Docker, so people who never ran Docker were told their bot was in a
+ * container. The button is explicit and sits where the deploy mode is shown, so the prompt is gone.
  */
 function openNativeMigrationModal(dir, { force = false } = {}) {
+  void force;
   if (!dir) return false;
-  const key = 'openclaw-native-offer:' + dir;
-  if (!force && nativeOfferSnoozed(dir)) return false;
   if (state.confirmModal) return false;    // never stack on top of another dialog
   const rows = [
     ['🖥️', t('Bot điều khiển được máy này', 'Your bot can drive this machine'),
@@ -438,13 +418,10 @@ function openNativeMigrationModal(dir, { force = false } = {}) {
     okText: t('Chuyển ngay', 'Move now'),
     cancelText: t('Để sau', 'Later'),
     onCancel: () => {
-      // "Later" means later, not never - but stop asking on this machine.
-      try { localStorage.setItem(key, String(Date.now())); } catch (_) {}
       state.confirmModal = null;
       render();
     },
     onConfirm: async () => {
-      try { localStorage.setItem(key, String(Date.now())); } catch (_) {}
       state.confirmModal = null;
       render();
       showToast(t('Đang chuyển sang chạy thẳng trên máy', 'Moving off Docker'),
@@ -467,17 +444,6 @@ function openNativeMigrationModal(dir, { force = false } = {}) {
   };
   render();
   return true;
-}
-
-/**
- * The automatic half of the offer: fires off the status refresh, for the project the UI is
- * currently pointed at. Every other docker project on the machine is reachable through the
- * "Chuyển sang Native" button on its card in Settings.
- */
-function maybeOfferNativeMigration() {
-  const s = state.install || {};
-  if (s.deployMode !== 'docker') return;
-  openNativeMigrationModal(s.projectDir || '');
 }
 
 async function pickFolderPathShared() {
@@ -1037,7 +1003,7 @@ function botView() {
         <div class="bot-main-content" style="margin-top: 14px;">
           <div class="card-head" style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
             <h3 style="margin: 0; font-size: 16px;">${t('Danh sách bot','Bot list')}</h3>
-            ${(ch === 'zalo-personal' && channelBots.length > 0) ? zaloToolbar(channelBots) : ''}
+            ${(ch === 'zalo-personal' && channelBots.length > 0) ? zaloToolbar(channelBots) : ''}${(ch === 'fb-messenger' && channelBots.length > 0) ? fbToolbar() : ''}
           </div>
           <div class="channel-tabs" style="margin-bottom: 16px;">${BOT_CHANNELS.map(c => c.comingSoon
             ? `<button class="is-coming-soon" disabled title="${t('Sắp ra mắt','Coming soon')}"><img src="${c.icon}" onerror="this.style.display='none'"/>${c.title}<span>${t('Sắp','Soon')}</span></button>`
@@ -1100,20 +1066,7 @@ function botCreateForm(ch, empty, data = {}) {
       ${!isFb ? `<label><span>Emoji</span><input name="emoji" maxlength="8" placeholder="\uD83E\uDD16" value="${escapeHtml(data.emoji || '')}"/></label>` : ''}
       ${needsToken ? `<label><span>Token</span><input name="token" ${tokenRequired ? 'required' : ''} autocomplete="off" placeholder="${ch==='telegram'?'123456:ABC...':'Zalo OA token'}" value="${escapeHtml(data.token || '')}"/></label>` : `<input name="token" type="hidden" value="${escapeHtml(data.token || '')}"/>`}
       ${ch === 'telegram' ? `<label class="wide"><span>${t('Tên gọi trong nhóm','Names in groups')}</span><input name="mentionNames" autocomplete="off" placeholder="${t('Kỳ Môn ơi, km ơi','Kymon, hey km')}" value="${escapeHtml(data.mentionNames || '')}"/><small>${t('Cách nhau bằng dấu phẩy, tối đa 10 tên. Trong nhóm, bot chỉ trả lời khi được tag @username hoặc khi tin nhắn có một trong các tên này (không phân biệt hoa thường, phải đúng dấu). Để trống thì giữ mặc định (gọi bằng tag @username). Cần vào BotFather gõ /setprivacy, chọn Disable, rồi xoá và thêm lại bot vào nhóm thì bot mới nhận được tin không tag.','Comma-separated, up to 10. In groups the bot only replies when tagged @username or when a message contains one of these names (case-insensitive). Leave empty to keep the default (tag @username). Turn off privacy mode in BotFather (/setprivacy, Disable), then remove and re-add the bot to the group so it can see untagged messages.')}</small></label>` : ''}
-      ${isFb ? `
-        <div class="fb-fields">
-          <div class="fb-row3">
-            <label><span>Emoji</span><input name="emoji" maxlength="8" placeholder="🤖" value="${escapeHtml(data.emoji || '')}"/></label>
-            <label><div class="fb-label-row"><span>Page ID</span><a class="fb-help-link" href="https://monkeytech.io.vn/tools" target="_blank" rel="noopener">🔎 ${t('Lấy Page ID','Get Page ID')}</a></div><input name="pageId" autocomplete="off" placeholder="601677496361008" value="${escapeHtml(data.pageId || '')}"/></label>
-            <label><span>Verify Token</span><input name="verifyToken" ${fbRequired ? 'required' : ''} autocomplete="off" placeholder="my-verify-token" value="${escapeHtml(data.verifyToken || '')}"/></label>
-          </div>
-          <div class="fb-row2">
-            <label><span>App ID</span><input name="appId" autocomplete="off" placeholder="App ID" value="${escapeHtml(data.appId || '')}"/></label>
-            <label><span>App Secret</span><input name="appSecret" autocomplete="off" placeholder="App Secret" value="${escapeHtml(data.appSecret || '')}"/></label>
-          </div>
-          <label class="fb-wide"><span>Page Access Token</span><input name="pageAccessToken" ${fbRequired ? 'required' : ''} autocomplete="off" placeholder="EAAB..." value="${escapeHtml(data.pageAccessToken || '')}"/></label>
-        </div>
-      ` : ''}
+      ${isFb ? fbChannelFields(data) : ''}
       <label class="wide"><span>${t('\u0054\u00ednh c\u00e1ch','Personality')}</span><textarea name="personality" rows="3" placeholder="${t('\u0054h\u00e2n thi\u1ec7n, r\u00f5 r\u00e0ng, ch\u1ee7 \u0111\u1ed9ng.','Friendly, clear, proactive.')}">${escapeHtml(data.personality || '')}</textarea></label>
       <label><span>${t('\u0054\u00ean user','User name')}</span><input name="userName" placeholder="${t('\u0054\u00ean c\u1ee7a b\u1ea1n','Your name')}" value="${escapeHtml(data.userName || '')}"/></label>
       <label><span>${t('\u004d\u00f4 t\u1ea3 user','User description')}</span><input name="userDescription" placeholder="${t('\u0053\u1edf th\u00edch, ng\u1eef c\u1ea3nh, c\u00e1ch x\u01b0ng h\u00f4...','Preferences, context, address style...')}" value="${escapeHtml(data.userDescription || '')}"/></label>
@@ -1122,10 +1075,99 @@ function botCreateForm(ch, empty, data = {}) {
   </form>`;
 }
 
+// Facebook: relay through MonkeyTech Connect by default (no token on this machine), the old
+// own-Meta-app webhook fields stay behind an "advanced" toggle. Hidden inputs carry what the
+// connect session chose; the status box is patched in place so typed fields survive.
+function fbChannelFields(data = {}) {
+  const advanced = data.transport === 'webhook';
+  const picked = data.pageId ? { id: data.pageId, name: data.pageName || '', igUsername: '' } : null;
+  return `
+        <div class="fb-fields" data-fb-fields data-fb-mode="${advanced ? 'webhook' : 'relay'}">
+          <input type="hidden" name="transport" value="${advanced ? 'webhook' : 'relay'}" data-fb-transport/>
+          <input type="hidden" name="pageId" value="${escapeHtml(advanced ? '' : (data.pageId || ''))}" data-fb-page-id/>
+          <input type="hidden" name="pageName" value="${escapeHtml(data.pageName || '')}" data-fb-page-name/>
+          <input type="hidden" name="instagramId" value="${escapeHtml(data.instagramId || '')}" data-fb-instagram-id/>
+          <div class="fb-row2">
+            <label><span>Emoji</span><input name="emoji" maxlength="8" placeholder="🤖" value="${escapeHtml(data.emoji || '')}"/></label>
+            <div class="fb-connect-box" data-fb-relay-only ${advanced ? 'hidden' : ''}>
+              <div class="fb-connect-head"><span>${t('Trang Facebook','Facebook Page')}</span><button class="secondary btn-inline" type="button" data-fb-connect>${actionIcon('key')}<span>${picked ? t('Kết nối lại','Reconnect') : t('Kết nối Trang Facebook','Connect Facebook Page')}</span></button></div>
+              <div class="fb-connect-status" data-fb-connect-status>${fbConnectStatusHtml(picked)}</div>
+            </div>
+          </div>
+          <small class="fb-connect-note" data-fb-relay-only ${advanced ? 'hidden' : ''}>${t('Chủ Trang bấm "Tiếp tục với Facebook" trên MonkeyTech Connect một lần. Bot không giữ token, không cần HTTPS riêng, nhận cả Instagram Direct nếu Trang đã gắn tài khoản Instagram chuyên nghiệp.','The Page owner clicks "Continue with Facebook" on MonkeyTech Connect once. The bot holds no token, needs no public HTTPS, and also receives Instagram Direct if the Page has a professional Instagram account.')} <a href="#" data-fb-advanced="on">${t('Dùng app Meta riêng (nâng cao)','Use your own Meta app (advanced)')}</a></small>
+          <div data-fb-webhook-only ${advanced ? '' : 'hidden'}>
+            <div class="fb-row3">
+              <label><div class="fb-label-row"><span>Page ID</span><a class="fb-help-link" href="https://monkeytech.io.vn/tools" target="_blank" rel="noopener">🔎 ${t('Lấy Page ID','Get Page ID')}</a></div><input name="webhookPageId" autocomplete="off" placeholder="601677496361008" value="${escapeHtml(advanced ? (data.pageId || '') : '')}"/></label>
+              <label><span>Verify Token</span><input name="verifyToken" autocomplete="off" placeholder="my-verify-token" value="${escapeHtml(data.verifyToken || '')}"/></label>
+              <label><span>App ID</span><input name="appId" autocomplete="off" placeholder="App ID" value="${escapeHtml(data.appId || '')}"/></label>
+            </div>
+            <div class="fb-row2">
+              <label><span>App Secret</span><input name="appSecret" autocomplete="off" placeholder="App Secret" value="${escapeHtml(data.appSecret || '')}"/></label>
+              <label><span>Page Access Token</span><input name="pageAccessToken" autocomplete="off" placeholder="EAAB..." value="${escapeHtml(data.pageAccessToken || '')}"/></label>
+            </div>
+            <small class="fb-connect-note">${t('Chế độ webhook: Meta gọi thẳng vào gateway, cần HTTPS công khai và App Secret.','Webhook mode: Meta calls this gateway directly; needs public HTTPS and the App Secret.')} <a href="#" data-fb-advanced="off">${t('Quay lại kết nối qua MonkeyTech Connect','Back to MonkeyTech Connect')}</a></small>
+          </div>
+        </div>`;
+}
+function fbConnectStatusHtml(picked, extra = '') {
+  if (!picked) return `<em class="warn">${t('Chưa chọn Trang','No Page selected')}</em>${extra}`;
+  return `<em class="ok">${escapeHtml(picked.name || picked.id)}</em><code>${escapeHtml(picked.id)}</code>${picked.igUsername ? `<span class="fb-ig">Instagram @${escapeHtml(picked.igUsername)}</span>` : ''}${extra}`;
+}
+function fbSetPicked(page) {
+  const box = document.querySelector('[data-fb-connect-status]');
+  const set = (sel, v) => { const el = document.querySelector(sel); if (el) el.value = v || ''; };
+  set('[data-fb-page-id]', page?.id || '');
+  set('[data-fb-page-name]', page?.name || '');
+  set('[data-fb-instagram-id]', page?.igId || '');
+  if (box) box.innerHTML = fbConnectStatusHtml(page ? { id: page.id, name: page.name, igUsername: page.igUsername } : null);
+}
+function fbRenderPagePicker(pages) {
+  const box = document.querySelector('[data-fb-connect-status]');
+  if (!box) return;
+  box.innerHTML = `<label class="fb-pick"><span>${t('Chọn Trang cho bot này','Pick the Page for this bot')}</span><select data-fb-pick>${pages.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name || p.id)}${p.igUsername ? ` (Instagram @${escapeHtml(p.igUsername)})` : ''}</option>`).join('')}</select></label>`;
+  const sel = box.querySelector('[data-fb-pick]');
+  const apply = () => { const p = pages.find((x) => String(x.id) === sel.value); if (p) { const set = (q, v) => { const el = document.querySelector(q); if (el) el.value = v || ''; }; set('[data-fb-page-id]', p.id); set('[data-fb-page-name]', p.name); set('[data-fb-instagram-id]', p.igId); } };
+  sel.onchange = apply;
+  apply();
+}
+let fbConnectPollTimer = null;
+async function fbStartConnect(btn) {
+  if (fbConnectPollTimer) { clearInterval(fbConnectPollTimer); fbConnectPollTimer = null; }
+  const box = document.querySelector('[data-fb-connect-status]');
+  // Open the tab synchronously inside the click, or popup blockers eat it; point it at the URL after.
+  const win = window.open('about:blank', '_blank');
+  let started;
+  try {
+    started = await api('/api/fb/connect/start', { method: 'POST', body: { projectDir: activeProjectDir() } });
+  } catch (err) {
+    if (win) win.close();
+    if (box) box.innerHTML = `<em class="bad">${escapeHtml(err.message)}</em>`;
+    showToast(t('Không mở được kết nối','Could not start connect'), err.message, 'error');
+    return;
+  }
+  if (win) win.location.href = started.connectUrl; else window.open(started.connectUrl, '_blank');
+  state.fbConnect = { sessionId: started.sessionId, startedAt: Date.now() };
+  if (box) box.innerHTML = `<em class="warn">${t('Đang chờ chủ Trang đăng nhập Facebook ở tab mới...','Waiting for the Page owner to log in on the new tab...')}</em><a href="${escapeHtml(started.connectUrl)}" target="_blank" rel="noopener">${t('Mở lại link','Open link again')}</a>`;
+  fbConnectPollTimer = setInterval(async () => {
+    if (!state.fbConnect || Date.now() - state.fbConnect.startedAt > 15 * 60 * 1000) { clearInterval(fbConnectPollTimer); fbConnectPollTimer = null; return; }
+    let s;
+    try { s = await api(`/api/fb/connect/${encodeURIComponent(state.fbConnect.sessionId)}` + projectQuery()); } catch (_) { return; }
+    if (s.status === 'pending') return;
+    clearInterval(fbConnectPollTimer); fbConnectPollTimer = null;
+    state.fbConnect = null;
+    if (s.status !== 'done') { if (box) box.innerHTML = `<em class="bad">${t('Phiên kết nối đã hết hạn, bấm Kết nối lại.','Connect session expired, click Connect again.')}</em>`; return; }
+    const pages = s.pages || [];
+    if (!pages.length) { if (box) box.innerHTML = `<em class="bad">${t('Không có Trang nào được cấp. Bấm Kết nối lại và chọn ít nhất một Trang trong hộp thoại Facebook.','No Page was granted. Click Connect again and pick at least one Page in the Facebook dialog.')}</em>`; return; }
+    if (pages.length === 1) fbSetPicked(pages[0]); else fbRenderPagePicker(pages);
+    showToast(t('Đã kết nối Facebook','Facebook connected'), t(`Đã nhận ${pages.length} Trang từ MonkeyTech Connect.`, `Received ${pages.length} Page(s) from MonkeyTech Connect.`), 'success');
+    state.fbHealth = null;
+    loadFbHealth(true).catch(() => {});
+  }, 2000);
+}
 function botCreateModal() {
   if (!state.botModalOpen) return '';
   const current = (state.install?.bots || []).find((b) => b.id === state.botEditId) || null;
-  const data = current ? { mode: 'edit', channel: current.channel || state.botChannel, botName: current.name, role: current.role || '', token: '', personality: current.persona || '', userName: current.userName || '', userDescription: current.userDescription || '', emoji: current.emoji || '', mentionNames: current.mentionNames || '', pageId: current.pageId || '', appId: current.appId || '', pageAccessToken: current.pageAccessToken || '', appSecret: current.appSecret || '', verifyToken: current.verifyToken || '' } : { mode: 'create' };
+  const data = current ? { mode: 'edit', channel: current.channel || state.botChannel, botName: current.name, role: current.role || '', token: '', personality: current.persona || '', userName: current.userName || '', userDescription: current.userDescription || '', emoji: current.emoji || '', mentionNames: current.mentionNames || '', pageId: current.pageId || '', pageName: current.pageName || '', instagramId: current.instagramId || '', transport: current.transport || '', appId: current.appId || '', pageAccessToken: current.pageAccessToken || '', appSecret: current.appSecret || '', verifyToken: current.verifyToken || '' } : { mode: 'create' };
   const currentChannel = BOT_CHANNELS.find((x) => x.id === ((current && current.channel) || state.botChannel || 'telegram'));
   return `<div class="modal-backdrop bot-modal-backdrop" data-bot-modal="close">
     <section class="donate-modal bot-modal" role="dialog" aria-modal="true" aria-label="${t('\u0054\u1ea1o bot','Create bot')}" onclick="event.stopPropagation()">
@@ -1140,8 +1182,9 @@ function botListPanel(bots) {
   const listItems = bots.map(b => {
     const role = (b.role || b.desc || b.description || '').trim() || t('Tr\u1ee3 l\u00fd OpenClaw','OpenClaw assistant');
     const isZalo = b.channel === 'zalo-personal';
-    const { connection, login, connectionTone, loginTone } = zaloHealthBadges(b);
-    return `<article class="bot-item ${state.activeBotId===b.id?'active':''}" data-bot-id="${escapeHtml(b.id)}"><div class="bot-item-actions"><button class="bot-edit" data-edit-bot="${escapeHtml(b.id)}" title="${t('Sửa bot','Edit bot')}" aria-label="${t('Sửa bot','Edit bot')}">${actionIcon('edit')}</button><button class="bot-delete" data-delete-bot="${escapeHtml(b.id)}" title="${t('X\u00f3a bot','Delete bot')}" aria-label="${t('X\u00f3a bot','Delete bot')}">&times;</button></div><div class="bot-item-title"><b>${escapeHtml(b.name)}</b></div><small title="${escapeHtml(role)}">${escapeHtml(role)}</small>${isZalo ? `<div class="zalo-bot-health"><div><span>${t('Kết nối','Connection')}</span><em class="${connectionTone}">${connection}</em></div><div><span>${t('Đăng nhập','Login')}</span><em class="${loginTone}">${login}</em></div></div>` : ''}</article>`;
+    const isFb = b.channel === 'fb-messenger';
+    const { connection, login, connectionTone, loginTone } = isFb ? fbHealthBadges(b) : zaloHealthBadges(b);
+    return `<article class="bot-item ${state.activeBotId===b.id?'active':''}" data-bot-id="${escapeHtml(b.id)}"><div class="bot-item-actions"><button class="bot-edit" data-edit-bot="${escapeHtml(b.id)}" title="${t('Sửa bot','Edit bot')}" aria-label="${t('Sửa bot','Edit bot')}">${actionIcon('edit')}</button><button class="bot-delete" data-delete-bot="${escapeHtml(b.id)}" title="${t('X\u00f3a bot','Delete bot')}" aria-label="${t('X\u00f3a bot','Delete bot')}">&times;</button></div><div class="bot-item-title"><b>${escapeHtml(b.name)}</b></div><small title="${escapeHtml(role)}">${escapeHtml(role)}</small>${isZalo ? `<div class="zalo-bot-health"><div><span>${t('Kết nối','Connection')}</span><em class="${connectionTone}">${connection}</em></div><div><span>${t('Đăng nhập','Login')}</span><em class="${loginTone}">${login}</em></div></div>` : ''}${isFb ? `<div class="zalo-bot-health fb-bot-health"><div><span>${t('Trang','Page')}</span><em class="${loginTone}">${login}</em></div><div><span>${t('Kết nối','Connection')}</span><em class="${connectionTone}">${connection}</em></div></div>` : ''}</article>`;
   });
   listItems.push(`
     <article class="bot-item bot-create-card" data-bot-modal="open">
@@ -1347,6 +1390,18 @@ function wireTab() {
   document.querySelectorAll('[data-edit-bot]').forEach(btn => btn.onclick = (ev) => { ev.stopPropagation(); state.botEditId = btn.dataset.editBot; state.botChannel = (state.install?.bots || []).find((b) => b.id === state.botEditId)?.channel || state.botChannel; state.botModalOpen = true; state.botMessage = ''; render(); });
   document.querySelectorAll('[data-zalo-login]').forEach(el => el.onclick = () => { const opening = el.dataset.zaloLogin === 'open'; if (!opening && state.zaloLoginOpen) api('/api/zalo/login/cancel', { method: 'POST' }).catch(() => {}); state.zaloLoginOpen = opening; render(); });
   document.querySelectorAll('[data-zalo-health-refresh]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { await loadZaloHealth(); }));
+  document.querySelectorAll('[data-fb-health-refresh]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { state.fbHealth = null; await loadFbHealth(); }));
+  document.querySelectorAll('[data-fb-connect]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => { await fbStartConnect(btn); }));
+  document.querySelectorAll('[data-fb-advanced]').forEach(a => a.onclick = (ev) => {
+    ev.preventDefault();
+    const on = a.dataset.fbAdvanced === 'on';
+    const wrap = a.closest('[data-fb-fields]');
+    if (!wrap) return;
+    wrap.dataset.fbMode = on ? 'webhook' : 'relay';
+    wrap.querySelectorAll('[data-fb-relay-only]').forEach((el) => { el.hidden = on; });
+    wrap.querySelectorAll('[data-fb-webhook-only]').forEach((el) => { el.hidden = !on; });
+    const tr = wrap.querySelector('[data-fb-transport]'); if (tr) tr.value = on ? 'webhook' : 'relay';
+  });
   document.querySelectorAll('[data-zalo-login-trigger]').forEach(btn => btn.onclick = () => withButtonLoading(btn, async () => {
     state.zaloLoginOpen = true;
     state.zaloQrDataUrl = '';
@@ -1757,6 +1812,16 @@ document.querySelectorAll('[data-project-pick-folder]').forEach(btn => btn.oncli
     body.projectDir = activeProjectDir();
     body.channel = state.botChannel || 'telegram';
     body.userTimezone = state.tz;
+    if (body.channel === 'fb-messenger') {
+      if (body.transport === 'webhook') { body.pageId = body.webhookPageId || ''; delete body.pageName; delete body.instagramId; }
+      else if (!body.pageId && !state.botEditId) {
+        state.botMessage = `❌ ${t('Bấm "Kết nối Trang Facebook" và chọn Trang trước khi tạo bot.','Click "Connect Facebook Page" and pick a Page before creating the bot.')}`;
+        showToast(t('Chưa chọn Trang','No Page selected'), t('Bấm Kết nối Trang Facebook trước.','Connect a Facebook Page first.'), 'error');
+        render();
+        return;
+      }
+      delete body.webhookPageId;
+    }
     // Only the CREATE flow starts a Zalo QR login (the server kicks it off and sets
     // loginStarted). Editing a bot (rename, persona...) must never pop the QR modal -
     // the session is already saved and the PUT endpoint starts no login.
@@ -1819,7 +1884,6 @@ async function loadStatus(silent=false){
   if (!silent) render();
   // Status is the first place we can actually see which runtime this project uses, so this is
   // where the Docker project gets told there is a better place to be.
-  maybeOfferNativeMigration();
 }
 function autoSwitchBotChannel() {
   const bots = state.install?.bots || [];
@@ -1876,6 +1940,41 @@ function zaloHealthBadges(bot) {
   const loginTone = !health ? 'warn' : loginFailed ? 'bad' : health.sessionSaved ? 'ok' : 'bad';
   return { health, connection, login, connectionTone, loginTone };
 }
+// Facebook relay badges from /api/fb/health: Page label (name from Connect) + connection
+// (Connect still holds a token for that Page). webhook-mode bots show the configured Page ID.
+function fbHealthBadges(bot) {
+  const h = state.fbHealth;
+  const pageId = bot?.pageId || '';
+  const label = bot?.pageName || (pageId ? `#${pageId}` : t('Chưa chọn Trang','No Page'));
+  if (bot?.transport === 'webhook') return { connection: t('Webhook riêng','Own webhook'), login: label, connectionTone: 'warn', loginTone: pageId ? 'ok' : 'bad' };
+  if (!pageId) return { connection: t('Chưa nối','Not connected'), login: label, connectionTone: 'bad', loginTone: 'bad' };
+  if (!h) return { connection: t('Chưa rõ','Unknown'), login: label, connectionTone: 'warn', loginTone: 'ok' };
+  if (!h.relay?.configured) return { connection: t('Chưa nối Connect','Connect not set up'), login: label, connectionTone: 'bad', loginTone: 'ok' };
+  if (h.error) return { connection: t('Connect không trả lời','Connect unreachable'), login: label, connectionTone: 'warn', loginTone: 'ok' };
+  const page = (h.pages || []).find((p) => String(p.id) === String(pageId));
+  if (!page) return { connection: t('Chưa gắn với bot','Not linked to bot'), login: label, connectionTone: 'bad', loginTone: 'ok' };
+  if (!page.connected) return { connection: t('Mất kết nối','Disconnected'), login: page.name || label, connectionTone: 'bad', loginTone: 'ok' };
+  return { connection: t('Đã kết nối','Connected'), login: page.name || label, connectionTone: 'ok', loginTone: 'ok' };
+}
+function fbToolbar() {
+  return `<div class="zalo-toolbar"><button class="secondary btn-inline" data-fb-health-refresh type="button">${actionIcon('refresh')}<span>${t('Làm mới','Refresh')}</span></button></div>`;
+}
+async function loadFbHealth(silent=false){
+  if (!activeProjectDir()) { state.fbHealth = null; return; }
+  try { state.fbHealth = await api('/api/fb/health' + projectQuery()); } catch (_) { state.fbHealth = null; }
+  if (!silent) render();
+}
+function updateFbHealthDom() {
+  const bots = state.install?.bots || [];
+  document.querySelectorAll('.bot-item[data-bot-id] .fb-bot-health').forEach((wrap) => {
+    const bot = bots.find((b) => b.id === wrap.closest('[data-bot-id]')?.dataset.botId);
+    if (!bot) return;
+    const badges = fbHealthBadges(bot);
+    const ems = wrap.querySelectorAll('em');
+    if (ems[0]) { ems[0].className = badges.loginTone; ems[0].textContent = badges.login; }
+    if (ems[1]) { ems[1].className = badges.connectionTone; ems[1].textContent = badges.connection; }
+  });
+}
 function zaloToolbar(channelBots = []) {
   const active = channelBots.find((bot) => bot.id === state.activeBotId) || channelBots[0];
   const health = zaloAccountHealth(active);
@@ -1919,9 +2018,14 @@ function scheduleZaloHealthRefresh() {
 setInterval(async () => {
   if (document.hidden || zaloHealthPollBusy) return;
   if (!activeProjectDir()) return;
-  if (!document.querySelector('.bot-item[data-bot-id] .zalo-bot-health')) return;
+  const hasZalo = !!document.querySelector('.bot-item[data-bot-id] .zalo-bot-health:not(.fb-bot-health)');
+  const hasFb = !!document.querySelector('.bot-item[data-bot-id] .fb-bot-health');
+  if (!hasZalo && !hasFb) return;
   zaloHealthPollBusy = true;
-  try { await loadZaloHealth(true); updateZaloHealthDom(); } finally { zaloHealthPollBusy = false; }
+  try {
+    if (hasZalo) { await loadZaloHealth(true); updateZaloHealthDom(); }
+    if (hasFb) { await loadFbHealth(true); updateFbHealthDom(); }
+  } finally { zaloHealthPollBusy = false; }
 }, ZALO_HEALTH_POLL_MS);
 async function loadFeatureFlags(silent=false){
   const botId=currentBotId();
@@ -1934,6 +2038,7 @@ async function loadFeatureFlags(silent=false){
     state.featureLocked = data.locked || {};
     state.zaloBackend = data.zaloBackend || '';
     if (state.zaloBackend === 'zalo-connect') await loadZaloHealth(true).catch(() => {});
+    if ((state.install?.bots || []).some((b) => b.channel === 'fb-messenger')) await loadFbHealth(true).catch(() => {});
   } catch (_) {
     state.featureFlags = {};
     state.featureInstalled = {};
