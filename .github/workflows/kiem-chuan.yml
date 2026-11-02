@@ -1,0 +1,54 @@
+# Mau GitHub Actions: chay kiem-chuan cho repo du an. Chep vao .github/workflows/kiem-chuan.yml
+#
+# Can 1 secret: CHUAN_DEPLOY_KEY = khoa SSH rieng cua deploy key CHI DOC "CI kiem-chuan" tren repo
+# monkeytech-vn/chuan (dat 03/11/2026: secret cap org monkeytech-vn cho moi repo cua org, va dat rieng
+# tung repo o tai khoan tuanminhhole, monkeytech192). Ban goc: ~/.config/monkeytech/shared/chuan-deploy-key.
+# Khong can secret nao khac. Cong cu khong dung mang, chi doc.
+name: kiem-chuan
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  kiem-chuan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du an
+        uses: actions/checkout@v4
+        with:
+          path: du-an
+
+      - name: Checkout bo chuan (repo rieng tu)
+        uses: actions/checkout@v4
+        with:
+          repository: monkeytech-vn/chuan
+          ssh-key: ${{ secrets.CHUAN_DEPLOY_KEY }}
+          path: chuan
+
+      - name: Cai gitleaks (ban co dinh)
+        run: |
+          VER=8.21.2
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" -o gl.tgz
+          tar -xzf gl.tgz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Chay kiem-chuan
+        run: |
+          # --json de luu lam artifact; ma thoat 1 neu co loi nang
+          set +e
+          node chuan/bin/kiem-chuan du-an --json > kiem-chuan.json
+          code=$?
+          node chuan/bin/kiem-chuan du-an --no-color
+          exit $code
+
+      - name: Luu bao cao
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kiem-chuan-json
+          path: kiem-chuan.json
