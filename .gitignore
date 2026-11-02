@@ -102,3 +102,9 @@ test-vps-install.mjs
 /CLAUDE.md
 # artifact npm pack thu cong
 /*.tgz
+
+# Bí mật (chuẩn MonkeyTech, BI-MAT.md)
+secrets/
+*.pem
+*.key
+!.env.example
