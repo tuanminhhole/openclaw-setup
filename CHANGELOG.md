@@ -1,6 +1,20 @@
 # Changelog (English)
 
 
+## [5.21.1] - 2026-11-20
+### 🔧 "Update Setup" on git installs no longer gets stuck
+
+- **A re-pointed release tag no longer blocks updates.** Clones made before a release tag was moved on
+  GitHub stopped every update with "would clobber existing tag". Tags are now fetched with `--force`,
+  so the clone simply follows GitHub.
+- **Safer git update, now in the main line.** The updater stashes local edits, fetches, refuses a
+  clone that carries its own commits, and fast-forwards only. Edits that still apply come back; edits
+  that conflict with the new release stay in the stash (named in the log), so the tree that restarts is
+  always the released build, with no conflict markers in `dist/`.
+- **Clear messages when it stops.** A clone with local commits now says so in plain words, and a failed
+  update states that the UI is still running the previous build.
+
+
 ## [5.21.0] - 2026-11-20
 
 ### ⚡ New Setup UI: React + shadcn, nothing redraws the whole page any more

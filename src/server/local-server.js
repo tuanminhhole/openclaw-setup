@@ -852,6 +852,97 @@ function commandExists(cmd, args = ['--version']) {
   });
 }
 
+/**
+ * Update the Setup UI clone without ever serving a conflicted tree.
+ *
+ * `git pull --rebase --autostash` used to be the update path here. When the operator has local
+ * edits AND origin force-moved, autostash replays those edits onto the new HEAD and the conflicts
+ * stay in the working tree - conflict markers written straight into dist/. The updater then
+ * printed "updated successfully", exited, and the supervisor relaunched a UI that died on
+ * `SyntaxError: Unexpected token '<<'` in dist/setup/shared/common-gen.js (chat.pmnotepro.online,
+ * 19/10/2026: 70+ restarts, dashboard down until the tree was repaired by hand).
+ *
+ * The update only needs origin's files, and the committed dist/ is what runs, so:
+ *   1. a conflicted index or an operation in progress means a human has to look - stop;
+ *   2. refuse a divergent history instead of rebasing local commits;
+ *   3. stash the operator's tracked edits and keep the tree clean: `stash pop` puts conflict markers
+ *      back, so an edit that cannot apply as-is stays parked in the stash (named in the log) and
+ *      `stash apply --index` (no autostash replay) is used once origin is in place;
+ *   4. fetch + `merge --ff-only`, then require a marker-free, indexed tree before anything restarts.
+ */
+async function pullGitUpdate(cwd, runCaptureFn = runCapture) {
+  const check = async (label) => {
+    const st = await runCaptureFn('git', ['status', '--porcelain'], { cwd, shell: false });
+    const unmerged = String(st.stdout || '').split('\n').filter((l) => /^(UU|AA|DD|AU|UA|DU|UD)/.test(l));
+    if (unmerged.length) {
+      throw new Error(`${label} (${unmerged.length} tệp: ${unmerged.slice(0, 5).join(', ')}). Chạy "git status" và xử lý thủ công.`);
+    }
+  };
+  const gitDir = resolve(cwd, '.git');
+  for (const marker of ['MERGE_HEAD', 'rebase-merge', 'rebase-apply', 'CHERRY_PICK_HEAD']) {
+    if (existsSync(join(gitDir, marker))) {
+      throw new Error(`git ${marker} đang tồn tại - đang có một thao tác rebase/merge dở dang, cần xử lý thủ công trước khi cập nhật.`);
+    }
+  }
+  await check('working tree đang có xung đột chưa xử lý');
+
+  const stash = await runCaptureFn('git', ['stash', 'create', 'openclaw-setup: autostash cho cập nhật'], { cwd, shell: false });
+  let saved = String(stash.stdout || '').trim();
+  // Remember what was staged: the tree is cleaned with exactly `checkout` + `restore --staged`,
+  // since stash itself only stores the snapshot.
+  const staged = String((await runCaptureFn('git', ['diff', '--cached', '--name-only'], { cwd, shell: false })).stdout || '')
+    .split('\n').map((l) => l.trim()).filter(Boolean);
+  if (saved) {
+    await run('git', ['stash', 'store', '-m', 'openclaw-setup: autostash cho cập nhật', saved], { cwd });
+    saved = 'stash@{0}';
+    sendLog('[update-setup] Thay đổi cục bộ đã được cất tạm để cập nhật.');
+  }
+  // --force on tags: a release tag that was re-pointed on origin (amended release) must not block
+  // every later update with "would clobber existing tag" (vps_hieu-oracle, 20/11/2026).
+  const fetch = () => run('git', ['fetch', '--force', '--tags', 'origin'], { cwd });
+  let failure = null;
+  try {
+    await fetch();
+    // Reject before touching the tree: a rebase here would replay local commits and can conflict
+    // inside the same dist/ files, which is exactly what took the dashboard down.
+    // `merge-base --is-ancestor` exits 1 for "not an ancestor" (local commits) and 128 on a real
+    // error, so read the exit code directly: run() rejects without one.
+    const anc = await runCaptureFn('git', ['merge-base', '--is-ancestor', 'HEAD', 'origin/main'], { cwd, shell: false });
+    if (anc.code === 1) throw new Error('clone có commit cục bộ chưa đẩy lên origin - không cập nhật (fast-forward) được, cần xử lý thủ công.');
+    if (anc.code !== 0) throw new Error(`git merge-base thất bại: ${String(anc.stderr || anc.stdout || '').trim() || 'exit ' + anc.code}`);
+    // `git stash store` records the stash but does NOT clean the tree, and --ff-only refuses any
+    // locally-modified file (even one whose content already matches origin). Discard exactly what
+    // was saved: `checkout -- .` for the worktree; restore-index only when nothing was staged.
+    await run('git', ['checkout', '--', '.'], { cwd });
+    if (saved && staged.length === 0) await run('git', ['restore', '--staged', '--', '.'], { cwd }).catch(() => {});
+    await run('git', ['merge', '--ff-only', 'origin/main'], { cwd });
+    await check('sau khi cập nhật, cây làm việc vẫn còn xung đột');
+  } catch (err) {
+    failure = err;
+  } finally {
+    // Failures here must not hide the update's own outcome: the files in the tree ARE origin's.
+    if (saved) {
+      const applied = await runCaptureFn('git', ['stash', 'apply', '--index', saved], { cwd, shell: false });
+      const files = await runCaptureFn('git', ['status', '--porcelain'], { cwd, shell: false });
+      const conflicted = String(files.stdout || '').split('\n').filter((l) => /^(UU|AA|DD|AU|UA|DU|UD)/.test(l));
+      if (applied.code === 0 && !conflicted.length) {
+        await runCaptureFn('git', ['stash', 'drop', saved], { cwd, shell: false });
+        sendLog('[update-setup] Đã trả lại thay đổi cục bộ.');
+      } else {
+        // Never leave markers in the tree the supervisor relaunches onto; the same edits live on
+        // in the stash, so discarding the failed apply loses nothing.
+        await runCaptureFn('git', ['reset', '--hard', '-q', 'HEAD'], { cwd, shell: false });
+        sendLog(`[update-setup] Thay đổi cục bộ không áp lại được (xung đột với bản mới) - đã giữ nguyên trong "${saved}"; giao diện chạy bản mới, áp lại bằng "git stash apply --index ${saved}" khi cần.`);
+      }
+    }
+    const leftovers = ['MERGE_HEAD', 'rebase-merge', 'rebase-apply'].filter((m) => existsSync(join(gitDir, m)));
+    for (const m of leftovers) {
+      await runCaptureFn('git', [m === 'MERGE_HEAD' ? 'merge' : 'rebase', '--abort'], { cwd, shell: false });
+    }
+  }
+  if (failure) throw failure;
+}
+
 function run(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
     sendLog(`$ ${cmd} ${args.join(' ')}`);
@@ -8799,9 +8890,11 @@ async function handler(req, res, rootProjectDir) {
       setImmediate(async () => {
         try {
           if (isGit) {
-            // Clone/dev install: pull the latest (committed dist comes with it).
-            sendLog('[update-setup] Git install detected - pulling latest from GitHub…');
-            await run('git', ['pull', '--ff-only'], { cwd: installerDir });
+            // Stash -> fetch -> ff-merge only: local edits are restored afterwards, and a divergent
+            // history or an existing conflict stops the update instead of leaving conflict markers
+            // in the committed dist/ that the supervisor would relaunch onto. See pullGitUpdate.
+            sendLog('[update-setup] Git install detected - pulling latest from GitHub (fast-forward)…');
+            await pullGitUpdate(installerDir);
             await run('npm', ['install', '--omit=dev', '--no-audit', '--no-fund'], { cwd: installerDir });
             // docs_dev (build tooling) is gitignored, so clones can't rebuild - and
             // don't need to: dist/ is committed. Only rebuild when tooling is present.
@@ -8835,7 +8928,10 @@ async function handler(req, res, rootProjectDir) {
           }
           restartInstaller();
         } catch (err) {
+          // Nothing was restarted, so the running UI keeps serving THIS build: say so, and say
+          // where to look when the updater left the clone half-done.
           sendLog(`[update-setup] Error updating: ${err.message}`);
+          sendLog('[update-setup] Giao diện vẫn chạy bản cũ; chạy "git status" trong thư mục cài đặt nếu cần xem chi tiết.');
         }
       });
       return json(res, { ok: true, mode });
@@ -9338,4 +9434,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { listConfiguredBots, parseBotPersona, addBotKnowledge, brokenPluginFromError, withPluginOpsLock, telegramReactionEmoji, applyRoleToolProfile, listBotKnowledge, removeBotKnowledge, normalizeKnowledgeLink, htmlToText, startFbConnect, getFbConnectSession, getFbHealth, ensureConnectBot, readRelayCredential, syncOwnerAllowFrom, repointWorkspaceDocPaths, workspaceDocPaths, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
+export { listConfiguredBots, parseBotPersona, addBotKnowledge, brokenPluginFromError, withPluginOpsLock, telegramReactionEmoji, applyRoleToolProfile, listBotKnowledge, removeBotKnowledge, normalizeKnowledgeLink, htmlToText, startFbConnect, getFbConnectSession, getFbHealth, ensureConnectBot, readRelayCredential, syncOwnerAllowFrom, repointWorkspaceDocPaths, workspaceDocPaths, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage, pullGitUpdate };

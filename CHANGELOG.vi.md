@@ -1,6 +1,20 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.21.1] - 2026-11-20
+### 🔧 Nút "Cập nhật setup" trên bản cài bằng git không còn bị kẹt
+
+- **Tag phát hành bị gắn lại không còn chặn cập nhật.** Máy clone trước khi một tag phát hành được gắn
+  lại trên GitHub báo "would clobber existing tag" ở mọi lần cập nhật. Nay tag được tải về với
+  `--force`, máy đi theo đúng GitHub.
+- **Cập nhật bằng git an toàn hơn, đã vào bản chính.** Trình cập nhật cất tạm thay đổi cục bộ, tải bản
+  mới, từ chối máy có commit riêng và chỉ cập nhật kiểu fast-forward. Thay đổi còn áp được thì trả lại;
+  thay đổi xung đột với bản mới được giữ trong stash (ghi tên trong nhật ký), nên bản khởi động lại luôn
+  là bản phát hành, không có dấu xung đột trong `dist/`.
+- **Báo rõ khi dừng.** Máy có commit riêng được báo bằng lời dễ hiểu, cập nhật lỗi thì ghi rõ giao diện
+  vẫn chạy bản trước.
+
+
 ## [5.21.0] - 2026-11-20
 
 ### ⚡ Giao diện Setup mới: React + shadcn, không còn vẽ lại cả trang
