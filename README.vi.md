@@ -7,7 +7,7 @@
 *Chạy một lệnh, mở dashboard, bot lên sóng. Windows, macOS, Linux, VPS. Bot chạy thẳng trên máy, không cần Docker.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.20.0-0EA5E9?style=for-the-badge" alt="Version 5.20.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.21.0-0EA5E9?style=for-the-badge" alt="Version 5.21.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,12 +37,23 @@
 
 ---
 
-## 🆕 Có gì mới trong v5.20.0
+## 🆕 Có gì mới trong v5.21.0
+
+- ⚡ **Giao diện Setup mới, nhanh và mượt hơn** - viết lại bằng React và shadcn/ui: thanh bên gồm Tổng quan, Bot, Cài đặt, Nhật ký, Tuỳ chỉnh; giao diện sáng tối; hộp thoại không còn chớp, tự cuộn về đầu hay mất chữ đang gõ. Giao diện cũ vẫn mở được ở `/legacy` trong thời gian chuyển đổi.
+- 🤖 **Tạo và sửa bot trong khung trượt bên phải** - chọn vai trò, tối đa ba nét tính cách và reaction xác nhận, nạp tài liệu hoặc link website, xem bot đã học những gì. Vai, tính cách và tài liệu nay áp dụng cho cả Zalo và Telegram; nội dung tệp và link được ghi vào USER.md nên bot đọc được thật khi chat với khách.
+- 💬 **Kênh Fanpage mới** - bot chăm sóc khách cho Fanpage Facebook, trả lời cả Instagram Direct. Kết nối Trang trong một phút qua MonkeyTech Connect: không cần app Meta, không cần tên miền, bot không giữ token của Trang.
+- 🚀 **Lưu bot chỉ mất vài giây** - sửa bot không còn khởi động lại gateway, và một plugin hỏng không còn kéo Setup cài lại mọi plugin khác.
+- 🛠️ **Sửa lỗi** - chuyển Docker sang cài trực tiếp kiểm luật một project mỗi tài khoản trước khi đụng vào gì; xem danh sách project Docker không còn ghi đè tệp của nó; project có nhãn dịch vụ riêng không còn biến mất.
+
+<details>
+<summary><b>Trước đó: Có gì mới trong v5.20.0</b></summary>
 
 - 🚚 **Chuyển bot từ Docker sang cài trực tiếp chạy trọn vẹn** - bot chuyển xong trả lời được ngay (địa chỉ model không còn mang tên máy chỉ có trong Docker), dữ liệu chép ra thuộc đúng người dùng, Setup tự cài dịch vụ nếu lần chuyển dừng giữa chừng, và plugin chép từ Docker được cài lại sạch mà vẫn giữ cài đặt cũ.
 - 🔐 **Hai bot trên một máy không đè nhau** - đăng nhập Zalo cho một bot vừa bị xoá không còn rơi sang tài khoản của bot khác; Setup không ghi đè 9router của project khác, và báo rõ ngay từ đầu rằng mỗi người dùng Linux chỉ chạy một project cài trực tiếp.
 - 🟢 **Kiểm Node đúng yêu cầu của OpenClaw** - nút Cập nhật tự nâng Node cũ (ví dụ Node 22) trước khi cài OpenClaw 2026.9.8, thay vì báo hợp lệ rồi lỗi giữa chừng.
 - 🖥️ **Mở được OpenClaw Control từ bộ tệp mở giao diện gửi khách**, và lỗi khi cập nhật được ghi vào nhật ký. Bao gồm toàn bộ bản sửa của 5.18.3.
+
+</details>
 
 <details>
 <summary><b>Trước đó: Có gì mới trong v5.18.2 và v5.18.3</b></summary>

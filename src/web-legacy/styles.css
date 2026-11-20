@@ -2110,3 +2110,148 @@ html[data-theme="light"] .chip.is-active{background:linear-gradient(135deg,rgba(
 .bot-form-grid label[hidden],.bot-form-grid [data-custom-role][hidden]{display:none !important}
 .bot-role-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
 
+
+/* Bot form 5.20.1: top row, tooltips, section cards, pills (overrides the 5.20.0 rules above) */
+.bot-modal{width:min(960px,94vw)!important}
+.bot-form-grid{gap:16px}
+.bot-form-grid label{gap:7px;font-size:12.5px;font-weight:700;color:var(--body)}
+.bot-form-grid label>span{display:flex;align-items:center;gap:6px;min-height:18px}
+.bot-form-grid input,.bot-form-grid textarea{border-radius:12px;padding:11px 13px;border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.04);transition:border-color .15s,box-shadow .15s,background .15s}
+.bot-form-grid input:hover,.bot-form-grid textarea:hover{border-color:rgba(255,255,255,.18)}
+.bot-form-grid input:focus,.bot-form-grid textarea:focus{border-color:var(--primary);background:rgba(255,255,255,.055);box-shadow:0 0 0 3px rgba(255,36,54,.14)}
+.bot-form-grid input::placeholder,.bot-form-grid textarea::placeholder{color:var(--muted);opacity:.7;font-weight:500}
+.bot-form-grid>.wide{grid-column:1/-1}
+.bot-row-top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.1fr);gap:14px;align-items:start}
+.bot-row-top.is-edit{grid-template-columns:minmax(0,1fr) auto}
+.bot-row-top .bot-reaction{min-width:0}
+.bot-row-top .reaction-pills{display:flex;flex-wrap:nowrap;gap:6px;align-items:center;min-height:44px;width:100%;box-sizing:border-box;padding:4px 6px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.04)}
+.reaction-pills .chip--emoji{width:34px;height:34px;padding:0;display:inline-grid;place-items:center;font-size:17px;border-radius:10px;border-color:transparent;background:transparent}
+.reaction-pills .chip--emoji:hover{background:rgba(255,255,255,.08);border-color:transparent;transform:none}
+.reaction-pills .chip--emoji.is-active{background:linear-gradient(135deg,rgba(255,36,54,.22),rgba(255,90,102,.1));border-color:rgba(255,36,54,.6);box-shadow:none}
+.reaction-pills .chip--emoji.is-active::before{display:none}
+.bot-form-grid .reaction-pills .chip-input,.reaction-pills .chip-input{flex:1 1 52px;min-width:52px;width:auto;height:34px;padding:0 6px;border-radius:10px;border:1px dashed rgba(255,255,255,.22);background:transparent;font-size:16px;text-align:center}
+.reaction-pills .chip-input:focus{border-style:solid;box-shadow:none}
+/* Tooltip: an info dot that opens a card below itself on hover or keyboard focus */
+.tip{position:relative;display:inline-grid;place-items:center;width:18px;height:18px;border-radius:999px;color:var(--muted);cursor:help;outline:none;flex:0 0 auto;transition:color .15s}
+.tip svg{width:15px;height:15px}
+.tip:hover,.tip:focus-visible{color:var(--soft)}
+.tip::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);left:-10px;z-index:40;width:max-content;max-width:min(340px,72vw);padding:10px 12px;border-radius:10px;background:#15121a;color:#e8e3e6;border:1px solid rgba(255,255,255,.1);box-shadow:0 18px 44px rgba(0,0,0,.45);font-size:12px;font-weight:500;line-height:1.5;text-transform:none;letter-spacing:0;white-space:normal;text-align:left;opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity .15s,transform .15s}
+.tip::before{content:"";position:absolute;top:calc(100% + 3px);left:4px;z-index:41;border:5px solid transparent;border-bottom-color:#15121a;opacity:0;transition:opacity .15s}
+.tip::after,.tip::before{display:none}
+.tip:hover::after,.tip:focus-visible::after,.tip.is-open::after,.tip:hover::before,.tip:focus-visible::before,.tip.is-open::before{display:block;opacity:1;transform:none;transition:none}
+.tip--end::after{left:auto;right:-10px}.tip--end::before{left:auto;right:4px}
+.bot-modal{overflow-x:hidden!important}
+html[data-theme="light"] .tip::after{background:#1f1a22;color:#f4f0f2}
+html[data-theme="light"] .tip::before{border-bottom-color:#1f1a22}
+/* Section cards */
+.bot-form-grid .bot-section{display:grid;gap:14px;padding:18px 18px 20px;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.bot-section-head{display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,.07)}
+.bot-section-title{font-size:14px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+.bot-form-grid .bot-form-grid--inner{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0;margin:0}
+/* Roles */
+.bot-form-grid .bot-role-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+.bot-form-grid .bot-role-card{display:flex!important;align-items:flex-start;gap:10px;min-height:0!important;padding:12px 13px!important;border-radius:13px!important;background:rgba(255,255,255,.03)!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:none!important;backdrop-filter:none!important;transition:border-color .15s,background .15s,transform .15s}
+.bot-form-grid .bot-role-card:hover{transform:translateY(-1px);border-color:rgba(255,90,102,.4)!important;background:rgba(255,255,255,.05)!important}
+.bot-form-grid .bot-role-card.active,.bot-form-grid .bot-role-card:has(input:checked){border-color:rgba(255,36,54,.85)!important;background:linear-gradient(145deg,rgba(255,36,54,.16),rgba(255,36,54,.05))!important;box-shadow:0 0 0 1px rgba(255,36,54,.2) inset!important}
+.bot-form-grid .bot-role-card:before{display:none}
+.bot-role-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:rgba(255,255,255,.06);color:var(--muted);flex:0 0 auto;transition:background .15s,color .15s}
+.bot-role-icon svg{width:19px;height:19px;display:block}
+.bot-role-card:hover .bot-role-icon{color:var(--ink)}
+.bot-role-card.active .bot-role-icon,.bot-role-card:has(input:checked) .bot-role-icon{background:rgba(255,36,54,.18);color:var(--soft)}
+.bot-form-grid .bot-role-card .choice-card__body b{font-size:13px;font-weight:750;color:var(--ink)}
+.bot-form-grid .bot-role-card .choice-card__body small{font-size:11px;line-height:1.35;color:var(--muted)!important}
+/* Style pills */
+.style-groups{display:grid;gap:14px}
+.style-group{display:grid;gap:7px}
+.style-group>span{display:flex;align-items:baseline;gap:6px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.style-group>span em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:500;opacity:.75}
+.style-pills{display:flex;flex-wrap:wrap;gap:7px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.035);color:var(--body);font-size:12.5px;font-weight:600;line-height:1.2;cursor:pointer;transition:background .15s,border-color .15s,color .15s,transform .15s,opacity .15s}
+.chip:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.2);color:var(--ink);transform:translateY(-1px)}
+.chip.is-active{color:var(--ink);border-color:rgba(255,36,54,.75);background:linear-gradient(135deg,rgba(255,36,54,.2),rgba(255,90,102,.08));box-shadow:none}
+.chip.is-active::before{content:"";width:6px;height:6px;border-radius:999px;background:var(--primary);box-shadow:0 0 8px rgba(255,36,54,.7)}
+.chip.is-capped{opacity:.38;cursor:not-allowed}
+.chip.is-capped:hover{transform:none;background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.1)}
+/* Owner + knowledge */
+.bot-form-grid .bot-file input[type="file"]{padding:8px 10px;border-style:dashed;cursor:pointer;font-size:12px;color:var(--muted)}
+.bot-form-grid .bot-file input[type="file"]::file-selector-button{margin-right:10px;padding:6px 12px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.06);color:var(--ink);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.bot-form-grid .bot-form-grid--inner textarea{min-height:44px;resize:vertical}
+/* Facebook connect card */
+.bot-form-grid .fb-fields{grid-column:1/-1}
+.fb-row1{display:grid;grid-template-columns:1fr;gap:14px}
+.fb-connect-box{display:grid;gap:10px;padding:14px 16px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:linear-gradient(135deg,rgba(0,132,255,.1),rgba(255,255,255,.025) 60%)}
+.fb-connect-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:800;color:var(--ink)}
+.fb-connect-head>span{display:flex;align-items:center;gap:6px}
+.fb-connect-head .btn-inline{min-height:36px;padding:7px 14px;font-size:12px;gap:6px;border-radius:10px}
+.fb-connect-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12.5px;min-height:22px}
+.fb-connect-status em{font-style:normal;font-weight:800}
+.fb-connect-status code{font-size:11px;padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.07);opacity:.9}
+html[data-theme="light"] .fb-connect-box{border-color:rgba(15,23,42,.1);background:linear-gradient(135deg,rgba(0,132,255,.08),rgba(15,23,42,.02) 60%)}
+html[data-theme="light"] .fb-connect-status code{background:rgba(15,23,42,.06)}
+/* Light theme */
+html[data-theme="light"] .bot-form-grid input,html[data-theme="light"] .bot-form-grid textarea{background:#fff;border-color:#e6dde0}
+html[data-theme="light"] .bot-form-grid input:hover,html[data-theme="light"] .bot-form-grid textarea:hover{border-color:#d4c6cb}
+html[data-theme="light"] .bot-form-grid .bot-section{border-color:rgba(15,23,42,.09);background:linear-gradient(180deg,rgba(15,23,42,.03),rgba(15,23,42,.012));box-shadow:none}
+html[data-theme="light"] .bot-section-head{border-bottom-color:rgba(15,23,42,.08)}
+html[data-theme="light"] .bot-row-top .reaction-pills{border-color:#e6dde0;background:#fff}
+html[data-theme="light"] .reaction-pills .chip--emoji:hover{background:rgba(15,23,42,.06)}
+html[data-theme="light"] .bot-form-grid .bot-role-card{background:#fff!important;border-color:#e6dde0!important}
+html[data-theme="light"] .bot-form-grid .bot-role-card.active,html[data-theme="light"] .bot-form-grid .bot-role-card:has(input:checked){background:linear-gradient(145deg,rgba(255,36,54,.1),rgba(255,36,54,.03))!important;border-color:rgba(255,36,54,.6)!important}
+html[data-theme="light"] .bot-role-icon{background:rgba(15,23,42,.06)}
+html[data-theme="light"] .chip{background:#fff;border-color:#e6dde0;color:#3b2f33}
+html[data-theme="light"] .chip:hover{background:#faf6f7;border-color:#d4c6cb;color:#1f1114}
+html[data-theme="light"] .chip.is-active{background:linear-gradient(135deg,rgba(255,36,54,.12),rgba(255,90,102,.05));border-color:rgba(255,36,54,.55);color:#1f1114}
+html[data-theme="light"] .bot-form-grid .bot-file input[type="file"]::file-selector-button{background:#f6f1f2;border-color:#e6dde0;color:#1f1114}
+@media(max-width:900px){.bot-row-top,.bot-row-top.is-edit,.bot-form-grid .bot-form-grid--inner{grid-template-columns:1fr}.bot-row-top .reaction-pills{flex-wrap:wrap}.tip::after{max-width:min(300px,80vw)}}
+html[data-theme="light"] .fb-connect-head .btn-inline{background:#fff!important;border:1px solid #e6dde0!important;color:#1f1114!important;box-shadow:0 1px 2px rgba(15,23,42,.06)!important}
+html[data-theme="light"] .fb-connect-head .btn-inline svg{color:#1f1114!important}
+html[data-theme="light"] .fb-connect-head .btn-inline:hover{border-color:#d4c6cb!important;background:#faf6f7!important}
+/* 5.20.1 follow-up: icon centred in its box and in the card; roomier reaction box */
+.bot-form-grid .bot-role-card{align-items:center}
+.bot-form-grid .bot-role-card .bot-role-icon{display:grid!important;place-items:center!important;align-items:center!important;justify-content:center!important;width:40px!important;height:40px!important;padding:0!important;margin:0!important;line-height:0!important;box-shadow:none!important}
+.bot-form-grid .bot-role-card .bot-role-icon svg{width:20px!important;height:20px!important;display:block;margin:0}
+.bot-row-top .reaction-pills{gap:8px;padding:6px 8px;min-height:48px}
+.bot-row-top .reaction-pills .chip--emoji{width:40px;height:36px;font-size:18px;border-radius:9px}
+.bot-row-top .reaction-pills .chip-input,.bot-form-grid .bot-row-top .reaction-pills .chip-input{height:36px;padding:0 10px;font-size:15px;border-radius:9px}
+.bot-row-top>label>input{min-height:48px}
+
+/* Reaction chips: real touch targets, immune to the older width:auto rule */
+.bot-form-grid .bot-row-top .reaction-pills .chip--emoji{width:40px!important;min-width:40px!important;height:36px!important;padding:0!important;flex:0 0 40px!important;display:inline-grid!important;place-items:center!important;font-size:18px!important;line-height:1!important}
+.bot-form-grid .bot-row-top .reaction-pills{padding:6px 8px!important;gap:6px!important}
+.bot-form-grid .bot-row-top .reaction-pills .chip-input{flex:1 1 56px!important;min-width:56px!important;height:36px!important;padding:0 10px!important}
+.tip{z-index:1}.tip:hover,.tip:focus-visible,.tip.is-open{z-index:60}
+/* Top row: the reaction column takes exactly what its chips need; name and id share the rest */
+.bot-form-grid .bot-row-top{grid-template-columns:minmax(0,1fr) minmax(0,1fr) max-content}
+.bot-form-grid .bot-row-top.is-edit{grid-template-columns:minmax(0,1fr) max-content}
+.bot-form-grid .bot-row-top .reaction-pills{width:auto!important;flex-wrap:nowrap!important}
+.bot-form-grid .bot-row-top .reaction-pills .chip-input{flex:0 0 68px!important;width:68px!important;min-width:0!important}
+@media(max-width:900px){.bot-form-grid .bot-row-top,.bot-form-grid .bot-row-top.is-edit{grid-template-columns:1fr}.bot-form-grid .bot-row-top .reaction-pills{flex-wrap:wrap!important}}
+
+/* Page scroll lock while a modal is open */
+html.modal-open,html.modal-open body{overflow:hidden!important;overscroll-behavior:contain}
+.modal-backdrop{overscroll-behavior:contain}
+
+/* Knowledge chips in the edit dialog */
+.knowledge-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip.chip--doc{cursor:default;padding:5px 6px 5px 11px;font-weight:600}
+.chip.chip--doc:hover{transform:none;background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.1)}
+.chip-x{border:0;background:transparent;color:var(--muted);font-size:15px;line-height:1;cursor:pointer;padding:0 3px;margin-left:4px}
+.chip-x:hover{color:var(--soft)}
+
+/* Learned documents: rows with in-place two-step remove */
+.knowledge-block{display:grid;gap:8px;margin-top:4px}
+.knowledge-block__title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.knowledge-list{display:grid;gap:6px}
+.doc-row{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 12px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(255,255,255,.025);transition:opacity .18s ease,transform .18s ease,border-color .15s,background .15s}
+.doc-row__icon{font-size:15px;flex:0 0 auto}
+.doc-row__body{display:grid;gap:1px;min-width:0;flex:1}
+.doc-row__body b{font-size:12.5px;font-weight:650;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-row__body small{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-row__x{flex:0 0 auto;border:1px solid transparent;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.doc-row__x:hover{color:var(--ink);background:rgba(255,255,255,.06)}
+.doc-row.is-armed{border-color:rgba(255,36,54,.55);background:rgba(255,36,54,.06)}
+.doc-row.is-armed .doc-row__x{color:#fff;background:#e11d30;border-color:#e11d30}
+.doc-row.is-busy{opacity:.55}
+.doc-row.is-leaving{opacity:0;transform:translateX(8px)}
+html[data-theme="light"] .doc-row{background:#fff;border-color:#e6dde0}
+html[data-theme="light"] .doc-row.is-armed{background:#fff5f6;border-color:rgba(255,36,54,.45)}

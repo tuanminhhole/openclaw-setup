@@ -1,6 +1,84 @@
 # Changelog (English)
 
 
+## [5.21.0] - 2026-11-20
+
+### ⚡ New Setup UI: React + shadcn, nothing redraws the whole page any more
+
+- **The whole interface is rebuilt** on React 19, Vite and shadcn/ui (layout modelled on the MIT
+  Studio Admin template). The old UI redrew the page and every open dialog with innerHTML whenever
+  anything changed, which is why dialogs flickered, jumped back to the top and lost what you were
+  typing. Now only the part that changed re-renders.
+- **Sidebar and header like a modern admin panel:** Overview, Bots, Install, Logs and Preferences, a
+  project switcher at the top of the sidebar, live gateway status in the header, light and dark themes,
+  Vietnamese and English. The sidebar collapses to icons and becomes a drawer on phones.
+- **Bots page:** one tab per channel with a bot count, a table of bots with Zalo or Facebook connection
+  and login status, edit and delete from the row, and the selected bot's skills, plugins and workspace
+  files below. Toggling a skill or plugin flips the switch at once and confirms in the background.
+- **Create and edit a bot in a side sheet:** channel, name, ID and ack reaction on one row, role cards,
+  trait chips with a cap, owner, documents by drag and drop or link, and the list of what the bot has
+  learned with a two-step remove. Saving shows a progress toast instead of freezing the form.
+- **No browser confirm() or alert() left.** Every confirmation (delete a bot or project, move to native,
+  PC control, headless Chrome steps) is an in-page dialog; results arrive as toasts.
+- **Workspace editor:** collapsible file tree, unsaved-change dots, Ctrl/Cmd+S to save.
+- **Fast to load and still offline:** one 200 KB (gzip) bundle with hashed file names, cached by the
+  browser for good; the Inter font (with Vietnamese glyphs) and brand icons are bundled, no CDN.
+- **Facebook bots are now the "Fanpage" channel**, so nobody mistakes them for a personal Facebook
+  account. A one-time "What's new" dialog introduces it, with a button that opens the Fanpage bot form.
+  A linked Page can now be disconnected from the edit form.
+- **Fanpage tab and plan column** (with MonkeyTech Connect 0.5): the Fanpage bot row shows its plan (Pro trial with days left, Free with conversations used out of 150, Pro, Team), and a Fanpage tab shows the monthly usage, opens the Connect inbox and the Plans page, and toggles comment auto-replies and private replies to commenters (Pro features; until Meta approves the comment permissions only accounts with a role on the Meta app can use them).
+- **The classic UI stays available at /legacy** (link under Preferences) while everyone moves over. The
+  server and its API are unchanged.
+
+### 🎨 Bot form: one top row, tooltips, traits as pills
+
+- **Name, ID and ack reaction share one row.** The reaction presets sit in a compact box next to the
+  ID field; the custom emoji box no longer clips its value.
+- **Hints are tooltips.** Every explanation (ID rules, reaction, Facebook Page, roles, style, documents)
+  is now an info dot: hover or tap to read it, so the form is half the height it was.
+- **Traits are pills, not a text box.** The "extra personality" box is gone. The temperament group
+  now offers twelve traits (cheerful, friendly, witty, enthusiastic, calm, patient, professional,
+  direct, meticulous, attentive, serious, comically grumpy); pick up to three. Each one expands into
+  a full paragraph of concrete behaviour under "## Temperament" in the bot's SOUL.md, and hovering a
+  pill shows that paragraph. Existing bots keep any free text they already had.
+- **Roles, traits, reactions and the lean tool set apply on every channel.** Support, sales and front-desk
+  bots on Zalo and Telegram now run without shell or file tools like their Facebook siblings, keeping
+  their plugin tools (zalo-connect, zalo-mod, Telegram actions). Telegram gets the ack reaction too,
+  mapped to Telegram's own emoji set (😊 becomes 😁) and firing in DMs; the Zalo Bot API has no reactions.
+- **Documents and links now reach the bot.** OpenClaw only injects AGENTS.md, SOUL.md, USER.md and
+  IDENTITY.md into a customer-facing session; the memory notes the form wrote were never read on
+  Messenger or Zalo. Every uploaded text and every link is now pasted (capped) under "Dự án, công ty bot
+  cần hiểu" in USER.md as well, links are fetched and stripped to text at upload time (the bot has no
+  web tool in the support role), and "monkeytech.vn" without a scheme counts as a link. The edit dialog
+  lists what the bot has learned, each item removable.
+- **No "use your own Meta app" link.** Facebook bots connect through MonkeyTech Connect; the webhook
+  fields only appear for a bot that was created on webhook before.
+- **Docker to native migration checks the one-project-per-account rule first.** OpenClaw 2026.8+ keeps one
+  native state per OS account; when ~/.openclaw already belongs to another project the migration now
+  stops before stopping containers, upgrading Node or running doctor (on 26/10 it stopped only at the
+  final service install, leaving the bot down).
+- **Editing a bot no longer restarts the gateway.** OpenClaw 2026.9 hot-reloads the config and reads
+  the workspace per session, so changing role, traits, owner, documents or the Page saves in seconds.
+  The gateway restarts only when a plugin had to be installed, the bot moved to another channel, or a
+  Zalo ack reaction changed (that key is read at boot only).
+- **Saving a bot no longer takes minutes when one plugin is broken.** OpenClaw refuses every plugin
+  operation while a single plugin cannot load, and the Setup used to read that as "no consent" for each
+  of the others and reinstall them one by one (a save on vps_mkt took four minutes and removed zalo-mod).
+  It now names the broken plugin once and leaves the healthy ones alone, checks consent with a single
+  `plugins list` instead of one CLI call per plugin, remembers consent it already confirmed, serializes plugin operations per project, and backs a plugin folder up before a
+  record-repair reinstall so a failed reinstall does not lose it.
+- **A project with a custom service label no longer disappears from the dashboard.** The duplicate-state
+  filter now only applies to the account home folder.
+- **Listing a Docker project no longer rewrites its files.** The first status read used to regenerate
+  that project's docker-compose.yml, Dockerfile and entrypoint.sh when the Setup version had moved; a
+  retired Docker project is now read-only unless you explicitly rebuild or migrate it.
+- **The page no longer scrolls behind an open dialog**, and the dialog itself never scrolls sideways.
+- **Fixed: roles stuck on "Loading"** and the reaction field showing a clipped "/-hear" the first time
+  the dialog opened: the dialog did not re-render when the catalogue arrived.
+- Section cards, role cards (now with line icons instead of emoji), pills and the Facebook box were
+  restyled for both themes.
+
+
 ## [5.20.0] - 2026-10-25
 
 ### 🧭 Create a bot by picking a role, not by writing a prompt

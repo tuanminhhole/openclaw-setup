@@ -7,7 +7,7 @@
 *Run one command → open the dashboard → your bot is live. Windows, macOS, Linux, VPS - Docker-powered, auto-installed for you.*
 
 <p align="center">
-  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.20.0-0EA5E9?style=for-the-badge" alt="Version 5.20.0" /></a>
+  <a href="https://github.com/tuanminhhole/openclaw-setup/releases"><img src="https://img.shields.io/badge/RELEASE-v5.21.0-0EA5E9?style=for-the-badge" alt="Version 5.21.0" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup?tab=MIT-1-ov-file"><img src="https://img.shields.io/badge/LICENSE-MIT-success?style=for-the-badge" alt="MIT License" /></a>
   <a href="https://www.npmjs.com/package/create-openclaw-bot"><img src="https://img.shields.io/npm/v/create-openclaw-bot?style=for-the-badge&label=CLI&color=2563EB&logo=npm&logoColor=white" alt="NPM Version" /></a>
   <a href="https://github.com/tuanminhhole/openclaw-setup/stargazers"><img src="https://img.shields.io/github/stars/tuanminhhole/openclaw-setup?style=for-the-badge&color=eab308&logo=github&logoColor=white" alt="GitHub Stars" /></a>
@@ -37,12 +37,23 @@
 
 ---
 
-## 🆕 What's New in v5.20.0
+## 🆕 What's New in v5.21.0
+
+- ⚡ **A new, faster Setup UI** - rebuilt on React and shadcn/ui: a sidebar with Overview, Bots, Install, Logs and Preferences, light and dark themes, and dialogs that no longer flicker, jump to the top or lose what you typed. The previous interface stays at `/legacy` during the transition.
+- 🤖 **Create and edit bots in a side sheet** - pick a role, up to three personality traits and an ack reaction, add documents or a website link, and see what the bot has learned. Roles, traits and documents now apply on Zalo and Telegram too, and uploaded text and links are written into USER.md so the bot actually reads them in customer chats.
+- 💬 **New Fanpage channel** - a support bot for your Facebook Page that also answers Instagram Direct. Connect the Page in a minute through MonkeyTech Connect: no Meta app, no domain, and the bot never holds the Page token.
+- 🚀 **Saving a bot takes seconds** - editing no longer restarts the gateway, and one broken plugin no longer makes Setup reinstall every other plugin.
+- 🛠️ **Fixes** - Docker to native checks the one-project-per-account rule before touching anything; listing a Docker project no longer rewrites its files; a project with a custom service label no longer disappears.
+
+<details>
+<summary><b>Previous: What's new in v5.20.0</b></summary>
 
 - 🚚 **Moving a bot off Docker finishes properly** - a moved bot answers right away (its model address no longer uses a Docker-only host name), copied data belongs to the right user, Setup installs the service if the move stopped halfway, and plugins copied out of Docker are reinstalled cleanly with their settings kept.
 - 🔐 **Two bots on one server stay apart** - logging in Zalo for a bot that was just deleted no longer lands on another bot's account; Setup no longer rewrites another project's 9router, and says up front that each Linux user runs one native project.
 - 🟢 **Node checked against what OpenClaw needs** - Update upgrades an older Node (for example Node 22) before installing OpenClaw 2026.9.8, instead of reporting it fine and failing halfway.
 - 🖥️ **OpenClaw Control opens from the customer launcher pack**, and update errors are written to the log. Includes every fix from 5.18.3.
+
+</details>
 
 <details>
 <summary><b>Previous: What's new in v5.18.2 and v5.18.3</b></summary>
