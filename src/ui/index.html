@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenClaw Setup</title>
+    <link rel="icon" type="image/svg+xml" href="/openclaw-logo.svg" />
+    <script>
+      // Paint the saved theme before React mounts, so a dark-mode user never sees a white flash.
+      try { if ((localStorage.getItem('openclaw-theme') || 'dark') === 'dark') document.documentElement.classList.add('dark'); } catch (e) { document.documentElement.classList.add('dark'); }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "setup-ui-demo",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "OPENCLAW_SETUP_CONNECT_URL=http://localhost:8099",
+        "node",
+        "dist/cli.js",
+        "--port=51799",
+        "--no-open",
+        "--project-dir=/private/tmp/claude-501/-Users-mr-kent-Project-openclaw-setup--claude-worktrees-openclaw-presentation-design-5d5e57/8740c8b1-f65a-48f0-b68e-14a599f4abe9/scratchpad/ui-demo"
+      ],
+      "port": 51799
+    },
+    {
+      "name": "ui-dev-vps-mkt",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "SETUP_API=http://127.0.0.1:51889",
+        "npx",
+        "vite",
+        "--config",
+        "src/ui/vite.config.ts",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "connect-demo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/private/tmp/claude-501/-Users-mr-kent-Project-openclaw-setup--claude-worktrees-openclaw-presentation-design-5d5e57/8740c8b1-f65a-48f0-b68e-14a599f4abe9/scratchpad/connect-demo/run.mjs",
+        "/Users/mr.kent/Project/monkeyconnect"
+      ],
+      "port": 8099
+    }
+  ]
+}

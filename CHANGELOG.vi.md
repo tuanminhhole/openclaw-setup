@@ -1,6 +1,80 @@
 # Changelog (Tiếng Việt)
 
 
+## [5.21.0] - 2026-10-27
+
+### ⚡ Giao diện Setup mới: React + shadcn, không còn vẽ lại cả trang
+
+- **Viết lại toàn bộ giao diện** bằng React 19, Vite và shadcn/ui (bố cục theo mẫu Studio Admin, giấy
+  phép MIT). Giao diện cũ vẽ lại cả trang lẫn hộp thoại đang mở bằng innerHTML mỗi khi có gì thay đổi,
+  nên hộp thoại chớp, tự cuộn về đầu và mất chữ đang gõ. Nay chỉ phần thay đổi mới vẽ lại.
+- **Thanh bên và thanh đầu như một trang quản trị hiện đại:** Tổng quan, Bot, Cài đặt, Nhật ký, Tuỳ
+  chỉnh; chọn project ngay đầu thanh bên; trạng thái gateway trực tiếp trên thanh đầu; giao diện sáng
+  tối; tiếng Việt và tiếng Anh. Thanh bên thu gọn thành icon, trên điện thoại thành ngăn kéo.
+- **Trang Bot:** mỗi kênh một tab có số bot, bảng bot kèm trạng thái kết nối và đăng nhập Zalo hoặc
+  Facebook, sửa và xoá ngay trên dòng; bên dưới là kỹ năng, plugin và tệp workspace của bot đang chọn.
+  Bật tắt kỹ năng, plugin là công tắc đổi ngay, xác nhận chạy ngầm phía sau.
+- **Tạo và sửa bot trong khung trượt bên phải:** kênh; tên, ID và reaction xác nhận chung một hàng; thẻ
+  vai trò; chip tính cách có giới hạn; chủ bot; tài liệu kéo thả hoặc dán link; danh sách bot đã học,
+  xoá hai bước. Lúc lưu hiện thông báo tiến trình thay vì đơ cả form.
+- **Không còn confirm() hay alert() của trình duyệt.** Mọi xác nhận (xoá bot, xoá project, chuyển sang
+  native, điều khiển máy, hướng dẫn Chrome trên máy chủ không màn hình) là hộp thoại trong trang; kết
+  quả hiện thành thông báo nhỏ góc màn hình.
+- **Trình sửa workspace:** cây thư mục thu gọn được, chấm báo tệp chưa lưu, Ctrl/Cmd+S để lưu.
+- **Tải nhanh, vẫn chạy không cần mạng:** một gói khoảng 200 KB (gzip), tên tệp theo mã băm nên trình
+  duyệt lưu đệm lâu dài; font Inter (có dấu tiếng Việt) và icon thương hiệu đóng gói kèm, không gọi CDN.
+- **Kênh bot Facebook đổi tên thành "Fanpage"** để không ai nhầm với tài khoản Facebook cá nhân. Hộp
+  thoại "Có gì mới" hiện một lần để giới thiệu kênh này, kèm nút mở thẳng form tạo bot Fanpage. Trang
+  đã kết nối nay ngắt được ngay trong form sửa bot.
+- **Tab Fanpage và cột Gói** (cùng MonkeyTech Connect 0.5): dòng bot Fanpage hiện gói đang dùng (dùng thử Pro còn bao nhiêu ngày, Miễn phí đã dùng bao nhiêu trên 150 hội thoại, Pro, Team); tab Fanpage hiện số hội thoại tháng này, mở hộp thư Connect và trang Gói dịch vụ, bật tắt tự động trả lời bình luận và nhắn riêng cho người bình luận (tính năng Pro; trong lúc chờ Meta duyệt quyền bình luận, chỉ tài khoản quản trị app Meta dùng được).
+- **Giao diện cũ vẫn mở được ở /legacy** (có nút trong Tuỳ chỉnh) trong thời gian chuyển đổi. Phía máy
+  chủ và API giữ nguyên.
+
+### 🎨 Form bot: một hàng đầu, tooltip, tính cách dạng pill
+
+- **Tên bot, ID bot và reaction xác nhận nằm chung một hàng.** Các emoji có sẵn nằm trong một ô gọn
+  cạnh ô ID; ô emoji tuỳ chọn không còn cắt chữ.
+- **Ghi chú thành tooltip.** Mọi lời giải thích (luật đặt ID, reaction, Trang Facebook, vai, phong
+  cách, tài liệu) nay là một chấm thông tin: rê chuột hoặc chạm để đọc, form ngắn đi một nửa.
+- **Tính cách là pill, không phải ô nhập.** Bỏ ô "Tính cách riêng". Nhóm tính cách có 12 nét (vui vẻ,
+  thân thiện, hài hước, nhiệt tình, điềm đạm, kiên nhẫn, chuyên nghiệp, thẳng thắn, tỉ mỉ, lắng nghe,
+  nghiêm túc, cọc tính hài), chọn tối đa 3. Mỗi nét được viết thành một đoạn mô tả hành vi cụ thể dưới
+  mục "## Tính cách" trong SOUL.md của bot; rê chuột lên pill là thấy đoạn đó. Bot cũ giữ nguyên phần
+  chữ tự do đã nhập.
+- **Vai, tính cách, reaction và bộ tool gọn áp cho mọi kênh.** Bot CSKH, bán hàng, lễ tân trên Zalo và
+  Telegram nay chạy không có tool shell, file như bot Facebook, vẫn giữ tool plugin (zalo-connect, zalo-mod,
+  thao tác Telegram). Telegram cũng có reaction xác nhận, quy về bộ emoji của Telegram (😊 thành 😁) và thả
+  cả trong tin riêng; Zalo Bot API chưa có reaction.
+- **Tài liệu và link giờ tới được bot.** OpenClaw chỉ nạp AGENTS.md, SOUL.md, USER.md, IDENTITY.md vào
+  phiên chat với khách; ghi chú memory mà form ghi ra chưa bao giờ được đọc trên Messenger hay Zalo. Nay mọi
+  tệp chữ và mọi link được chép (có giới hạn) vào mục "Dự án, công ty bot cần hiểu" trong USER.md, link được
+  tải về và lọc thành chữ ngay lúc nạp (vai CSKH không có tool web), gõ "monkeytech.vn" không có https cũng
+  nhận. Hộp thoại sửa bot liệt kê tài liệu bot đã học, xoá được từng mục.
+- **Bỏ link "Dùng app Meta riêng".** Bot Facebook kết nối qua MonkeyTech Connect; các ô webhook chỉ
+  hiện với bot đã tạo bằng webhook từ trước.
+- **Chuyển Docker sang native kiểm luật một project mỗi tài khoản TRƯỚC.** OpenClaw 2026.8+ chỉ giữ một state
+  native mỗi tài khoản; nếu ~/.openclaw đang thuộc project khác thì dừng ngay, trước khi dừng container, nâng
+  Node hay chạy doctor (ngày 26/10 nó chỉ dừng ở bước cài service cuối, bot nằm luôn).
+- **Sửa bot không còn khởi động lại gateway.** OpenClaw 2026.9 tự nạp nóng config và đọc workspace
+  theo phiên, nên đổi vai, tính cách, chủ bot, tài liệu hay Trang chỉ mất vài giây. Gateway chỉ khởi
+  động lại khi phải cài plugin mới, bot đổi kênh, hoặc đổi reaction Zalo (khoá này chỉ đọc lúc boot).
+- **Lưu bot không còn mất mấy phút khi một plugin hỏng.** OpenClaw từ chối mọi thao tác plugin khi có
+  một plugin không nạp được; Setup trước đây hiểu nhầm là từng plugin khác "chưa có quyền" rồi cài lại
+  lần lượt (trên vps_mkt một lần lưu mất 4 phút và gỡ mất zalo-mod). Nay chỉ nêu tên plugin hỏng một
+  lần, không đụng các plugin lành, kiểm quyền bằng một lệnh `plugins list` thay vì gọi CLI từng plugin, nhớ
+  quyền đã xác nhận, xếp hàng thao tác plugin theo project, và sao
+  lưu thư mục plugin trước khi gỡ cài lại để cài lại hỏng không mất plugin.
+- **Project có nhãn service tuỳ chỉnh không còn biến mất khỏi bảng điều khiển.** Bộ lọc project trùng
+  state nay chỉ áp cho thư mục home của tài khoản.
+- **Liệt kê project Docker không còn ghi đè file của nó.** Trước đây lần đọc trạng thái đầu tiên sinh lại
+  docker-compose.yml, Dockerfile, entrypoint.sh của project đó khi Setup lên bản mới; project Docker (đã
+  ngừng hỗ trợ) nay chỉ đọc, trừ khi bấm rebuild hoặc chuyển sang native.
+- **Mở hộp thoại thì trang nền không cuộn nữa**, và hộp thoại không còn cuộn ngang.
+- **Sửa lỗi vai kẹt "Đang tải"** và ô reaction hiện "/-hear" bị cắt ở lần mở đầu: hộp thoại không vẽ
+  lại khi danh mục vai tải xong.
+- Làm lại thẻ mục, thẻ vai (icon nét thay emoji), pill và ô Facebook cho cả hai giao diện sáng tối.
+
+
 ## [5.20.0] - 2026-10-25
 
 ### 🧭 Tạo bot bằng cách chọn vai, không phải viết prompt

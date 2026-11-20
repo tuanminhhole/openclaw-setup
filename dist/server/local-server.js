@@ -1,7 +1,7 @@
 import http from 'http';
-import fs, { createReadStream, existsSync, readFileSync, promises as fsp } from 'fs';
+import fs, { createReadStream, existsSync, readFileSync, statSync, promises as fsp } from 'fs';
 import { createRequire } from 'module';
-import { basename, dirname, extname, join, normalize, resolve } from 'path';
+import { basename, dirname, extname, join, normalize, resolve, sep as PATH_SEP } from 'path';
 import { fileURLToPath } from 'url';
 import { spawn, execFile, execFileSync } from 'child_process';
 import os from 'os';
@@ -575,7 +575,10 @@ Do not call \`search-tool.js\`; browser-automation does not own search. Use \`we
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const WEB_DIR = resolve(__dirname, '../web');
+// The React UI is a Vite build (dist/web). Running the server straight from src/ has no build next
+// to it, so fall back to dist/web there. The old vanilla UI stays reachable at /legacy.
+const WEB_DIR = [resolve(__dirname, '../web'), resolve(__dirname, '../../dist/web')].find((d) => existsSync(join(d, 'index.html'))) || resolve(__dirname, '../web');
+const LEGACY_WEB_DIR = resolve(__dirname, '../web-legacy');
 const SETUP_VERSION = (() => { try { return JSON.parse(fs.readFileSync(resolve(__dirname, '../../package.json'), 'utf8')).version || '0.0.0'; } catch { return '0.0.0'; } })();
 let latestSetupVersionCache = SETUP_VERSION;
 let isFetchingLatestSetup = false;
@@ -1318,14 +1321,12 @@ async function syncRuntimeState(projectDir, { full = false } = {}) {
   state.mode = state.mode || rt.mode;
   state.syncSource = rt.syncSource || 'config';
   state.installed = true;
-  // Auto-sync Docker files if outdated - only on first sync (or forced); the version stamp gate
-  // inside syncDockerInfra already no-ops on matching versions, but skipping the call entirely
-  // avoids the repeated file reads on every page load.
-  if (firstSync && rt.mode === 'docker') {
-    await syncDockerInfra(projectDir).catch((err) =>
-      sendLog(`[sync] Docker infra sync skipped: ${err.message}`)
-    );
-  }
+  // Docker projects are read-only here. Until 5.20.0 the first status read regenerated the project's
+  // docker-compose.yml, Dockerfile, entrypoint.sh and helper scripts whenever the Setup version had
+  // moved ("[sync] Updating Docker infrastructure files"), which on vps_mkt (26/10/2026) rewrote the
+  // production bot William's files just because the Setup UI listed that project. Docker mode is
+  // retired, so nothing may touch a Docker project's files unless the operator asks for a rebuild or
+  // the migration to native; those paths call syncDockerInfra(projectDir, true) themselves.
   _runtimeSynced.add(projectDir);
 }
 
@@ -1910,7 +1911,9 @@ async function getFbHealth(projectDir) {
   if (cred && transport !== 'webhook') {
     try {
       const data = await connectFetch(projectDir, 'GET', '/api/pages', undefined, { timeoutMs: 8000 });
-      value.pages = (data.pages || []).map((p) => ({ id: String(p.id), name: p.name || '', picture: p.picture || null, igUsername: p.ig_username || null, connected: !!p.connected, subscribed: !!p.subscribed, linkedAt: p.linked_at || null }));
+      value.pages = (data.pages || []).map((p) => ({ id: String(p.id), name: p.name || '', picture: p.picture || null, igUsername: p.ig_username || null, connected: !!p.connected, subscribed: !!p.subscribed, linkedAt: p.linked_at || null,
+        // Connect 0.5+: goi (dung thu / Free / Pro / Team), han muc thang, cai dat Trang, link hop thu + nang cap.
+        plan: p.plan || null, settings: p.settings || null, billingUrl: p.billingUrl || null, inboxUrl: p.inboxUrl || null }));
     } catch (err) {
       value.error = err.message;
     }
@@ -2329,6 +2332,7 @@ async function listConfiguredBots(projectDir) {
     const identity = await readAgentIdentity(projectDir, agent);
     const meta = await readBotMeta(projectDir, agent, cfg);
     const env = await readProjectEnv(projectDir);
+    const knowledge = await listBotKnowledge(join(projectDir, '.openclaw', workspaceRelForAgent(agent, cfg, projectDir) || '')).catch(() => []);
     const hasOwnWorkspace = !!agent.workspace;
     const identityName = usableIdentityName(identity.name);
     return mapAgentChannels(agent, cfg).map((channel) => {
@@ -2350,6 +2354,7 @@ async function listConfiguredBots(projectDir) {
       roleId: meta.roleId || (meta.role ? 'tuy-chinh' : ''),
       customRole: meta.customRole || (meta.roleId ? '' : (meta.role || '')),
       styles: Array.isArray(meta.styles) ? meta.styles : [],
+      knowledge,
       reaction: meta.reaction !== undefined ? meta.reaction : '',
       mentionNames: channel === 'telegram' ? mentionNamesForAgent(agent) : '',
       transport: channel === 'fb-messenger' ? (fbTransportOf(cfg) || 'relay') : '',
@@ -2626,7 +2631,19 @@ function parseBotPersona(body = {}, { channel = 'telegram', previous = {} } = {}
 
 // Where the ack reaction lives per channel. zalo-connect reads only the global `messages.ackReaction`
 // (Zalo codes like /-heart). fb-messenger has a per-account key (plugin maps codes to emoji).
-// Telegram is left alone: OpenClaw only accepts its fixed reaction set there.
+// Telegram has a per-account key too but only accepts Telegram's own reaction set, so the value is
+// mapped (`/-heart` -> ❤️, 😊 -> 😁, anything unknown -> ❤️). The Zalo Bot API has no reaction call.
+// `messages.ackReactionScope` defaults to group-mentions, which never fires in DMs, so it is forced to
+// `all` whenever a reaction is on (Zalo already needed that).
+const TELEGRAM_REACTIONS = new Set(['👍', '👎', '❤️', '❤', '🔥', '🥰', '👏', '😁', '🤔', '🤯', '😱', '🤬', '😢', '🎉', '🤩', '🤮', '💩', '🙏', '👌', '🕊', '🤡', '🥱', '🥴', '😍', '🐳', '❤‍🔥', '🌚', '🌭', '💯', '🤣', '⚡', '🍌', '🏆', '💔', '🤨', '😐', '🍓', '🍾', '💋', '🖕', '😈', '😴', '😭', '🤓', '👻', '👨‍💻', '👀', '🎃', '🙈', '😇', '😨', '🤝', '✍', '🤗', '🫡', '🎅', '🎄', '☃', '💅', '🤪', '🗿', '🆒', '💘', '🙉', '🦄', '😘', '💊', '🙊', '😎', '👾', '🤷‍♂', '🤷', '🤷‍♀', '😡']);
+const TELEGRAM_REACTION_ALIASES = { '😊': '😁', '🙂': '😁', '😄': '😁', '😀': '😁', '👍🏻': '👍', '❤️‍🔥': '❤‍🔥' };
+function telegramReactionEmoji(value) {
+  const emoji = botRoles.reactionEmoji ? botRoles.reactionEmoji(value) : String(value || '').trim();
+  if (!emoji) return '';
+  const bare = emoji.replace(/️/g, '');
+  if (TELEGRAM_REACTIONS.has(emoji) || TELEGRAM_REACTIONS.has(bare)) return emoji;
+  return TELEGRAM_REACTION_ALIASES[emoji] || TELEGRAM_REACTION_ALIASES[bare] || '❤️';
+}
 function applyAckReaction(cfg, channel, accountId, reaction) {
   const value = String(reaction || '').trim();
   if (channel === 'zalo-personal') {
@@ -2636,46 +2653,181 @@ function applyAckReaction(cfg, channel, accountId, reaction) {
   } else if (channel === 'fb-messenger') {
     const acc = cfg.channels?.['fb-messenger']?.accounts?.[accountId];
     if (acc) acc.ackReaction = value; // "" = off, the plugin treats blank as disabled
+  } else if (channel === 'telegram') {
+    const acc = cfg.channels?.telegram?.accounts?.[accountId];
+    if (acc) {
+      acc.ackReaction = value ? telegramReactionEmoji(value) : '';
+      if (value) { cfg.messages = cfg.messages || {}; cfg.messages.ackReactionScope = 'all'; }
+    }
   }
 }
 
-// Facebook customer-facing roles run with the lean tool set measured on 26/10/2026 (system prompt
-// 41k -> 19k chars, tokens 19k -> 7.3k per turn): no shell/file/computer tools, only the cron skill.
+// Customer-facing roles (support, sales, front desk) run with the lean tool set measured on a live
+// Facebook Page on 26/10/2026 (system prompt 41k -> 19k chars, tokens 19k -> 7.3k per turn): no
+// shell, file or computer tools. On Facebook that is the whole story (cron skill only). On Zalo and
+// Telegram the bot still needs its plugin tools (zalo-connect, zalo-mod, telegram actions), which the
+// `messaging` profile drops unless `group:plugins` is allowed back, and its plugin skills are left as
+// they are. Other roles keep the full tool set.
 function applyRoleToolProfile(agent, channel, toolProfile) {
-  if (channel !== 'fb-messenger' || toolProfile !== 'messaging') { delete agent.tools; delete agent.skills; return; }
-  agent.tools = { profile: 'messaging', deny: ['computer', 'exec', 'process', 'apply_patch', 'write', 'edit'] };
-  agent.skills = ['cronjob'];
+  if (toolProfile !== 'messaging') { delete agent.tools; delete agent.skills; return; }
+  const deny = ['computer', 'exec', 'process', 'apply_patch', 'write', 'edit'];
+  if (channel === 'fb-messenger') {
+    agent.tools = { profile: 'messaging', deny };
+    agent.skills = ['cronjob'];
+    return;
+  }
+  agent.tools = { profile: 'messaging', deny, alsoAllow: ['group:plugins', 'cron'] };
+  delete agent.skills;
 }
 
-// Knowledge the owner uploads from the form: text goes straight into `memory/kien-thuc-<ten>.md`
-// (the only place memory_search indexes), binaries are kept under `tai-lieu/<ten>/goc/` for the
-// learn-documents skill, links are listed for web_fetch. USER.md gets one line per item under
-// "Dự án, công ty bot cần hiểu" (the heading the learn-documents skill already uses).
+// Knowledge the owner gives the bot from the form. OpenClaw injects AGENTS.md, SOUL.md, USER.md
+// and IDENTITY.md into EVERY session, but MEMORY.md and memory/*.md only reach the model through
+// memory_search (needs an embedding key) or a DM/main session: on Messenger and Zalo the customer-
+// facing session never sees them (vps_mkt 26/10/2026: the bot said it had no product list while
+// memory/kien-thuc-monkeytech-gioi-thieu.md sat next to it). So every item is written twice: the full
+// text to memory/kien-thuc-<ten>.md for search and the learn-documents skill, and a capped copy
+// inline under "Dự án, công ty bot cần hiểu" in USER.md, which is what the model actually reads.
+// Links are fetched here (a customer-facing role has no web tool), stripped to text, stored the same way.
 const KNOWLEDGE_TEXT_EXT = new Set(['.md', '.txt', '.csv', '.json', '.tsv']);
 const KNOWLEDGE_BINARY_EXT = new Set(['.pdf', '.docx', '.xlsx', '.pptx', '.zip']);
 const KNOWLEDGE_MAX_BYTES = 4 * 1024 * 1024;
 const KNOWLEDGE_MAX_FILES = 10;
+const KNOWLEDGE_INLINE_MAX = 8000;     // chars of one item pasted into USER.md
+const KNOWLEDGE_INLINE_TOTAL = 24000;  // chars of the whole section (about 6k tokens on every turn)
+const KNOWLEDGE_LINK_MAX_BYTES = 400 * 1024;
+const KNOWLEDGE_HEADING_RE = /^## (Dự án, công ty bot cần hiểu|Projects and companies the bot must know)/;
+const KNOWLEDGE_INTRO = '_Trả lời khách dựa trên các mục dưới đây. Điều gì không có ở đây thì nói sẽ hỏi lại chủ bot, không đoán._';
 function knowledgeSlug(name) {
-  const base = String(name || '').replace(/\.[^.]+$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+  const base = String(name || '').replace(/\.[^.]+$/, '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
   return base || 'tai-lieu';
 }
-async function appendUserDocKnowledge(wsRoot, lines) {
-  const userPath = join(wsRoot, 'USER.md');
-  if (!existsSync(userPath) || !lines.length) return;
-  const txt = await fsp.readFile(userPath, 'utf8');
-  const rows = txt.split('\n');
-  const heading = rows.findIndex((l) => /^## (Dự án, công ty bot cần hiểu|Projects and companies the bot must know)/.test(l.trim()));
-  if (heading < 0) { await fsp.writeFile(userPath, `${txt.replace(/\s*$/, '')}\n\n## Dự án, công ty bot cần hiểu\n\n${lines.join('\n')}\n`, 'utf8'); return; }
-  let end = rows.findIndex((l, i) => i > heading && /^## /.test(l));
-  if (end < 0) end = rows.length;
-  // drop the placeholder line, keep what is already there, append new items
-  const body = rows.slice(heading + 1, end).filter((l) => !/^_\(|^- _\(/.test(l.trim()));
-  const merged = [...body.filter((l) => l.trim()), ...lines.filter((l) => !body.includes(l))];
-  rows.splice(heading + 1, end - heading - 1, '', ...merged, '');
-  await fsp.writeFile(userPath, rows.join('\n'), 'utf8');
+// "monkeytech.vn" and "monkeytech.vn/agent" are what owners type; only http(s) URLs survive.
+function normalizeKnowledgeLink(raw) {
+  let l = String(raw || '').trim().replace(/^<|>$/g, '');
+  if (!l) return '';
+  if (!/^https?:\/\//i.test(l)) {
+    if (!/^(localhost|[a-z0-9.-]+\.[a-z]{2,})(:\d+)?(\/\S*)?$/i.test(l)) return '';
+    l = `https://${l}`;
+  }
+  try { const u = new URL(l); return ['http:', 'https:'].includes(u.protocol) ? u.toString() : ''; } catch { return ''; }
 }
-async function addBotKnowledge(projectDir, agentId, { files = [], links = [] } = {}) {
+function htmlToText(html) {
+  let s = String(html || '');
+  const title = ((s.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '').replace(/\s+/g, ' ').trim();
+  s = s.replace(/<head[\s\S]*?<\/head>/gi, ' ').replace(/<title[\s\S]*?<\/title>/gi, ' ').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ').replace(/<\/?(br|p|div|li|ul|ol|h[1-6]|tr|td|th|section|article|header|footer|nav|table|blockquote|pre)[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ');
+  s = s.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => { try { return String.fromCodePoint(Number(n)); } catch { return ' '; } })
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch { return ' '; } });
+  const text = s.split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+  return { title, text };
+}
+async function fetchKnowledgeLink(url) {
+  const res = await fetch(url, {
+    redirect: 'follow', signal: AbortSignal.timeout(15000),
+    headers: { 'user-agent': `Mozilla/5.0 (compatible; OpenClawSetup/${SETUP_VERSION})`, accept: 'text/html,text/plain,text/markdown;q=0.9,*/*;q=0.5' },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const type = String(res.headers.get('content-type') || '').toLowerCase();
+  if (type && !/text\/|json|xml/.test(type)) throw new Error(`không phải trang chữ (${type.split(';')[0]})`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  const raw = buf.subarray(0, KNOWLEDGE_LINK_MAX_BYTES).toString('utf8');
+  return /html|xml/.test(type) || /^\s*<(!doctype|html)/i.test(raw) ? htmlToText(raw) : { title: '', text: raw.trim() };
+}
+function knowledgeClip(text, max) {
+  const t = String(text || '').trim();
+  return t.length > max ? `${t.slice(0, max).replace(/\s+\S*$/, '')}\n\n_(cắt tại ${max} ký tự, bản đầy đủ nằm trong file kiến thức)_` : t;
+}
+function knowledgeSectionRange(rows) {
+  const start = rows.findIndex((l) => KNOWLEDGE_HEADING_RE.test(l.trim()));
+  if (start < 0) return null;
+  let end = rows.findIndex((l, i) => i > start && /^## /.test(l));
+  if (end < 0) end = rows.length;
+  return [start, end];
+}
+function knowledgeBlockRange(rows, start, end, relPath) {
+  const marker = `<!-- kien-thuc: ${relPath} -->`;
+  const at = rows.findIndex((l, i) => i > start && i < end && l.trim() === marker);
+  if (at < 0) return null;
+  let from = at;
+  while (from > start + 1 && !/^### /.test(rows[from])) from--;
+  let to = rows.findIndex((l, i) => i > at && (/^### /.test(l) || /^## /.test(l)));
+  if (to < 0 || to > end) to = end;
+  return [from, to];
+}
+// One `### <tên>` block per item, keyed by a marker comment so a re-upload replaces instead of
+// duplicating. The section gets the guidance line the model should follow.
+async function upsertUserDocKnowledge(wsRoot, items) {
+  const userPath = join(wsRoot, 'USER.md');
+  if (!items.length) return;
+  let rows = existsSync(userPath) ? (await fsp.readFile(userPath, 'utf8')).split('\n') : [];
+  let range = knowledgeSectionRange(rows);
+  if (!range) {
+    while (rows.length && !rows[rows.length - 1].trim()) rows.pop();
+    rows.push('', '## Dự án, công ty bot cần hiểu', '', KNOWLEDGE_INTRO, '');
+    range = knowledgeSectionRange(rows);
+  }
+  let [start, end] = range;
+  // Replace the 5.20.0 placeholder lines with the guidance line (once).
+  const head = rows.slice(start + 1, end);
+  const firstBlock = head.findIndex((l) => /^### /.test(l));
+  const intro = head.slice(0, firstBlock < 0 ? head.length : firstBlock).filter((l) => l.trim() && !/^_\(|^- _\(|^_Mỗi mục một dòng|^_Trả lời khách dựa trên/.test(l.trim()) && !/^- .*→ memory\//.test(l.trim()));
+  rows.splice(start + 1, (firstBlock < 0 ? head.length : firstBlock), '', KNOWLEDGE_INTRO, ...(intro.length ? ['', ...intro] : []), '');
+  for (const item of items) {
+    range = knowledgeSectionRange(rows); [start, end] = range;
+    const existing = knowledgeBlockRange(rows, start, end, item.path);
+    const used = rows.slice(start, end).join('\n').length - (existing ? rows.slice(existing[0], existing[1]).join('\n').length : 0);
+    const budget = Math.max(1500, Math.min(KNOWLEDGE_INLINE_MAX, KNOWLEDGE_INLINE_TOTAL - used));
+    const block = [`### ${item.name}`, `<!-- kien-thuc: ${item.path} -->`];
+    if (item.source) block.push(`_Nguồn: ${item.source}_`);
+    // Headings inside the pasted text are demoted so they cannot end the section or split the block.
+    const inline = item.inline ? knowledgeClip(item.inline, budget).replace(/^#{1,6}\s+/gm, '#### ') : '';
+    block.push('', inline || `_(${item.note || 'chưa có nội dung'})_`, '');
+    if (existing) rows.splice(existing[0], existing[1] - existing[0], ...block);
+    else { let at = end; while (at > start + 1 && !rows[at - 1].trim()) at--; rows.splice(at, 0, ...block); }
+  }
+  await fsp.writeFile(userPath, rows.join('\n').replace(/\n{3,}/g, '\n\n'), 'utf8');
+}
+async function removeUserDocKnowledge(wsRoot, relPath) {
+  const userPath = join(wsRoot, 'USER.md');
+  if (!existsSync(userPath)) return;
+  const rows = (await fsp.readFile(userPath, 'utf8')).split('\n');
+  const range = knowledgeSectionRange(rows);
+  if (!range) return;
+  const block = knowledgeBlockRange(rows, range[0], range[1], relPath);
+  if (!block) return;
+  rows.splice(block[0], block[1] - block[0]);
+  await fsp.writeFile(userPath, rows.join('\n').replace(/\n{3,}/g, '\n\n'), 'utf8');
+}
+function knowledgeFrontmatter(txt) {
+  const m = String(txt || '').match(/^---\n([\s\S]*?)\n---/);
+  const out = {};
+  if (m) for (const line of m[1].split('\n')) { const i = line.indexOf(':'); if (i > 0) out[line.slice(0, i).trim()] = line.slice(i + 1).trim(); }
+  return out;
+}
+// What the edit dialog shows under "Tài liệu": every knowledge note and every parked binary.
+async function listBotKnowledge(wsRoot) {
+  const items = [];
+  const memDir = join(wsRoot, 'memory');
+  try {
+    for (const f of (await fsp.readdir(memDir)).filter((n) => /^kien-thuc-.*\.md$/.test(n)).sort()) {
+      if (f === 'kien-thuc-lien-ket.md') continue;
+      const fm = knowledgeFrontmatter(await fsp.readFile(join(memDir, f), 'utf8').catch(() => ''));
+      items.push({ name: fm.source || fm.title || fm.url || f.replace(/^kien-thuc-|\.md$/g, ''), path: `memory/${f}`, kind: fm.url ? 'link' : 'text', url: fm.url || '' });
+    }
+  } catch {}
+  const docDir = join(wsRoot, 'tai-lieu');
+  try {
+    for (const slug of (await fsp.readdir(docDir)).sort()) {
+      const goc = join(docDir, slug, 'goc');
+      for (const f of await fsp.readdir(goc).catch(() => [])) items.push({ name: f, path: `tai-lieu/${slug}/goc/${f}`, kind: 'binary', url: '' });
+    }
+  } catch {}
+  return items;
+}
+async function knowledgeWorkspaceRoot(projectDir, agentId) {
   const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
   if (!existsSync(cfgPath)) throw httpError(404, 'openclaw.json not found');
   const cfg = ensureConfigShape(parseJsonText(await fsp.readFile(cfgPath, 'utf8')));
@@ -2683,10 +2835,29 @@ async function addBotKnowledge(projectDir, agentId, { files = [], links = [] } =
   if (!agent) throw httpError(404, 'Bot not found');
   const rel = workspaceRelForAgent(agent, cfg, projectDir);
   if (!rel) throw httpError(404, 'Workspace not found');
-  const wsRoot = join(projectDir, '.openclaw', rel);
+  return join(projectDir, '.openclaw', rel);
+}
+async function removeBotKnowledge(projectDir, agentId, relPath) {
+  const wsRoot = await knowledgeWorkspaceRoot(projectDir, agentId);
+  const clean = String(relPath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+  if (!/^memory\/kien-thuc-[^/]+\.md$/.test(clean) && !/^tai-lieu\/[^/]+\/goc\/[^/]+$/.test(clean)) throw httpError(400, 'Đường dẫn tài liệu không hợp lệ');
+  const target = safeJoin(wsRoot, clean);
+  if (clean.startsWith('tai-lieu/')) {
+    const slugDir = safeJoin(wsRoot, clean.split('/').slice(0, 2).join('/'));
+    await fsp.rm(slugDir, { recursive: true, force: true });
+  } else {
+    await fsp.rm(target, { force: true });
+  }
+  await removeUserDocKnowledge(wsRoot, clean);
+  return { ok: true, removed: clean };
+}
+async function addBotKnowledge(projectDir, agentId, { files = [], links = [] } = {}) {
+  const wsRoot = await knowledgeWorkspaceRoot(projectDir, agentId);
   if (!Array.isArray(files) || files.length > KNOWLEDGE_MAX_FILES) throw httpError(400, `Tối đa ${KNOWLEDGE_MAX_FILES} tệp mỗi lần`);
   const added = [];
-  const userLines = [];
+  const warnings = [];
+  const inlineItems = [];
+  const today = new Date().toISOString().slice(0, 10);
   for (const f of files) {
     const name = basename(String(f?.name || '')).trim();
     const ext = extname(name).toLowerCase();
@@ -2697,33 +2868,52 @@ async function addBotKnowledge(projectDir, agentId, { files = [], links = [] } =
     if (buf.length > KNOWLEDGE_MAX_BYTES) throw httpError(400, `Tệp ${name} quá 4MB`);
     const slug = knowledgeSlug(name);
     if (KNOWLEDGE_TEXT_EXT.has(ext)) {
-      const target = safeJoin(wsRoot, join('memory', `kien-thuc-${slug}.md`));
+      const relPath = `memory/kien-thuc-${slug}.md`;
+      const target = safeJoin(wsRoot, relPath);
       await fsp.mkdir(dirname(target), { recursive: true });
       const body = buf.toString('utf8');
-      const content = ext === '.md' ? body : `# ${name}\n\n\`\`\`${ext.slice(1)}\n${body}\n\`\`\`\n`;
-      await fsp.writeFile(target, `---\nname: kien-thuc-${slug}\nsource: ${name}\nadded: ${new Date().toISOString().slice(0, 10)}\n---\n\n${content.replace(/^---[\s\S]*?---\n/, '')}`, 'utf8');
-      added.push({ name, path: `memory/kien-thuc-${slug}.md`, kind: 'text' });
-      userLines.push(`- ${name} → memory/kien-thuc-${slug}.md`);
+      const content = ext === '.md' ? body.replace(/^---[\s\S]*?---\n/, '') : `# ${name}\n\n\`\`\`${ext.slice(1)}\n${body}\n\`\`\`\n`;
+      await fsp.writeFile(target, `---\nname: kien-thuc-${slug}\nsource: ${name}\nadded: ${today}\n---\n\n${content}`, 'utf8');
+      added.push({ name, path: relPath, kind: 'text' });
+      inlineItems.push({ name, path: relPath, source: name, inline: content });
     } else {
-      const target = safeJoin(wsRoot, join('tai-lieu', slug, 'goc', name));
+      const relPath = `tai-lieu/${slug}/goc/${name}`;
+      const target = safeJoin(wsRoot, relPath);
       await fsp.mkdir(dirname(target), { recursive: true });
       await fsp.writeFile(target, buf);
-      added.push({ name, path: `tai-lieu/${slug}/goc/${name}`, kind: 'binary' });
-      userLines.push(`- ${name} (chưa học, skill hoc-tai-lieu đọc từ tai-lieu/${slug}/goc/) → memory/kien-thuc-${slug}.md`);
+      added.push({ name, path: relPath, kind: 'binary' });
+      inlineItems.push({ name, path: relPath, source: name, inline: '', note: `tệp ${ext.slice(1)} chưa đọc được, skill hoc-tai-lieu sẽ học từ tai-lieu/${slug}/goc/ ở lần chạy đầu` });
     }
   }
-  const cleanLinks = (Array.isArray(links) ? links : String(links || '').split(/[\n,\s]+/)).map((l) => String(l).trim()).filter((l) => /^https?:\/\/\S+$/i.test(l)).slice(0, 50);
+  const rawLinks = Array.isArray(links) ? links : String(links || '').split(/[\n,\s]+/);
+  const cleanLinks = [...new Set(rawLinks.map(normalizeKnowledgeLink).filter(Boolean))].slice(0, 20);
   if (cleanLinks.length) {
-    const target = safeJoin(wsRoot, join('memory', 'kien-thuc-lien-ket.md'));
-    await fsp.mkdir(dirname(target), { recursive: true });
-    const prev = existsSync(target) ? await fsp.readFile(target, 'utf8') : '---\nname: kien-thuc-lien-ket\n---\n\n# Liên kết chủ bot cung cấp\n\n_Mở bằng tool web_fetch khi cần, tóm tắt vào memory/kien-thuc-<ten>.md._\n';
+    // Keep the plain list too (older workspaces and the learn-documents skill read it).
+    const listPath = safeJoin(wsRoot, join('memory', 'kien-thuc-lien-ket.md'));
+    await fsp.mkdir(dirname(listPath), { recursive: true });
+    const prev = existsSync(listPath) ? await fsp.readFile(listPath, 'utf8') : '---\nname: kien-thuc-lien-ket\n---\n\n# Liên kết chủ bot cung cấp\n\n_Nội dung từng trang đã được tải về memory/kien-thuc-web-*.md lúc nạp._\n';
     const fresh = cleanLinks.filter((l) => !prev.includes(l)).map((l) => `- ${l}`);
-    if (fresh.length) await fsp.writeFile(target, `${prev.replace(/\s*$/, '')}\n${fresh.join('\n')}\n`, 'utf8');
-    added.push({ name: `${cleanLinks.length} liên kết`, path: 'memory/kien-thuc-lien-ket.md', kind: 'links' });
-    userLines.push('- Liên kết chủ cung cấp → memory/kien-thuc-lien-ket.md');
+    if (fresh.length) await fsp.writeFile(listPath, `${prev.replace(/\s*$/, '')}\n${fresh.join('\n')}\n`, 'utf8');
+    for (const url of cleanLinks) {
+      const u = new URL(url);
+      // Not knowledgeSlug: that strips a file extension, which on a host name eats the last label.
+      const slug = `${u.hostname}${u.pathname === '/' ? '' : u.pathname}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'trang-web';
+      const relPath = `memory/kien-thuc-web-${slug}.md`;
+      try {
+        const page = await fetchKnowledgeLink(url);
+        if (!page.text || page.text.length < 20) throw new Error('trang không có chữ để đọc');
+        const title = page.title || u.hostname;
+        const target = safeJoin(wsRoot, relPath);
+        await fsp.writeFile(target, `---\nname: kien-thuc-web-${slug}\nurl: ${url}\ntitle: ${title.replace(/\n/g, ' ')}\nadded: ${today}\n---\n\n# ${title}\n\n${page.text}\n`, 'utf8');
+        added.push({ name: title, path: relPath, kind: 'link', url });
+        inlineItems.push({ name: title, path: relPath, source: url, inline: page.text });
+      } catch (err) {
+        warnings.push(`${url}: ${err?.message || err}`);
+      }
+    }
   }
-  await appendUserDocKnowledge(wsRoot, userLines);
-  return { ok: true, added };
+  await upsertUserDocKnowledge(wsRoot, inlineItems);
+  return { ok: true, added, warnings };
 }
 
 async function createBotInProject(projectDir, body = {}, runtime = {}) {
@@ -3085,7 +3275,16 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
   if (channel === 'fb-messenger') botMeta.appId = String(body.appId || '').trim();
   await writeBotMeta(projectDir, workspaceDir, botMeta);
 
-  return { ok: true, agentId, channel, workspace: `.openclaw/${workspaceDir}` };
+  // OpenClaw 2026.9 hot-reloads openclaw.json (agents, bindings, channel accounts) and reads the
+  // workspace files per session, so an edit of role, traits, owner or documents needs no restart.
+  // Two things still do: zalo-connect reads `messages.ackReaction` only at boot (vps_asa 22/10/2026),
+  // and moving a bot to another channel. The caller restarts only for those; otherwise a save on
+  // vps_mkt spent 54 of its 85 seconds restarting the whole gateway (26/10/2026).
+  const prevReaction = previousMeta?.reaction === undefined ? '' : String(previousMeta.reaction || '');
+  const reactionChanged = prevReaction !== String(personaCfg.reaction || '');
+  const channelChanged = previousBindings.length > 0 && !previousBindings.some((b) => b.match?.channel === bindingChannelId(channel));
+  const restartReason = channelChanged ? 'đổi kênh' : (channel === 'zalo-personal' && reactionChanged ? 'đổi reaction Zalo (messages.ackReaction không nạp nóng)' : '');
+  return { ok: true, agentId, channel, workspace: `.openclaw/${workspaceDir}`, restartNeeded: !!restartReason, restartReason };
 }
 
 function openclawRuntimeEnv(projectDir) {
@@ -4389,6 +4588,31 @@ const STUCK_PLUGIN_RECORD_RE = /config repair could not be inspected|install inc
  * both are captured first and restored after. plugins-data (sessions, CRM, licence) is not touched
  * by uninstall.
  */
+// Plugin operations on one project must not overlap: two saves clicked a second apart on vps_mkt
+// (26/10/2026) ran two uninstall/reinstall sequences of zalo-mod at once and left the plugin broken.
+const _pluginOpsChain = new Map();
+function withPluginOpsLock(projectDir, fn) {
+  const key = resolve(String(projectDir || ''));
+  const prev = _pluginOpsChain.get(key) || Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  _pluginOpsChain.set(key, next);
+  next.finally(() => { if (_pluginOpsChain.get(key) === next) _pluginOpsChain.delete(key); }).catch(() => {});
+  return next;
+}
+// Capability consent is per machine and survives restarts, so once this Setup process has seen it
+// succeed for a plugin there is nothing to do on the next save (each `plugins enable` call costs a
+// CLI start-up of several seconds; five plugins made every save wait half a minute even when healthy).
+const _pluginConsentOk = new Set();
+// When ONE plugin cannot load, openclaw refuses every plugin operation and reports that plugin in the
+// error of all the others ("plugin load failed: zalo-mod: ..."). Reinstalling the healthy ones then
+// changes nothing and costs minutes (vps_mkt 26/10/2026: a save took 4 minutes and ended with zalo-mod
+// removed). Name the culprit so the caller repairs it alone.
+function brokenPluginFromError(text) {
+  const m = String(text || '').match(/plugin load failed: ([A-Za-z0-9_.@/-]+?):/);
+  return m ? m[1] : '';
+}
+const TRANSIENT_PLUGIN_ERROR_RE = /undergoing offline maintenance|config changed since last load|lifecycle lease/i;
+
 async function reinstallPluginKeepingSettings(projectDir, id, spec) {
   const cfgPath = join(projectDir, '.openclaw', 'openclaw.json');
   let saved = null;
@@ -4399,12 +4623,24 @@ async function reinstallPluginKeepingSettings(projectDir, id, spec) {
     wasAllowed = Array.isArray(cfg?.plugins?.allow) && cfg.plugins.allow.includes(id);
   } catch {}
   sendLog(`[native] ${id}: bản ghi plugin chép từ Docker bị kẹt - gỡ bản ghi rồi cài lại (giữ cài đặt, không đụng plugins-data)`);
+  // Keep a copy of the files: `uninstall` deletes the folder, and if the reinstall then fails (ClawHub
+  // flagged the package, network down) the bot would lose a plugin that was working a minute ago.
+  const extDir = join(projectDir, '.openclaw', 'extensions', id);
+  const backupDir = join(projectDir, '.openclaw', 'extensions', '.openclaw-install-backups', `${id}-${Date.now()}`);
+  let backedUp = false;
+  if (existsSync(extDir)) {
+    try { await fsp.cp(extDir, backupDir, { recursive: true }); backedUp = true; } catch (e) { sendLog(`[native] ${id}: không sao lưu được thư mục plugin - ${e.message}`); }
+  }
   await ocCaptureInstall(projectDir, ['plugins', 'uninstall', id, '--force'], { timeout: 120000 });
   const re = await ocCaptureInstall(projectDir, ['plugins', 'install', spec, '--force', '--accept-capabilities'], { timeout: 300000 });
   if (re.code !== 0) {
     sendLog(`[native] ${id}: cài lại sau khi gỡ vẫn lỗi - ${stripCliWarnings(`${re.stdout || ''}\n${re.stderr || ''}`).trim().slice(0, 200)}`);
+    if (backedUp && !existsSync(join(extDir, 'package.json'))) {
+      try { await fsp.cp(backupDir, extDir, { recursive: true }); sendLog(`[native] ${id}: đã trả lại thư mục plugin từ bản sao lưu`); } catch (e) { sendLog(`[native] ${id}: không trả lại được thư mục plugin - ${e.message}`); }
+    }
     return false;
   }
+  if (backedUp) await fsp.rm(backupDir, { recursive: true, force: true }).catch(() => {});
   try {
     const cfg = JSON.parse(await fsp.readFile(cfgPath, 'utf8'));
     cfg.plugins = cfg.plugins && typeof cfg.plugins === 'object' ? cfg.plugins : {};
@@ -4430,8 +4666,11 @@ async function reinstallPluginKeepingSettings(projectDir, id, spec) {
   return true;
 }
 
-async function ensureNativePlugins(projectDir, { restart = false } = {}) {
+async function ensureNativePlugins(projectDir, opts = {}) {
   if (!isNativeProject(projectDir)) return [];
+  return withPluginOpsLock(projectDir, () => ensureNativePluginsUnlocked(projectDir, opts));
+}
+async function ensureNativePluginsUnlocked(projectDir, { restart = false } = {}) {
   // Same cleanup the container entrypoint does (docker-gen.js): an interrupted `plugins install`
   // leaves extensions/.openclaw-install-stage-XXXXXX behind, and it still carries a plugin manifest -
   // so the gateway logs "duplicate plugin id detected" every boot and a stale build competes with the
@@ -4469,7 +4708,7 @@ async function ensureNativePlugins(projectDir, { restart = false } = {}) {
     const out = await ocCaptureInstall(projectDir, ['plugins', 'install', spec, '--force', '--accept-capabilities'], { timeout: 300000 });
     const text = `${out.stdout || ''}\n${out.stderr || ''}`;
     for (const line of text.split(/\r?\n/).map((l) => l.trimEnd()).filter(Boolean)) sendLog(`[native] ${line}`);
-    if (existsSync(dir) || /installed plugin/i.test(text)) installed.push(id);
+    if (existsSync(dir) || /installed plugin/i.test(text)) { installed.push(id); _pluginConsentOk.delete(`${resolve(projectDir)}::${id}`); }
     else sendLog(`[native] WARNING: could not install plugin ${id} - the bot will run without it.`);
   }
   // Capability consent for the plugins that are ALREADY on disk. The loop above only covers
@@ -4483,10 +4722,37 @@ async function ensureNativePlugins(projectDir, { restart = false } = {}) {
     .map(([id]) => id)
     .filter((id) => nativePluginPresent(projectDir, id));
   const consented = [];
+  const skippedFor = new Map(); // healthy plugin -> the broken plugin whose failure it echoes
+  const transient = [];
+  // One `plugins list` names every plugin still waiting for consent ("Plugin "x" requires capability
+  // consent") and the one that cannot load, so the per-plugin `enable` call below only runs for those.
+  // Each CLI start costs 15 to 20 seconds on a small VPS; five of them made every save wait a minute
+  // and a half even when nothing was wrong (vps_mkt 26/10/2026).
+  let needConsent = null;
+  const pending = declared.filter((id) => !_pluginConsentOk.has(`${resolve(projectDir)}::${id}`));
+  if (pending.length) {
+    const scan = await ocCaptureInstall(projectDir, ['plugins', 'list'], { timeout: 120000 });
+    const scanText = `${scan.stdout || ''}\n${scan.stderr || ''}`;
+    if (TRANSIENT_PLUGIN_ERROR_RE.test(scanText)) {
+      sendLog(`[native] Chưa kiểm được quyền plugin: state OpenClaw đang bận bảo trì, sẽ thử lại ở lần lưu sau.`);
+      pending.length = 0;
+    } else if (scan.code === 0) {
+      needConsent = new Set([...scanText.matchAll(/Plugin "([^"]+)" requires capability consent/g)].map((m) => m[1]));
+      const culprit = brokenPluginFromError(scanText);
+      if (culprit) needConsent.add(culprit);
+    }
+  }
   for (const id of declared) {
+    const cacheKey = `${resolve(projectDir)}::${id}`;
+    if (_pluginConsentOk.has(cacheKey)) { consented.push(id); continue; }
+    if (!pending.includes(id)) continue;
+    if (needConsent && !needConsent.has(id)) { consented.push(id); _pluginConsentOk.add(cacheKey); continue; }
     const out = await ocCaptureInstall(projectDir, ['plugins', 'enable', id, '--accept-capabilities'], { timeout: 120000 });
-    if (out.code === 0) { consented.push(id); continue; }
+    if (out.code === 0) { consented.push(id); _pluginConsentOk.add(cacheKey); continue; }
     const why = stripCliWarnings(`${out.stdout || ''}\n${out.stderr || ''}`).trim();
+    if (TRANSIENT_PLUGIN_ERROR_RE.test(why)) { transient.push(id); continue; }
+    const culprit = brokenPluginFromError(why);
+    if (culprit && culprit !== id) { skippedFor.set(id, culprit); continue; }
     // A plugin folder lifted out of a Docker volume has no registry entry on this machine, so
     // consent alone is refused with "no authoritative package-owner metadata" - openclaw wants the
     // package reinstalled. Take the package name off the plugin's own package.json rather than
@@ -4501,10 +4767,15 @@ async function ensureNativePlugins(projectDir, { restart = false } = {}) {
     sendLog(`[native] ${id}: chưa có quyền (${why.slice(0, 120)}) - cài lại ${spec}`);
     const re = await ocCaptureInstall(projectDir, ['plugins', 'install', spec, '--force', '--accept-capabilities'], { timeout: 300000 });
     const reText = stripCliWarnings(`${re.stdout || ''}\n${re.stderr || ''}`).trim();
-    if (re.code === 0) consented.push(id);
-    else if (STUCK_PLUGIN_RECORD_RE.test(reText) && await reinstallPluginKeepingSettings(projectDir, id, spec)) consented.push(id);
+    if (re.code === 0) { consented.push(id); _pluginConsentOk.add(cacheKey); }
+    else if (STUCK_PLUGIN_RECORD_RE.test(reText) && await reinstallPluginKeepingSettings(projectDir, id, spec)) { consented.push(id); _pluginConsentOk.add(cacheKey); }
     else sendLog(`[native] ${id}: cài lại không xong - ${reText.slice(0, 200)}`);
   }
+  if (skippedFor.size) {
+    const culprits = [...new Set(skippedFor.values())].join(', ');
+    sendLog(`[native] Bỏ qua kiểm quyền ${skippedFor.size} plugin (${[...skippedFor.keys()].join(', ')}): OpenClaw đang từ chối mọi thao tác plugin vì ${culprits} hỏng. Sửa ${culprits} trước (Bot → Plugins → cài lại), các plugin kia không cần cài lại.`);
+  }
+  if (transient.length) sendLog(`[native] Chưa kiểm được quyền ${transient.join(', ')}: state OpenClaw đang bận bảo trì, sẽ thử lại ở lần lưu sau.`);
   if (consented.length) sendLog(`[native] Đã xác nhận quyền cho ${consented.length}/${declared.length} plugin: ${consented.join(', ')}`);
 
   if (installed.length && restart) {
@@ -4697,6 +4968,31 @@ async function installNative9RouterUnit(projectDir, routerPort, dataDir, { resta
  * Returns the env for `daemon install` (plain HOME, no OPENCLAW_* overrides), or null when
  * the runtime is older than 2026.8 and nothing should change.
  */
+// Read-only pre-flight for the one-project-per-account rule that prepareNativeStateHome enforces:
+// returns the reason the account state dir (~/.openclaw) cannot host THIS project, or '' when it can.
+// The migrate and update paths call it BEFORE they stop containers, upgrade Node or run doctor. On
+// vps_mkt (26/10/2026) the check only ran at the very end, after the Docker bot had been stopped and
+// its state migrated, so a blocked `daemon install` left the production bot down with nothing to
+// start it. Nothing is written here.
+async function nativeStateHomeBlocker(projectDir) {
+  if ((await hostOpenclawMajorMinor()) < 202608) return '';
+  const homeState = join(os.homedir(), '.openclaw');
+  const projState = join(projectDir, '.openclaw');
+  if (resolve(projState) === resolve(homeState)) return '';
+  const lstat = (p) => { try { return fs.lstatSync(p); } catch { return null; } };
+  const projLink = lstat(projState);
+  if (projLink?.isSymbolicLink()) {
+    try { if (resolve(fs.realpathSync(projState)) === resolve(homeState)) return ''; } catch {}
+    return `${projState} là symlink nhưng không trỏ về ${homeState} - kiểm tay trước khi chuyển`;
+  }
+  const homeLstat = lstat(homeState);
+  if (!homeLstat || homeLstat.isSymbolicLink()) return '';
+  if (existsSync(join(homeState, 'openclaw.json'))) {
+    return `${homeState} đã chứa state của một project khác - 2026.8 chỉ hỗ trợ MỘT project native mỗi tài khoản. Xoá hoặc dời project đó (hoặc chạy project này dưới tài khoản Linux khác) rồi thử lại.`;
+  }
+  return '';
+}
+
 async function prepareNativeStateHome(projectDir) {
   if ((await hostOpenclawMajorMinor()) < 202608) return null;
   const home = os.homedir();
@@ -5168,6 +5464,8 @@ async function writeWindowsLaunchers(projectDir, gatewayPort, routerPort) {
 async function migrateDockerProjectToNative(projectDir, { osChoice = '' } = {}) {
   const composeFile = join(projectDir, 'docker', 'openclaw', 'docker-compose.yml');
   if (!existsSync(composeFile)) return false;
+  const blocker = await nativeStateHomeBlocker(projectDir);
+  if (blocker) throw new Error(`[migrate] Không chuyển được: ${blocker}`);
   sendLog('[migrate] Chuyển project từ Docker sang native...');
 
   // Refuse to start unless Docker can actually be read. On Windows the bot's SQLite state - which
@@ -5715,10 +6013,24 @@ async function syncDockerInfra(projectDir, force = false) {
   return true;
 }
 
-async function recreateDockerBot(projectDir) {
+async function recreateDockerBot(projectDir, { hot = false, reason = '' } = {}) {
   // Native: there is no image to rebuild - the gateway reads openclaw.json from disk on boot, so
   // reloading config after a bot/plugin change is just a service restart. Callers stay unchanged.
+  // `hot`: the caller knows the change hot-reloads; restart only if a plugin had to be installed.
   if (isNativeProject(projectDir)) {
+    if (hot) {
+      const installed = await ensureNativePlugins(projectDir).catch((e) => { sendLog(`[native] plugin ensure skipped: ${e.message}`); return []; });
+      if (!installed.length) {
+        sendLog('[native] Đã lưu; gateway tự nạp nóng openclaw.json, không cần khởi động lại.');
+        probeCacheClear();
+        return true;
+      }
+      sendLog(`[native] Khởi động lại gateway để nạp plugin mới: ${installed.join(', ')}`);
+      await restartNativeRuntime(projectDir).catch((e) => sendLog(`[native] restart failed: ${e.message}`));
+      probeCacheClear();
+      return true;
+    }
+    if (reason) sendLog(`[native] Khởi động lại gateway: ${reason}.`);
     // Never restart a gateway that is still on its first boot: OpenClaw runs startup migrations
     // under a state lease, a restart mid-migration exits 1, and systemd's start limit can then
     // abandon the unit. This is the same trap the docker path avoids by waiting for the container
@@ -5826,6 +6138,8 @@ async function updateRuntimeUnlocked(target, projectDir) {
   // deliberate act by the customer, not something that reshapes their machine behind their back.
   if (!isNativeProject(projectDir) && projectDir && existsSync(join(projectDir, 'docker', 'openclaw', 'docker-compose.yml'))) {
     sendLog('[update] Project đang chạy Docker - chuyển sang native trước khi cập nhật.');
+    const blocker = await nativeStateHomeBlocker(projectDir);
+    if (blocker) throw new Error(`Không chuyển được sang native: ${blocker}`);
     await ensureNodeInstalled();
     await migrateDockerProjectToNative(projectDir, { osChoice: state.os || detectOs() });
     // The key context changed with the runtime: whatever auth profile the container-era gateway froze
@@ -7063,6 +7377,12 @@ function dedupeProjectsByRealState(dirs) {
 
 function isPhantomStateDirProject(dir) {
   try {
+    // The phantom is the ACCOUNT HOME: on the 2026.8 layout the real state lives at ~/.openclaw and the
+    // project's own .openclaw is a symlink to it, so the home folder looks like a project of its own.
+    // Only the home can be that twin. Judging any folder by its service label alone hid a real project
+    // on vps_mkt (26/10/2026) the moment its label was edited by hand, and the dashboard went empty.
+    const homes = new Set([os.homedir(), getRealHomedir()].filter(Boolean).map((h) => resolve(h)));
+    if (!homes.has(resolve(String(dir || '')))) return false;
     const meta = readNativeMeta(dir);
     if (!meta || !meta.label) return false;
     // Compare against the label DERIVED from the directory name - nativeServiceLabel()
@@ -8185,19 +8505,35 @@ async function getFeatureFlags(projectDir, agentId = '') {
   return { flags, installed, versions, zaloBackend, locked };
 }
 
+const STATIC_TYPES = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
+  '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8', '.md': 'text/plain; charset=utf-8', '.woff2': 'font/woff2', '.woff': 'font/woff',
+};
 async function serveStatic(req, res) {
   const url = new URL(req.url, 'http://local');
-  let pathname = decodeURIComponent(url.pathname);
+  let pathname;
+  try { pathname = decodeURIComponent(url.pathname); } catch { return false; }
+  if (pathname === '/legacy') { res.writeHead(302, { location: '/legacy/' }); res.end(); return true; }
+  let root = WEB_DIR;
+  if (pathname.startsWith('/legacy/')) { root = LEGACY_WEB_DIR; pathname = pathname.slice('/legacy'.length); }
   if (pathname === '/') pathname = '/index.html';
-  const file = resolve(WEB_DIR, pathname.slice(1));
-  if (!file.startsWith(WEB_DIR) || !existsSync(file)) return false;
-  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png' };
+  const file = resolve(root, pathname.slice(1));
+  // Compare against "root + separator": a bare startsWith(root) let "../web-legacy" slip past "web".
+  if (!file.startsWith(root + PATH_SEP)) return false;
+  let st;
+  try { st = statSync(file); } catch { return false; }
+  if (!st.isFile()) return false;
+  // Vite names assets by content hash, so they can be cached for good; everything else stays fresh.
+  const hashed = root === WEB_DIR && pathname.startsWith('/assets/');
   res.writeHead(200, {
-    'content-type': types[extname(file)] || 'application/octet-stream',
-    'cache-control': 'no-store, no-cache, must-revalidate',
-    pragma: 'no-cache',
-    expires: '0',
+    'content-type': STATIC_TYPES[extname(file).toLowerCase()] || 'application/octet-stream',
+    'content-length': st.size,
+    ...(hashed
+      ? { 'cache-control': 'public, max-age=31536000, immutable' }
+      : { 'cache-control': 'no-store, no-cache, must-revalidate', pragma: 'no-cache', expires: '0' }),
   });
+  if (req.method === 'HEAD') { res.end(); return true; }
   createReadStream(file).pipe(res);
   return true;
 }
@@ -8325,7 +8661,7 @@ async function handler(req, res, rootProjectDir) {
       // Prompts stay server-side: the UI only needs ids, labels and icons.
       return json(res, {
         roles: (botRoles.BOT_ROLES || []).map((r) => ({ id: r.id, icon: r.icon, title: r.title, desc: r.desc, custom: !r.prompt })),
-        styleGroups: (botRoles.BOT_STYLE_GROUPS || []).map((g) => ({ id: g.id, title: g.title, items: g.items.map((i) => ({ id: i.id, label: i.label })) })),
+        styleGroups: (botRoles.BOT_STYLE_GROUPS || []).map((g) => ({ id: g.id, title: g.title, multi: !!g.multi, max: Number(g.max) || 0, items: g.items.map((i) => ({ id: i.id, label: i.label, line: i.line })) })),
         reactions: botRoles.ACK_REACTION_PRESETS || [],
         defaultReaction: DEFAULT_ACK_REACTION,
       });
@@ -8334,7 +8670,14 @@ async function handler(req, res, rootProjectDir) {
       const body = await readJson(req);
       const projectDir = await resolveProjectDir(rootProjectDir, body);
       const result = await addBotKnowledge(projectDir, String(body.agentId || ''), { files: body.files || [], links: body.links || [] });
-      sendLog(`[bot] knowledge added for ${body.agentId}: ${result.added.map((a) => a.path).join(', ') || 'nothing'}`);
+      sendLog(`[bot] knowledge added for ${body.agentId}: ${result.added.map((a) => a.path).join(', ') || 'nothing'}${result.warnings.length ? ` (bỏ qua: ${result.warnings.join('; ')})` : ''}`);
+      return json(res, result);
+    }
+    if (url.pathname === '/api/bot/knowledge' && req.method === 'DELETE') {
+      const body = await readJson(req);
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
+      const result = await removeBotKnowledge(projectDir, String(body.agentId || ''), String(body.path || ''));
+      sendLog(`[bot] knowledge removed for ${body.agentId}: ${result.removed}`);
       return json(res, result);
     }
     if (url.pathname === '/api/bot/status' && req.method === 'GET') {
@@ -8552,7 +8895,7 @@ async function handler(req, res, rootProjectDir) {
       const projectDir = await resolveProjectDir(rootProjectDir, body);
       const result = await updateBotInProject(projectDir, agentId, body, { mode: state.mode, os: state.os });
       await saveState(rootProjectDir);
-      await recreateDockerBot(projectDir).catch((err) => sendLog(`[docker] recreate skipped/failed: ${err.message}`));
+      await recreateDockerBot(projectDir, { hot: !result.restartNeeded, reason: result.restartReason }).catch((err) => sendLog(`[docker] recreate skipped/failed: ${err.message}`));
       return json(res, result);
     }
     if (url.pathname === '/api/zalo/login' && req.method === 'POST') {
@@ -8595,6 +8938,18 @@ async function handler(req, res, rootProjectDir) {
     if (url.pathname === '/api/fb/health' && req.method === 'GET') {
       const projectDir = await resolveProjectDir(rootProjectDir, Object.fromEntries(url.searchParams));
       return json(res, await getFbHealth(projectDir));
+    }
+    // Bat/tat tra loi binh luan, nhan rieng, so gio bot im khi nguoi tiep (luu o Connect, theo Trang).
+    if (url.pathname === '/api/fb/settings' && req.method === 'POST') {
+      const body = await readJson(req).catch(() => ({}));
+      const projectDir = await resolveProjectDir(rootProjectDir, body);
+      const pageId = String(body.pageId || '');
+      if (!/^\d{3,32}$/.test(pageId)) throw httpError(400, 'Invalid page id');
+      const patch = {};
+      for (const k of ['commentReply', 'privateReply', 'handoverHours']) if (body[k] !== undefined) patch[k] = body[k];
+      const data = await connectFetch(projectDir, 'PATCH', `/api/pages/${encodeURIComponent(pageId)}/settings`, patch);
+      fbHealthCache.delete(projectDir);
+      return json(res, { ok: true, settings: data.settings || null });
     }
     if (url.pathname === '/api/fb/disconnect' && req.method === 'POST') {
       const body = await readJson(req).catch(() => ({}));
@@ -8983,4 +9338,4 @@ export async function startLocalInstaller({ host = '127.0.0.1', preferredPort = 
   ]).catch(() => {});
 }
 
-export { listConfiguredBots, parseBotPersona, addBotKnowledge, startFbConnect, getFbConnectSession, getFbHealth, ensureConnectBot, readRelayCredential, syncOwnerAllowFrom, repointWorkspaceDocPaths, workspaceDocPaths, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
+export { listConfiguredBots, parseBotPersona, addBotKnowledge, brokenPluginFromError, withPluginOpsLock, telegramReactionEmoji, applyRoleToolProfile, listBotKnowledge, removeBotKnowledge, normalizeKnowledgeLink, htmlToText, startFbConnect, getFbConnectSession, getFbHealth, ensureConnectBot, readRelayCredential, syncOwnerAllowFrom, repointWorkspaceDocPaths, workspaceDocPaths, nativePluginPresent, repointStatePaths, parse9RouterAuthProfiles, addBotMount, addNativeMount, renderNativeGrantedMountsBlock, applyGrantedMountsBlock, agentWorkspaceDirs, patchBrowserAutomationHostPreference, debugChromeProfileDir, defaultChromeProfileDir, createBotInProject, updateBotInProject, deleteBotInProject, validateOpenclawConfig, startZaloLogin, readBotCredentials, resolveProject9RouterApiKey, installCore, deleteProjectFolder, buildZaloHealthSnapshot, removeEmptyWorkspaceAttestations, openPrivacyPane, projectDeployMode, isNativeProject, nativeServiceLabel, nativeEnv, ocArgv, migrateNativePaths, discoverNativeProjectRoots, detectOs, stripCliWarnings, migrationLeaseDeadline, ensureNativePlugins, findFreeHostPort, syncNativeServiceEnv, adoptStrayNativeHome, runNativeConfigMigrations, detectExistingSetupUi, nodeVersionSupported, migrateDockerProjectToNative, dedupeProjectsByRealState, hardenNativeServiceRestarts, clearNativeServiceFailure, describePortHolder, reportNativeGatewayBlockage };
