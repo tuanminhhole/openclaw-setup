@@ -1545,6 +1545,67 @@ async function writeBotMeta(projectDir, workspaceDir, meta) {
   } catch { /* non-fatal */ }
 }
 
+// File bot tự viết trong lúc chạy. Trước 23/10/2026 nút Sửa bot ghi đè mọi file workspace, nên
+// một lần sửa tên hay tính cách là bot quên sạch những gì đã học về chủ (cách xưng hô, công ty,
+// ký ức dài hạn), chỉ còn lại bản mẫu trống.
+const BOT_OWNED_WORKSPACE_FILES = new Set(['MEMORY.md', 'DREAMS.md']);
+const USER_INFO_HEADINGS = ['Thông tin cá nhân', 'Notes'];
+const USER_PERSONALIZATION_HEADINGS = ['Cá nhân hoá', 'Personalization'];
+const USER_CONTEXT_HEADINGS = ['Bối cảnh', 'Context'];
+
+// [start, end) theo dòng của mục "## <heading>": từ dòng tiêu đề tới trước tiêu đề "## " kế tiếp.
+function markdownSectionRange(lines, headings) {
+  const start = lines.findIndex((l) => headings.some((h) => l.trim() === `## ${h}`));
+  if (start < 0) return null;
+  let end = lines.findIndex((l, i) => i > start && /^## /.test(l));
+  if (end < 0) end = lines.length;
+  return [start, end];
+}
+
+/**
+ * USER.md khi sửa bot: giữ mọi thứ bot đã ghi, chỉ thay mục thông tin cá nhân lấy từ form Setup
+ * (khi form có điền), và chèn mục Cá nhân hoá + Dự án từ bản mẫu nếu file cũ chưa có (bot tạo
+ * trước khi có tính năng làm quen với chủ).
+ */
+function mergeUserDoc(existing, fresh, { replaceUserInfo = false } = {}) {
+  const out = existing.split('\n');
+  const freshLines = fresh.split('\n');
+  if (replaceUserInfo) {
+    const a = markdownSectionRange(out, USER_INFO_HEADINGS);
+    const b = markdownSectionRange(freshLines, USER_INFO_HEADINGS);
+    if (a && b) out.splice(a[0], a[1] - a[0], ...freshLines.slice(b[0], b[1]));
+  }
+  if (!markdownSectionRange(out, USER_PERSONALIZATION_HEADINGS)) {
+    const p = markdownSectionRange(freshLines, USER_PERSONALIZATION_HEADINGS);
+    const ctx = markdownSectionRange(freshLines, USER_CONTEXT_HEADINGS);
+    if (p) {
+      // Lấy cả các mục đi sau Cá nhân hoá (Dự án, công ty...) cho tới trước mục Bối cảnh.
+      const block = freshLines.slice(p[0], ctx && ctx[0] > p[0] ? ctx[0] : p[1]);
+      const at = markdownSectionRange(out, USER_CONTEXT_HEADINGS);
+      if (at) out.splice(at[0], 0, ...block);
+      else out.push('', ...block);
+    }
+  }
+  return out.join('\n');
+}
+
+async function writeWorkspaceFiles(wsRoot, files, { userInfo = '' } = {}) {
+  const existed = existsSync(join(wsRoot, 'AGENTS.md'));
+  for (const [name, content] of Object.entries(files)) {
+    const target = join(wsRoot, name);
+    const present = existsSync(target);
+    if (present && BOT_OWNED_WORKSPACE_FILES.has(name)) continue;
+    // Bot xoá BOOTSTRAP.md sau lần chạy đầu; sinh lại là bắt nó khởi động lại từ đầu.
+    if (name === 'BOOTSTRAP.md' && existed && !present) continue;
+    let body = content || '';
+    if (name === 'USER.md' && present) {
+      body = mergeUserDoc(await fsp.readFile(target, 'utf8'), body, { replaceUserInfo: !!String(userInfo).trim() });
+    }
+    await fsp.mkdir(dirname(target), { recursive: true });
+    await fsp.writeFile(target, body, 'utf8');
+  }
+}
+
 async function readBotMeta(projectDir, agent, cfg) {
   try {
     const rel = workspaceRelForAgent(agent, cfg, projectDir);
@@ -2490,10 +2551,7 @@ async function createBotInProject(projectDir, body = {}, runtime = {}) {
     userTimezone,
   });
   const wsRoot = join(openclawHome, workspaceDir);
-  for (const [name, content] of Object.entries(files)) {
-    await fsp.mkdir(dirname(join(wsRoot, name)), { recursive: true });
-    await fsp.writeFile(join(wsRoot, name), content || '', 'utf8');
-  }
+  await writeWorkspaceFiles(wsRoot, files, { userInfo });
   const botMeta = { persona, userName, userDescription: userDesc, emoji, role: botDesc };
   // appId is only meaningful for Facebook Messenger (the plugin needs it to exchange
   // the token); don't pollute other channels' bot-meta.json with an empty appId.
@@ -2647,10 +2705,7 @@ async function updateBotInProject(projectDir, agentId, body = {}, runtime = {}) 
     userTimezone: cfg.agents?.defaults?.userTimezone || 'Asia/Ho_Chi_Minh',
   });
   const wsRoot = join(projectDir, '.openclaw', workspaceDir);
-  for (const [name, content] of Object.entries(files)) {
-    await fsp.mkdir(dirname(join(wsRoot, name)), { recursive: true });
-    await fsp.writeFile(join(wsRoot, name), content || '', 'utf8');
-  }
+  await writeWorkspaceFiles(wsRoot, files, { userInfo });
   const botMeta = { persona, userName, userDescription: userDesc, emoji, role: botDesc };
   if (channel === 'fb-messenger') botMeta.appId = String(body.appId || '').trim();
   await writeBotMeta(projectDir, workspaceDir, botMeta);
